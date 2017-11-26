@@ -164,6 +164,7 @@
     <ClCompile Include="Source\workout_render_stack.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\stb_sprintf.h" />
     <ClInclude Include="Source\workout_asset.h" />
     <ClInclude Include="Source\workout_debug.h" />
     <ClInclude Include="Source\workout_game_layer.h" />

@@ -39,7 +39,7 @@ struct rgba_buffer {
 
 extern data_buffer ReadFileToDataBuffer(char* FileName);
 extern void FreeDataBuffer(data_buffer* DataBuffer);
-extern rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height);
+extern rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
 extern void DeallocateRGBABuffer(rgba_buffer* Buffer);
 
 enum button_type{

@@ -28,7 +28,11 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 	}
 }
 
-rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height) {
+#ifndef GET_ALIGN_OFFSET
+#define GET_ALIGN_OFFSET(val, align) (((align) - ((size_t)val & ((align) - 1))) & (Align - 1))
+#endif
+
+rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
 	rgba_buffer Result = {};
 
 	Result.Width = Width;
@@ -39,10 +43,11 @@ rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height) {
 	Result.Align.y = 0.0f;
 
 	u32 MemoryForBufRequired = Width * Height * 4;
-	u32 AlignedMemoryBufSize = MemoryForBufRequired;
+	u32 AlignedMemoryBufSize = MemoryForBufRequired + Align;
 	Result.Pixels = (u8*)calloc(AlignedMemoryBufSize, 1);
 
-	//Result.Pixels += ((void*)Result.Pixels & 15)
+	u32 AlignOffset = GET_ALIGN_OFFSET(Result.Pixels, Align);
+	Result.Pixels += AlignOffset;
 
 	return(Result);
 }
