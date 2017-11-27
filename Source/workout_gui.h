@@ -8,6 +8,7 @@
 struct gui_state {
 	font_info* FontInfo;
 	render_stack* RenderStack;
+	render_stack* TempRenderStack;
 
 	float FontScale;
 
@@ -19,6 +20,10 @@ extern void InitGUIState(gui_state* GUIState, font_info* FontInfo);
 extern void BeginFrameGUI(gui_state* GUIState, render_stack* RenderStack);
 extern void EndFrameGUI(gui_state* GUIState);
 
+extern void BeginTempGUIRenderStack(gui_state* GUIState, render_stack* Stack);
+extern void EndTempGUIRenderStack(gui_state* GUIState);
+
 extern void PrintText(gui_state* GUIState, char* Text);
+extern void HighlightedText(gui_state* GUIState, char* Text);
 
 #endif

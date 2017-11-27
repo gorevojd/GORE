@@ -1,5 +1,7 @@
 #include "workout_renderer.h"
 
+#define WORKOUT_FAST_RENDERING 1
+
 #define MM(mm, i) (mm).m128_f32[i]
 #define MMI(mm, i) (mm).m128i_u32[i]
 
@@ -11,6 +13,7 @@ static void RenderClear(rgba_buffer* Buffer, v3 Color) {
 	v4 ResColor = V4(Color.x, Color.y, Color.z, 1.0f);
 	u32 OutColor = PackRGBA(ResColor);
 
+	BEGIN_TIMED_BLOCK(ClearPixelFill);
 	for (u32 DestY = 0; DestY < Buffer->Height; DestY++) {
 		for (u32 DestX = 0; DestX < Buffer->Width; DestX++) {
 			u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
@@ -18,6 +21,7 @@ static void RenderClear(rgba_buffer* Buffer, v3 Color) {
 			*OutDest = OutColor;
 		}
 	}
+	END_TIMED_BLOCK(ClearPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderClearFast(rgba_buffer* Buffer, v3 Color) {
@@ -42,6 +46,7 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color) {
 		_mm_or_si128(mmOutColorSh_r, mmOutColorSh_g),
 		_mm_or_si128(mmOutColorSh_b, mmOutColorSh_a));
 
+	BEGIN_TIMED_BLOCK(ClearPixelFill);
 	for (u32 DestY = 0; DestY < Buffer->Height; DestY++) {
 		for (u32 DestX = 0; DestX < Buffer->Width; DestX += 4) {
 			u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
@@ -49,6 +54,7 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color) {
 			_mm_storeu_si128((__m128i*)OutDest, mmOutColor);
 		}
 	}
+	END_TIMED_BLOCK(ClearPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderGradient(rgba_buffer* Buffer, v3 Color) {
@@ -58,14 +64,15 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color) {
 	float OneOverWidth = 1.0f / (float)Buffer->Width;
 	float OneOverHeight = 1.0f / (float)Buffer->Height;
 
+	BEGIN_TIMED_BLOCK(GradientPixelFill);
 	for (int VertIndex = 0; VertIndex < Buffer->Height; VertIndex++) {
 
 		DeltaV = (float)VertIndex * OneOverHeight;
 
+		u32* Pixel = (u32*)(Buffer->Pixels + VertIndex * Buffer->Pitch);
 		for (int HorzIndex = 0; HorzIndex < Buffer->Width; HorzIndex++) {
 			DeltaU = (float)HorzIndex * OneOverWidth;
 
-			u32* Pixel = (u32*)(Buffer->Pixels + VertIndex * Buffer->Width * 4);
 
 			v4 OutColor;
 			OutColor.x = DeltaU * Color.x;
@@ -76,8 +83,10 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color) {
 			u32 ColorByteRep = PackRGBA(OutColor);
 
 			*Pixel++ = ColorByteRep;
+			//*Pixel++ = 0xFF0000FF;
 		}
 	}
+	END_TIMED_BLOCK(GradientPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderGradientFast(rgba_buffer* Buffer, v3 Color) {
@@ -97,6 +106,7 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color) {
 	__m128 mmOneOverWidth = _mm_set1_ps(OneOverWidth);
 	__m128 mmOneOverHeight = _mm_set1_ps(OneOverHeight);
 
+	BEGIN_TIMED_BLOCK(GradientPixelFill);
 	for (int VertIndex = 0; VertIndex < Buffer->Height; VertIndex++) {
 
 		DeltaV = (float)VertIndex * OneOverHeight;
@@ -125,6 +135,7 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color) {
 			_mm_storeu_si128((__m128i*)Pixel, mmOutColor);
 		}
 	}
+	END_TIMED_BLOCK(GradientPixelFill, Buffer->Width * Buffer->Height);
 }
 
 
@@ -178,22 +189,11 @@ static void RenderBitmapFast(
 	int MinY = InitY;
 	int MaxY = MinY + TargetHeight;
 
-	if (MinX < 0) {
-		MinX = 0;
-	}
+	MinX = Clamp(MinX, 0, Buffer->Width);
+	MaxX = Clamp(MaxX, 0, Buffer->Width);
+	MinY = Clamp(MinY, 0, Buffer->Height);
+	MaxY = Clamp(MaxY, 0, Buffer->Height);
 
-	if (MaxX > Buffer->Width) {
-		MaxX = Buffer->Width;
-	}
-
-	if (MinY < 0) {
-		MinY = 0;
-	}
-
-	if (MaxY > Buffer->Height) {
-		MaxY = Buffer->Height;
-	}
-	
 	__m128 mmModulationColor_r = _mm_set1_ps(ModulationColor01.r);
 	__m128 mmModulationColor_g = _mm_set1_ps(ModulationColor01.g);
 	__m128 mmModulationColor_b = _mm_set1_ps(ModulationColor01.b);
@@ -207,6 +207,8 @@ static void RenderBitmapFast(
 	mmModulationColor_g = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_g));
 	mmModulationColor_b = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_b));
 	mmModulationColor_a = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_a));
+
+	BEGIN_TIMED_BLOCK(BitmapPixelFill);
 
 	for (int DestY = MinY; DestY < MaxY; DestY++) {
 
@@ -350,6 +352,9 @@ static void RenderBitmapFast(
 			_mm_storeu_si128((__m128i*)OutDest, mmResult);
 		}
 	}
+
+	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
+	END_TIMED_BLOCK(BitmapPixelFill, PixelFillCount);
 }
 
 static void RenderBitmap(
@@ -383,21 +388,10 @@ static void RenderBitmap(
 	int MinY = InitY;
 	int MaxY = MinY + TargetHeight;
 
-	if (MinX < 0) {
-		MinX = 0;
-	}
-
-	if (MaxX > Buffer->Width) {
-		MaxX = Buffer->Width;
-	}
-
-	if (MinY < 0) {
-		MinY = 0;
-	}
-
-	if (MaxY > Buffer->Height) {
-		MaxY = Buffer->Height;
-	}
+	MinX = Clamp(MinX, 0, Buffer->Width);
+	MaxX = Clamp(MaxX, 0, Buffer->Width);
+	MinY = Clamp(MinY, 0, Buffer->Height);
+	MaxY = Clamp(MaxY, 0, Buffer->Height);
 
 	float SourceWidth = Bitmap->Width;
 	float SourceHeight = Bitmap->Height;
@@ -407,6 +401,8 @@ static void RenderBitmap(
 
 	float OneOverWidth = 1.0f / (float)TargetWidth;
 	float OneOverHeight = 1.0f / (float)TargetHeight;
+
+	BEGIN_TIMED_BLOCK(BitmapPixelFill);
 
 	for (int DestY = MinY; DestY < MaxY; DestY++) {
 
@@ -477,9 +473,65 @@ static void RenderBitmap(
 			AlphaBlendColor.r = (1.0f - BlendAlpha) * PreDestColor.r + BlendedColor.r;
 			AlphaBlendColor.g = (1.0f - BlendAlpha) * PreDestColor.g + BlendedColor.g;
 			AlphaBlendColor.b = (1.0f - BlendAlpha) * PreDestColor.b + BlendedColor.b;
-			AlphaBlendColor.a = 1.0f;
+			AlphaBlendColor.a = PreDestColor.a + BlendedColor.a - PreDestColor.a * BlendedColor.a;
 
 			u32 DestPackedColor = PackRGBA(AlphaBlendColor);
+			*OutDest = DestPackedColor;
+		}
+	}
+
+	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
+	END_TIMED_BLOCK(BitmapPixelFill, PixelFillCount);
+}
+
+static void RenderRect(
+	rgba_buffer* Buffer,
+	v2 P,
+	v2 Dim,
+	v4 ModulationColor01)
+{
+	int InitX = P.x;
+	int InitY = P.y;
+
+	int MinX = InitX;
+	int MaxX = MinX + Dim.x;
+
+	int MinY = InitY;
+	int MaxY = MinY + Dim.y;
+
+	MinX = Clamp(MinX, 0, Buffer->Width);
+	MaxX = Clamp(MaxX, 0, Buffer->Width);
+	MinY = Clamp(MinY, 0, Buffer->Height);
+	MaxY = Clamp(MaxY, 0, Buffer->Height);
+
+	/*Clamping incoming color*/
+	ModulationColor01.r = Clamp01(ModulationColor01.r);
+	ModulationColor01.g = Clamp01(ModulationColor01.g);
+	ModulationColor01.b = Clamp01(ModulationColor01.b);
+	ModulationColor01.a = Clamp01(ModulationColor01.a);
+
+	/*Premultiplying incoming color with it alpha*/
+	ModulationColor01.r *= ModulationColor01.a;
+	ModulationColor01.g *= ModulationColor01.a;
+	ModulationColor01.b *= ModulationColor01.a;
+
+	for (int DestY = MinY; DestY < MaxY; DestY++) {
+		for (int DestX = MinX; DestX < MaxX; DestX++) {
+			u32* OutDest = (u32*)(Buffer->Pixels + DestY * Buffer->Pitch + DestX * 4);
+
+			v4 ResultColor = ModulationColor01;
+			v4 PreDestColor = UnpackRGBA(*OutDest);
+
+			float BlendAlpha = ModulationColor01.a;
+
+			v4 AlphaBlendColor;
+			AlphaBlendColor.r = (1.0f - BlendAlpha) * PreDestColor.r + ResultColor.r;
+			AlphaBlendColor.g = (1.0f - BlendAlpha) * PreDestColor.g + ResultColor.g;
+			AlphaBlendColor.b = (1.0f - BlendAlpha) * PreDestColor.b + ResultColor.b;
+			AlphaBlendColor.a = PreDestColor.a + ResultColor.a - PreDestColor.a * ResultColor.a;
+
+			u32 DestPackedColor = PackRGBA(AlphaBlendColor);
+
 			*OutDest = DestPackedColor;
 		}
 	}
@@ -499,7 +551,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer) {
 			case(RenderStackEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
-#if 0
+#if !WORKOUT_FAST_RENDERING
 				RenderBitmap(
 					Buffer, 
 					EntryBitmap->Bitmap, 
@@ -519,7 +571,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer) {
 			case(RenderStackEntry_Clear): {
 				render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
 
-#if 0
+#if !WORKOUT_FAST_RENDERING
 				RenderClear(Buffer, EntryClear->Color);
 #else
 				RenderClearFast(Buffer, EntryClear->Color);
@@ -529,11 +581,17 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer) {
 			case(RenderStackEntry_Gradient): {
 				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
 
-#if 0
+#if !WORKOUT_FAST_RENDERING
 				RenderGradient(Buffer, EntryGrad->Color);
 #else
 				RenderGradientFast(Buffer, EntryGrad->Color);
 #endif
+			}break;
+
+			case(RenderStackEntry_Rectangle): {
+				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
+
+				RenderRect(Buffer, EntryRect->P, EntryRect->Dim, EntryRect->ModulationColor);
 			}break;
 
 			default: {

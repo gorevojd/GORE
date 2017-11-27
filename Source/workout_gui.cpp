@@ -8,6 +8,15 @@ void InitGUIState(gui_state* GUIState, font_info* FontInfo) {
 	GUIState->FontInfo = FontInfo;
 }
 
+void BeginTempGUIRenderStack(gui_state* GUIState, render_stack* Stack) {
+	GUIState->TempRenderStack = GUIState->RenderStack;
+	GUIState->RenderStack = Stack;
+}
+
+void EndTempGUIRenderStack(gui_state* GUIState) {
+	GUIState->RenderStack = GUIState->TempRenderStack;
+}
+
 void BeginFrameGUI(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
 
@@ -18,7 +27,15 @@ void EndFrameGUI(gui_state* GUIState) {
 
 }
 
-static void PrintTextInternal(gui_state* State, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+enum print_text_type {
+	PrintTextType_PrintText,
+	PrintTextType_GetTextSize,
+};
+
+static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+
+	rect2 TextRect = {};
+
 	float CurrentX = Px;
 	float CurrentY = Py;
 
@@ -31,16 +48,18 @@ static void PrintTextInternal(gui_state* State, char* Text, float Px, float Py, 
 		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
 		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
 
-		float BitmapMinX;
-		float BitmapMinY;
-
-		BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
-		BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
-
 		float BitmapScale = Glyph->Height * Scale;
 
-		PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-		PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale);
+		if (Type == PrintTextType_PrintText) {
+			float BitmapMinX;
+			float BitmapMinY;
+			
+			BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
+			BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
+
+			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale);
+		}
 
 		float Kerning = 0.0f;
 		if (*(At + 1)) {
@@ -51,10 +70,27 @@ static void PrintTextInternal(gui_state* State, char* Text, float Px, float Py, 
 
 		++At;
 	}
+
+	TextRect.Min.x = Px;
+	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
+	TextRect.Max.x = CurrentX;
+	TextRect.Max.y = Py - FontInfo->DescenderHeight * Scale;
+
+	return(TextRect);
 }
 
 void PrintText(gui_state* GUIState, char* Text) {
-	PrintTextInternal(GUIState, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
+
+	GUIState->CurrentY += GetNextRowAdvance(GUIState->FontInfo);
+}
+
+void HighlightedText(gui_state* GUIState, char* Text) {
+	rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
+	v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
+	PushRectOutline(GUIState->RenderStack, Rc.Min, Dim);
+	PushRect(GUIState->RenderStack, Rc.Min, Dim, V4(1.0f, 0.4f, 0.0f, 1.0f));
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
 
 	GUIState->CurrentY += GetNextRowAdvance(GUIState->FontInfo);
 }

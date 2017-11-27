@@ -3,10 +3,10 @@
 
 #include "workout_game_layer.h"
 
+#include "workout_debug.h"
 #include "workout_render_stack.h"
 #include "workout_renderer.h"
 #include "workout_asset.h"
-#include "workout_debug.h"
 #include "workout_gui.h"
 
 /*
@@ -19,8 +19,8 @@
 		Renderer:
 			Implement bitmap alignment
 			Optimize renderer with multithreading;
-			Fix buffer overlapping with optimized renderer
-			Make rectangle rendering
+			Fix buffer overlapping in optimized renderer
+			Optimize rectangle rendering
 
 		Assets:
 			Build font atlas
@@ -37,9 +37,12 @@
 			Mouse input handling
 			alt-f4 close handling
 			Thread pool
+
+		GUI:
+			Labels
+			Lists
+			Sliders
 */
-
-
 
 GLOBAL_VARIABLE b32 GlobalRunning;
 GLOBAL_VARIABLE rgba_buffer GlobalBuffer;
@@ -47,6 +50,9 @@ GLOBAL_VARIABLE input_system GlobalInput;
 
 GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
+
+debug_state GlobalDebugState_;
+debug_state* GlobalDebugState = &GlobalDebugState_;
 
 static u64 SDLGetClocks() {
 	u64 Result = SDL_GetPerformanceCounter();
@@ -179,6 +185,7 @@ int main(int ArgsCount, char** Args) {
 	//font_info FontInfo = LoadFontInfoWithSTB("Data/Fonts/arial.ttf", 20);
 
 	InitGUIState(GUIState, &FontInfo);
+	InitDEBUG(GlobalDebugState, &FontInfo);
 
 	float LastMSPerFrame = 0.0f;
 
@@ -192,6 +199,7 @@ int main(int ArgsCount, char** Args) {
 			GlobalRunning = false;
 			break;
 		}
+		BeginDEBUG(GlobalDebugState);
 		
 		render_stack Stack_ = BeginRenderStack();
 		render_stack* Stack = &Stack_;
@@ -200,23 +208,40 @@ int main(int ArgsCount, char** Args) {
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
 		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
 
+		float AlphaImageX1 = sin(GlobalTime * 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
+		float AlphaImageX2 = cos(GlobalTime) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
+		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
+
 		PushGradient(Stack, V3(GradR, GradG, GradB));
-		//PushClear(Stack, V3(1.0f, 1.0f, 1.0f));
+		//PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
+
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
+		PushBitmap(Stack, &AlphaImage, V2(300, 300), 300.0f);
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+
+		PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
 		BeginFrameGUI(GUIState, Stack);
 		char DebugStr[128];
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
+#if 1
 		PrintText(GUIState, DebugStr);
 		PrintText(GUIState, "Hello my friend");
 		PrintText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
 		PrintText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
-		EndFrameGUI(GUIState);
 
+		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
+#endif 
+		
 		SoftwareRenderStackToOutput(Stack, &GlobalBuffer);
 
+		EndFrameGUI(GUIState);
 		EndRenderStack(Stack);
+
+		OverlayCycleCounters(GlobalDebugState, GUIState);
+		SoftwareRenderStackToOutput(&GlobalDebugState->GUIRenderStack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);
@@ -236,6 +261,9 @@ int main(int ArgsCount, char** Args) {
 
 		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
 		LastMSPerFrame = SPerFrame * 1000.0f;
+
+		ClearDebugCounters(GlobalDebugState);
+		EndDEBUG(GlobalDebugState);
 
 		GlobalTime += SPerFrame;
 	}

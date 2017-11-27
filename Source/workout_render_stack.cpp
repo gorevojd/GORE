@@ -54,6 +54,23 @@ void PushBitmap(render_stack* Stack, rgba_buffer* Bitmap, v2 P, float Height, v4
 	Entry->Bitmap = Bitmap;
 }
 
+void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor) {
+	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
+	render_stack_entry_rectangle* Entry = (render_stack_entry_rectangle*)EntryData;
+
+	Entry->P = P;
+	Entry->Dim = Dim;
+	Entry->ModulationColor = ModulationColor;
+}
+
+void PushRectOutline(render_stack* Stack, v2 P, v2 Dim, int PixelWidth, v4 Color) {
+	v2 WidthQuad = V2(PixelWidth, PixelWidth);
+	PushRect(Stack, V2(P.x - PixelWidth, P.y - PixelWidth), V2(Dim.x + 2.0f * PixelWidth, PixelWidth), Color);
+	PushRect(Stack, V2(P.x - PixelWidth, P.y), V2(PixelWidth, Dim.y + PixelWidth), Color);
+	PushRect(Stack, V2(P.x, P.y + Dim.y), V2(Dim.x + PixelWidth, PixelWidth), Color);
+	PushRect(Stack, V2(P.x + Dim.x, P.y), V2(PixelWidth, Dim.y), Color);
+}
+
 void PushClear(render_stack* Stack, v3 Clear){
 	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderStackEntry_Clear);
 	render_stack_entry_clear* Entry = (render_stack_entry_clear*)EntryData;

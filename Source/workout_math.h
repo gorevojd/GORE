@@ -29,6 +29,11 @@ struct v4 {
 	};
 };
 
+struct rect2 {
+	v2 Min;
+	v2 Max;
+};
+
 inline v2 V2(float x, float y) {
 	v2 Result;
 
@@ -36,6 +41,38 @@ inline v2 V2(float x, float y) {
 	Result.y = y;
 
 	return(Result);
+}
+
+inline v2 operator+(v2 A, v2 B) {
+	v2 Result;
+
+	Result.x = A.x + B.x;
+	Result.y = A.y + B.y;
+
+	return(Result);
+}
+
+inline v2 operator-(v2 A, v2 B) {
+	v2 Result;
+
+	Result.x = A.x - B.x;
+	Result.y = A.y - B.y;
+
+	return(Result);
+}
+
+inline v2 operator*(v2 A, float s) {
+	A.x *= s;
+	A.y *= s;
+
+	return(A);
+}
+
+inline v2 operator*(float s, v2 A) {
+	A.x *= s;
+	A.y *= s;
+
+	return(A);
 }
 
 inline v3 V3(float x, float y, float z) {
@@ -66,6 +103,30 @@ inline float Clamp01(float Val) {
 
 	if (Val > 1.0f) {
 		Val = 1.0f;
+	}
+
+	return(Val);
+}
+
+inline float Clamp(float Val, float Min, float Max) {
+	if (Val < Min) {
+		Val = Min;
+	}
+
+	if (Val > Max) {
+		Val = Max;
+	}
+
+	return(Val);
+}
+
+inline int Clamp(int Val, int Min, int Max) {
+	if (Val < Min) {
+		Val = Min;
+	}
+
+	if (Val > Max) {
+		Val = Max;
 	}
 
 	return(Val);
