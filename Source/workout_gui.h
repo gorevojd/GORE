@@ -25,5 +25,6 @@ extern void EndTempGUIRenderStack(gui_state* GUIState);
 
 extern void PrintText(gui_state* GUIState, char* Text);
 extern void HighlightedText(gui_state* GUIState, char* Text);
+extern void PrintLabel(gui_state* GUIState, char* LabelText, v2 At);
 
 #endif

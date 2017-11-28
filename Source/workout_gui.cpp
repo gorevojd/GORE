@@ -85,6 +85,10 @@ void PrintText(gui_state* GUIState, char* Text) {
 	GUIState->CurrentY += GetNextRowAdvance(GUIState->FontInfo);
 }
 
+void PrintLabel(gui_state* GUIState, char* LabelText, v2 At) {
+	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, GUIState->FontScale);
+}
+
 void HighlightedText(gui_state* GUIState, char* Text) {
 	rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
 	v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);

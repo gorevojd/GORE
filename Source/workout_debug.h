@@ -8,6 +8,7 @@ enum debug_counter_type {
 	DebugCounterType_BitmapPixelFill,
 	DebugCounterType_GradientPixelFill,
 	DebugCounterType_ClearPixelFill,
+	DebugCounterType_EventProcessing,
 
 	DebugCounterType_Count,
 };

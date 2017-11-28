@@ -57,7 +57,30 @@ enum button_type{
 	InputButtonType_LShift,
 	InputButtonType_Esc,
 
+	InputButtonType_F1,
+	InputButtonType_F2,
+	InputButtonType_F3,
+	InputButtonType_F4,
+	InputButtonType_F5,
+	InputButtonType_F6,
+	InputButtonType_F7,
+	InputButtonType_F8,
+	InputButtonType_F9,
+	InputButtonType_F10,
+	InputButtonType_F11,
+	InputButtonType_F12,
+
 	InputButtonType_Count,
+};
+
+enum mouse_button_type {
+	MouseButtonType_Left,
+	MouseButtonType_Right,
+	MouseButtonType_Middle,
+	MouseButtonType_Extended1,
+	MouseButtonType_Extended2,
+
+	MouseButtonType_Count,
 };
 
 typedef struct  button_state{
@@ -65,8 +88,23 @@ typedef struct  button_state{
 	b32 WasDown;
 }button_state;
 
+typedef struct mouse_button_state {
+	b32 IsDown;
+	b32 WasDown;
+
+	b32 IsDoubleClick;
+} mouse_button_state;
+
 typedef struct input_system {
 	button_state Buttons[InputButtonType_Count];
+
+	mouse_button_state MouseButtons[MouseButtonType_Count];
+
+	int MouseX;
+	int MouseY;
+
+	int GlobalMouseX;
+	int GlobalMouseY;
 }input_system;
 
 #endif

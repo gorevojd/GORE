@@ -19,6 +19,7 @@ void InitDebugCounters(debug_state* State) {
 	DEBUG_INIT_COUNTER(BitmapPixelFill);
 	DEBUG_INIT_COUNTER(GradientPixelFill);
 	DEBUG_INIT_COUNTER(ClearPixelFill);
+	DEBUG_INIT_COUNTER(EventProcessing);
 }
 
 void ClearDebugCounters(debug_state* DebugState) {
@@ -47,7 +48,6 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 		debug_counter* Counter = &DebugState->Counters[CounterIndex];
 
 		char Buffer[256];
-
 		
 		float CyclesPerHit = 0;
 		if (Counter->Hits) {
