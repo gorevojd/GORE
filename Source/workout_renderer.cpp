@@ -326,8 +326,6 @@ static void RenderBitmapFast(
 			__m128 mmPreDestColor_b = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 8);
 			__m128 mmPreDestColor_a = MM_UNPACK_COLOR_CHANNEL0(mmPreDestColor);
 
-			//float BlendAlpha = PreDestColor.a + BlendedColor.a - PreDestColor.a * BlendedColor.a;
-			//__m128 mmBlendAlpha = _mm_sub_ps(_mm_add_ps(), _mm_mul_ps());
 			__m128 mmBlendAlpha = mmBlended_a;
 
 			/*Final alpha blend*/
@@ -335,7 +333,8 @@ static void RenderBitmapFast(
 			__m128 mmColor_r = _mm_add_ps(_mm_mul_ps(mmPreDestColor_r, mmOneMinusBlendAlpha), mmBlended_r);
 			__m128 mmColor_g = _mm_add_ps(_mm_mul_ps(mmPreDestColor_g, mmOneMinusBlendAlpha), mmBlended_g);
 			__m128 mmColor_b = _mm_add_ps(_mm_mul_ps(mmPreDestColor_b, mmOneMinusBlendAlpha), mmBlended_b);
-			__m128 mmColor_a = mmOne;
+			//__m128 mmColor_a = mmOne;
+			__m128 mmColor_a = _mm_sub_ps(_mm_add_ps(mmPreDestColor_a, mmBlended_a), _mm_mul_ps(mmPreDestColor_a, mmBlended_a));
 
 			__m128i mmColorShifted_r = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmColor_r, mm255)), 24);
 			__m128i mmColorShifted_g = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmColor_g, mm255)), 16);

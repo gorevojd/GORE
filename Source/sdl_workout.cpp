@@ -208,8 +208,8 @@ int main(int ArgsCount, char** Args) {
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
 		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
 
-		float AlphaImageX1 = sin(GlobalTime * 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
-		float AlphaImageX2 = cos(GlobalTime) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
+		float AlphaImageX1 = sin(GlobalTime * 2 * 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
+		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
 		PushGradient(Stack, V3(GradR, GradG, GradB));
@@ -217,10 +217,10 @@ int main(int ArgsCount, char** Args) {
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 
 		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
-		PushBitmap(Stack, &AlphaImage, V2(300, 300), 300.0f);
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
 		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
 
-		PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
+		//PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
 		BeginFrameGUI(GUIState, Stack);
 		char DebugStr[128];
@@ -228,12 +228,14 @@ int main(int ArgsCount, char** Args) {
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
 #if 1
 		PrintText(GUIState, DebugStr);
-		PrintText(GUIState, "Hello my friend");
-		PrintText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
-		PrintText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
+		//PrintText(GUIState, "Hello my friend");
+		//PrintText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
+		//PrintText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
 
 		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
-#endif 
+		HighlightedText(GUIState, "1234567890");
+		HighlightedText(GUIState, "LWO");
+#endif
 		
 		SoftwareRenderStackToOutput(Stack, &GlobalBuffer);
 
