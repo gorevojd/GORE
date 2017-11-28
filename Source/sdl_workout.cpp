@@ -81,24 +81,114 @@ static void SDLGoFullscreen(SDL_Window* Window) {
 	}
 }
 
-inline void ProcessButtonState(button_state* State, b32 IsDown, b32 WasDown) {
+inline void ProcessButtonState(button_state* State, b32 IsDown, b32 TransitionHappened, b32 IsDoubleClick = false) {
+	/*Transition happened*/
 	State->IsDown = IsDown;
-	State->WasDown = WasDown;
+	State->TransitionHappened = TransitionHappened;
+	
+	State->IsDoubleClick = IsDoubleClick;
 }
 
-inline void ProcessMouseButtonState(
-	mouse_button_state* State, 
-	b32 IsDown, 
-	b32 WasDown,
-	b32 IsDoubleClick)
-{
-	State->IsDown = IsDown;
-	State->WasDown = WasDown;
-	State->IsDoubleClick = IsDoubleClick;
+inline button_state* SDLGetButtonStateForKey(input_system* Input, u32 SDLKey) {
+	button_state* Result = 0;
+
+	switch (SDLKey) {
+		case(SDLK_a): {
+			Result = &Input->Buttons[InputButtonType_A];
+		}break;
+		case(SDLK_w): {
+			Result = &Input->Buttons[InputButtonType_W];
+		}break;
+		case(SDLK_s): {
+			Result = &Input->Buttons[InputButtonType_S];
+		}break;
+		case(SDLK_d): {
+			Result = &Input->Buttons[InputButtonType_D];
+		}break;
+		case(SDLK_r): {
+			Result = &Input->Buttons[InputButtonType_R];
+		}break;
+		case(SDLK_e): {
+			Result = &Input->Buttons[InputButtonType_E];
+		}break;
+		case(SDLK_q): {
+			Result = &Input->Buttons[InputButtonType_Q];
+		}break;
+		case(SDLK_ESCAPE): {
+			Result = &Input->Buttons[InputButtonType_Esc];
+		}break;
+		case(SDLK_SPACE): {
+			Result = &Input->Buttons[InputButtonType_Space];
+		}break;
+		case(SDLK_F1): {
+			Result = &Input->Buttons[InputButtonType_F1];
+		}break;
+		case(SDLK_F2): {
+			Result = &Input->Buttons[InputButtonType_F2];
+		}break;
+		case(SDLK_F3): {
+			Result = &Input->Buttons[InputButtonType_F3];
+		}break;
+		case(SDLK_F4): {
+			Result = &Input->Buttons[InputButtonType_F4];
+		}break;
+		case(SDLK_F5): {
+			Result = &Input->Buttons[InputButtonType_F5];
+		}break;
+		case(SDLK_F6): {
+			Result = &Input->Buttons[InputButtonType_F6];
+		}break;
+		case(SDLK_F7): {
+			Result = &Input->Buttons[InputButtonType_F7];
+		}break;
+		case(SDLK_F8): {
+			Result = &Input->Buttons[InputButtonType_F8];
+		}break;
+		case(SDLK_F9): {
+			Result = &Input->Buttons[InputButtonType_F9];
+		}break;
+		case(SDLK_F10): {
+			Result = &Input->Buttons[InputButtonType_F10];
+		}break;
+		case(SDLK_F11): {
+			Result = &Input->Buttons[InputButtonType_F11];
+		}break;
+		case(SDLK_F12): {
+			Result = &Input->Buttons[InputButtonType_F12];
+		}break;
+
+		default: {
+
+		}break;
+	}
+
+	return(Result);
 }
 
 static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 	SDL_Event CurrentEvent;
+
+	for (int ButtonIndex = 0;
+		ButtonIndex < ArrayCount(Input->Buttons);
+		ButtonIndex++)
+	{
+		button_state* But = &Input->Buttons[ButtonIndex];
+
+		But->IsDown = But->IsDown;
+		But->TransitionHappened = 0;
+	}
+
+	for (int MouseButIndex = 0;
+		MouseButIndex < ArrayCount(Input->MouseButtons);
+		MouseButIndex++)
+	{
+		button_state* But = &Input->MouseButtons[MouseButIndex];
+
+		But->IsDown = But->IsDown;
+		But->TransitionHappened = 0;
+
+		But->IsDoubleClick = 0;
+	}
 
 	while (SDL_PollEvent(&CurrentEvent)) {
 
@@ -114,87 +204,37 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 				b32 CtrlISDown = KeySum.mod & KMOD_CTRL;
 
 				b32 IsDown = (CurrentEvent.key.state == SDL_PRESSED);
-				b32 WasDown = IsDown && (CurrentEvent.key.repeat != 0);
+				b32 IsUp = (CurrentEvent.key.state == SDL_RELEASED);
+				b32 TransitionHappened = (CurrentEvent.key.repeat == 0);
 
-				if (CurrentEvent.key.repeat == 0) {
-					switch (KeyCode) {
-						case(SDLK_a): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_A], IsDown, WasDown);
-						}break;
-						case(SDLK_w): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_W], IsDown, WasDown);
-						}break;
-						case(SDLK_s): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_S], IsDown, WasDown);
-						}break;
-						case(SDLK_d): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_D], IsDown, WasDown);
-						}break;
-						case(SDLK_r): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_R], IsDown, WasDown);
-						}break;
-						case(SDLK_e): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_E], IsDown, WasDown);
-						}break;
-						case(SDLK_q): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_Q], IsDown, WasDown);
-						}break;
-						case(SDLK_ESCAPE): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_Esc], IsDown, WasDown);
-						}break;
-						case(SDLK_SPACE): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_Space], IsDown, WasDown);
-						}break;
-						case(SDLK_F1): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F1], IsDown, WasDown);
-						}break;
-						case(SDLK_F2): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F2], IsDown, WasDown);
-						}break;
-						case(SDLK_F3): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F3], IsDown, WasDown);
-						}break;
-						case(SDLK_F4): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F4], IsDown, WasDown);
-						}break;
-						case(SDLK_F5): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F5], IsDown, WasDown);
-						}break;
-						case(SDLK_F6): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F6], IsDown, WasDown);
-						}break;
-						case(SDLK_F7): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F7], IsDown, WasDown);
-						}break;
-						case(SDLK_F8): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F8], IsDown, WasDown);
-						}break;
-						case(SDLK_F9): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F9], IsDown, WasDown);
-						}break;
-						case(SDLK_F10): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F10], IsDown, WasDown);
-						}break;
-						case(SDLK_F11): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F11], IsDown, WasDown);
-						}break;
-						case(SDLK_F12): {
-							ProcessButtonState(&Input->Buttons[InputButtonType_F12], IsDown, WasDown);
-						}break;
+				button_state* ProcessButton = 0;
+				ProcessButton = SDLGetButtonStateForKey(Input, KeyCode);
+				if (TransitionHappened) {
 
-						default: {
+					if (IsDown) {
+						if (KeyCode == SDLK_F4 && AltIsDown) {
+							GlobalRunning = false;
+						}
 
-						}break;
+						if (KeyCode == SDLK_RETURN && AltIsDown) {
+							SDLGoFullscreen(Window);
+						}
+
+						printf("\rDown\n");
+					}
+
+					if (IsUp) {
+						printf("\rUp\n");
 					}
 				}
+				else {
 
-				if (KeyCode == SDLK_F4 && AltIsDown) {
-					GlobalRunning = false;
+				}
+				
+				if (ProcessButton) {
+					ProcessButtonState(ProcessButton, IsDown, TransitionHappened);
 				}
 
-				if (KeyCode == SDLK_RETURN && AltIsDown) {
-					SDLGoFullscreen(Window);
-				}
 			}break;
 
 			case(SDL_WINDOWEVENT): {
@@ -205,12 +245,12 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 						GlobalRunning = false;
 					}break;
 
-					/*Mouse entered window*/
+						/*Mouse entered window*/
 					case SDL_WINDOWEVENT_ENTER: {
 
 					}break;
 
-					/*Mouse leaved window*/
+						/*Mouse leaved window*/
 					case SDL_WINDOWEVENT_LEAVE: {
 
 					}break;
@@ -224,41 +264,42 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 				b32 IsDown = (MouseEvent->state == SDL_PRESSED);
 				b32 WasDown = (MouseEvent->type == SDL_MOUSEBUTTONUP);
 				b32 IsDoubleClick = (MouseEvent->clicks == 2);
+				b32 TransitionHappened = (WasDown != IsDown);
 
-				if (WasDown != IsDown) {
+				if (TransitionHappened) {
 					if (MouseEvent->button == SDL_BUTTON_LEFT) {
-						ProcessMouseButtonState(
-							&Input->MouseButtons[MouseButtonType_Left],
+						ProcessButtonState(
+							&Input->MouseButtons[MouseButton_Left],
 							IsDown,
-							WasDown,
+							TransitionHappened,
 							IsDoubleClick);
 					}
 					else if (MouseEvent->button == SDL_BUTTON_RIGHT) {
-						ProcessMouseButtonState(
-							&Input->MouseButtons[MouseButtonType_Right],
+						ProcessButtonState(
+							&Input->MouseButtons[MouseButton_Right],
 							IsDown,
-							WasDown,
+							TransitionHappened,
 							IsDoubleClick);
 					}
 					else if (MouseEvent->button == SDL_BUTTON_MIDDLE) {
-						ProcessMouseButtonState(
-							&Input->MouseButtons[MouseButtonType_Middle],
+						ProcessButtonState(
+							&Input->MouseButtons[MouseButton_Middle],
 							IsDown,
-							WasDown,
+							TransitionHappened,
 							IsDoubleClick);
 					}
 					else if (MouseEvent->button == SDL_BUTTON_X1) {
-						ProcessMouseButtonState(
-							&Input->MouseButtons[MouseButtonType_Extended1],
+						ProcessButtonState(
+							&Input->MouseButtons[MouseButton_Extended1],
 							IsDown,
-							WasDown,
+							TransitionHappened,
 							IsDoubleClick);
 					}
 					else if (MouseEvent->button == SDL_BUTTON_X2) {
-						ProcessMouseButtonState(
-							&Input->MouseButtons[MouseButtonType_Extended2],
+						ProcessButtonState(
+							&Input->MouseButtons[MouseButton_Extended2],
 							IsDown,
-							WasDown,
+							TransitionHappened,
 							IsDoubleClick);
 					}
 				}
@@ -306,7 +347,7 @@ static b32 ButtonWentDown(input_system* Input, u32 ButtonType) {
 
 	button_state* State = &Input->Buttons[ButtonType];
 
-	if (State->IsDown == true && State->WasDown == false) {
+	if (State->IsDown == true && State->TransitionHappened) {
 		Result = true;
 	}
 
@@ -314,11 +355,12 @@ static b32 ButtonWentDown(input_system* Input, u32 ButtonType) {
 }
 
 static b32 MouseButtonWentDown(input_system* Input, u32 MouseButton) {
+
 	b32 Result = 0;
 
-	button_state* State = &Input->Buttons[MouseButton];
+	button_state* State = &Input->MouseButtons[MouseButton];
 
-	if (State->IsDown == true && State->WasDown == false) {
+	if (State->IsDown == true && State->TransitionHappened) {
 		Result = true;
 	}
 
@@ -361,7 +403,7 @@ int main(int ArgsCount, char** Args) {
 		SDL_WINDOWPOS_UNDEFINED,
 		GlobalBuffer.Width,
 		GlobalBuffer.Height,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
+		SDL_WINDOW_OPENGL);
 
 
 	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, 0);
@@ -394,9 +436,6 @@ int main(int ArgsCount, char** Args) {
 			break;
 		}
 
-		if (ButtonWentDown(&GlobalInput, InputButtonType_F12)) {
-			SDLGoFullscreen(Window);
-		}
 		END_TIMED_BLOCK(EventProcessing);
 
 		BeginDEBUG(GlobalDebugState);
@@ -434,6 +473,27 @@ int main(int ArgsCount, char** Args) {
 
 		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
 		HighlightedText(GUIState, "1234567890");
+
+
+		static b32 IsHighlighted;
+
+		if (IsHighlighted) {
+			HighlightedText(GUIState, "TEST!!!!!");
+		}
+		else {
+			PrintText(GUIState, "TEST!!!!!");
+		}
+
+		if (ButtonWentDown(&GlobalInput, InputButtonType_A) ||
+			MouseButtonWentDown(&GlobalInput, MouseButton_Left))
+		{
+			IsHighlighted = !IsHighlighted;
+		}
+
+		if (GlobalInput.Buttons[InputButtonType_A].IsDown) {
+			PrintText(GUIState, "A button is pressed");
+		}
+
 		HighlightedText(GUIState, "LWO");
 
 		PrintLabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));

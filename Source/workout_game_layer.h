@@ -74,31 +74,26 @@ enum button_type{
 };
 
 enum mouse_button_type {
-	MouseButtonType_Left,
-	MouseButtonType_Right,
-	MouseButtonType_Middle,
-	MouseButtonType_Extended1,
-	MouseButtonType_Extended2,
+	MouseButton_Left,
+	MouseButton_Right,
+	MouseButton_Middle,
+	MouseButton_Extended1,
+	MouseButton_Extended2,
 
-	MouseButtonType_Count,
+	MouseButton_Count,
 };
 
 typedef struct  button_state{
 	b32 IsDown;
-	b32 WasDown;
-}button_state;
-
-typedef struct mouse_button_state {
-	b32 IsDown;
-	b32 WasDown;
+	b32 TransitionHappened;
 
 	b32 IsDoubleClick;
-} mouse_button_state;
+}button_state;
 
 typedef struct input_system {
 	button_state Buttons[InputButtonType_Count];
 
-	mouse_button_state MouseButtons[MouseButtonType_Count];
+	button_state MouseButtons[MouseButton_Count];
 
 	int MouseX;
 	int MouseY;
