@@ -165,6 +165,9 @@ static void RenderBitmapFast(
 	__m128 mmSourceHeight = _mm_set1_ps((float)Bitmap->Height);
 	__m128i mmSourcePitch = _mm_set1_epi32(Bitmap->Pitch);
 
+	__m128 mmDestWidth = _mm_set1_ps((float)Buffer->Width);
+	__m128i mmDestWidthI = _mm_set1_epi32(Buffer->Width);
+
 	__m128i mmSourceWidthI = _mm_set1_epi32(Bitmap->Width);
 	__m128i mmSourceHeightI = _mm_set1_epi32(Bitmap->Height);
 
@@ -224,8 +227,8 @@ static void RenderBitmapFast(
 			mmPixelU = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmPixelU));
 			__m128 mmSourceX = _mm_mul_ps(mmPixelU, mmSourceWidth);
 
-			__m128i mmMinSourceX_ = _mm_cvttps_epi32(mmSourceX);
-			__m128i mmMinSourceY_ = _mm_cvttps_epi32(mmSourceY);
+			__m128i mmMinSourceX_ =  _mm_cvttps_epi32(mmSourceX);
+			__m128i mmMinSourceY_ =  _mm_cvttps_epi32(mmSourceY);
 
 			/*This check is for min values. If min value overlap then we clamp it*/
 			mmMinSourceX_ = _mm_min_epi32(mmMinSourceX_, mmSourceWidthMinusOneI);
@@ -346,6 +349,11 @@ static void RenderBitmapFast(
 				_mm_or_si128(mmColorShifted_b, mmColorShifted_a));
 
 			//TODO(DIma): Mask with end of screen mask;
+			__m128 mmEndScreenMask = _mm_cmplt_ps(_mm_cvtepi32_ps(mmDestX), mmDestWidth);
+
+			mmResult = _mm_castps_si128(_mm_or_ps(
+				_mm_and_ps(_mm_castsi128_ps(mmResult), mmEndScreenMask),
+				_mm_andnot_ps(mmEndScreenMask, _mm_castsi128_ps(mmPreDestColor))));
 
 			//TODO(DIma): make this aligned
 			_mm_storeu_si128((__m128i*)OutDest, mmResult);

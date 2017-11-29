@@ -53,7 +53,7 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 		if (Counter->Hits) {
 			CyclesPerHit = (float)Counter->Clocks / (float)Counter->Hits;
 
-			stbsp_snprintf(Buffer, 256, "%s: %llucy, %uh, %.2fcy/h", 
+			stbsp_snprintf(Buffer, 256, "%20s: %10llucy, %10uh, %12.2fcy/h", 
 				Counter->Name, 
 				Counter->Clocks,
 				Counter->Hits,

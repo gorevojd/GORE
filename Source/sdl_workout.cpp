@@ -37,9 +37,9 @@
 			Mouse input handling
 			alt-f4 close handling
 			Thread pool
+			Correct aspect ratio handling
 
 		GUI:
-			Labels
 			Lists
 			Sliders
 */
@@ -219,12 +219,10 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 						if (KeyCode == SDLK_RETURN && AltIsDown) {
 							SDLGoFullscreen(Window);
 						}
-
-						printf("\rDown\n");
 					}
 
 					if (IsUp) {
-						printf("\rUp\n");
+
 					}
 				}
 				else {
@@ -337,8 +335,6 @@ static void ProcessInput(input_system* System) {
 	b32 MMidIsDown = MouseState & SDL_BUTTON_MMASK;
 	b32 MExt1IsDown = MouseState & SDL_BUTTON_X1MASK;
 	b32 MExt2IsDown = MouseState & SDL_BUTTON_X2MASK;
-
-
 }
 
 static b32 ButtonWentDown(input_system* Input, u32 ButtonType) {
@@ -415,7 +411,7 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("Data/Fonts/arial.ttf", 20);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
 	InitGUIState(GUIState, &FontInfo);
 	InitDEBUG(GlobalDebugState, &FontInfo);
@@ -436,6 +432,10 @@ int main(int ArgsCount, char** Args) {
 			break;
 		}
 
+		if (ButtonWentDown(&GlobalInput, InputButtonType_F12)) {
+			SDLGoFullscreen(Window);
+		}
+
 		END_TIMED_BLOCK(EventProcessing);
 
 		BeginDEBUG(GlobalDebugState);
@@ -451,8 +451,8 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		PushGradient(Stack, V3(GradR, GradG, GradB));
-		//PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
+		//PushGradient(Stack, V3(GradR, GradG, GradB));
+		PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 
 		PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
@@ -473,28 +473,6 @@ int main(int ArgsCount, char** Args) {
 
 		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
 		HighlightedText(GUIState, "1234567890");
-
-
-		static b32 IsHighlighted;
-
-		if (IsHighlighted) {
-			HighlightedText(GUIState, "TEST!!!!!");
-		}
-		else {
-			PrintText(GUIState, "TEST!!!!!");
-		}
-
-		if (ButtonWentDown(&GlobalInput, InputButtonType_A) ||
-			MouseButtonWentDown(&GlobalInput, MouseButton_Left))
-		{
-			IsHighlighted = !IsHighlighted;
-		}
-
-		if (GlobalInput.Buttons[InputButtonType_A].IsDown) {
-			PrintText(GUIState, "A button is pressed");
-		}
-
-		HighlightedText(GUIState, "LWO");
 
 		PrintLabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 #endif
