@@ -53,7 +53,7 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 		if (Counter->Hits) {
 			CyclesPerHit = (float)Counter->Clocks / (float)Counter->Hits;
 
-			stbsp_snprintf(Buffer, 256, "%20s: %10llucy, %10uh, %12.2fcy/h", 
+			stbsp_snprintf(Buffer, 256, "%20s: %9llucy, %8uh, %11.2fcy/h", 
 				Counter->Name, 
 				Counter->Clocks,
 				Counter->Hits,
@@ -68,16 +68,12 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 
 void BeginDEBUG(debug_state* State) {
 	State->GUIRenderStack = BeginRenderStack();
-	//BeginFrameGUI(&State->DebugGUI, &State->GUIRenderStack);
 }
 
 void EndDEBUG(debug_state* State) {
-	//EndFrameGUI(&State->DebugGUI);
 	EndRenderStack(&State->GUIRenderStack);
 }
 
 void InitDEBUG(debug_state* State, font_info* FontInfo) {
-	//InitGUIState(&State->DebugGUI, FontInfo);
-
 	InitDebugCounters(State);
 }

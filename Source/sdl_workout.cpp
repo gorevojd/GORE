@@ -21,6 +21,7 @@
 			Optimize renderer with multithreading;
 			Fix buffer overlapping in optimized renderer
 			Optimize rectangle rendering
+			Implement Gaussian blur
 
 		Assets:
 			Build font atlas
@@ -92,75 +93,7 @@ inline void ProcessButtonState(button_state* State, b32 IsDown, b32 TransitionHa
 inline button_state* SDLGetButtonStateForKey(input_system* Input, u32 SDLKey) {
 	button_state* Result = 0;
 
-	switch (SDLKey) {
-		case(SDLK_a): {
-			Result = &Input->Buttons[InputButtonType_A];
-		}break;
-		case(SDLK_w): {
-			Result = &Input->Buttons[InputButtonType_W];
-		}break;
-		case(SDLK_s): {
-			Result = &Input->Buttons[InputButtonType_S];
-		}break;
-		case(SDLK_d): {
-			Result = &Input->Buttons[InputButtonType_D];
-		}break;
-		case(SDLK_r): {
-			Result = &Input->Buttons[InputButtonType_R];
-		}break;
-		case(SDLK_e): {
-			Result = &Input->Buttons[InputButtonType_E];
-		}break;
-		case(SDLK_q): {
-			Result = &Input->Buttons[InputButtonType_Q];
-		}break;
-		case(SDLK_ESCAPE): {
-			Result = &Input->Buttons[InputButtonType_Esc];
-		}break;
-		case(SDLK_SPACE): {
-			Result = &Input->Buttons[InputButtonType_Space];
-		}break;
-		case(SDLK_F1): {
-			Result = &Input->Buttons[InputButtonType_F1];
-		}break;
-		case(SDLK_F2): {
-			Result = &Input->Buttons[InputButtonType_F2];
-		}break;
-		case(SDLK_F3): {
-			Result = &Input->Buttons[InputButtonType_F3];
-		}break;
-		case(SDLK_F4): {
-			Result = &Input->Buttons[InputButtonType_F4];
-		}break;
-		case(SDLK_F5): {
-			Result = &Input->Buttons[InputButtonType_F5];
-		}break;
-		case(SDLK_F6): {
-			Result = &Input->Buttons[InputButtonType_F6];
-		}break;
-		case(SDLK_F7): {
-			Result = &Input->Buttons[InputButtonType_F7];
-		}break;
-		case(SDLK_F8): {
-			Result = &Input->Buttons[InputButtonType_F8];
-		}break;
-		case(SDLK_F9): {
-			Result = &Input->Buttons[InputButtonType_F9];
-		}break;
-		case(SDLK_F10): {
-			Result = &Input->Buttons[InputButtonType_F10];
-		}break;
-		case(SDLK_F11): {
-			Result = &Input->Buttons[InputButtonType_F11];
-		}break;
-		case(SDLK_F12): {
-			Result = &Input->Buttons[InputButtonType_F12];
-		}break;
 
-		default: {
-
-		}break;
-	}
 
 	return(Result);
 }
@@ -208,7 +141,77 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 				b32 TransitionHappened = (CurrentEvent.key.repeat == 0);
 
 				button_state* ProcessButton = 0;
-				ProcessButton = SDLGetButtonStateForKey(Input, KeyCode);
+
+				switch (KeyCode) {
+					case(SDLK_a): {
+						ProcessButton = &Input->Buttons[InputButtonType_A];
+					}break;
+					case(SDLK_w): {
+						ProcessButton = &Input->Buttons[InputButtonType_W];
+					}break;
+					case(SDLK_s): {
+						ProcessButton = &Input->Buttons[InputButtonType_S];
+					}break;
+					case(SDLK_d): {
+						ProcessButton = &Input->Buttons[InputButtonType_D];
+					}break;
+					case(SDLK_r): {
+						ProcessButton = &Input->Buttons[InputButtonType_R];
+					}break;
+					case(SDLK_e): {
+						ProcessButton = &Input->Buttons[InputButtonType_E];
+					}break;
+					case(SDLK_q): {
+						ProcessButton = &Input->Buttons[InputButtonType_Q];
+					}break;
+					case(SDLK_ESCAPE): {
+						ProcessButton = &Input->Buttons[InputButtonType_Esc];
+					}break;
+					case(SDLK_SPACE): {
+						ProcessButton = &Input->Buttons[InputButtonType_Space];
+					}break;
+					case(SDLK_F1): {
+						ProcessButton = &Input->Buttons[InputButtonType_F1];
+					}break;
+					case(SDLK_F2): {
+						ProcessButton = &Input->Buttons[InputButtonType_F2];
+					}break;
+					case(SDLK_F3): {
+						ProcessButton = &Input->Buttons[InputButtonType_F3];
+					}break;
+					case(SDLK_F4): {
+						ProcessButton = &Input->Buttons[InputButtonType_F4];
+					}break;
+					case(SDLK_F5): {
+						ProcessButton = &Input->Buttons[InputButtonType_F5];
+					}break;
+					case(SDLK_F6): {
+						ProcessButton = &Input->Buttons[InputButtonType_F6];
+					}break;
+					case(SDLK_F7): {
+						ProcessButton = &Input->Buttons[InputButtonType_F7];
+					}break;
+					case(SDLK_F8): {
+						ProcessButton = &Input->Buttons[InputButtonType_F8];
+					}break;
+					case(SDLK_F9): {
+						ProcessButton = &Input->Buttons[InputButtonType_F9];
+					}break;
+					case(SDLK_F10): {
+						ProcessButton = &Input->Buttons[InputButtonType_F10];
+					}break;
+					case(SDLK_F11): {
+						ProcessButton = &Input->Buttons[InputButtonType_F11];
+					}break;
+					case(SDLK_F12): {
+						ProcessButton = &Input->Buttons[InputButtonType_F12];
+					}break;
+
+					default: {
+
+					}break;
+				}
+
 				if (TransitionHappened) {
 
 					if (IsDown) {
