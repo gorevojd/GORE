@@ -6,6 +6,6 @@
 
 #include "workout_debug.h"
 
-extern void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer);
-
+extern void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect);
+extern void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer);
 #endif

@@ -96,6 +96,13 @@ inline v4 V4(float x, float y, float z, float w) {
 	return(Result);
 }
 
+inline v2 GetRectDim(rect2 Rect) {
+	v2 Result = Rect.Max - Rect.Min;
+
+	return(Result);
+}
+
+
 inline float Clamp01(float Val) {
 	if (Val < 0.0f) {
 		Val = 0.0f;
@@ -131,6 +138,7 @@ inline int Clamp(int Val, int Min, int Max) {
 
 	return(Val);
 }
+
 
 inline u32 PackRGBA(v4 Color) {
 	u32 Result;

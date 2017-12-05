@@ -20,6 +20,7 @@ void InitDebugCounters(debug_state* State) {
 	DEBUG_INIT_COUNTER(GradientPixelFill);
 	DEBUG_INIT_COUNTER(ClearPixelFill);
 	DEBUG_INIT_COUNTER(EventProcessing);
+	DEBUG_INIT_COUNTER(RectPixelFill);
 }
 
 void ClearDebugCounters(debug_state* DebugState) {

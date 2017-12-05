@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include <stdio.h>
+#include <thread>
 
 #include "workout_game_layer.h"
 
@@ -90,14 +91,6 @@ inline void ProcessButtonState(button_state* State, b32 IsDown, b32 TransitionHa
 	State->IsDoubleClick = IsDoubleClick;
 }
 
-inline button_state* SDLGetButtonStateForKey(input_system* Input, u32 SDLKey) {
-	button_state* Result = 0;
-
-
-
-	return(Result);
-}
-
 static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 	SDL_Event CurrentEvent;
 
@@ -144,67 +137,67 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 
 				switch (KeyCode) {
 					case(SDLK_a): {
-						ProcessButton = &Input->Buttons[InputButtonType_A];
+						ProcessButton = &Input->Buttons[KeyType_A];
 					}break;
 					case(SDLK_w): {
-						ProcessButton = &Input->Buttons[InputButtonType_W];
+						ProcessButton = &Input->Buttons[KeyType_W];
 					}break;
 					case(SDLK_s): {
-						ProcessButton = &Input->Buttons[InputButtonType_S];
+						ProcessButton = &Input->Buttons[KeyType_S];
 					}break;
 					case(SDLK_d): {
-						ProcessButton = &Input->Buttons[InputButtonType_D];
+						ProcessButton = &Input->Buttons[KeyType_D];
 					}break;
 					case(SDLK_r): {
-						ProcessButton = &Input->Buttons[InputButtonType_R];
+						ProcessButton = &Input->Buttons[KeyType_R];
 					}break;
 					case(SDLK_e): {
-						ProcessButton = &Input->Buttons[InputButtonType_E];
+						ProcessButton = &Input->Buttons[KeyType_E];
 					}break;
 					case(SDLK_q): {
-						ProcessButton = &Input->Buttons[InputButtonType_Q];
+						ProcessButton = &Input->Buttons[KeyType_Q];
 					}break;
 					case(SDLK_ESCAPE): {
-						ProcessButton = &Input->Buttons[InputButtonType_Esc];
+						ProcessButton = &Input->Buttons[KeyType_Esc];
 					}break;
 					case(SDLK_SPACE): {
-						ProcessButton = &Input->Buttons[InputButtonType_Space];
+						ProcessButton = &Input->Buttons[KeyType_Space];
 					}break;
 					case(SDLK_F1): {
-						ProcessButton = &Input->Buttons[InputButtonType_F1];
+						ProcessButton = &Input->Buttons[KeyType_F1];
 					}break;
 					case(SDLK_F2): {
-						ProcessButton = &Input->Buttons[InputButtonType_F2];
+						ProcessButton = &Input->Buttons[KeyType_F2];
 					}break;
 					case(SDLK_F3): {
-						ProcessButton = &Input->Buttons[InputButtonType_F3];
+						ProcessButton = &Input->Buttons[KeyType_F3];
 					}break;
 					case(SDLK_F4): {
-						ProcessButton = &Input->Buttons[InputButtonType_F4];
+						ProcessButton = &Input->Buttons[KeyType_F4];
 					}break;
 					case(SDLK_F5): {
-						ProcessButton = &Input->Buttons[InputButtonType_F5];
+						ProcessButton = &Input->Buttons[KeyType_F5];
 					}break;
 					case(SDLK_F6): {
-						ProcessButton = &Input->Buttons[InputButtonType_F6];
+						ProcessButton = &Input->Buttons[KeyType_F6];
 					}break;
 					case(SDLK_F7): {
-						ProcessButton = &Input->Buttons[InputButtonType_F7];
+						ProcessButton = &Input->Buttons[KeyType_F7];
 					}break;
 					case(SDLK_F8): {
-						ProcessButton = &Input->Buttons[InputButtonType_F8];
+						ProcessButton = &Input->Buttons[KeyType_F8];
 					}break;
 					case(SDLK_F9): {
-						ProcessButton = &Input->Buttons[InputButtonType_F9];
+						ProcessButton = &Input->Buttons[KeyType_F9];
 					}break;
 					case(SDLK_F10): {
-						ProcessButton = &Input->Buttons[InputButtonType_F10];
+						ProcessButton = &Input->Buttons[KeyType_F10];
 					}break;
 					case(SDLK_F11): {
-						ProcessButton = &Input->Buttons[InputButtonType_F11];
+						ProcessButton = &Input->Buttons[KeyType_F11];
 					}break;
 					case(SDLK_F12): {
-						ProcessButton = &Input->Buttons[InputButtonType_F12];
+						ProcessButton = &Input->Buttons[KeyType_F12];
 					}break;
 
 					default: {
@@ -325,6 +318,7 @@ static void ProcessInput(input_system* System) {
 
 	System->MouseX = MouseX;
 	System->MouseY = MouseY;
+	System->MouseP = V2(MouseX, MouseY);
 
 	int GlobalMouseX;
 	int GlobalMouseY;
@@ -338,32 +332,6 @@ static void ProcessInput(input_system* System) {
 	b32 MMidIsDown = MouseState & SDL_BUTTON_MMASK;
 	b32 MExt1IsDown = MouseState & SDL_BUTTON_X1MASK;
 	b32 MExt2IsDown = MouseState & SDL_BUTTON_X2MASK;
-}
-
-static b32 ButtonWentDown(input_system* Input, u32 ButtonType) {
-
-	b32 Result = 0;
-
-	button_state* State = &Input->Buttons[ButtonType];
-
-	if (State->IsDown == true && State->TransitionHappened) {
-		Result = true;
-	}
-
-	return(Result);
-}
-
-static b32 MouseButtonWentDown(input_system* Input, u32 MouseButton) {
-
-	b32 Result = 0;
-
-	button_state* State = &Input->MouseButtons[MouseButton];
-
-	if (State->IsDown == true && State->TransitionHappened) {
-		Result = true;
-	}
-
-	return(Result);
 }
 
 static gui_state GUIState_;
@@ -383,6 +351,96 @@ inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
 
 	return(Result);
 }
+
+#if 0
+#define SDL_THREAD_QUEUE_CALLBACK(name) int name(void* Data)
+typedef SDL_THREAD_QUEUE_CALLBACK(thread_queue_callback);
+
+struct thread_queue_entry{
+	thread_queue_callback* Callback;
+	void* Data;
+};
+
+struct sdl_thread_entry {
+	SDL_sem* Semaphore;
+};
+
+#define THREAD_QUEUE_ENTRY_COUNT 512
+struct thread_queue {
+	thread_queue_entry Entries[THREAD_QUEUE_ENTRY_COUNT];
+
+	volatile int TotalEntries;
+	volatile int FinishedEntries;
+};
+
+void SDLAddEntry(thread_queue* Queue, thread_queue_callback* Callback, void* Data){
+	//Check the overlapping for total
+	int NewTotal = (Queue->TotalEntries + 1) % ArrayCount(Queue->Entries);
+	int OldVal = SDL_AtomicSet((SDL_atomic_t*)&Queue->TotalEntries, NewTotal);
+	/*Should not overlap*/
+	Assert(Queue->TotalEntries != Queue->FinishedEntries);
+
+	thread_queue_entry* Entry = Queue->Entries + Queue->TotalEntries;
+	Entry->Callback = Callback;
+	Entry->Data = Data;
+
+	SDL_CompilerBarrier();
+
+	SDL_SemPost()
+}
+
+void SDL(thread_queue* Queue){
+	for(;;){
+		if(Queue->FinishedEntries != Queue->TotalEntries){
+			int NewFinished = (Queue->FinishedEntries + 1) % ArrayCount(Queue->Entries);
+			int ToDoEntryIndex = SDL_AtomicSet((SDL_atomic_t*)&Queue->FinishedEntries, NewFinished);
+			thread_queue_entry* Entry = Queue->Entries + ToDoEntryIndex;
+
+			Entry->Callback(Entry->Data);
+
+			SDL_CompilerBarrier();
+
+			SDL_SemPost(ThreadEntry->Semaphore);
+		}
+		else {
+			SDL_SemWait(ThreadEntry->Semaphore);
+		}
+	}
+}
+
+void SDLCompleteQueueWork(thread_queue* Queue){
+	while(Queue->FinishedEntries != Queue->TotalEntries){
+		SDLDoNextWork(Queue);
+	}
+}
+
+void SDLInitThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int ThreadCount) {
+	Queue->TotalEntries = 0;
+	Queue->FinishedEntries = 0;
+
+	for (int ThreadIndex = 0;
+		ThreadIndex < ThreadCount;
+		ThreadIndex++) 
+	{
+		sdl_thread_entry* Entry = Threads + ThreadIndex;
+
+		Entry->Semaphore = SDL_CreateSemaphore(0);
+	}
+
+	for (int ThreadIndex = 0;
+		ThreadIndex < ThreadCount;
+		ThreadIndex++)
+	{
+		SDL_Thread* Thread = SDL_CreateThread(SDLDoNextWork, 0, 0);
+		SDL_WaitThread(Thread);
+	}
+}
+
+void SDLDestroyThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int ThreadCount) {
+
+}
+
+#endif
 
 int main(int ArgsCount, char** Args) {
 
@@ -404,7 +462,6 @@ int main(int ArgsCount, char** Args) {
 		GlobalBuffer.Height,
 		SDL_WINDOW_OPENGL);
 
-
 	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, 0);
 	if (!Window) {
 		printf("ERROR: Window is not created");
@@ -416,7 +473,7 @@ int main(int ArgsCount, char** Args) {
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
-	InitGUIState(GUIState, &FontInfo);
+	InitGUIState(GUIState, &FontInfo, &GlobalInput);
 	InitDEBUG(GlobalDebugState, &FontInfo);
 
 	float LastMSPerFrame = 0.0f;
@@ -430,12 +487,12 @@ int main(int ArgsCount, char** Args) {
 
 		ProcessInput(&GlobalInput);
 
-		if (ButtonWentDown(&GlobalInput, InputButtonType_Esc)) {
+		if (ButtonWentDown(&GlobalInput, KeyType_Esc)) {
 			GlobalRunning = false;
 			break;
 		}
 
-		if (ButtonWentDown(&GlobalInput, InputButtonType_F12)) {
+		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
 
@@ -476,17 +533,84 @@ int main(int ArgsCount, char** Args) {
 
 		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
 		HighlightedText(GUIState, "1234567890");
+		HighlightedText(GUIState, "AASDALJD:LKAJ:LKDJSAKJAHSDLKJHALKSJDHLKJAHSDLKHALKSDLKJASDLKADF:JLKDF:LKSJhlkajsdfhaldhfadfs");
+		HighlightedText(GUIState, "DickInjection");
 
 		PrintLabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 #endif
 
-		SoftwareRenderStackToOutput(Stack, &GlobalBuffer);
+#if 1
+		rect2* MainRect = &GUIState->TempRect.Rect;
+		v2 RectDim = GetRectDim(*MainRect);
+
+		PushRectOutline(Stack, *MainRect, 2);
+		PushRect(Stack, *MainRect, V4(0.0f, 0.0f, 0.0f, 0.7));
+		
+		v2 AnchorDim = V2(7, 7);
+		
+		rect2 SizeAnchorRect;
+		SizeAnchorRect.Min = MainRect->Max - V2(3.0f, 3.0f);
+		SizeAnchorRect.Max = SizeAnchorRect.Min + AnchorDim;
+		v4 SizeAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		rect2 PosAnchorRect;
+		PosAnchorRect.Min = MainRect->Min - V2(3.0f, 3.0f);
+		PosAnchorRect.Max = PosAnchorRect.Min + AnchorDim;
+		v4 PosAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		if (MouseInRect(&GlobalInput, SizeAnchorRect)) {
+			SizeAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
+
+			if (MouseButtonWentDown(&GlobalInput, MouseButton_Left) && !GUIState->TempRect.SizeInteraction.IsHot) {
+				GUIState->TempRect.SizeInteraction.IsHot = true;
+			}
+		}
+
+		if (MouseInRect(&GlobalInput, PosAnchorRect)) {
+			PosAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
+
+			if (MouseButtonWentDown(&GlobalInput, MouseButton_Left) && !GUIState->TempRect.PosInteraction.IsHot) {
+				GUIState->TempRect.PosInteraction.IsHot = true;
+			}
+		}
+		
+		if (MouseButtonWentUp(&GlobalInput, MouseButton_Left)) {
+			GUIState->TempRect.SizeInteraction.IsHot = false;
+			GUIState->TempRect.PosInteraction.IsHot = false;
+		}
+
+		if (GUIState->TempRect.PosInteraction.IsHot) {
+			MainRect->Min = GlobalInput.MouseP;
+			MainRect->Max = MainRect->Min + RectDim;
+			PosAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
+		}
+
+		v2 ResizedRectDim = RectDim;
+		if (GUIState->TempRect.SizeInteraction.IsHot) {
+			MainRect->Max = GlobalInput.MouseP;
+			SizeAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
+			ResizedRectDim = GetRectDim(*MainRect);
+		}
+		
+		if (ResizedRectDim.x < 10) {
+			MainRect->Max.x = MainRect->Min.x + 10;
+		}
+
+		if (ResizedRectDim.y < 10) {
+			MainRect->Max.y = MainRect->Min.y + 10;
+		}
+
+		PushRect(Stack, SizeAnchorRect.Min, AnchorDim, SizeAnchorColor);
+		PushRect(Stack, PosAnchorRect.Min, AnchorDim, PosAnchorColor);
+#endif
+
+		RenderDickInjection(Stack, &GlobalBuffer);
 
 		EndFrameGUI(GUIState);
 		EndRenderStack(Stack);
 
 		OverlayCycleCounters(GlobalDebugState, GUIState);
-		SoftwareRenderStackToOutput(&GlobalDebugState->GUIRenderStack, &GlobalBuffer);
+		RenderDickInjection(&GlobalDebugState->GUIRenderStack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);

@@ -52,6 +52,19 @@ rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
 	return(Result);
 }
 
+void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src) {
+	Assert(Dst->Width == Src->Width);
+	Assert(Dst->Height == Src->Height);
+
+	u32* DestOut = (u32*)Dst->Pixels;
+	u32* ScrPix = (u32*)Src->Pixels;
+	for (int j = 0; j < Src->Height; j++) {
+		for (int i = 0; i < Src->Width; i++) {
+			*DestOut++ = *ScrPix++;
+		}
+	}
+}
+
 void DeallocateRGBABuffer(rgba_buffer* Buffer) {
 	if (Buffer->Pixels) {
 		free(Buffer->Pixels);

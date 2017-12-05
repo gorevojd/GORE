@@ -44,7 +44,9 @@ struct render_stack_entry_header {
 
 extern void PushBitmap(render_stack* Stack, rgba_buffer* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f));
 extern void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f));
+extern void PushRect(render_stack* Stack, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f));
 extern void PushRectOutline(render_stack* Stack, v2 P, v2 Dim, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
+extern void PushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
 extern void PushClear(render_stack* Stack, v3 Clear);
 extern void PushGradient(render_stack* Stack, v3 Color);
 

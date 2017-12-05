@@ -1,26 +1,7 @@
 #ifndef GAME_LAYER_H
 #define GAME_LAYER_H
 
-#define GLOBAL_VARIABLE static
-
-#define Assert(cond) if(!(cond)){ *((int*)0) = 0;}
-#define ArrayCount(arr) (sizeof(arr) / sizeof((arr)[0]))
-
-typedef int b32;
-typedef unsigned char u8;
-typedef unsigned int u32;
-typedef unsigned long long u64;
-
-#ifndef Min
-#define Min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef Max
-#define Max(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
-#include <intrin.h>
-#include "workout_math.h"
+#include "workout_platform.h"
 
 struct data_buffer {
 	u8* Data;
@@ -40,37 +21,37 @@ struct rgba_buffer {
 extern data_buffer ReadFileToDataBuffer(char* FileName);
 extern void FreeDataBuffer(data_buffer* DataBuffer);
 extern rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
+extern void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src);
 extern void DeallocateRGBABuffer(rgba_buffer* Buffer);
 
 enum button_type{
-	InputButtonType_W,
-	InputButtonType_A,
-	InputButtonType_S,
-	InputButtonType_D,
+	KeyType_W,
+	KeyType_A,
+	KeyType_S,
+	KeyType_D,
 
-	InputButtonType_Q,
-	InputButtonType_R,
-	InputButtonType_E,
+	KeyType_Q,
+	KeyType_R,
+	KeyType_E,
 
-	InputButtonType_Space,
-	InputButtonType_LCtrl,
-	InputButtonType_LShift,
-	InputButtonType_Esc,
+	KeyType_Space,
+	KeyType_LCtrl,
+	KeyType_LShift,
+	KeyType_Esc,
+	KeyType_F1,
+	KeyType_F2,
+	KeyType_F3,
+	KeyType_F4,
+	KeyType_F5,
+	KeyType_F6,
+	KeyType_F7,
+	KeyType_F8,
+	KeyType_F9,
+	KeyType_F10,
+	KeyType_F11,
+	KeyType_F12,
 
-	InputButtonType_F1,
-	InputButtonType_F2,
-	InputButtonType_F3,
-	InputButtonType_F4,
-	InputButtonType_F5,
-	InputButtonType_F6,
-	InputButtonType_F7,
-	InputButtonType_F8,
-	InputButtonType_F9,
-	InputButtonType_F10,
-	InputButtonType_F11,
-	InputButtonType_F12,
-
-	InputButtonType_Count,
+	KeyType_Count,
 };
 
 enum mouse_button_type {
@@ -91,15 +72,101 @@ typedef struct  button_state{
 }button_state;
 
 typedef struct input_system {
-	button_state Buttons[InputButtonType_Count];
-
+	button_state Buttons[KeyType_Count];
 	button_state MouseButtons[MouseButton_Count];
 
 	int MouseX;
 	int MouseY;
 
+	v2 MouseP;
+
 	int GlobalMouseX;
 	int GlobalMouseY;
 }input_system;
+
+inline b32 ButtonWentDown(input_system* Input, u32 KeyType) {
+
+	b32 Result = 0;
+
+	button_state* State = &Input->Buttons[KeyType];
+
+	if (State->IsDown && State->TransitionHappened) {
+		Result = true;
+	}
+
+	return(Result);
+}
+
+inline b32 MouseButtonWentDown(input_system* Input, u32 MouseButton) {
+
+	b32 Result = 0;
+
+	button_state* State = &Input->MouseButtons[MouseButton];
+
+	if (State->IsDown && State->TransitionHappened) {
+		Result = true;
+	}
+
+	return(Result);
+}
+
+inline b32 ButtonWentUp(input_system* Input, u32 KeyType) {
+	b32 Result = 0;
+
+	button_state* State = &Input->Buttons[KeyType];
+
+	if (!State->IsDown && State->TransitionHappened) {
+		Result = true;
+	}
+
+	return(Result);
+}
+
+inline b32 MouseButtonWentUp(input_system* Input, u32 MouseButton) {
+
+	b32 Result = 0;
+
+	button_state* State = &Input->MouseButtons[MouseButton];
+
+	if (!State->IsDown && State->TransitionHappened) {
+		Result = true;
+	}
+
+	return(Result);
+}
+
+inline b32 MouseInRect(input_system* Input, rect2 Rect) {
+	b32 Result = 0;
+
+	Result = 
+		(Input->MouseX >= Rect.Min.x) &&
+		(Input->MouseY >= Rect.Min.y) &&
+		(Input->MouseX <= Rect.Max.x) &&
+		(Input->MouseY <= Rect.Max.y);
+
+	return(Result);
+}
+
+inline b32 MouseInRect(input_system* Input, v2 P, v2 Dim) {
+	b32 Result = 0;
+
+	rect2 Rect;
+	Rect.Min = P;
+	Rect.Max = P + Dim;
+
+	Result =
+		(Input->MouseX >= Rect.Min.x) &&
+		(Input->MouseY >= Rect.Min.y) &&
+		(Input->MouseX <= Rect.Max.x) &&
+		(Input->MouseY <= Rect.Max.y);
+
+	return(Result);
+}
+
+inline b32 MouseButtonIsDown(input_system* Input, u32 MouseBut) {
+	b32 Result = Input->MouseButtons[MouseBut].IsDown;
+
+	return(Result);
+}
 
 #endif

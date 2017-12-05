@@ -68,5 +68,8 @@
     <ClInclude Include="Source\stb_sprintf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\workout_platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

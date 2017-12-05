@@ -5,10 +5,30 @@
 
 #include "workout_asset.h"
 
+struct gui_interaction {
+	b32 IsHot;
+};
+
+struct interactible_rect {
+	rect2 Rect;
+
+	gui_interaction SizeInteraction;
+	gui_interaction PosInteraction;
+};
+
+struct gui_button {
+	gui_interaction ChangeInteraction;
+};
+
 struct gui_state {
 	font_info* FontInfo;
 	render_stack* RenderStack;
 	render_stack* TempRenderStack;
+
+	interactible_rect TempRect;
+	gui_button TempBut;
+
+	input_system* Input;
 
 	float FontScale;
 
@@ -16,7 +36,8 @@ struct gui_state {
 	float CurrentY;
 };
 
-extern void InitGUIState(gui_state* GUIState, font_info* FontInfo);
+
+extern void InitGUIState(gui_state* GUIState, font_info* FontInfo, input_system* Input);
 extern void BeginFrameGUI(gui_state* GUIState, render_stack* RenderStack);
 extern void EndFrameGUI(gui_state* GUIState);
 

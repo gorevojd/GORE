@@ -63,7 +63,28 @@ void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor) {
 	Entry->ModulationColor = ModulationColor;
 }
 
+
+void PushRect(render_stack* Stack, rect2 Rect, v4 ModulationColor) {
+	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
+	render_stack_entry_rectangle* Entry = (render_stack_entry_rectangle*)EntryData;
+
+	Entry->P = Rect.Min;
+	Entry->Dim = Rect.Max - Rect.Min;
+	Entry->ModulationColor = ModulationColor;
+}
+
 void PushRectOutline(render_stack* Stack, v2 P, v2 Dim, int PixelWidth, v4 Color) {
+	v2 WidthQuad = V2(PixelWidth, PixelWidth);
+	PushRect(Stack, V2(P.x - PixelWidth, P.y - PixelWidth), V2(Dim.x + 2.0f * PixelWidth, PixelWidth), Color);
+	PushRect(Stack, V2(P.x - PixelWidth, P.y), V2(PixelWidth, Dim.y + PixelWidth), Color);
+	PushRect(Stack, V2(P.x, P.y + Dim.y), V2(Dim.x + PixelWidth, PixelWidth), Color);
+	PushRect(Stack, V2(P.x + Dim.x, P.y), V2(PixelWidth, Dim.y), Color);
+}
+
+void PushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Color) {
+	v2 Dim = GetRectDim(Rect);
+	v2 P = Rect.Min;
+
 	v2 WidthQuad = V2(PixelWidth, PixelWidth);
 	PushRect(Stack, V2(P.x - PixelWidth, P.y - PixelWidth), V2(Dim.x + 2.0f * PixelWidth, PixelWidth), Color);
 	PushRect(Stack, V2(P.x - PixelWidth, P.y), V2(PixelWidth, Dim.y + PixelWidth), Color);
