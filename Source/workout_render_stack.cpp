@@ -1,9 +1,9 @@
 #include "workout_render_stack.h"
 
-render_stack BeginRenderStack() {
+render_stack BeginRenderStack(i32 Megabytes) {
 	render_stack Result;
 
-	u32 MemoryToAlloc = 1024 * 1024;
+	u32 MemoryToAlloc = 1024 * 1024 * Megabytes;
 
 	Result.Base = (u8*)malloc(MemoryToAlloc);
 	Result.Used = 0;

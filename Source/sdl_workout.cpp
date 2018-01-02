@@ -36,8 +36,6 @@
 			Split code to platform dependent and platform independent parts
 
 		Platform layer:
-			Mouse input handling
-			alt-f4 close handling
 			Thread pool
 			Correct aspect ratio handling
 
@@ -55,6 +53,8 @@ GLOBAL_VARIABLE float GlobalTime;
 
 debug_state GlobalDebugState_;
 debug_state* GlobalDebugState = &GlobalDebugState_;
+
+platform_api PlatformApi;
 
 static u64 SDLGetClocks() {
 	u64 Result = SDL_GetPerformanceCounter();
@@ -352,87 +352,85 @@ inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
 	return(Result);
 }
 
-#if 0
-#define SDL_THREAD_QUEUE_CALLBACK(name) int name(void* Data)
-typedef SDL_THREAD_QUEUE_CALLBACK(thread_queue_callback);
-
-struct thread_queue_entry{
-	thread_queue_callback* Callback;
-	void* Data;
-};
-
+#if 1
 struct sdl_thread_entry {
-	SDL_sem* Semaphore;
-};
-
-#define THREAD_QUEUE_ENTRY_COUNT 512
-struct thread_queue {
-	thread_queue_entry Entries[THREAD_QUEUE_ENTRY_COUNT];
-
-	volatile int TotalEntries;
-	volatile int FinishedEntries;
+	thread_queue* Queue;
 };
 
 void SDLAddEntry(thread_queue* Queue, thread_queue_callback* Callback, void* Data){
 	//Check the overlapping for total
-	int NewTotal = (Queue->TotalEntries + 1) % ArrayCount(Queue->Entries);
-	int OldVal = SDL_AtomicSet((SDL_atomic_t*)&Queue->TotalEntries, NewTotal);
+	int NewNextToWrite = (Queue->NextToWrite + 1) % ArrayCount(Queue->Entries);
 	/*Should not overlap*/
-	Assert(Queue->TotalEntries != Queue->FinishedEntries);
+	Assert(Queue->NextToWrite != NewNextToWrite);
 
-	thread_queue_entry* Entry = Queue->Entries + Queue->TotalEntries;
+	thread_queue_entry* Entry = Queue->Entries + Queue->NextToWrite;
 	Entry->Callback = Callback;
 	Entry->Data = Data;
+	++Queue->EntryCount;
+
+	SDL_CompilerBarrier();
+	SDL_AtomicSet((SDL_atomic_t*)&Queue->NextToWrite, NewNextToWrite);
+
+	SDL_SemPost((SDL_sem*)Queue->Semaphore);
+}
+
+b32  SDLDoNextWork(thread_queue* Queue) {
+	b32 ShouldSleep = 0;
 
 	SDL_CompilerBarrier();
 
-	SDL_SemPost()
+	int NextToRead = Queue->NextToRead;
+	int NewNextToRead = (NextToRead + 1) % ArrayCount(Queue->Entries);
+	if (NextToRead != Queue->NextToWrite) {
+		if (SDL_AtomicCAS((SDL_atomic_t*)&Queue->NextToRead, NextToRead, NewNextToRead) == SDL_TRUE) {
+			thread_queue_entry* Entry = Queue->Entries + NextToRead;
+			Entry->Callback(Entry->Data);
+			SDL_AtomicAdd((SDL_atomic_t*)&Queue->FinishedEntries, 1);
+		}
+	}
+	else {
+		ShouldSleep = 1;
+	}
+
+	return(ShouldSleep);
 }
 
-void SDL(thread_queue* Queue){
+int SDLWorkerThread(void* Param){
+	sdl_thread_entry* Thread = (sdl_thread_entry*)Param;
+	thread_queue* Queue = Thread->Queue;
+
 	for(;;){
-		if(Queue->FinishedEntries != Queue->TotalEntries){
-			int NewFinished = (Queue->FinishedEntries + 1) % ArrayCount(Queue->Entries);
-			int ToDoEntryIndex = SDL_AtomicSet((SDL_atomic_t*)&Queue->FinishedEntries, NewFinished);
-			thread_queue_entry* Entry = Queue->Entries + ToDoEntryIndex;
-
-			Entry->Callback(Entry->Data);
-
-			SDL_CompilerBarrier();
-
-			SDL_SemPost(ThreadEntry->Semaphore);
-		}
-		else {
-			SDL_SemWait(ThreadEntry->Semaphore);
+		if (SDLDoNextWork(Queue)) {
+			SDL_SemWait((SDL_sem*)Queue->Semaphore);
 		}
 	}
 }
 
 void SDLCompleteQueueWork(thread_queue* Queue){
-	while(Queue->FinishedEntries != Queue->TotalEntries){
+	while(Queue->FinishedEntries != Queue->EntryCount){
 		SDLDoNextWork(Queue);
 	}
+	Queue->FinishedEntries = 0;
+	Queue->EntryCount = 0;
 }
 
 void SDLInitThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int ThreadCount) {
-	Queue->TotalEntries = 0;
+	Queue->EntryCount = 0;
 	Queue->FinishedEntries = 0;
+
+	Queue->NextToRead = 0;
+	Queue->NextToWrite = 0;
+
+	Queue->Semaphore = SDL_CreateSemaphore(0);
 
 	for (int ThreadIndex = 0;
 		ThreadIndex < ThreadCount;
 		ThreadIndex++) 
 	{
 		sdl_thread_entry* Entry = Threads + ThreadIndex;
+		Entry->Queue = Queue;
 
-		Entry->Semaphore = SDL_CreateSemaphore(0);
-	}
-
-	for (int ThreadIndex = 0;
-		ThreadIndex < ThreadCount;
-		ThreadIndex++)
-	{
-		SDL_Thread* Thread = SDL_CreateThread(SDLDoNextWork, 0, 0);
-		SDL_WaitThread(Thread);
+		SDL_Thread* Thread = SDL_CreateThread(SDLWorkerThread, 0, Entry);
 	}
 }
 
@@ -442,9 +440,200 @@ void SDLDestroyThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int T
 
 #endif
 
+struct cellural_buffer {
+	u8* Buf;
+	i32 Width;
+	i32 Height;
+};
+
+static cellural_buffer AllocateCelluralBuffer(i32 Width, i32 Height) {
+	cellural_buffer Buffer;
+	Buffer.Buf = (u8*)calloc(Width * Height, 1);
+	Buffer.Width = Width;
+	Buffer.Height = Height;
+
+	return(Buffer);
+}
+
+static void DeallocateCelluralBuffer(cellural_buffer* Buffer) {
+	if (Buffer->Buf) {
+		free(Buffer->Buf);
+	}
+	Buffer->Width = 0;
+	Buffer->Height = 0;
+}
+
+static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, random_state* RandomState) {
+
+	u8* At = Buffer->Buf;
+	u8* To = Buffer->Buf;
+	for (i32 Y = 0; Y < Buffer->Height; Y++) {
+		for (i32 X = 0; X < Buffer->Width; X++) {
+
+			u8 randval = XORShift32(RandomState) % 101;
+			b32 ShouldBeFilled = (randval <= FillPercentage);
+			if (ShouldBeFilled) {
+				*To = 1;
+			}
+			else {
+				*To = 0;
+			}
+
+			++To;
+			++At;
+		}
+	}
+
+#if 1
+	for (int SmoothIteration = 0;
+		SmoothIteration < 10;
+		SmoothIteration++) 
+	{
+		cellural_buffer Temp = AllocateCelluralBuffer(Buffer->Width, Buffer->Height);
+
+		At = Buffer->Buf;
+		To = Temp.Buf;
+		for (i32 Y = 0; Y < Buffer->Height; Y++) {
+			for (i32 X = 0; X < Buffer->Width; X++) {
+
+				if (X == 0 ||
+					X == (Buffer->Width - 1) ||
+					Y == 0 ||
+					Y == (Buffer->Height - 1))
+				{
+					*To++ = 0;
+					At++;
+					continue;
+				}
+
+				u8* Neighbours[8];
+				Neighbours[0] = Buffer->Buf + (Y - 1) * Buffer->Height + X - 1;
+				Neighbours[1] = Buffer->Buf + (Y - 1) * Buffer->Height + X;
+				Neighbours[2] = Buffer->Buf + (Y - 1) * Buffer->Height + X + 1;
+				Neighbours[3] = Buffer->Buf + Y * Buffer->Height + X - 1;
+				Neighbours[4] = Buffer->Buf + Y * Buffer->Height + X + 1;
+				Neighbours[5] = Buffer->Buf + (Y + 1) * Buffer->Height + X - 1;
+				Neighbours[6] = Buffer->Buf + (Y + 1) * Buffer->Height + X;
+				Neighbours[7] = Buffer->Buf + (Y + 1) * Buffer->Height + X + 1;
+
+				int WallCount = 0;
+				for (int i = 0; i < 8; i++) {
+					if (*Neighbours[i]) {
+						WallCount++;
+					}
+				}
+
+				if (WallCount > 4) {
+					*To = 1;
+				}
+				else if (WallCount < 4) {
+					*To = 0;
+				}
+				else {
+					*To = *At;
+				}
+
+				++To;
+				++At;
+			}
+		}
+
+		At = Temp.Buf;
+		To = Buffer->Buf;
+		for (i32 Y = 0; Y < Buffer->Height; Y++) {
+			for (i32 X = 0; X < Buffer->Width; X++) {
+				
+				*To++ = *At++;
+			}
+		}
+		
+		DeallocateCelluralBuffer(&Temp);
+	}
+#endif
+}
+
+#define CELLURAL_CELL_WIDTH 4
+static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
+	rgba_buffer Res = AllocateRGBABuffer(
+		Buffer->Width * CELLURAL_CELL_WIDTH, 
+		Buffer->Height * CELLURAL_CELL_WIDTH);
+
+	render_stack Stack = BeginRenderStack(10);
+
+	u8* At = Buffer->Buf;
+	for (i32 Y = 0; Y < Buffer->Height; Y++) {
+		for (i32 X = 0; X < Buffer->Width; X++) {
+
+			rect2 DrawRect;
+			DrawRect.Min.x = X * CELLURAL_CELL_WIDTH;
+			DrawRect.Min.y = Y * CELLURAL_CELL_WIDTH;
+			DrawRect.Max.x = (X + 1) * CELLURAL_CELL_WIDTH;
+			DrawRect.Max.y = (Y + 1) * CELLURAL_CELL_WIDTH;
+
+			v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f);
+			if (*At) {
+				Color = V4(0.9f, 0.1f, 0.1f, 1.0f);
+			}
+
+			/*
+			extern void RenderRectFast(
+				rgba_buffer* Buffer,
+				v2 P,
+				v2 Dim,
+				v4 ModulationColor01,
+				rect2 ClipRect);
+			*/
+
+			//RenderRectFast
+
+			PushRect(&Stack, DrawRect, Color);
+
+			++At;
+		}
+	}
+
+	RenderDickInjection(&Stack, &Res);
+
+	EndRenderStack(&Stack);
+
+	return(Res);
+}
+
+static void DrawCelluralBuffer(render_stack* Stack, cellural_buffer* Buffer) {
+
+	u8* At = Buffer->Buf;
+	for (i32 Y = 0; Y < Buffer->Height; Y++) {
+		for (i32 X = 0; X < Buffer->Width; X++) {
+
+			rect2 DrawRect;
+			DrawRect.Min.x = X * CELLURAL_CELL_WIDTH;
+			DrawRect.Min.y = Y * CELLURAL_CELL_WIDTH;
+			DrawRect.Max.x = (X + 1) * CELLURAL_CELL_WIDTH;
+			DrawRect.Max.y = (Y + 1) * CELLURAL_CELL_WIDTH;
+
+			v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f);
+			if (*At) {
+				Color = V4(0.9f, 0.1f, 0.1f, 1.0f);
+			}
+
+			PushRect(Stack, DrawRect, Color);
+
+			++At;
+		}
+	}
+}
+
 int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+
+	sdl_thread_entry RenderThreadEntries[4];
+	thread_queue RenderThreadQueue;
+	SDLInitThreadQueue(&RenderThreadQueue, RenderThreadEntries, 4);
+
+	PlatformApi.AddEntry = SDLAddEntry;
+	PlatformApi.FinishAll = SDLCompleteQueueWork;
+	PlatformApi.RenderQueue = &RenderThreadQueue;
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -467,13 +656,18 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Window is not created");
 	}
 
+	random_state CellRandom = InitRandomStateWithSeed(1234);
+	cellural_buffer Cellural = AllocateCelluralBuffer(512, 512);
+	CelluralGenerateCave(&Cellural, 55, &CellRandom);
+	rgba_buffer CelluralBitmap = CelluralBufferToRGBA(&Cellural);
+
 	rgba_buffer Image = LoadIMG("../Data/Images/image.bmp");
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
-	InitGUIState(GUIState, &FontInfo, &GlobalInput);
+	GUIInitState(GUIState, &FontInfo, &GlobalInput);
 	InitDEBUG(GlobalDebugState, &FontInfo);
 
 	float LastMSPerFrame = 0.0f;
@@ -514,103 +708,47 @@ int main(int ArgsCount, char** Args) {
 		//PushGradient(Stack, V3(GradR, GradG, GradB));
 		PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
+		//DrawCelluralBuffer(Stack, &Cellural);
+		PushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
 
-		PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
-		PushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
-		PushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
+		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+		//
+		//PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
-		PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
-		BeginFrameGUI(GUIState, Stack);
+		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
 #if 1
-		PrintText(GUIState, DebugStr);
-		//PrintText(GUIState, "Hello my friend");
-		//PrintText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
-		//PrintText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
+		GUIBeginView(GUIState);
+		GUIText(GUIState, DebugStr);
+		//GUIText(GUIState, "Hello my friend");
+		//GUIText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
+		//GUIText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
 
-		HighlightedText(GUIState, "HelloButton xD -_- ._. T_T ^_^");
-		HighlightedText(GUIState, "1234567890");
-		HighlightedText(GUIState, "AASDALJD:LKAJ:LKDJSAKJAHSDLKJHALKSJDHLKJAHSDLKHALKSDLKJASDLKADF:JLKDF:LKSJhlkajsdfhaldhfadfs");
-		HighlightedText(GUIState, "DickInjection");
+		GUIActionButton(GUIState, "Button1");
+		GUIActionButton(GUIState, "Button2");
+		GUIActionButton(GUIState, "Button3");
+		GUIActionButton(GUIState, "Button4");
 
-		PrintLabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
+		GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
+		GUIEndView(GUIState);
 #endif
 
 #if 1
-		rect2* MainRect = &GUIState->TempRect.Rect;
-		v2 RectDim = GetRectDim(*MainRect);
 
-		PushRectOutline(Stack, *MainRect, 2);
-		PushRect(Stack, *MainRect, V4(0.0f, 0.0f, 0.0f, 0.7));
-		
-		v2 AnchorDim = V2(7, 7);
-		
-		rect2 SizeAnchorRect;
-		SizeAnchorRect.Min = MainRect->Max - V2(3.0f, 3.0f);
-		SizeAnchorRect.Max = SizeAnchorRect.Min + AnchorDim;
-		v4 SizeAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
-
-		rect2 PosAnchorRect;
-		PosAnchorRect.Min = MainRect->Min - V2(3.0f, 3.0f);
-		PosAnchorRect.Max = PosAnchorRect.Min + AnchorDim;
-		v4 PosAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
-
-		if (MouseInRect(&GlobalInput, SizeAnchorRect)) {
-			SizeAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
-
-			if (MouseButtonWentDown(&GlobalInput, MouseButton_Left) && !GUIState->TempRect.SizeInteraction.IsHot) {
-				GUIState->TempRect.SizeInteraction.IsHot = true;
-			}
-		}
-
-		if (MouseInRect(&GlobalInput, PosAnchorRect)) {
-			PosAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
-
-			if (MouseButtonWentDown(&GlobalInput, MouseButton_Left) && !GUIState->TempRect.PosInteraction.IsHot) {
-				GUIState->TempRect.PosInteraction.IsHot = true;
-			}
-		}
-		
-		if (MouseButtonWentUp(&GlobalInput, MouseButton_Left)) {
-			GUIState->TempRect.SizeInteraction.IsHot = false;
-			GUIState->TempRect.PosInteraction.IsHot = false;
-		}
-
-		if (GUIState->TempRect.PosInteraction.IsHot) {
-			MainRect->Min = GlobalInput.MouseP;
-			MainRect->Max = MainRect->Min + RectDim;
-			PosAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
-		}
-
-		v2 ResizedRectDim = RectDim;
-		if (GUIState->TempRect.SizeInteraction.IsHot) {
-			MainRect->Max = GlobalInput.MouseP;
-			SizeAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
-			ResizedRectDim = GetRectDim(*MainRect);
-		}
-		
-		if (ResizedRectDim.x < 10) {
-			MainRect->Max.x = MainRect->Min.x + 10;
-		}
-
-		if (ResizedRectDim.y < 10) {
-			MainRect->Max.y = MainRect->Min.y + 10;
-		}
-
-		PushRect(Stack, SizeAnchorRect.Min, AnchorDim, SizeAnchorColor);
-		PushRect(Stack, PosAnchorRect.Min, AnchorDim, PosAnchorColor);
 #endif
 
-		RenderDickInjection(Stack, &GlobalBuffer);
+		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
-		EndFrameGUI(GUIState);
+		GUIEndFrame(GUIState);
 		EndRenderStack(Stack);
 
 		OverlayCycleCounters(GlobalDebugState, GUIState);
-		RenderDickInjection(&GlobalDebugState->GUIRenderStack, &GlobalBuffer);
+		RenderDickInjectionMultithreaded(&RenderThreadQueue, &GlobalDebugState->GUIRenderStack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);
@@ -642,6 +780,7 @@ int main(int ArgsCount, char** Args) {
 	SDL_DestroyWindow(Window);
 
 	DeallocateRGBABuffer(&GlobalBuffer);
+	DeallocateCelluralBuffer(&Cellural);
 
 	printf("Program has been succesfully ended\n");
 

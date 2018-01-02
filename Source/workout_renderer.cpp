@@ -11,6 +11,8 @@
 #define MM_UNPACK_COLOR_CHANNEL0(texel) _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(texel, mmFF)), mmOneOver255)
 #define MM_LERP(a, b, t) _mm_add_ps(a, _mm_mul_ps(_mm_sub_ps(b, a), t))
 
+extern platform_api PlatformApi;
+
 static void RenderClear(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	v4 ResColor = V4(Color.x, Color.y, Color.z, 1.0f);
 	u32 OutColor = PackRGBA(ResColor);
@@ -550,7 +552,7 @@ static void RenderBitmap(
 	END_TIMED_BLOCK(BitmapPixelFill, PixelFillCount);
 }
 
-static void RenderRect(
+void RenderRect(
 	rgba_buffer* Buffer,
 	v2 P,
 	v2 Dim,
@@ -609,7 +611,7 @@ static void RenderRect(
 	}
 }
 
-static void RenderRectFast(
+void RenderRectFast(
 	rgba_buffer* Buffer,
 	v2 P,
 	v2 Dim,
@@ -806,8 +808,28 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 	}
 }
 
+struct render_queue_work {
+	render_stack* Stack;
+	rgba_buffer* Buffer;
+	rect2 ClipRect;
+};
+
+PLATFORM_THREAD_QUEUE_CALLBACK(RenderQueueWork) {
+	render_queue_work* Work = (render_queue_work*)Data;
+
+	SoftwareRenderStackToOutput(Work->Stack, Work->Buffer, Work->ClipRect);
+}
+
 void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
-#if 1
+	rect2 ClipRect;
+	ClipRect.Min = V2(0, 0);
+	ClipRect.Max = V2(Buffer->Width, Buffer->Height);
+
+	SoftwareRenderStackToOutput(Stack, Buffer, ClipRect);
+}
+
+void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer) {
+#if 0
 	rect2 ClipRect;
 	ClipRect.Min = V2(0, 0);
 	ClipRect.Max = V2(Buffer->Width, Buffer->Height);
@@ -817,10 +839,10 @@ void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
 
 #define SIDE_TILES_COUNT 4
 
+	render_queue_work Works[SIDE_TILES_COUNT * SIDE_TILES_COUNT];
+
 	int SideTileWidth = Buffer->Width / SIDE_TILES_COUNT;
 	int SideTileHeight = Buffer->Height / SIDE_TILES_COUNT;
-
-	std::thread Threads[SIDE_TILES_COUNT * SIDE_TILES_COUNT];
 
 	for (int j = 0; j < SIDE_TILES_COUNT; j++) {
 		for (int i = 0; i < SIDE_TILES_COUNT; i++) {
@@ -837,16 +859,14 @@ void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
 				Rect.Max.x = Buffer->Width;
 			}
 
-#if 0
-			SoftwareRenderStackToOutput(Stack, Buffer, Rect);
-#else
-			Threads[j * SIDE_TILES_COUNT + i] = std::thread(SoftwareRenderStackToOutput, Stack, Buffer, Rect);
-#endif
+			render_queue_work* Work = &Works[j * SIDE_TILES_COUNT + i];
+			Work->Buffer = Buffer;
+			Work->Stack = Stack;
+			Work->ClipRect = Rect;
+			PlatformApi.AddEntry(Queue, RenderQueueWork, Work);
 		}
 	}
-	
-	for (int ThreadIndex = 0; ThreadIndex < SIDE_TILES_COUNT * SIDE_TILES_COUNT; ThreadIndex++) {
-		Threads[ThreadIndex].join();
-	}
+
+	PlatformApi.FinishAll(Queue);
 #endif
 }

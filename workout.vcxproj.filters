@@ -71,5 +71,8 @@
     <ClInclude Include="Source\workout_platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\workout_random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

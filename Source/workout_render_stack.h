@@ -50,7 +50,7 @@ extern void PushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth = 1,
 extern void PushClear(render_stack* Stack, v3 Clear);
 extern void PushGradient(render_stack* Stack, v3 Color);
 
-extern render_stack BeginRenderStack();
+extern render_stack BeginRenderStack(i32 Megabytes = 5);
 extern void EndRenderStack(render_stack* Stack);
 
 #endif

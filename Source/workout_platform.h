@@ -37,22 +37,43 @@ typedef signed long long i64;
 #endif
 
 #include "workout_math.h"
+#include "workout_random.h"
 
 #include <intrin.h>
 
-#if 0
-#define PLATFORM_THREAD_QUEUE_CALLBACK(name) int name(void* Data)
+#if 1
+#define PLATFORM_THREAD_QUEUE_CALLBACK(name) void name(void* Data)
 typedef PLATFORM_THREAD_QUEUE_CALLBACK(thread_queue_callback);
+
+struct thread_queue_entry {
+	thread_queue_callback* Callback;
+	void* Data;
+};
+
+#define THREAD_QUEUE_ENTRY_COUNT 512
+struct thread_queue {
+	thread_queue_entry Entries[THREAD_QUEUE_ENTRY_COUNT];
+
+	volatile int EntryCount;
+	volatile int FinishedEntries;
+
+	volatile int NextToRead;
+	volatile int NextToWrite;
+
+	void* Semaphore;
+};
 
 #define PLATFORM_THREAD_QUEUE_ADD_ENTRY(name) void name(thread_queue* Queue, thread_queue_callback* Callback, void* Data)
 typedef PLATFORM_THREAD_QUEUE_ADD_ENTRY(platform_thread_queue_add_entry);
 
-#define PLATFORM_THREAD_QUEUE_COMPLETE_WORK(name) void name(thread_queue* Queue)
+#define PLATFORM_THREAD_QUEUE_FINISH_ALL(name) void name(thread_queue* Queue)
 typedef PLATFORM_THREAD_QUEUE_FINISH_ALL(platform_thread_queue_finish_all);
 
 struct platform_api {
 	platform_thread_queue_add_entry* AddEntry;
 	platform_thread_queue_finish_all* FinishAll;
+
+	thread_queue* RenderQueue;
 };
 #endif
 

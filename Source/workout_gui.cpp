@@ -1,9 +1,6 @@
 #include "workout_gui.h"
 
-void InitGUIState(gui_state* GUIState, font_info* FontInfo, input_system* Input) {
-	GUIState->FontScale = 1.0f;
-	GUIState->CurrentX = 10.0f;
-	GUIState->CurrentY = 0.0f;
+void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input) {
 	GUIState->RenderStack = 0;
 	GUIState->FontInfo = FontInfo;
 
@@ -15,23 +12,64 @@ void InitGUIState(gui_state* GUIState, font_info* FontInfo, input_system* Input)
 	GUIState->TempRect.PosInteraction = {};
 }
 
-void BeginTempGUIRenderStack(gui_state* GUIState, render_stack* Stack) {
+void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack) {
 	GUIState->TempRenderStack = GUIState->RenderStack;
 	GUIState->RenderStack = Stack;
 }
 
-void EndTempGUIRenderStack(gui_state* GUIState) {
+void GUIEndTempRenderStack(gui_state* GUIState) {
 	GUIState->RenderStack = GUIState->TempRenderStack;
 }
 
-void BeginFrameGUI(gui_state* GUIState, render_stack* RenderStack) {
+void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
 
-	GUIState->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+	Assert(GUIState->CurrentViewIndex == 0);
 }
 
-void EndFrameGUI(gui_state* GUIState) {
+void GUIEndFrame(gui_state* GUIState) {
+	GUIState->CurrentViewIndex = 0;
+}
 
+void GUIBeginView(gui_state* GUIState) {
+	gui_view* View = GetCurrentView(GUIState);
+
+	View->FontScale = 1.0f;
+
+	View->CurrentX = View->ViewX;
+	View->CurrentY = View->ViewY + GetNextRowAdvance(GUIState->FontInfo) * View->FontScale;
+}
+
+void GUIEndView(gui_state* State) {
+	State->CurrentViewIndex++;
+}
+
+void GUIBeginRow(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	Assert(!View->RowBeginned);
+	View->RowBeginned = true;
+
+	View->RowBeginX = View->CurrentX;
+}
+
+void GUIEndRow(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	Assert(View->RowBeginned);
+	View->RowBeginned = false;
+
+	View->CurrentX = View->RowBeginX;
+}
+
+inline void GUIAdvanceCursor(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	if (View->RowBeginned) {
+
+	}
+
+	View->CurrentY += GetNextRowAdvance(State->FontInfo);
 }
 
 enum print_text_type {
@@ -86,19 +124,21 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	return(TextRect);
 }
 
-void PrintText(gui_state* GUIState, char* Text) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
+void GUIText(gui_state* GUIState, char* Text) {
+	gui_view* View = GetCurrentView(GUIState);
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, View->FontScale);
 
-	GUIState->CurrentY += GetNextRowAdvance(GUIState->FontInfo);
+	GUIAdvanceCursor(GUIState);
 }
 
-void PrintLabel(gui_state* GUIState, char* LabelText, v2 At) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, GUIState->FontScale);
+void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
+	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f);
 }
 
-void HighlightedText(gui_state* GUIState, char* Text) {
+void GUIActionButton(gui_state* GUIState, char* Text) {
+	gui_view* View = GetCurrentView(GUIState);
 
-	rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale);
+	rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, View->CurrentX, View->CurrentY, View->FontScale);
 	v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 	v4 TextHighlightColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -114,7 +154,75 @@ void HighlightedText(gui_state* GUIState, char* Text) {
 	PushRectOutline(GUIState->RenderStack, Rc);
 	PushRect(GUIState->RenderStack, Rc.Min, Dim, HighColor);
 	
-	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, GUIState->CurrentX, GUIState->CurrentY, GUIState->FontScale, TextHighlightColor);
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, View->FontScale, TextHighlightColor);
 
-	GUIState->CurrentY += GetNextRowAdvance(GUIState->FontInfo);
+	GUIAdvanceCursor(GUIState);
+}
+
+void GUIResizableRect(gui_state* State) {
+	render_stack* RenderStack = State->RenderStack;
+	input_system* Input = State->Input;;
+
+	rect2* MainRect = &State->TempRect.Rect;
+	v2 RectDim = GetRectDim(*MainRect);
+
+	PushRectOutline(RenderStack, *MainRect, 2);
+	PushRect(RenderStack, *MainRect, V4(0.0f, 0.0f, 0.0f, 0.7));
+
+	v2 AnchorDim = V2(7, 7);
+
+	rect2 SizeAnchorRect;
+	SizeAnchorRect.Min = MainRect->Max - V2(3.0f, 3.0f);
+	SizeAnchorRect.Max = SizeAnchorRect.Min + AnchorDim;
+	v4 SizeAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	rect2 PosAnchorRect;
+	PosAnchorRect.Min = MainRect->Min - V2(3.0f, 3.0f);
+	PosAnchorRect.Max = PosAnchorRect.Min + AnchorDim;
+	v4 PosAnchorColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (MouseInRect(State->Input, SizeAnchorRect)) {
+		SizeAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
+
+		if (MouseButtonWentDown(Input, MouseButton_Left) && State->TempRect.SizeInteraction.IsHot) {
+			State->TempRect.SizeInteraction.IsHot = true;
+		}
+	}
+
+	if (MouseInRect(Input, PosAnchorRect)) {
+		PosAnchorColor = V4(1.0f, 1.0f, 0.0f, 1.0f);
+
+		if (MouseButtonWentDown(Input, MouseButton_Left) && State->TempRect.PosInteraction.IsHot) {
+			State->TempRect.PosInteraction.IsHot = true;
+		}
+	}
+
+	if (MouseButtonWentUp(Input, MouseButton_Left)) {
+		State->TempRect.SizeInteraction.IsHot = false;
+		State->TempRect.PosInteraction.IsHot = false;
+	}
+
+	if (State->TempRect.PosInteraction.IsHot) {
+		MainRect->Min = Input->MouseP;
+		MainRect->Max = MainRect->Min + RectDim;
+		PosAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
+	}
+
+	v2 ResizedRectDim = RectDim;
+	if (State->TempRect.SizeInteraction.IsHot) {
+		MainRect->Max = Input->MouseP;
+		SizeAnchorColor = V4(1.0f, 0.1f, 0.1f, 1.0f);
+		ResizedRectDim = GetRectDim(*MainRect);
+	}
+
+	if (ResizedRectDim.x < 10) {
+		MainRect->Max.x = MainRect->Min.x + 10;
+	}
+
+	if (ResizedRectDim.y < 10) {
+		MainRect->Max.y = MainRect->Min.y + 10;
+	}
+
+	PushRect(RenderStack, SizeAnchorRect.Min, AnchorDim, SizeAnchorColor);
+	PushRect(RenderStack, PosAnchorRect.Min, AnchorDim, PosAnchorColor);
 }

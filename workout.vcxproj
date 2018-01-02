@@ -177,6 +177,7 @@
     <ClInclude Include="Source\workout_gui.h" />
     <ClInclude Include="Source\workout_math.h" />
     <ClInclude Include="Source\workout_platform.h" />
+    <ClInclude Include="Source\workout_random.h" />
     <ClInclude Include="Source\workout_renderer.h" />
     <ClInclude Include="Source\workout_render_stack.h" />
   </ItemGroup>

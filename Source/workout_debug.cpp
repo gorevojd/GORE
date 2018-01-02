@@ -40,7 +40,7 @@ void ClearDebugCounters(debug_state* DebugState) {
 #include "stb_sprintf.h"
 #include <stdio.h>
 void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
-	BeginTempGUIRenderStack(GUIState, &DebugState->GUIRenderStack);
+	GUIBeginTempRenderStack(GUIState, &DebugState->GUIRenderStack);
 
 	for (int CounterIndex = 0;
 		CounterIndex < DebugCounterType_Count;
@@ -60,11 +60,11 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 				Counter->Hits,
 				CyclesPerHit);
 
-			PrintText(GUIState, Buffer);
+			GUIText(GUIState, Buffer);
 		}
 	}
 
-	EndTempGUIRenderStack(GUIState);
+	GUIEndTempRenderStack(GUIState);
 }
 
 void BeginDEBUG(debug_state* State) {
