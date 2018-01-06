@@ -486,7 +486,7 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 
 #if 1
 	for (int SmoothIteration = 0;
-		SmoothIteration < 10;
+		SmoothIteration < 3;
 		SmoothIteration++) 
 	{
 		cellural_buffer Temp = AllocateCelluralBuffer(Buffer->Width, Buffer->Height);
@@ -501,20 +501,21 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 					Y == 0 ||
 					Y == (Buffer->Height - 1))
 				{
-					*To++ = 0;
+					*To = 0;
 					At++;
+					To++;
 					continue;
 				}
 
 				u8* Neighbours[8];
-				Neighbours[0] = Buffer->Buf + (Y - 1) * Buffer->Height + X - 1;
-				Neighbours[1] = Buffer->Buf + (Y - 1) * Buffer->Height + X;
-				Neighbours[2] = Buffer->Buf + (Y - 1) * Buffer->Height + X + 1;
-				Neighbours[3] = Buffer->Buf + Y * Buffer->Height + X - 1;
-				Neighbours[4] = Buffer->Buf + Y * Buffer->Height + X + 1;
-				Neighbours[5] = Buffer->Buf + (Y + 1) * Buffer->Height + X - 1;
-				Neighbours[6] = Buffer->Buf + (Y + 1) * Buffer->Height + X;
-				Neighbours[7] = Buffer->Buf + (Y + 1) * Buffer->Height + X + 1;
+				Neighbours[0] = Buffer->Buf + ((Y - 1) * Buffer->Width) + X - 1;
+				Neighbours[1] = Buffer->Buf + ((Y - 1) * Buffer->Width) + X;
+				Neighbours[2] = Buffer->Buf + ((Y - 1) * Buffer->Width) + X + 1;
+				Neighbours[3] = Buffer->Buf + (Y * Buffer->Width) + X - 1;
+				Neighbours[4] = Buffer->Buf + (Y * Buffer->Width) + X + 1;
+				Neighbours[5] = Buffer->Buf + ((Y + 1) * Buffer->Width) + X - 1;
+				Neighbours[6] = Buffer->Buf + ((Y + 1) * Buffer->Width) + X;
+				Neighbours[7] = Buffer->Buf + ((Y + 1) * Buffer->Width) + X + 1;
 
 				int WallCount = 0;
 				for (int i = 0; i < 8; i++) {
@@ -538,15 +539,18 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 			}
 		}
 
+#if 0
 		At = Temp.Buf;
 		To = Buffer->Buf;
 		for (i32 Y = 0; Y < Buffer->Height; Y++) {
 			for (i32 X = 0; X < Buffer->Width; X++) {
-				
 				*To++ = *At++;
 			}
 		}
-		
+#else
+		CopyMemory(Buffer->Buf, Temp.Buf, Buffer->Width * Buffer->Height);
+#endif
+
 		DeallocateCelluralBuffer(&Temp);
 	}
 #endif
@@ -599,30 +603,6 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 	return(Res);
 }
 
-static void DrawCelluralBuffer(render_stack* Stack, cellural_buffer* Buffer) {
-
-	u8* At = Buffer->Buf;
-	for (i32 Y = 0; Y < Buffer->Height; Y++) {
-		for (i32 X = 0; X < Buffer->Width; X++) {
-
-			rect2 DrawRect;
-			DrawRect.Min.x = X * CELLURAL_CELL_WIDTH;
-			DrawRect.Min.y = Y * CELLURAL_CELL_WIDTH;
-			DrawRect.Max.x = (X + 1) * CELLURAL_CELL_WIDTH;
-			DrawRect.Max.y = (Y + 1) * CELLURAL_CELL_WIDTH;
-
-			v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f);
-			if (*At) {
-				Color = V4(0.9f, 0.1f, 0.1f, 1.0f);
-			}
-
-			PushRect(Stack, DrawRect, Color);
-
-			++At;
-		}
-	}
-}
-
 int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
@@ -657,7 +637,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(512, 512);
+	cellural_buffer Cellural = AllocateCelluralBuffer(64, 64);
 	CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	rgba_buffer CelluralBitmap = CelluralBufferToRGBA(&Cellural);
 
@@ -667,8 +647,11 @@ int main(int ArgsCount, char** Args) {
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
-	GUIInitState(GUIState, &FontInfo, &GlobalInput);
+	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	InitDEBUG(GlobalDebugState, &FontInfo);
+
+	float TempFloatForSlider = 4.0f;
+	b32 TempBoolForSlider = true;
 
 	float LastMSPerFrame = 0.0f;
 
@@ -729,17 +712,45 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
 		//GUIText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
 
-		GUIActionButton(GUIState, "Button1");
-		GUIActionButton(GUIState, "Button2");
-		GUIActionButton(GUIState, "Button3");
-		GUIActionButton(GUIState, "Button4");
+		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
+		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 
-		GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
+		GUIBeginRow(GUIState);
+		GUIBoolButton(GUIState, "Button1", &BoolInteract);
+		GUIBoolButton(GUIState, "Button2", &BoolInteract);
+		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);
+		GUIEndRow(GUIState);
+
+		GUIBoolButton(GUIState, "Button3", &BoolInteract);
+		GUIBoolButton(GUIState, "Button4", &BoolInteract);
+
+		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider1", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
+		GUIText(GUIState, "Hello");
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUISlider(GUIState, "Slider4", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider5", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider6", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider7", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider8", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider9", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider10", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider11", -30.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider12", -30.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider13", -30.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider14", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider15", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider16", 0.0f, 10.0f, &SliderInteract);
+
+		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 		GUIEndView(GUIState);
-#endif
-
-#if 1
-
 #endif
 
 		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);

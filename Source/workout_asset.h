@@ -35,8 +35,8 @@ struct font_info {
 extern font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f);
 extern rgba_buffer LoadIMG(char* Path);
 
-inline float GetNextRowAdvance(font_info* Info) {
-	float Result = Info->AscenderHeight - Info->DescenderHeight + Info->LineGap;
+inline float GetNextRowAdvance(font_info* Info, float SpacingMultiplier = 1.0f) {
+	float Result = (Info->AscenderHeight - Info->DescenderHeight + Info->LineGap) * SpacingMultiplier;
 
 	return(Result);
 }
@@ -51,6 +51,4 @@ inline float GetKerningForCharPair(font_info* FontInfo, int FirstCodepoint, int 
 
 	return(Result);
 }
-
-
 #endif

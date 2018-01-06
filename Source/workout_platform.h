@@ -41,7 +41,6 @@ typedef signed long long i64;
 
 #include <intrin.h>
 
-#if 1
 #define PLATFORM_THREAD_QUEUE_CALLBACK(name) void name(void* Data)
 typedef PLATFORM_THREAD_QUEUE_CALLBACK(thread_queue_callback);
 
@@ -75,7 +74,11 @@ struct platform_api {
 
 	thread_queue* RenderQueue;
 };
-#endif
 
+inline void CopyMemory(void* Dest, void* Src, u64 Size) {
+	for (int i = 0; i < Size; i++) {
+		*((u8*)Dest + i) = *((u8*)Src + i);
+	}
+}
 
 #endif

@@ -102,6 +102,31 @@ inline v2 GetRectDim(rect2 Rect) {
 	return(Result);
 }
 
+inline float GetRectWidth(rect2 Rect) {
+	float Result = Rect.Max.x - Rect.Min.x;
+
+	return(Result);
+}
+
+inline float GetRectHeight(rect2 Rect) {
+	float Result = Rect.Max.y - Rect.Min.y;
+
+	return(Result);
+}
+
+inline rect2 Rect2MinMax(v2 Min, v2 Max) {
+	rect2 Res;
+	Res.Min = Min;
+	Res.Max = Max;
+	return(Res);
+}
+
+inline rect2 Rect2MinDim(v2 Min, v2 Dim) {
+	rect2 Res;
+	Res.Min = Min;
+	Res.Max = V2(Min.x + Dim.x, Min.y + Dim.y);
+	return(Res);
+}
 
 inline float Clamp01(float Val) {
 	if (Val < 0.0f) {

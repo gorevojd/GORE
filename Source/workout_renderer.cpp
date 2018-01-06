@@ -559,14 +559,14 @@ void RenderRect(
 	v4 ModulationColor01, 
 	rect2 ClipRect)
 {
-	int InitX = P.x;
-	int InitY = P.y;
+	int InitX = floorf(P.x);
+	int InitY = floorf(P.y);
 
 	int MinX = InitX;
-	int MaxX = MinX + Dim.x;
+	int MaxX = MinX + ceilf(Dim.x);
 
 	int MinY = InitY;
-	int MaxY = MinY + Dim.y;
+	int MaxY = MinY + ceilf(Dim.y);
 
 	MinX = Clamp(MinX, 0, Buffer->Width);
 	MaxX = Clamp(MaxX, 0, Buffer->Width);
@@ -618,14 +618,14 @@ void RenderRectFast(
 	v4 ModulationColor01,
 	rect2 ClipRect)
 {
-	int InitX = P.x;
-	int InitY = P.y;
+	int InitX = floorf(P.x);
+	int InitY = floorf(P.y);
 
 	int MinX = InitX;
-	int MaxX = MinX + Dim.x;
+	int MaxX = MinX + ceilf(Dim.x);
 
 	int MinY = InitY;
-	int MaxY = MinY + Dim.y;
+	int MaxY = MinY + ceilf(Dim.y);
 
 	/*Clamping incoming color*/
 	MinX = Clamp(MinX, 0, Buffer->Width);

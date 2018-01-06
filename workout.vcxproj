@@ -166,6 +166,7 @@
     <ClCompile Include="Source\workout_gui.cpp" />
     <ClCompile Include="Source\workout_renderer.cpp" />
     <ClCompile Include="Source\workout_render_stack.cpp" />
+    <ClCompile Include="Source\workout_vulkan.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\stb_sprintf.h" />
@@ -180,6 +181,7 @@
     <ClInclude Include="Source\workout_random.h" />
     <ClInclude Include="Source\workout_renderer.h" />
     <ClInclude Include="Source\workout_render_stack.h" />
+    <ClInclude Include="Source\workout_vulkan.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
