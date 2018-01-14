@@ -181,6 +181,7 @@
     <ClInclude Include="Source\workout_random.h" />
     <ClInclude Include="Source\workout_renderer.h" />
     <ClInclude Include="Source\workout_render_stack.h" />
+    <ClInclude Include="Source\workout_stacked_memory.h" />
     <ClInclude Include="Source\workout_vulkan.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

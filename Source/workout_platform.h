@@ -36,8 +36,14 @@ typedef signed long long i64;
 #define Max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#ifndef GET_ALIGN_OFFSET
+#define GET_ALIGN_OFFSET(val, align) ((align - ((size_t)val & (align - 1))) & (align - 1))
+#endif 
+
+
 #include "workout_math.h"
 #include "workout_random.h"
+#include "workout_stacked_memory.h"
 
 #include <intrin.h>
 
@@ -79,6 +85,36 @@ inline void CopyMemory(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
 		*((u8*)Dest + i) = *((u8*)Src + i);
 	}
+}
+
+inline b32 StringsAreEqual(char* A, char* B) {
+	b32 Result = false;
+
+	while (*A && *B) {
+
+		if (*A != *B) {
+			Result = false;
+			break;
+		}
+
+		A++;
+		B++;
+	}
+
+	if (*A == 0 && *B == 0) {
+		Result = true;
+	}
+
+	return(Result);
+}
+
+inline void CopyStrings(char* Dst, char* Src) {
+	if (Src) {
+		while (*Src) {
+			*Dst++ = *Src++;
+		}
+	}
+	*Dst = 0;
 }
 
 #endif

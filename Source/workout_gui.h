@@ -65,8 +65,36 @@ struct interactible_rect {
 	gui_interaction PosInteraction;
 };
 
-struct gui_button {
-	gui_interaction ChangeInteraction;
+enum gui_element_type {
+	GUIElement_None,
+
+	GUIElement_TreeNode,
+	GUIElement_StaticItem,
+	GUIElement_CachedItem,
+	GUIElement_Row,
+};
+
+struct gui_element {
+	s32 Depth;
+
+	gui_element* Parent;
+
+	gui_element* NextBro;
+	gui_element* PrevBro;
+
+	gui_element* ChildrenSentinel;
+	//gui_element* StaticElementsSentinel;
+	//gui_element* ChildrenFreeSentinel;
+
+	u32 Type;
+	union {
+		struct {
+			char Name[64];
+			char Text[64];
+
+			b32 Expanded;
+		};
+	};
 };
 
 struct gui_view {
@@ -78,14 +106,48 @@ struct gui_view {
 	float ViewX;
 	float ViewY;
 
-	gui_interaction PosInteraction;
-
 	float LastElementWidth;
 	float LastElementHeight;
 
 	float RowBeginX;
 
+	float CurrentPreAdvance;
+
 	b32 RowBeginned;
+
+	gui_element* CurrentNode;
+};
+
+enum gui_color_table_type {
+	GUIColor_Black,
+	GUIColor_White,
+
+	GUIColor_Red,
+	GUIColor_Green,
+	GUIColor_Blue,
+
+	GUIColor_Yellow,
+	GUIColor_Magenta,
+	GUIColor_Cyan,
+
+	GUIColor_PrettyBlue,
+	GUIColor_PrettyGreen,
+
+	GUIColor_Purple,
+
+	GUIColor_Orange,
+	GUIColor_OrangeRed,
+
+	GUIColor_DarkRed,
+	GUIColor_RoyalBlue,
+	GUIColor_PrettyPink,
+	GUIColor_BluishGray,
+
+	GUIColor_Burlywood,
+	GUIColor_DarkGoldenrod,
+	GUIColor_OliveDrab,
+
+	GUIColor_Count,
 };
 
 struct gui_state {
@@ -98,8 +160,15 @@ struct gui_state {
 	i32 ScreenWidth;
 	i32 ScreenHeight;
 
+	gui_element* RootNode;
+	gui_element* FreeElementsSentinel;
+
+	stacked_memory GUIMem;
+
 	gui_view GUIViews[8];
 	int CurrentViewIndex;
+
+	v4 ColorTable[GUIColor_Count];
 };
 
 inline gui_view* GetCurrentView(gui_state* GUIState) {
@@ -114,6 +183,24 @@ inline gui_view* GetCurrentView(gui_state* GUIState) {
 	return(Result);
 }
 
+inline b32 GUIElementShouldBeUpdated(gui_element* Node) {
+	b32 Result = 1;
+
+	gui_element* At = Node->Parent;
+	while (At->Parent != 0) {
+		Result = At->Expanded & Result;
+
+		if (Result == 0) {
+			break;
+		}
+
+		At = At->Parent;
+	}
+
+	return(Result);
+}
+
+
 extern void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
 extern void GUIEndFrame(gui_state* GUIState);
@@ -127,10 +214,14 @@ extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Inte
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
 
-
 extern void GUIBeginView(gui_state* GUIState);
 extern void GUIEndView(gui_state* State);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
 
+extern b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName);
+extern void GUIEndElement(gui_state* State, u32 ElementType);
+
+extern void GUITreeBegin(gui_state* State, char* NodeText);
+extern void GUITreeEnd(gui_state* State);
 #endif

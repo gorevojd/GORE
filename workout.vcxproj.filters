@@ -80,5 +80,8 @@
     <ClInclude Include="Source\workout_vulkan.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\workout_stacked_memory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

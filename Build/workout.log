@@ -6,5 +6,7 @@ e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '='
 e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
 e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
 e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(9): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(47): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
   workout.vcxproj -> E:\Programming\MyProjects\workout\.\Build\workout.exe
   workout.vcxproj -> .\Build\workout.pdb (Full PDB)

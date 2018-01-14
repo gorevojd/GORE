@@ -92,6 +92,16 @@ void PushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Color) 
 	PushRect(Stack, V2(P.x + Dim.x, P.y), V2(PixelWidth, Dim.y), Color);
 }
 
+void PushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Color) {
+	v2 Dim = GetRectDim(Rect);
+	v2 P = Rect.Min;
+
+	PushRect(Stack, V2(P.x, P.y), V2(Dim.x, PixelWidth), Color);
+	PushRect(Stack, V2(P.x, P.y + PixelWidth), V2(PixelWidth, Dim.y - PixelWidth), Color);
+	PushRect(Stack, V2(P.x + PixelWidth, P.y + Dim.y - PixelWidth), V2(Dim.x - PixelWidth, PixelWidth), Color);
+	PushRect(Stack, V2(P.x + Dim.x - PixelWidth, P.y + PixelWidth), V2(PixelWidth, Dim.y - 2 * PixelWidth), Color);
+}
+
 void PushClear(render_stack* Stack, v3 Clear){
 	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderStackEntry_Clear);
 	render_stack_entry_clear* Entry = (render_stack_entry_clear*)EntryData;

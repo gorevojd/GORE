@@ -47,6 +47,7 @@ extern void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(
 extern void PushRect(render_stack* Stack, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f));
 extern void PushRectOutline(render_stack* Stack, v2 P, v2 Dim, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
 extern void PushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
+extern void PushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
 extern void PushClear(render_stack* Stack, v3 Clear);
 extern void PushGradient(render_stack* Stack, v3 Color);
 

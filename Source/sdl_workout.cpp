@@ -651,7 +651,7 @@ int main(int ArgsCount, char** Args) {
 	InitDEBUG(GlobalDebugState, &FontInfo);
 
 	float TempFloatForSlider = 4.0f;
-	b32 TempBoolForSlider = true;
+	b32 TempBoolForSlider = false;
 
 	float LastMSPerFrame = 0.0f;
 
@@ -688,11 +688,13 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		//PushGradient(Stack, V3(GradR, GradG, GradB));
-		PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
+		PushGradient(Stack, V3(GradR, GradG, GradB));
+		//PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
-		PushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
+		if (TempBoolForSlider) {
+			PushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
+		}
 
 		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
 		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
@@ -708,13 +710,13 @@ int main(int ArgsCount, char** Args) {
 #if 1
 		GUIBeginView(GUIState);
 		GUIText(GUIState, DebugStr);
-		//GUIText(GUIState, "Hello my friend");
-		//GUIText(GUIState, "Sanya Surabko, Gorevoy Dmitry from LWO Corp");
-		//GUIText(GUIState, "Gorevoy Dmitry, Nikita Laptev from BSTU hostel");
 
 		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
 		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 
+		GUITreeBegin(GUIState, "Root");
+
+		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
 		GUIBoolButton(GUIState, "Button1", &BoolInteract);
 		GUIBoolButton(GUIState, "Button2", &BoolInteract);
@@ -726,28 +728,42 @@ int main(int ArgsCount, char** Args) {
 
 		GUIBeginRow(GUIState);
 		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider1", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider1", 0.0f, 10.0f, &SliderInteract);
 		GUIEndRow(GUIState);
 
 		GUIBeginRow(GUIState);
-		GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
 		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 		GUIEndRow(GUIState);
+		GUITreeEnd(GUIState);
 
-		GUISlider(GUIState, "Slider4", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider5", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider6", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider7", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider8", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider9", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider10", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider11", -30.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider12", -30.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider13", -30.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider14", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider15", 0.0f, 10.0f, &SliderInteract);
-		GUISlider(GUIState, "Slider16", 0.0f, 10.0f, &SliderInteract);
+		GUITreeBegin(GUIState, "Render");
+		GUITreeEnd(GUIState);
+
+		GUITreeBegin(GUIState, "Audio");
+		GUITreeEnd(GUIState);
+
+		GUITreeBegin(GUIState, "DEBUG");
+		GUITreeEnd(GUIState);
+
+		GUITreeBegin(GUIState, "Profiler");
+		GUITreeEnd(GUIState);
+		GUITreeEnd(GUIState);
+
+		//GUISlider(GUIState, "Slider4", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider5", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider6", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider7", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider8", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider9", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider10", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider11", -30.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider12", -30.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider13", -30.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider14", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider15", 0.0f, 10.0f, &SliderInteract);
+		//GUISlider(GUIState, "Slider16", 0.0f, 10.0f, &SliderInteract);
 
 		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 		GUIEndView(GUIState);
