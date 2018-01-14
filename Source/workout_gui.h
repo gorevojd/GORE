@@ -78,6 +78,7 @@ struct gui_element {
 	s32 Depth;
 
 	gui_element* Parent;
+	gui_element* TempParent;
 
 	gui_element* NextBro;
 	gui_element* PrevBro;
@@ -168,6 +169,8 @@ struct gui_state {
 	gui_view GUIViews[8];
 	int CurrentViewIndex;
 
+	b32 PlusMinusSymbol;
+
 	v4 ColorTable[GUIColor_Count];
 };
 
@@ -224,4 +227,12 @@ extern void GUIEndElement(gui_state* State, u32 ElementType);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);
 extern void GUITreeEnd(gui_state* State);
+extern void GUIBeginRootBlock(gui_state* State, char* BlockName);
+extern void GUIEndRootBlock(gui_state* State);
+
+
+#if 0
+extern void GUIBeginTreeFind(gui_state* State, char* NodeName);
+extern void GUIEndTreeFind(gui_state* State);
+#endif
 #endif

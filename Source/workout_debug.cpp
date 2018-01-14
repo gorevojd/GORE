@@ -42,6 +42,8 @@ void ClearDebugCounters(debug_state* DebugState) {
 void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 	GUIBeginTempRenderStack(GUIState, &DebugState->GUIRenderStack);
 
+	GUIBeginRootBlock(GUIState, "Profiler");
+	GUITreeBegin(GUIState, "Clocks");
 	for (int CounterIndex = 0;
 		CounterIndex < DebugCounterType_Count;
 		CounterIndex++)
@@ -63,6 +65,9 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 			GUIText(GUIState, Buffer);
 		}
 	}
+	GUITreeEnd(GUIState);
+
+	GUIEndRootBlock(GUIState);
 
 	GUIEndTempRenderStack(GUIState);
 }

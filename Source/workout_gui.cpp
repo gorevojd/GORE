@@ -62,6 +62,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->ScreenWidth = Width;
 	GUIState->ScreenHeight = Height;
 
+	GUIState->PlusMinusSymbol = 0;
+
 	GUIState->GUIMem = AllocateStackedMemory(1);
 
 #if 0
@@ -140,6 +142,7 @@ void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
 
 	Assert(GUIState->CurrentViewIndex == 0);
+
 }
 
 void GUIEndFrame(gui_state* GUIState) {
@@ -159,6 +162,12 @@ void GUIBeginView(gui_state* GUIState) {
 }
 
 void GUIEndView(gui_state* State) {
+	GUIBeginRootBlock(State, "GUI");
+	gui_interaction Interaction = GUIVariableInteraction(&State->PlusMinusSymbol, GUIVarType_B32);
+	GUIBoolButton(State, "PlusMinus", &Interaction);
+	GUIEndRootBlock(State);
+
+
 	State->CurrentViewIndex++;
 }
 
@@ -196,7 +205,7 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 
 	gui_element* Element = View->CurrentNode;
 
-	View->CurrentPreAdvance = (Element->Depth - 1) * 3 * View->FontScale * State->FontInfo->AscenderHeight;
+	View->CurrentPreAdvance = (Element->Depth - 1) * 2 * View->FontScale * State->FontInfo->AscenderHeight;
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
@@ -279,6 +288,7 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		Element->Depth = Parent->Depth + 1;
 
 		Element->Parent = Parent;
+		Element->TempParent = 0;
 
 		Element->ChildrenSentinel = 0;
 	}
@@ -296,6 +306,7 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		Element->Depth = Parent->Depth;
 
 		Element->Parent = Parent;
+		Element->TempParent = 0;
 
 		Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
 		Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
@@ -317,10 +328,11 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		CopyStrings(Element->Name, ElementName);
 		CopyStrings(Element->Text, ElementName);
 
-		Element->Expanded = 1;
+		Element->Expanded = 0;
 		Element->Depth = Parent->Depth + 1;
 
 		Element->Parent = Parent;
+		Element->TempParent = 0;
 
 		Element->ChildrenSentinel = PushStruct(&GUIState->GUIMem, gui_element);
 
@@ -343,9 +355,14 @@ b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName) {
 
 		case GUIElement_TreeNode: {
 			gui_interaction ActionInteraction = GUIVariableInteraction(&Element->Expanded, GUIVarType_B32);
-			char TextBuf[64];
-			stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Text);
-			GUIActionText(State, TextBuf, &ActionInteraction);
+			if (State->PlusMinusSymbol) {
+				char TextBuf[64];
+				stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Text);
+				GUIActionText(State, TextBuf, &ActionInteraction);
+			}
+			else {
+				GUIActionText(State, ElementName, &ActionInteraction);
+			}
 		}break;
 
 		case GUIElement_StaticItem: {
@@ -745,4 +762,81 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 
 void GUITreeEnd(gui_state* State) {
 	GUIEndElement(State, GUIElement_TreeNode);
+}
+
+#if 0
+static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {
+	gui_element* Result = 0;
+
+	//NOTE(Dima): First - walk through all elements on the level
+	for (gui_element* Element = At->ChildrenSentinel->NextBro;
+		Element != At->ChildrenSentinel;
+		Element = Element->NextBro)
+	{
+		if (StringsAreEqual(Element->Name, NodeName)) {
+			Result = Element;
+			return(Result);
+		}
+	}
+
+	//NOTE(Dima): If nothing found - recursivery go through every children
+	for (gui_element* Element = At->ChildrenSentinel->NextBro;
+		Element != At->ChildrenSentinel;
+		Element = Element->NextBro)
+	{
+		Result = GUIWalkaroundBFS(Element, NodeName);
+		if (Result) {
+			return(Result);
+		}
+	}
+
+	//NOTE(Dima): Return 0 if nothing found
+	return(Result);
+}
+
+void GUIBeginTreeFind(gui_state* State, char* NodeName) {
+	gui_view* View = GetCurrentView(State);
+
+	gui_element* NeededElement = GUIWalkaroundBFS(State->RootNode, NodeName);
+	Assert(NeededElement);
+
+	gui_element* OldParent = View->CurrentNode;
+	View->CurrentNode = NeededElement->Parent;
+	View->CurrentNode->TempParent = OldParent;
+
+	GUITreeBegin(State, NodeName);
+}
+
+void GUIEndTreeFind(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	GUITreeEnd(State);
+
+	gui_element* Temp = View->CurrentNode;
+	View->CurrentNode = View->CurrentNode->TempParent;
+	Temp->TempParent = 0;
+}
+#endif
+
+void GUIBeginRootBlock(gui_state* State, char* BlockName) {
+	gui_view* View = GetCurrentView(State);
+
+	Assert(StringsAreEqual(State->RootNode->ChildrenSentinel->NextBro->Name, "Root"));
+	gui_element* Root = State->RootNode->ChildrenSentinel->NextBro;
+
+	gui_element* OldParent = View->CurrentNode;
+	View->CurrentNode = Root;
+	View->CurrentNode->TempParent = OldParent;
+
+	GUITreeBegin(State, BlockName);
+}
+
+void GUIEndRootBlock(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	GUITreeEnd(State);
+
+	gui_element* Temp = View->CurrentNode;
+	View->CurrentNode = View->CurrentNode->TempParent;
+	Temp->TempParent = 0;
 }

@@ -40,8 +40,9 @@
 			Correct aspect ratio handling
 
 		GUI:
-			Lists
-			Sliders
+			Stacked memory UI view;
+			Make possibility to add sum stuff to elements that alredy exist in the tree view
+
 */
 
 GLOBAL_VARIABLE b32 GlobalRunning;
@@ -703,16 +704,18 @@ int main(int ArgsCount, char** Args) {
 		//PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
 
+		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
+		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
+
 		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
+
+
 #if 1
 		GUIBeginView(GUIState);
 		GUIText(GUIState, DebugStr);
-
-		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
-		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 
 		GUITreeBegin(GUIState, "Root");
 
@@ -738,6 +741,7 @@ int main(int ArgsCount, char** Args) {
 		GUIEndRow(GUIState);
 		GUITreeEnd(GUIState);
 
+
 		GUITreeBegin(GUIState, "Render");
 		GUITreeEnd(GUIState);
 
@@ -747,23 +751,7 @@ int main(int ArgsCount, char** Args) {
 		GUITreeBegin(GUIState, "DEBUG");
 		GUITreeEnd(GUIState);
 
-		GUITreeBegin(GUIState, "Profiler");
 		GUITreeEnd(GUIState);
-		GUITreeEnd(GUIState);
-
-		//GUISlider(GUIState, "Slider4", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider5", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider6", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider7", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider8", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider9", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider10", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider11", -30.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider12", -30.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider13", -30.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider14", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider15", 0.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider16", 0.0f, 10.0f, &SliderInteract);
 
 		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 		GUIEndView(GUIState);
