@@ -737,8 +737,8 @@ void RenderRectFast(
 }
 
 void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
-	u8* At = Stack->Base;
-	u8* StackEnd = Stack->Base + Stack->Used;
+	u8* At = Stack->Data.BaseAddress;
+	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
 
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;

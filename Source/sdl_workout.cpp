@@ -563,7 +563,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
 
-	render_stack Stack = BeginRenderStack(10);
+	render_stack Stack = BeginRenderStack(10 * 1024 * 1024);
 
 	u8* At = Buffer->Buf;
 	for (i32 Y = 0; Y < Buffer->Height; Y++) {
@@ -678,7 +678,7 @@ int main(int ArgsCount, char** Args) {
 
 		BeginDEBUG(GlobalDebugState);
 
-		render_stack Stack_ = BeginRenderStack();
+		render_stack Stack_ = BeginRenderStack(MEGABYTES(1));
 		render_stack* Stack = &Stack_;
 
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;

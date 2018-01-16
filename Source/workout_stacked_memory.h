@@ -9,10 +9,10 @@ struct stacked_memory {
 	u32 MaxSize;
 };
 
-inline stacked_memory AllocateStackedMemory(u32 Megabytes) {
+inline stacked_memory AllocateStackedMemory(u32 Size) {
 	stacked_memory Result = {};
 
-	u32 MemoryToAlloc = 1024 * 1024 * Megabytes;
+	u32 MemoryToAlloc = Size;
 
 	Result.BaseAddress = (u8*)malloc(MemoryToAlloc);
 	Result.Used = 0;

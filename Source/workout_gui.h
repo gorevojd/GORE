@@ -12,6 +12,7 @@ enum gui_variable_type {
 	GUIVarType_U64,
 	GUIVarType_I64,
 	GUIVarType_B32,
+	GUIVarType_StackedMemory,
 };
 
 struct gui_variable_link {
@@ -23,6 +24,7 @@ struct gui_variable_link {
 		u64* Value_U64;
 		i64* Value_I64;
 		b32* Value_B32;
+		stacked_memory* Value_StackedMemory;
 	};
 };
 
@@ -50,6 +52,9 @@ inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
 		case GUIVarType_U32: {Result.VariableLink.Value_U32 = (u32*)Variable; }break;
 		case GUIVarType_I64: {Result.VariableLink.Value_I64 = (i64*)Variable; }break;
 		case GUIVarType_U64: {Result.VariableLink.Value_U64 = (u64*)Variable; }break;
+		case GUIVarType_StackedMemory: {
+			Result.VariableLink.Value_StackedMemory = (stacked_memory*)Variable; 
+		}break;
 	}
 	Result.VariableLink.Type = Type;
 	Result.Type = GUIInteraction_VariableLink;
@@ -216,6 +221,7 @@ extern void GUIBoolButton(gui_state* GUIState, char* Text, gui_interaction* Inte
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
+extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction);
 
 extern void GUIBeginView(gui_state* GUIState);
 extern void GUIEndView(gui_state* State);

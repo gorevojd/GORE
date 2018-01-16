@@ -64,7 +64,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 
 	GUIState->PlusMinusSymbol = 0;
 
-	GUIState->GUIMem = AllocateStackedMemory(1);
+	GUIState->GUIMem = AllocateStackedMemory(KILOBYTES(100));
 
 #if 0
 	GUIState->TempRect.Rect.Min = V2(400, 400);
@@ -142,7 +142,6 @@ void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
 
 	Assert(GUIState->CurrentViewIndex == 0);
-
 }
 
 void GUIEndFrame(gui_state* GUIState) {
@@ -163,8 +162,13 @@ void GUIBeginView(gui_state* GUIState) {
 
 void GUIEndView(gui_state* State) {
 	GUIBeginRootBlock(State, "GUI");
-	gui_interaction Interaction = GUIVariableInteraction(&State->PlusMinusSymbol, GUIVarType_B32);
-	GUIBoolButton(State, "PlusMinus", &Interaction);
+	
+	gui_interaction PlusMinusInteraction = GUIVariableInteraction(&State->PlusMinusSymbol, GUIVarType_B32);
+	GUIBoolButton(State, "PlusMinus", &PlusMinusInteraction);
+
+	gui_interaction MemInteraction = GUIVariableInteraction(&State->GUIMem, GUIVarType_StackedMemory);
+	GUIStackedMemGraph(State, "GUI memory graph", &MemInteraction);
+
 	GUIEndRootBlock(State);
 
 
@@ -328,7 +332,7 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		CopyStrings(Element->Name, ElementName);
 		CopyStrings(Element->Text, ElementName);
 
-		Element->Expanded = 0;
+		Element->Expanded = 1;
 		Element->Depth = Parent->Depth + 1;
 
 		Element->Parent = Parent;
@@ -469,6 +473,67 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f);
+}
+
+void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
+	b32 NeedShowRoot = GUIBeginElement(GUIState, GUIElement_TreeNode, Name);
+
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Name);
+
+	Assert(Interaction->VariableLink.Type == GUIVarType_StackedMemory);
+
+	if (NeedShow) {
+		stacked_memory* WorkMem = Interaction->VariableLink.Value_StackedMemory;
+
+		gui_view* View = GetCurrentView(GUIState);
+
+		GUIPreAdvanceCursor(GUIState);
+
+		rect2 GraphRect;
+		GraphRect.Min.x = View->CurrentX;
+		GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * View->FontScale;
+		GraphRect.Max = GraphRect.Min + V2((float)GUIState->ScreenWidth * 0.5f, (float)GUIState->ScreenHeight * 0.12f);
+
+		v2 GraphRectDim = GetRectDim(GraphRect);
+
+		u64 OccupiedCount = WorkMem->Used;
+		u64 FreeCount = (u64)WorkMem->MaxSize - OccupiedCount;
+		u64 TotalCount = WorkMem->MaxSize;
+		
+		float OccupiedPercentage = (float)OccupiedCount / (float)TotalCount;
+
+		rect2 OccupiedRect = Rect2MinDim(GraphRect.Min, V2(GraphRectDim.x * OccupiedPercentage, GraphRectDim.y));
+		rect2 FreeRect = Rect2MinDim(
+			V2(OccupiedRect.Max.x, OccupiedRect.Min.y), 
+			V2(GraphRectDim.x * (1.0f - OccupiedPercentage), GraphRectDim.y));
+
+		PushRect(GUIState->RenderStack, OccupiedRect, GUIState->ColorTable[GUIColor_OliveDrab]);
+		PushRectOutline(GUIState->RenderStack, OccupiedRect, 2);
+		PushRect(GUIState->RenderStack, FreeRect, GUIState->ColorTable[GUIColor_Orange]);
+		PushRectOutline(GUIState->RenderStack, FreeRect, 2);
+
+		PushRectOutline(GUIState->RenderStack, GraphRect, 3);
+
+		if (MouseInRect(GUIState->Input, GraphRect)) {
+			char InfoStr[128];
+			stbsp_sprintf(
+				InfoStr, 
+				"Occupied: %llu; Free: %llu; Total: %llu",
+				OccupiedCount,
+				FreeCount,
+				TotalCount);
+
+			GUILabel(GUIState, InfoStr, GUIState->Input->MouseP);
+		}
+
+
+		View->LastElementHeight = GraphRectDim.y;
+
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_StaticItem);
+	GUIEndElement(GUIState, GUIElement_TreeNode);
 }
 
 void GUIText(gui_state* GUIState, char* Text) {

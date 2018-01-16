@@ -40,6 +40,13 @@ typedef signed long long i64;
 #define GET_ALIGN_OFFSET(val, align) ((align - ((size_t)val & (align - 1))) & (align - 1))
 #endif 
 
+#ifndef MEGABYTES
+#define MEGABYTES(count) ((count) * 1024 * 1024)
+#endif
+
+#ifndef KILOBYTES
+#define KILOBYTES(count) ((count) * 1024)
+#endif
 
 #include "workout_math.h"
 #include "workout_random.h"

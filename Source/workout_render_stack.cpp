@@ -1,28 +1,25 @@
 #include "workout_render_stack.h"
 
-render_stack BeginRenderStack(i32 Megabytes) {
+render_stack BeginRenderStack(u32 Size) {
 	render_stack Result;
 
-	u32 MemoryToAlloc = 1024 * 1024 * Megabytes;
+	u32 MemoryToAlloc = Size;
 
-	Result.Base = (u8*)malloc(MemoryToAlloc);
-	Result.Used = 0;
-	Result.MaxSize = MemoryToAlloc;
+	Result.Data = AllocateStackedMemory(MemoryToAlloc);
 
 	return(Result);
 }
 
 void EndRenderStack(render_stack* Stack) {
-	Stack->Used = 0;
-	free(Stack->Base);
+	DeallocateStackedMemory(&Stack->Data);
 }
 
 inline void* PushToRenderStack(render_stack* Stack, u32 Size) {
 	void* Result = 0;
 
-	if (Stack->Used + Size <= Stack->MaxSize) {
-		Result = Stack->Base + Stack->Used;
-		Stack->Used += Size;
+	void* MemPushed = PushSomeMemory(&Stack->Data, Size);
+	if (MemPushed) {
+		Result = MemPushed;
 	}
 	else {
 		Assert(!"Stack was corrupted");

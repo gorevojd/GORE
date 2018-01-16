@@ -4,9 +4,7 @@
 #include "workout_game_layer.h"
 
 struct render_stack {
-	u8* Base;
-	u32 Used;
-	u32 MaxSize;
+	stacked_memory Data;
 };
 
 enum render_stack_entry_type {
@@ -51,7 +49,7 @@ extern void PushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth
 extern void PushClear(render_stack* Stack, v3 Clear);
 extern void PushGradient(render_stack* Stack, v3 Color);
 
-extern render_stack BeginRenderStack(i32 Megabytes = 5);
+extern render_stack BeginRenderStack(u32 Size);
 extern void EndRenderStack(render_stack* Stack);
 
 #endif

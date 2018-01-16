@@ -73,7 +73,7 @@ void OverlayCycleCounters(debug_state* DebugState, gui_state* GUIState) {
 }
 
 void BeginDEBUG(debug_state* State) {
-	State->GUIRenderStack = BeginRenderStack();
+	State->GUIRenderStack = BeginRenderStack(MEGABYTES(1));
 }
 
 void EndDEBUG(debug_state* State) {
