@@ -40,7 +40,6 @@
 			Correct aspect ratio handling
 
 		GUI:
-			Stacked memory UI view;
 			Make possibility to add sum stuff to elements that alredy exist in the tree view
 
 */
@@ -620,7 +619,7 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: SDL has been not initialized");
 	}
 
-	GlobalBuffer = AllocateRGBABuffer(1024, 768);
+	GlobalBuffer = AllocateRGBABuffer(1366, 768);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
 	GlobalTime = 0.0f;
 

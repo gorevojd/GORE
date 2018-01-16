@@ -156,6 +156,40 @@ enum gui_color_table_type {
 	GUIColor_Count,
 };
 
+struct gui_color_theme {
+	u32 TextColor;
+	u32 TextHighlightColor;
+
+	u32 OutlineColor;
+
+	u32 FirstColor;
+	u32 SecondaryColor;
+};
+
+inline gui_color_theme GUIDefaultColorTheme() {
+	gui_color_theme Result;
+
+#if 1
+	Result.TextColor = GUIColor_White;
+	Result.TextHighlightColor = GUIColor_Yellow;
+
+	Result.OutlineColor = GUIColor_Black;
+
+	Result.FirstColor = GUIColor_PrettyBlue;
+	Result.SecondaryColor = GUIColor_BluishGray;
+#else
+	Result.TextColor = GUIColor_Red;
+	Result.TextHighlightColor = GUIColor_Blue;
+
+	Result.OutlineColor = GUIColor_Green;
+
+	Result.FirstColor = GUIColor_PrettyBlue;
+	Result.SecondaryColor = GUIColor_BluishGray;
+#endif
+
+	return(Result);
+}
+
 struct gui_state {
 	font_info* FontInfo;
 	render_stack* RenderStack;
@@ -177,7 +211,14 @@ struct gui_state {
 	b32 PlusMinusSymbol;
 
 	v4 ColorTable[GUIColor_Count];
+	gui_color_theme ColorTheme;
 };
+
+/*
+inline v4 GUIGetThemeColor(gui_state* State, u32 Color) {
+	v4 Result = State->ColorTable[State->ColorTheme[]]
+}
+*/
 
 inline gui_view* GetCurrentView(gui_state* GUIState) {
 	gui_view* Result = 0;

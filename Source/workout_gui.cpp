@@ -127,6 +127,9 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->ColorTable[GUIColor_Burlywood] = GUIColorHex("#deb887");
 	GUIState->ColorTable[GUIColor_DarkGoldenrod] = GUIColorHex("#b8860b");
 	GUIState->ColorTable[GUIColor_OliveDrab] = GUIColorHex("#6b8e23");
+
+	//NOTE(DIMA): Initialization of the color theme
+	GUIState->ColorTheme = GUIDefaultColorTheme();
 }
 
 void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack) {
@@ -472,7 +475,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f);
+	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 }
 
 void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
@@ -507,12 +510,12 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 			V2(OccupiedRect.Max.x, OccupiedRect.Min.y), 
 			V2(GraphRectDim.x * (1.0f - OccupiedPercentage), GraphRectDim.y));
 
-		PushRect(GUIState->RenderStack, OccupiedRect, GUIState->ColorTable[GUIColor_OliveDrab]);
-		PushRectOutline(GUIState->RenderStack, OccupiedRect, 2);
-		PushRect(GUIState->RenderStack, FreeRect, GUIState->ColorTable[GUIColor_Orange]);
-		PushRectOutline(GUIState->RenderStack, FreeRect, 2);
+		PushRect(GUIState->RenderStack, OccupiedRect, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
+		PushRectOutline(GUIState->RenderStack, OccupiedRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+		PushRect(GUIState->RenderStack, FreeRect, GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor]);
+		PushRectOutline(GUIState->RenderStack, FreeRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
-		PushRectOutline(GUIState->RenderStack, GraphRect, 3);
+		PushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		if (MouseInRect(GUIState->Input, GraphRect)) {
 			char InfoStr[128];
@@ -544,7 +547,13 @@ void GUIText(gui_state* GUIState, char* Text) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, View->FontScale);
+		rect2 Rc = PrintTextInternal(
+			GUIState, 
+			PrintTextType_PrintText, 
+			Text, 
+			View->CurrentX, 
+			View->CurrentY, 
+			View->FontScale, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
@@ -567,9 +576,9 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, View->CurrentX, View->CurrentY, View->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
-		v4 TextHighlightColor = GUIState->ColorTable[GUIColor_White];
+		v4 TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextColor];
 		if (MouseInRect(GUIState->Input, Rc)) {
-			TextHighlightColor = GUIState->ColorTable[GUIColor_Yellow];
+			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
 				Interaction->IsHot = !Interaction->IsHot;
 
@@ -600,7 +609,14 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 NameRc = PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, View->FontScale);
+		rect2 NameRc = PrintTextInternal(
+			GUIState, 
+			PrintTextType_PrintText, 
+			ButtonName, 
+			View->CurrentX, 
+			View->CurrentY, 
+			View->FontScale, 
+			GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 		v2 NameDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
 
 		float PrintButX = View->CurrentX + NameDim.x + GUIState->FontInfo->AscenderHeight;
@@ -610,8 +626,10 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 		v2 FalseDim = GetRectDim(FalseRc);
 		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight), FalseDim);
 
-		PushRect(GUIState->RenderStack, ButRc, GUIState->ColorTable[GUIColor_PrettyBlue]);
-		PushRectOutline(GUIState->RenderStack, ButRc);
+		float OutlineWidth = 1;
+
+		PushRect(GUIState->RenderStack, ButRc, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
+		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		char TextToPrint[8];
 		if (*Interaction->VariableLink.Value_B32) {
@@ -625,9 +643,9 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			stbsp_sprintf(TextToPrint, "%s", "false");
 		}
 
-		v4 TextHighlightColor = GUIState->ColorTable[GUIColor_White];
+		v4 TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextColor];
 		if (MouseInRect(GUIState->Input, ButRc)) {
-			TextHighlightColor = GUIState->ColorTable[GUIColor_Yellow];
+			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
 				Interaction->IsHot = !Interaction->IsHot;
 				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
@@ -638,7 +656,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		View->LastElementWidth = FalseRc.Max.x - View->CurrentX;
-		View->LastElementHeight = FalseRc.Max.y - FalseRc.Min.y;
+		View->LastElementHeight = FalseRc.Max.y - FalseRc.Min.y + (2.0f * OutlineWidth);
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -658,7 +676,14 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		Assert(Max > Min);
 
-		rect2 NameTextSize = PrintTextInternal(GUIState, PrintTextType_PrintText, Name, View->CurrentX, View->CurrentY, View->FontScale);
+		rect2 NameTextSize = PrintTextInternal(
+			GUIState,
+			PrintTextType_PrintText, 
+			Name, 
+			View->CurrentX, 
+			View->CurrentY, 
+			View->FontScale,
+			GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 
 		char ValueBuf[32];
 		stbsp_sprintf(ValueBuf, "%.3f", *Value);
@@ -671,14 +696,16 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		v2 WorkRectDim = V2(200, ValueTextSize.Max.y - ValueTextSize.Min.y);
 
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
-		v4 WorkRectColor = GUIState->ColorTable[GUIColor_PrettyBlue];
+		v4 WorkRectColor = GUIState->ColorTable[GUIState->ColorTheme.FirstColor];
+
+		float RectOutlineWidth = 1.0f;
 
 		PushRect(GUIState->RenderStack, WorkRect, WorkRectColor);
-		PushRectOutline(GUIState->RenderStack, WorkRect);
+		PushRectOutline(GUIState->RenderStack, WorkRect, RectOutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		//NOTE(Dima): Remember last element width and height for BeginRow/EndRow
 		View->LastElementWidth = WorkRect.Max.x - View->CurrentX;
-		View->LastElementHeight = WorkRect.Max.y - WorkRect.Min.y;
+		View->LastElementHeight = WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth);
 
 		float Range = Max - Min;
 		if (*Value > Max) {
@@ -699,7 +726,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		v2 CursorDim = V2(CursorWidth, CursorHeight);
 		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
 
-		v4 CursorColor = GUIState->ColorTable[GUIColor_OrangeRed];
+		v4 CursorColor = GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor];
 		if (MouseInRect(GUIState->Input, CursorRect) || MouseInRect(GUIState->Input, WorkRect)) {
 
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && !Interaction->IsHot) {
@@ -712,7 +739,6 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		}
 
 		if (Interaction->IsHot) {
-			CursorColor = GUIState->ColorTable[GUIColor_PrettyGreen];
 
 			v2 InteractMouseP = GUIState->Input->MouseP;
 			if (InteractMouseP.x > (WorkRect.Max.x - 0.5f * CursorWidth)) {
@@ -731,7 +757,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		}
 
 		PushRect(GUIState->RenderStack, CursorRect, CursorColor);
-		PushRectOutline(GUIState->RenderStack, CursorRect, 2, GUIState->ColorTable[GUIColor_Black]);
+		PushRectOutline(GUIState->RenderStack, CursorRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight;
 		float ValueTextX = WorkRectMin.x + WorkRectDim.x * 0.5f - (ValueTextSize.Max.x - ValueTextSize.Min.x) * 0.5f;
