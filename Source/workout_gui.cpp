@@ -174,7 +174,6 @@ void GUIEndView(gui_state* State) {
 
 	GUIEndRootBlock(State);
 
-
 	State->CurrentViewIndex++;
 }
 
@@ -183,7 +182,10 @@ void GUIBeginRow(gui_state* State) {
 
 	Assert(!View->RowBeginned);
 
-	GUIBeginElement(State, GUIElement_Row, ???);
+	char NameBuf[16];
+	stbsp_sprintf(NameBuf, "Row:%u", View->CurrentNode->RowCount);
+
+	GUIBeginElement(State, GUIElement_Row, NameBuf, 0);
 
 	View->RowBeginX = View->CurrentX;
 	View->RowBeginned = true;
@@ -205,6 +207,8 @@ void GUIEndRow(gui_state* State) {
 	View->RowBeginned = false;
 
 	GUIEndElement(State, GUIElement_Row);
+
+	View->CurrentNode->RowCount++;
 }
 
 inline void GUIPreAdvanceCursor(gui_state* State) {
@@ -268,17 +272,27 @@ inline void GUIFreeListElement(gui_state* State, gui_element* Element) {
 	Element->PrevBro->NextBro = Element;
 }
 
-static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char* ElementName) {
+static gui_element* GUIRequestElement(
+	gui_state* GUIState, 
+	u32 ElementType, 
+	char* ElementName,
+	gui_interaction* Interaction) 
+{
 	gui_view* View = GetCurrentView(GUIState);
 
 	gui_element* Parent = View->CurrentNode;
 
 	gui_element* Element = 0;
 
-	//IMPORTANT(DIMA): !!!
-	if (ElementType == GUIElement_TreeNode ||
+	//IMPORTANT(DIMA): I need to add cached elements here!!!!!
+	b32 ElementIsDynamic = 
+		(ElementType == GUIElement_TreeNode ||
 		ElementType == GUIElement_CachedItem ||
-		ElementType == GUIElement_InteractibleItem)
+		ElementType == GUIElement_InteractibleItem ||
+		ElementType == GUIElement_Row);
+
+	//IMPORTANT(DIMA): !!!
+	if (ElementIsDynamic)
 	{
 		//NOTE(DIMA): Finding the element in the hierarchy
 		for (gui_element* Node = Parent->ChildrenSentinel->NextBro;
@@ -299,17 +313,13 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		Element->Expanded = 1;
 		Element->Depth = Parent->Depth + 1;
 		Element->RowCount = 0;
-
-		Element->Parent = Parent;
-		Element->TempParent = 0;
+		Element->ID = 0;
 
 		Element->ChildrenSentinel = 0;
 	}
 
-
 	//NOTE(Dima): Element not exist or not found. We should allocate it
 	if (Element == 0) {
-
 		if (ElementType == GUIElement_TreeNode ||
 			ElementType == GUIElement_CachedItem)
 		{
@@ -318,15 +328,8 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 			Element = GUIAllocateListElement(GUIState);
 			GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-			CopyStrings(Element->Name, ElementName);
-			CopyStrings(Element->Text, ElementName);
-
 			Element->Expanded = 1;
 			Element->Depth = Parent->Depth + 1;
-			Element->RowCount = 0;
-
-			Element->Parent = Parent;
-			Element->TempParent = 0;
 
 			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
 			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
@@ -337,15 +340,8 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 			Element = GUIAllocateListElement(GUIState);
 			GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-			CopyStrings(Element->Name, ElementName);
-			CopyStrings(Element->Text, ElementName);
-
 			Element->Expanded = 1;
-			Element->Depth = Parent->Depth + 1;
-			Element->RowCount = 0;
-
-			Element->Parent = Parent;
-			Element->TempParent = 0;
+			Element->Depth = Parent->Depth;
 
 			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
 			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
@@ -356,31 +352,41 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 			Element = GUIAllocateListElement(GUIState);
 			GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-			CopyStrings(Element->Name, ElementName);
-			CopyStrings(Element->Text, ElementName);
-
 			Element->Expanded = 1;
 			Element->Depth = Parent->Depth + 1;
-			Element->RowCount = 0;
-
-			Element->Parent = Parent;
-			Element->TempParent = 0;
 
 			Element->ChildrenSentinel = 0;
 		}
+
+		CopyStrings(Element->Name, ElementName);
+		CopyStrings(Element->Text, ElementName);
+
+		Element->ID = GUIStringHashFNV(ElementName);
+		Element->RowCount = 0;
 	}
 
+	//NOTE(Dima): Setting common values
 	Element->Type = ElementType;
 	Element->Parent = Parent;
 	Element->TempParent = 0;
 
+	//NOTE(Dima): Setting interaction ID for dynamic(cached) elements
+	if (ElementIsDynamic && Interaction) {
+		Interaction->ID = GUITreeElementID(Element);
+	}
+
 	return(Element);
 }
 
-b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName) {
+b32 GUIBeginElement(
+	gui_state* State, 
+	u32 ElementType, 
+	char* ElementName, 
+	gui_interaction* ElementInteraction) 
+{
 	gui_view* View = GetCurrentView(State);
 
-	gui_element* Element = GUIRequestElement(State, ElementType, ElementName);
+	gui_element* Element = GUIRequestElement(State, ElementType, ElementName, ElementInteraction);
 
 	if (ElementType == GUIElement_TreeNode) {
 		gui_interaction ActionInteraction = GUIVariableInteraction(&Element->Expanded, GUIVarType_B32);
@@ -406,8 +412,14 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 
 	gui_element* Element = View->CurrentNode;
 
+	Assert(ElementType == Element->Type);
+
 	if (ElementType == GUIElement_StaticItem) {
 		GUIFreeListElement(State, Element);
+	}
+
+	if (ElementType == GUIElement_Row) {
+		View->CurrentNode->Parent->RowCount = 0;
 	}
 
 	View->CurrentNode = View->CurrentNode->Parent;
@@ -471,9 +483,9 @@ void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 }
 
 void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
-	b32 NeedShowRoot = GUIBeginElement(GUIState, GUIElement_TreeNode, Name);
+	b32 NeedShowRoot = GUIBeginElement(GUIState, GUIElement_TreeNode, Name, 0);
 
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Name);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Name, Interaction);
 
 	Assert(Interaction->VariableLink.Type == GUIVarType_StackedMemory);
 
@@ -532,7 +544,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 }
 
 void GUIText(gui_state* GUIState, char* Text) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Text);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0);
 
 	if (NeedShow) {
 		gui_view* View = GetCurrentView(GUIState);
@@ -558,7 +570,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 }
 
 void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Text);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0);
 
 	if (NeedShow) {
 		gui_view* View = GetCurrentView(GUIState);
@@ -591,7 +603,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 }
 
 void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, ButtonName);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, ButtonName, 0);
 
 	if (NeedShow) {
 
@@ -654,7 +666,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 }
 
 void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Name);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction);
 	
 	if (NeedShow) {
 		gui_view* View = GetCurrentView(GUIState);
@@ -718,7 +730,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		v4 CursorColor = GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor];
 		if (MouseInRect(GUIState->Input, CursorRect) || MouseInRect(GUIState->Input, WorkRect)) {
 
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && GUIInteractionIsHot(GUIState, Interaction)) {
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && !GUIInteractionIsHot(GUIState, Interaction)) {
 				GUISetInteractionHot(GUIState, Interaction, true);
 			}
 		}
@@ -728,6 +740,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		}
 
 		if(GUIInteractionIsHot(GUIState, Interaction)){
+			CursorColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 
 			v2 InteractMouseP = GUIState->Input->MouseP;
 			if (InteractMouseP.x > (WorkRect.Max.x - 0.5f * CursorWidth)) {
@@ -763,7 +776,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		GUIAdvanceCursor(GUIState);
 	}
 
-	GUIEndElement(GUIState, GUIElement_StaticItem);
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
 #if 0
@@ -837,7 +850,7 @@ void GUIResizableRect(gui_state* State) {
 #endif
 
 void GUITreeBegin(gui_state* State, char* NodeName) {
-	GUIBeginElement(State, GUIElement_TreeNode, NodeName);
+	GUIBeginElement(State, GUIElement_TreeNode, NodeName, 0);
 }
 
 void GUITreeEnd(gui_state* State) {

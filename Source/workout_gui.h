@@ -34,8 +34,7 @@ enum gui_interaction_type {
 };
 
 struct gui_interaction {
-
-	u32 ElementHash;
+	u32 ID;
 
 	u32 Type;
 	union {
@@ -60,7 +59,7 @@ inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
 
 	Result.VariableLink.Type = Type;
 	Result.Type = GUIInteraction_VariableLink;
-	Result.ElementHash = 0;
+	Result.ID = 0;
 
 	return(Result);
 }
@@ -116,6 +115,8 @@ enum gui_element_type {
 };
 
 struct gui_element {
+	u32 ID;
+
 	s32 Depth;
 
 	gui_element* Parent;
@@ -244,7 +245,8 @@ struct gui_state {
 
 	b32 PlusMinusSymbol;
 
-	gui_interaction* HotInteraction;
+	//gui_interaction* HotInteraction;
+	u32 HotInteractionID;
 
 	v4 ColorTable[GUIColor_Count];
 	gui_color_theme ColorTheme;
@@ -288,10 +290,8 @@ inline b32 GUIElementShouldBeUpdated(gui_element* Node) {
 inline b32 GUIInteractionIsHot(gui_state* State, gui_interaction* Interaction) {
 	b32 Result = 0;
 
-	if (State->HotInteraction){
-		if (Interaction->ElementHash == State->HotInteraction->ElementHash) {
-			Result = 1;
-		}
+	if (Interaction->ID == State->HotInteractionID) {
+		Result = 1;
 	}
 
 	return(Result);
@@ -312,14 +312,14 @@ inline u32 GUIStringHashFNV(char* Name) {
 	return(Result);
 }
 
-inline u32 GUITreeElementHash(gui_element* Element) {
-	u32 Result = 0;
+inline u32 GUITreeElementID(gui_element* Element) {
+	u32 Result = 1;
 
 	gui_element* At = Element;
 
 	//TODO(Dima): Better hash function
 	while (At->Parent != 0) {
-		Result *= GUIStringHashFNV(Element->Name);
+		Result *= At->ID;
 
 		At = At->Parent;
 	}
@@ -329,10 +329,10 @@ inline u32 GUITreeElementHash(gui_element* Element) {
 
 inline void GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, b32 IsHot) {
 	if (IsHot) {
-		State->HotInteraction = Interaction;
+		State->HotInteractionID = Interaction->ID;
 	}
 	else {
-		State->HotInteraction = 0;
+		State->HotInteractionID = 0;
 	}
 }
 
@@ -355,7 +355,7 @@ extern void GUIEndView(gui_state* State);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
 
-extern b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName);
+extern b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName, gui_interaction* ElementInteraction);
 extern void GUIEndElement(gui_state* State, u32 ElementType);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);

@@ -736,7 +736,7 @@ int main(int ArgsCount, char** Args) {
 		GUIBeginRow(GUIState);
 		//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
 		GUIText(GUIState, "Hello");
-		//GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 		GUIEndRow(GUIState);
 		GUITreeEnd(GUIState);
 

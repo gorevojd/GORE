@@ -1,111 +1,25 @@
 ﻿C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(367,5): warning MSB8004: Intermediate Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Intermediate Directory.
 C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(368,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
-  workout_vulkan.cpp
-  workout_render_stack.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(74): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(75): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(76): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(77): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(78): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(85): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(86): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(87): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(88): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(89): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(96): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(97): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(98): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_render_stack.cpp(99): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-  workout_renderer.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(31): warning C4018: '<': signed/unsigned mismatch
-d:\dima\workout\source\workout_renderer.cpp(32): warning C4018: '<': signed/unsigned mismatch
-d:\dima\workout\source\workout_renderer.cpp(74): warning C4018: '<': signed/unsigned mismatch
-d:\dima\workout\source\workout_renderer.cpp(75): warning C4018: '<': signed/unsigned mismatch
-d:\dima\workout\source\workout_renderer.cpp(127): warning C4101: 'DeltaU': unreferenced local variable
-d:\dima\workout\source\workout_renderer.cpp(195): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(196): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(231): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(232): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(442): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(443): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(445): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(446): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(464): warning C4244: 'initializing': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(465): warning C4244: 'initializing': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(562): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(563): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(566): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(569): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(621): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(622): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(625): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(628): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(826): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(851): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(852): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(855): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_renderer.cpp(859): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-  workout_gui.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_gui.cpp(9): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_gui.cpp(47): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_gui.cpp(186): error C2059: syntax error: '?'
-d:\dima\workout\source\workout_gui.cpp(595): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_gui.cpp(666): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
-  workout_game_layer.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_game_layer.cpp(15): warning C4244: 'argument': conversion from 'u64' to 'std::size_t', possible loss of data
-d:\dima\workout\source\workout_game_layer.cpp(17): warning C4244: 'argument': conversion from 'u64' to 'std::size_t', possible loss of data
-d:\dima\workout\source\workout_game_layer.cpp(8): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(205): note: see declaration of 'fopen'
-d:\dima\workout\source\workout_game_layer.cpp(61): warning C4018: '<': signed/unsigned mismatch
-d:\dima\workout\source\workout_game_layer.cpp(62): warning C4018: '<': signed/unsigned mismatch
-  workout_debug.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-  workout_asset.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.cpp(69): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.cpp(70): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.cpp(128): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
-d:\dima\workout\source\workout_asset.cpp(9): warning C4101: 'TempKerningPairs': unreferenced local variable
   sdl_workout.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(321): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(572): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(573): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(574): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(575): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(687): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(688): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(696): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(712): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+e:\programming\myprojects\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(321): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(572): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(573): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(574): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(575): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(687): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(688): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(696): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(712): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: see declaration of 'sprintf'
   Generating Code...
+  Skipping... (no relevant changes detected)
+  workout_renderer.cpp
+  workout_gui.cpp
+  workout_debug.cpp
+  workout.vcxproj -> E:\Programming\MyProjects\workout\.\Build\workout.exe
+  workout.vcxproj -> .\Build\workout.pdb (Full PDB)
