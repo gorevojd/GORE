@@ -16,5 +16,58 @@ e:\programming\myprojects\workout\source\sdl_workout.cpp(688): warning C4244: 'i
 e:\programming\myprojects\workout\source\sdl_workout.cpp(696): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
 e:\programming\myprojects\workout\source\sdl_workout.cpp(712): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: see declaration of 'sprintf'
+  Generating Code...
+  Compiling...
+  workout_renderer.cpp
+e:\programming\myprojects\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(31): warning C4018: '<': signed/unsigned mismatch
+e:\programming\myprojects\workout\source\workout_renderer.cpp(32): warning C4018: '<': signed/unsigned mismatch
+e:\programming\myprojects\workout\source\workout_renderer.cpp(74): warning C4018: '<': signed/unsigned mismatch
+e:\programming\myprojects\workout\source\workout_renderer.cpp(75): warning C4018: '<': signed/unsigned mismatch
+e:\programming\myprojects\workout\source\workout_renderer.cpp(127): warning C4101: 'DeltaU': unreferenced local variable
+e:\programming\myprojects\workout\source\workout_renderer.cpp(195): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(196): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(231): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(232): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(442): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(443): warning C4244: 'initializing': conversion from 'float' to 'u32', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(445): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(446): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(464): warning C4244: 'initializing': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(465): warning C4244: 'initializing': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(562): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(563): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(566): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(569): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(621): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(622): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(625): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(628): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(826): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(851): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(852): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(855): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_renderer.cpp(859): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+  workout_gui.cpp
+e:\programming\myprojects\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(9): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(47): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(632): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+e:\programming\myprojects\workout\source\workout_gui.cpp(704): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+  workout_debug.cpp
+e:\programming\myprojects\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+  Generating Code...
   workout.vcxproj -> E:\Programming\MyProjects\workout\.\Build\workout.exe
   workout.vcxproj -> .\Build\workout.pdb (Full PDB)

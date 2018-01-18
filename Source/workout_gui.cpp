@@ -580,8 +580,6 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		if (MouseInRect(GUIState->Input, Rc)) {
 			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				Interaction->IsHot = !Interaction->IsHot;
-
 				if (Interaction->Type == GUIInteraction_VariableLink) {
 					*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
 				}
@@ -647,7 +645,6 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 		if (MouseInRect(GUIState->Input, ButRc)) {
 			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				Interaction->IsHot = !Interaction->IsHot;
 				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
 			}
 		}
@@ -729,16 +726,16 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		v4 CursorColor = GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor];
 		if (MouseInRect(GUIState->Input, CursorRect) || MouseInRect(GUIState->Input, WorkRect)) {
 
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && !Interaction->IsHot) {
-				Interaction->IsHot = true;
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && GUIInteractionIsHot(GUIState, Interaction)) {
+				GUISetInteractionHot(GUIState, Interaction, true);
 			}
 		}
 
-		if (MouseButtonWentUp(GUIState->Input, MouseButton_Left) && Interaction->IsHot) {
-			Interaction->IsHot = false;
+		if (MouseButtonWentUp(GUIState->Input, MouseButton_Left) && GUIInteractionIsHot(GUIState, Interaction)) {
+			GUISetInteractionHot(GUIState, Interaction, false);
 		}
 
-		if (Interaction->IsHot) {
+		if(GUIInteractionIsHot(GUIState, Interaction)){
 
 			v2 InteractMouseP = GUIState->Input->MouseP;
 			if (InteractMouseP.x > (WorkRect.Max.x - 0.5f * CursorWidth)) {

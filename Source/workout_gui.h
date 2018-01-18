@@ -34,7 +34,8 @@ enum gui_interaction_type {
 };
 
 struct gui_interaction {
-	b32 IsHot;
+
+	u32 ElementHash;
 
 	u32 Type;
 	union {
@@ -56,9 +57,10 @@ inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
 			Result.VariableLink.Value_StackedMemory = (stacked_memory*)Variable; 
 		}break;
 	}
+
 	Result.VariableLink.Type = Type;
 	Result.Type = GUIInteraction_VariableLink;
-	Result.IsHot = 0;
+	Result.ElementHash = 0;
 
 	return(Result);
 }
@@ -210,6 +212,8 @@ struct gui_state {
 
 	b32 PlusMinusSymbol;
 
+	gui_interaction* HotInteraction;
+
 	v4 ColorTable[GUIColor_Count];
 	gui_color_theme ColorTheme;
 };
@@ -249,6 +253,26 @@ inline b32 GUIElementShouldBeUpdated(gui_element* Node) {
 	return(Result);
 }
 
+inline b32 GUIInteractionIsHot(gui_state* State, gui_interaction* Interaction) {
+	b32 Result = 0;
+
+	if (State->HotInteraction){
+		if (Interaction->ElementHash == State->HotInteraction->ElementHash) {
+			Result = 1;
+		}
+	}
+
+	return(Result);
+}
+
+inline void GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, b32 IsHot) {
+	if (IsHot) {
+		State->HotInteraction = Interaction;
+	}
+	else {
+		State->HotInteraction = 0;
+	}
+}
 
 extern void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
