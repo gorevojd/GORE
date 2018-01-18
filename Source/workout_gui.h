@@ -72,12 +72,46 @@ struct interactible_rect {
 	gui_interaction PosInteraction;
 };
 
+/*
+	GUIElement_None - for the root element. Do not use it.
+
+	GUIElement_TreeNode - this is for the tree view.
+	This value means that this element will be cached
+	and GUIActionText will be used for transitions 
+	between root-child elements;
+
+	GUIElement_InteractibleItem means that the element
+	will have it's own unique ID by which it will be
+	identified when GUIInteractionIsHot() called;
+	This also means that this element will be cached;
+
+	GUIElement_CachedItem means that the the element 
+	will be cached. It means that it and it's children 
+	elements won't be freed at the end of the frame.
+	This is useful for elements that will have
+	some other interactible elements in it;
+	Difference between GUIElement_InteractibleItem
+	is that the GUIElement_InteractibleItem should
+	not have children.
+
+	GUIElement_StaticItem means that the element
+	will be freed at the end of every frame and 
+	allocated at the beginning of every frame;
+	This means also that the ID of the element 
+	will not be calculated. The element should(or can) 
+	have no name;
+
+	P.S. Cahing means that the element won't be 
+	created from scratch. It means that the element
+	will not be freed at the end of the frame
+*/
 enum gui_element_type {
 	GUIElement_None,
 
 	GUIElement_TreeNode,
-	GUIElement_StaticItem,
+	GUIElement_InteractibleItem,
 	GUIElement_CachedItem,
+	GUIElement_StaticItem,
 	GUIElement_Row,
 };
 
@@ -94,15 +128,13 @@ struct gui_element {
 	//gui_element* StaticElementsSentinel;
 	//gui_element* ChildrenFreeSentinel;
 
-	u32 Type;
-	union {
-		struct {
-			char Name[64];
-			char Text[64];
+	b32 Expanded;
+	char Name[64];
+	char Text[64];
 
-			b32 Expanded;
-		};
-	};
+	u32 RowCount;
+
+	u32 Type;
 };
 
 struct gui_view {
@@ -260,6 +292,36 @@ inline b32 GUIInteractionIsHot(gui_state* State, gui_interaction* Interaction) {
 		if (Interaction->ElementHash == State->HotInteraction->ElementHash) {
 			Result = 1;
 		}
+	}
+
+	return(Result);
+}
+
+inline u32 GUIStringHashFNV(char* Name) {
+	u32 Result = 2166136261;
+
+	char* At = Name;
+	while (*At) {
+
+		Result *= 16777619;
+		Result ^= *At;
+
+		At++;
+	}
+
+	return(Result);
+}
+
+inline u32 GUITreeElementHash(gui_element* Element) {
+	u32 Result = 0;
+
+	gui_element* At = Element;
+
+	//TODO(Dima): Better hash function
+	while (At->Parent != 0) {
+		Result *= GUIStringHashFNV(Element->Name);
+
+		At = At->Parent;
 	}
 
 	return(Result);

@@ -183,7 +183,7 @@ void GUIBeginRow(gui_state* State) {
 
 	Assert(!View->RowBeginned);
 
-	GUIBeginElement(State, GUIElement_Row, "");
+	GUIBeginElement(State, GUIElement_Row, ???);
 
 	View->RowBeginX = View->CurrentX;
 	View->RowBeginned = true;
@@ -249,6 +249,14 @@ inline gui_element* GUIAllocateListElement(gui_state* State) {
 	return(Element);
 }
 
+inline void GUIInsertListElement(gui_element* Sentinel, gui_element* ToInsert) {
+	ToInsert->NextBro = Sentinel->NextBro;
+	ToInsert->PrevBro = Sentinel;
+
+	ToInsert->PrevBro->NextBro = ToInsert;
+	ToInsert->NextBro->PrevBro = ToInsert;
+}
+
 inline void GUIFreeListElement(gui_state* State, gui_element* Element) {
 	Element->NextBro->PrevBro = Element->PrevBro;
 	Element->PrevBro->NextBro = Element->NextBro;
@@ -268,7 +276,9 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 	gui_element* Element = 0;
 
 	//IMPORTANT(DIMA): !!!
-	if (ElementType == GUIElement_TreeNode)
+	if (ElementType == GUIElement_TreeNode ||
+		ElementType == GUIElement_CachedItem ||
+		ElementType == GUIElement_InteractibleItem)
 	{
 		//NOTE(DIMA): Finding the element in the hierarchy
 		for (gui_element* Node = Parent->ChildrenSentinel->NextBro;
@@ -284,15 +294,11 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 
 	if (ElementType == GUIElement_StaticItem) {
 		Element = GUIAllocateListElement(GUIState);
-
-		Element->NextBro = Parent->ChildrenSentinel->NextBro;
-		Element->PrevBro = Parent->ChildrenSentinel;
-
-		Element->PrevBro->NextBro = Element;
-		Element->NextBro->PrevBro = Element;
+		GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
 		Element->Expanded = 1;
 		Element->Depth = Parent->Depth + 1;
+		Element->RowCount = 0;
 
 		Element->Parent = Parent;
 		Element->TempParent = 0;
@@ -300,52 +306,73 @@ static gui_element* GUIRequestElement(gui_state* GUIState, u32 ElementType, char
 		Element->ChildrenSentinel = 0;
 	}
 
-	if (ElementType == GUIElement_Row) {
-		Element = GUIAllocateListElement(GUIState);
-
-		Element->NextBro = Parent->ChildrenSentinel->NextBro;
-		Element->PrevBro = Parent->ChildrenSentinel;
-
-		Element->PrevBro->NextBro = Element;
-		Element->NextBro->PrevBro = Element;
-
-		Element->Expanded = 1;
-		Element->Depth = Parent->Depth;
-
-		Element->Parent = Parent;
-		Element->TempParent = 0;
-
-		Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
-		Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
-		Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
-	}
 
 	//NOTE(Dima): Element not exist or not found. We should allocate it
 	if (Element == 0) {
-		//NOTE(DIMA): If the "Free store" of elements is not empty, get the memory from there
-		//TODO(DIMA): Some elements memory might be initialzed again if we get it from here
-		Element = GUIAllocateListElement(GUIState);
 
-		Element->NextBro = Parent->ChildrenSentinel->NextBro;
-		Element->PrevBro = Parent->ChildrenSentinel;
+		if (ElementType == GUIElement_TreeNode ||
+			ElementType == GUIElement_CachedItem)
+		{
+			//NOTE(DIMA): If the "Free store" of elements is not empty, get the memory from there
+			//TODO(DIMA): Some elements memory might be initialzed again if we get it from here
+			Element = GUIAllocateListElement(GUIState);
+			GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-		Element->PrevBro->NextBro = Element;
-		Element->NextBro->PrevBro = Element;
+			CopyStrings(Element->Name, ElementName);
+			CopyStrings(Element->Text, ElementName);
 
-		CopyStrings(Element->Name, ElementName);
-		CopyStrings(Element->Text, ElementName);
+			Element->Expanded = 1;
+			Element->Depth = Parent->Depth + 1;
+			Element->RowCount = 0;
 
-		Element->Expanded = 1;
-		Element->Depth = Parent->Depth + 1;
+			Element->Parent = Parent;
+			Element->TempParent = 0;
 
-		Element->Parent = Parent;
-		Element->TempParent = 0;
+			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
+			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
+			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
+		}
 
-		Element->ChildrenSentinel = PushStruct(&GUIState->GUIMem, gui_element);
+		if (ElementType == GUIElement_Row) {
+			Element = GUIAllocateListElement(GUIState);
+			GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-		Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
-		Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
+			CopyStrings(Element->Name, ElementName);
+			CopyStrings(Element->Text, ElementName);
+
+			Element->Expanded = 1;
+			Element->Depth = Parent->Depth + 1;
+			Element->RowCount = 0;
+
+			Element->Parent = Parent;
+			Element->TempParent = 0;
+
+			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
+			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
+			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
+		}
+
+		if (ElementType == GUIElement_InteractibleItem) {
+			Element = GUIAllocateListElement(GUIState);
+			GUIInsertListElement(Parent->ChildrenSentinel, Element);
+
+			CopyStrings(Element->Name, ElementName);
+			CopyStrings(Element->Text, ElementName);
+
+			Element->Expanded = 1;
+			Element->Depth = Parent->Depth + 1;
+			Element->RowCount = 0;
+
+			Element->Parent = Parent;
+			Element->TempParent = 0;
+
+			Element->ChildrenSentinel = 0;
+		}
 	}
+
+	Element->Type = ElementType;
+	Element->Parent = Parent;
+	Element->TempParent = 0;
 
 	return(Element);
 }
@@ -355,30 +382,16 @@ b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName) {
 
 	gui_element* Element = GUIRequestElement(State, ElementType, ElementName);
 
-	switch (ElementType) {
-		case GUIElement_None: {
-
-		}break;
-
-		case GUIElement_TreeNode: {
-			gui_interaction ActionInteraction = GUIVariableInteraction(&Element->Expanded, GUIVarType_B32);
-			if (State->PlusMinusSymbol) {
-				char TextBuf[64];
-				stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Text);
-				GUIActionText(State, TextBuf, &ActionInteraction);
-			}
-			else {
-				GUIActionText(State, ElementName, &ActionInteraction);
-			}
-		}break;
-
-		case GUIElement_StaticItem: {
-
-		}break;
-
-		case GUIElement_CachedItem: {
-
-		}break;
+	if (ElementType == GUIElement_TreeNode) {
+		gui_interaction ActionInteraction = GUIVariableInteraction(&Element->Expanded, GUIVarType_B32);
+		if (State->PlusMinusSymbol) {
+			char TextBuf[64];
+			stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Text);
+			GUIActionText(State, TextBuf, &ActionInteraction);
+		}
+		else {
+			GUIActionText(State, ElementName, &ActionInteraction);
+		}
 	}
 
 	View->CurrentNode = Element;
@@ -391,33 +404,12 @@ b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName) {
 void GUIEndElement(gui_state* State, u32 ElementType) {
 	gui_view* View = GetCurrentView(State);
 
-	switch (ElementType) {
-		case GUIElement_None: {
+	gui_element* Element = View->CurrentNode;
 
-		}break;
-
-		case GUIElement_TreeNode: {
-
-		}break;
-
-		case GUIElement_Row: {
-			gui_element* Element = View->CurrentNode;
-
-			GUIFreeListElement(State, Element->ChildrenSentinel);
-			GUIFreeListElement(State, Element);
-		}break;
-
-		case GUIElement_StaticItem: {
-			gui_element* Element = View->CurrentNode;
-
-			GUIFreeListElement(State, Element);
-		}break;
-
-		case GUIElement_CachedItem: {
-
-		}break;
+	if (ElementType == GUIElement_StaticItem) {
+		GUIFreeListElement(State, Element);
 	}
-	
+
 	View->CurrentNode = View->CurrentNode->Parent;
 }
 
