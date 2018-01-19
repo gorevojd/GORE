@@ -159,6 +159,10 @@ void GUIBeginView(gui_state* GUIState) {
 	View->CurrentX = View->ViewX;
 	View->CurrentY = View->ViewY + GetNextRowAdvance(GUIState->FontInfo) * View->FontScale;
 
+	View->RowBeginned = 0;
+	View->RowBiggestHeight = 0;
+	View->RowBeginX = 0;
+
 	View->CurrentNode = GUIState->RootNode;
 	View->CurrentPreAdvance = 0.0f;
 }
@@ -201,10 +205,11 @@ void GUIEndRow(gui_state* State) {
 	if (NeedShow) {
 
 		View->CurrentX = View->RowBeginX;
-		View->CurrentY += View->LastElementHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
+		View->CurrentY += View->RowBiggestHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
 	}
 
 	View->RowBeginned = false;
+	View->RowBiggestHeight = 0;
 
 	GUIEndElement(State, GUIElement_Row);
 
@@ -218,6 +223,17 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 
 	View->CurrentPreAdvance = (Element->Depth - 1) * 2 * View->FontScale * State->FontInfo->AscenderHeight;
 	View->CurrentX += View->CurrentPreAdvance;
+}
+
+inline void GUIDescribeRowElement(gui_state* State, v2 ElementDim) {
+	gui_view* View = GetCurrentView(State);
+
+	View->LastElementWidth = ElementDim.x;
+	View->LastElementHeight = ElementDim.y;
+
+	if (ElementDim.y > View->RowBiggestHeight) {
+		View->RowBiggestHeight = ElementDim.y;
+	}
 }
 
 inline void GUIAdvanceCursor(gui_state* State) {
@@ -665,6 +681,90 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 	GUIEndElement(GUIState, GUIElement_StaticItem);
 }
 
+void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction) {
+	b32 NeedShow = GUIBeginElement(State, GUIElement_InteractibleItem, Name, Interaction);
+
+	if (NeedShow) {
+		gui_view* View = GetCurrentView(State);
+		float FontScale = View->FontScale;
+
+		GUIPreAdvanceCursor(State);
+
+		float* Value = Interaction->VariableLink.Value_F32;
+		Assert(Max > Min);
+
+		v2 WorkRectMin = V2(View->CurrentX, View->CurrentY - State->FontInfo->AscenderHeight * FontScale);
+		v2 WorkRectDim = V2(20, 100);
+		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
+
+		i32 RectOutlineWidth = 1;
+		PushRect(State->RenderStack, WorkRect, State->ColorTable[State->ColorTheme.FirstColor]);
+		PushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, State->ColorTable[State->ColorTheme.OutlineColor]);
+
+		float Range = Max - Min;
+		if (*Value > Max) {
+			*Value = Max;
+		}
+		else if (*Value < Min) {
+			*Value = Min;
+		}
+
+		float RelativePos01 = ((float)(*Value) - Min) / (float)Range;
+
+		float CursorWidth = WorkRectDim.x;
+		float CursorHeight = 15.0f;
+
+		float CursorX = WorkRectMin.x - (CursorWidth - WorkRectDim.x) * 0.5f;
+		float CursorY = WorkRectMin.y + (WorkRectDim.y - CursorHeight) * RelativePos01;
+
+		v2 CursorDim = V2(CursorWidth, CursorHeight);
+		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
+
+		v4 CursorColor = State->ColorTable[State->ColorTheme.SecondaryColor];
+		if (MouseInRect(State->Input, CursorRect) || MouseInRect(State->Input, WorkRect)) {
+
+			if (MouseButtonWentDown(State->Input, MouseButton_Left) && !GUIInteractionIsHot(State, Interaction)) {
+				GUISetInteractionHot(State, Interaction, true);
+			}
+		}
+
+		if (MouseButtonWentUp(State->Input, MouseButton_Left) && GUIInteractionIsHot(State, Interaction)) {
+			GUISetInteractionHot(State, Interaction, false);
+		}
+
+		if (GUIInteractionIsHot(State, Interaction)) {
+			CursorColor = State->ColorTable[State->ColorTheme.TextHighlightColor];
+
+			v2 InteractMouseP = State->Input->MouseP;
+			if (InteractMouseP.y > (WorkRect.Max.y - 0.5f * CursorHeight)) {
+				*Value = Max;
+			}
+
+			if (InteractMouseP.y < (WorkRect.Min.y + 0.5f * CursorHeight)) {
+				*Value = Min;
+			}
+
+			float AT = InteractMouseP.y - (WorkRect.Min.y + 0.5f * CursorHeight);
+			AT = Clamp(AT, 0.0f, WorkRectDim.y - CursorHeight);
+			float NewVal01 = AT / (WorkRectDim.y - CursorHeight);
+			float NewValue = Min + NewVal01 * Range;
+			*Value = NewValue;
+		}
+
+		PushRect(State->RenderStack, CursorRect, CursorColor);
+		PushRectOutline(State->RenderStack, CursorRect, 2, State->ColorTable[State->ColorTheme.OutlineColor]);
+
+		GUIDescribeRowElement(
+			State, 
+			V2(WorkRect.Max.x - View->CurrentX + RectOutlineWidth,
+			WorkRect.Max.y - WorkRect.Min.y));
+
+		GUIAdvanceCursor(State);
+	}
+
+	GUIEndElement(State, GUIElement_InteractibleItem);
+}
+
 void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction) {
 	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction);
 	
@@ -703,10 +803,6 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		PushRect(GUIState->RenderStack, WorkRect, WorkRectColor);
 		PushRectOutline(GUIState->RenderStack, WorkRect, RectOutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
-
-		//NOTE(Dima): Remember last element width and height for BeginRow/EndRow
-		View->LastElementWidth = WorkRect.Max.x - View->CurrentX;
-		View->LastElementHeight = WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth);
 
 		float Range = Max - Min;
 		if (*Value > Max) {
@@ -772,6 +868,11 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		float DrawTextX = View->CurrentX + WorkRectMin.x + WorkRectDim.x + 10;
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, DrawTextX, View->CurrentY, View->FontScale);
 #endif
+
+		GUIDescribeRowElement(
+			GUIState,
+			V2(WorkRect.Max.x - View->CurrentX, 
+			WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth)));
 
 		GUIAdvanceCursor(GUIState);
 	}

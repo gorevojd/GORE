@@ -1,20 +1,23 @@
 ﻿C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(367,5): warning MSB8004: Intermediate Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Intermediate Directory.
 C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\V140\Microsoft.CppBuild.targets(368,5): warning MSB8004: Output Directory does not end with a trailing slash.  This build instance will add the slash as it is required to allow proper evaluation of the Output Directory.
   sdl_workout.cpp
-d:\dima\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(321): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(572): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(573): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(574): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(575): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(687): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(688): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(696): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
-d:\dima\workout\source\sdl_workout.cpp(712): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+e:\programming\myprojects\workout\source\workout_math.h(185): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(186): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(187): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_math.h(188): warning C4244: '=': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\workout_asset.h(50): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(321): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(572): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(573): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(574): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(575): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(688): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(689): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(697): warning C4244: 'argument': conversion from 'u32' to 'float', possible loss of data
+e:\programming\myprojects\workout\source\sdl_workout.cpp(714): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
   c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(1769): note: see declaration of 'sprintf'
-  workout.vcxproj -> D:\DIMA\Workout\.\Build\workout.exe
+  Generating Code...
+  Skipping... (no relevant changes detected)
+  workout_vulkan.cpp
+  workout.vcxproj -> E:\Programming\MyProjects\workout\.\Build\workout.exe
   workout.vcxproj -> .\Build\workout.pdb (Full PDB)

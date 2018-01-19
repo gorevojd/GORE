@@ -151,6 +151,7 @@ struct gui_view {
 	float LastElementHeight;
 
 	float RowBeginX;
+	float RowBiggestHeight;
 
 	float CurrentPreAdvance;
 
@@ -348,6 +349,7 @@ extern void GUIBoolButton(gui_state* GUIState, char* Text, gui_interaction* Inte
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
+extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction);
 
 extern void GUIBeginView(gui_state* GUIState);
