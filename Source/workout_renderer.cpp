@@ -52,10 +52,15 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	MaxX = Clamp(MaxX, (int)ClipRect.Min.x, (int)ClipRect.Max.x);
 	MaxY = Clamp(MaxY, (int)ClipRect.Min.y, (int)ClipRect.Max.y);
 
-	__m128i mmOutColor;
+	__m128i mmMaxX = _mm_set1_epi32(MaxX);
+	__m128 mmMaxXF = _mm_cvtepi32_ps(mmMaxX);
+
 
 	__m128 mm255 = _mm_set1_ps(255.0f);
+	__m128i mmFF = _mm_set1_epi32(0xFF);
+	__m128 mmOneOver255 = _mm_set1_ps(1.0f / 255.0f);
 
+	__m128i mmOutColor;
 	__m128 mmOutColor_r = _mm_set1_ps(Color.r);
 	__m128 mmOutColor_g = _mm_set1_ps(Color.g);
 	__m128 mmOutColor_b = _mm_set1_ps(Color.b);
@@ -73,9 +78,31 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	BEGIN_TIMED_BLOCK(ClearPixelFill);
 	for (u32 DestY = MinY; DestY < MaxY; DestY++) {
 		for (u32 DestX = MinX; DestX < MaxX; DestX += 4) {
-			u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
+			//u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
 
-			_mm_storeu_si128((__m128i*)OutDest, mmOutColor);
+#if 1
+			__m128i mmHorzIndex = _mm_setr_epi32(DestX, DestX + 1, DestX + 2, DestX + 3);
+
+			u32* OutDest = (u32*)(Buffer->Pixels + DestY * Buffer->Pitch + DestX * 4);
+
+			__m128i mmPreDestColor = _mm_loadu_si128((__m128i*)OutDest);
+
+			__m128 mmPreDestColor_r = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 24);
+			__m128 mmPreDestColor_g = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 16);
+			__m128 mmPreDestColor_b = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 8);
+			__m128 mmPreDestColor_a = MM_UNPACK_COLOR_CHANNEL0(mmPreDestColor);
+
+			/*Mask with end of screen mask*/
+			//__m128 mmEndScreenMask = _mm_cmplt_ps(_mm_cvtepi32_ps(mmDestX), mmDestWidth);
+			__m128 mmEndScreenMask = _mm_cmplt_ps(_mm_cvtepi32_ps(mmHorzIndex), mmMaxXF);
+
+			__m128i mmResultColor = _mm_castps_si128(_mm_or_ps(
+				_mm_and_ps(_mm_castsi128_ps(mmOutColor), mmEndScreenMask),
+				_mm_andnot_ps(mmEndScreenMask, _mm_castsi128_ps(mmPreDestColor))));
+#endif
+
+
+			_mm_storeu_si128((__m128i*)OutDest, mmResultColor);
 		}
 	}
 	END_TIMED_BLOCK(ClearPixelFill, Buffer->Width * Buffer->Height);
@@ -103,7 +130,7 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
 
 		DeltaV = (float)VertIndex * OneOverHeight;
 
-		u32* Pixel = (u32*)(Buffer->Pixels + VertIndex * Buffer->Pitch);
+		u32* Pixel = (u32*)(Buffer->Pixels + VertIndex * Buffer->Pitch + MinX * 4);
 		for (int HorzIndex = MinX; HorzIndex < MaxX; HorzIndex++) {
 			DeltaU = (float)HorzIndex * OneOverWidth;
 
@@ -137,8 +164,12 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	MaxX = Clamp(MaxX, (int)ClipRect.Min.x, (int)ClipRect.Max.x);
 	MaxY = Clamp(MaxY, (int)ClipRect.Min.y, (int)ClipRect.Max.y);
 
+	__m128i mmMaxX = _mm_set1_epi32(MaxX);
+	__m128 mmMaxXF = _mm_cvtepi32_ps(mmMaxX);
+
 	__m128 mmOne = _mm_set1_ps(1.0f);
 	__m128 mm255 = _mm_set1_ps(255.0f);
+	__m128 mmOneOver255 = _mm_set1_ps(1.0f / 255.0f);
 
 	__m128 mmColor_r = _mm_set1_ps(Color.r);
 	__m128 mmColor_g = _mm_set1_ps(Color.g);
@@ -149,6 +180,10 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 
 	__m128 mmOneOverWidth = _mm_set1_ps(OneOverWidth);
 	__m128 mmOneOverHeight = _mm_set1_ps(OneOverHeight);
+
+	__m128 mmZeroColorF = _mm_castsi128_ps(_mm_setr_epi32(0, 0, 0, 255));
+
+	__m128i mmFF = _mm_set1_epi32(0xFF);
 
 	BEGIN_TIMED_BLOCK(GradientPixelFill);
 	for (int VertIndex = MinY; VertIndex < MaxY; VertIndex++) {
@@ -175,6 +210,25 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 			__m128i mmOutColor = _mm_or_si128(
 				_mm_or_si128(mmOutColorShifted_a, mmOutColorShifted_b),
 				_mm_or_si128(mmOutColorShifted_g, mmOutColorShifted_r));
+
+#if 1
+			u32* OutDest = (u32*)(Buffer->Pixels + VertIndex * Buffer->Pitch + HorzIndex * 4);
+
+			__m128i mmPreDestColor = _mm_loadu_si128((__m128i*)OutDest);
+
+			__m128 mmPreDestColor_r = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 24);
+			__m128 mmPreDestColor_g = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 16);
+			__m128 mmPreDestColor_b = MM_UNPACK_COLOR_CHANNEL(mmPreDestColor, 8);
+			__m128 mmPreDestColor_a = MM_UNPACK_COLOR_CHANNEL0(mmPreDestColor);
+
+			/*Mask with end of screen mask*/
+			//__m128 mmEndScreenMask = _mm_cmplt_ps(_mm_cvtepi32_ps(mmDestX), mmDestWidth);
+			__m128 mmEndScreenMask = _mm_cmplt_ps(_mm_cvtepi32_ps(mmHorzIndex), mmMaxXF);
+
+			mmOutColor = _mm_castps_si128(_mm_or_ps(
+				_mm_and_ps(_mm_castsi128_ps(mmOutColor), mmEndScreenMask),
+				_mm_andnot_ps(mmEndScreenMask, _mm_castsi128_ps(mmPreDestColor))));
+#endif
 
 			_mm_storeu_si128((__m128i*)Pixel, mmOutColor);
 		}
@@ -775,7 +829,8 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 #if !WORKOUT_FAST_RENDERING
 				RenderClear(Buffer, EntryClear->Color, ClipRect);
 #else
-				RenderClearFast(Buffer, EntryClear->Color, ClipRect);
+				//RenderClearFast(Buffer, EntryClear->Color, ClipRect);
+				RenderClear(Buffer, EntryClear->Color, ClipRect);
 #endif
 			}break;
 
@@ -863,7 +918,9 @@ void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, 
 			Work->Buffer = Buffer;
 			Work->Stack = Stack;
 			Work->ClipRect = Rect;
+			//if ((j & 1) == (i & 1)) {
 			PlatformApi.AddEntry(Queue, RenderQueueWork, Work);
+			//}
 		}
 	}
 

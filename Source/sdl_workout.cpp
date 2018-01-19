@@ -688,8 +688,8 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		PushGradient(Stack, V3(GradR, GradG, GradB));
-		//PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
+		//PushGradient(Stack, V3(GradR, GradG, GradB));
+		PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		if (TempBoolForSlider) {
