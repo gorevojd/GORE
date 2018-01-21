@@ -114,6 +114,18 @@ enum gui_element_type {
 	GUIElement_Row,
 };
 
+struct gui_vertical_slider_cache {
+
+};
+
+struct gui_slider_cache {
+
+};
+
+struct gui_bool_button_cache {
+
+};
+
 struct gui_element {
 	u32 ID;
 
@@ -136,11 +148,19 @@ struct gui_element {
 	u32 RowCount;
 
 	u32 Type;
+
+	struct{
+		b32 IsInitialized;
+
+		union {
+			gui_vertical_slider_cache VerticalSlider;
+			gui_slider_cache Slider;
+			gui_bool_button_cache BoolButton;
+		};
+	}Cache;
 };
 
 struct gui_view {
-	float FontScale;
-
 	float CurrentX;
 	float CurrentY;
 
@@ -211,8 +231,14 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.OutlineColor = GUIColor_Black;
 
+#if 1
 	Result.FirstColor = GUIColor_PrettyBlue;
 	Result.SecondaryColor = GUIColor_BluishGray;
+#else
+	Result.FirstColor = GUIColor_Purple;
+	Result.SecondaryColor = GUIColor_Orange;
+
+#endif
 #else
 	Result.TextColor = GUIColor_Red;
 	Result.TextHighlightColor = GUIColor_Blue;
@@ -230,6 +256,8 @@ struct gui_state {
 	font_info* FontInfo;
 	render_stack* RenderStack;
 	render_stack* TempRenderStack;
+
+	float FontScale;
 
 	input_system* Input;
 

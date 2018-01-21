@@ -59,6 +59,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 
 	GUIState->Input = Input;
 
+	GUIState->FontScale = 1.0f;
+
 	GUIState->ScreenWidth = Width;
 	GUIState->ScreenHeight = Height;
 
@@ -136,7 +138,7 @@ void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack) {
 	GUIState->TempRenderStack = GUIState->RenderStack;
 	GUIState->RenderStack = Stack;
 }
-
+ 
 void GUIEndTempRenderStack(gui_state* GUIState) {
 	GUIState->RenderStack = GUIState->TempRenderStack;
 }
@@ -154,10 +156,9 @@ void GUIEndFrame(gui_state* GUIState) {
 void GUIBeginView(gui_state* GUIState) {
 	gui_view* View = GetCurrentView(GUIState);
 
-	View->FontScale = 1.0f;
 
 	View->CurrentX = View->ViewX;
-	View->CurrentY = View->ViewY + GetNextRowAdvance(GUIState->FontInfo) * View->FontScale;
+	View->CurrentY = View->ViewY + GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
 
 	View->RowBeginned = 0;
 	View->RowBiggestHeight = 0;
@@ -175,6 +176,10 @@ void GUIEndView(gui_state* State) {
 
 	gui_interaction MemInteraction = GUIVariableInteraction(&State->GUIMem, GUIVarType_StackedMemory);
 	GUIStackedMemGraph(State, "GUI memory graph", &MemInteraction);
+
+	gui_view* View = GetCurrentView(State);
+	gui_interaction FontScaleInteraction = GUIVariableInteraction(&State->FontScale, GUIVarType_F32);
+	GUISlider(State, "Font scale", 0.5f, 1.5f, &FontScaleInteraction);
 
 	GUIEndRootBlock(State);
 
@@ -203,7 +208,6 @@ void GUIEndRow(gui_state* State) {
 	b32 NeedShow = GUIElementShouldBeUpdated(View->CurrentNode);
 
 	if (NeedShow) {
-
 		View->CurrentX = View->RowBeginX;
 		View->CurrentY += View->RowBiggestHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
 	}
@@ -221,7 +225,7 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 
 	gui_element* Element = View->CurrentNode;
 
-	View->CurrentPreAdvance = (Element->Depth - 1) * 2 * View->FontScale * State->FontInfo->AscenderHeight;
+	View->CurrentPreAdvance = (Element->Depth - 1) * 2 * State->FontScale * State->FontInfo->AscenderHeight;
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
@@ -514,7 +518,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 
 		rect2 GraphRect;
 		GraphRect.Min.x = View->CurrentX;
-		GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * View->FontScale;
+		GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		GraphRect.Max = GraphRect.Min + V2((float)GUIState->ScreenWidth * 0.5f, (float)GUIState->ScreenHeight * 0.12f);
 
 		v2 GraphRectDim = GetRectDim(GraphRect);
@@ -530,12 +534,15 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 			V2(OccupiedRect.Max.x, OccupiedRect.Min.y), 
 			V2(GraphRectDim.x * (1.0f - OccupiedPercentage), GraphRectDim.y));
 
-		PushRect(GUIState->RenderStack, OccupiedRect, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
-		PushRectOutline(GUIState->RenderStack, OccupiedRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
-		PushRect(GUIState->RenderStack, FreeRect, GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor]);
-		PushRectOutline(GUIState->RenderStack, FreeRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+		float Inner = 2.0f;
+		float Outer = 3.0f;
 
-		PushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+		PushRect(GUIState->RenderStack, OccupiedRect, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
+		PushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+		PushRect(GUIState->RenderStack, FreeRect, GUIState->ColorTable[GUIState->ColorTheme.SecondaryColor]);
+		PushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+
+		PushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		if (MouseInRect(GUIState->Input, GraphRect)) {
 			char InfoStr[128];
@@ -551,6 +558,11 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 
 
 		View->LastElementHeight = GraphRectDim.y;
+
+		GUIDescribeRowElement(
+			GUIState,
+			V2(GraphRectDim.x + Outer,
+				GraphRectDim.y + (2.0f * Outer)));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -573,7 +585,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 			Text, 
 			View->CurrentX, 
 			View->CurrentY, 
-			View->FontScale, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
+			GUIState->FontScale, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
@@ -593,7 +605,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, View->CurrentX, View->CurrentY, View->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, View->CurrentX, View->CurrentY, GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 		v4 TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextColor];
@@ -606,7 +618,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, View->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
@@ -619,7 +631,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 }
 
 void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, ButtonName, 0);
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0);
 
 	if (NeedShow) {
 
@@ -633,16 +645,16 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			ButtonName, 
 			View->CurrentX, 
 			View->CurrentY, 
-			View->FontScale, 
+			GUIState->FontScale, 
 			GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 		v2 NameDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
 
-		float PrintButX = View->CurrentX + NameDim.x + GUIState->FontInfo->AscenderHeight;
+		float PrintButX = View->CurrentX + NameDim.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float PrintButY = View->CurrentY;
 
-		rect2 FalseRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "false", PrintButX, PrintButY, View->FontScale);
+		rect2 FalseRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "false", PrintButX, PrintButY, GUIState->FontScale);
 		v2 FalseDim = GetRectDim(FalseRc);
-		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight), FalseDim);
+		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), FalseDim);
 
 		float OutlineWidth = 1;
 
@@ -651,7 +663,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 
 		char TextToPrint[8];
 		if (*Interaction->VariableLink.Value_B32) {
-			rect2 TrueRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "true", PrintButX, PrintButY, View->FontScale);
+			rect2 TrueRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "true", PrintButX, PrintButY, GUIState->FontScale);
 			v2 TrueDim = GetRectDim(TrueRc);
 			PrintButX = FalseRc.Min.x + (FalseDim.x - TrueDim.x) * 0.5f;
 
@@ -669,7 +681,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, View->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		View->LastElementWidth = FalseRc.Max.x - View->CurrentX;
@@ -678,7 +690,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 		GUIAdvanceCursor(GUIState);
 	}
 
-	GUIEndElement(GUIState, GUIElement_StaticItem);
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
 void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction) {
@@ -686,21 +698,98 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 	if (NeedShow) {
 		gui_view* View = GetCurrentView(State);
-		float FontScale = View->FontScale;
+		float FontScale = State->FontScale;
+		float SmallTextScale = FontScale * 0.8f;
+		v2 WorkRectDim = V2(20, 100);
 
 		GUIPreAdvanceCursor(State);
 
 		float* Value = Interaction->VariableLink.Value_F32;
 		Assert(Max > Min);
+		
+		//NOTE(DIMA): Drawing Max value text
+		//TODO(DIMA): Cache theese calculations
+		char MaxValueTxt[16];
+		stbsp_sprintf(MaxValueTxt, "%.2f", Max);
+		v2 MaxValueRcMin = V2(View->CurrentX, View->CurrentY);
+		rect2 MaxValueRcSize = PrintTextInternal(
+			State,
+			PrintTextType_GetTextSize,
+			MaxValueTxt,
+			0, 0,
+			SmallTextScale);
+		v2 MaxValueRcDim = GetRectDim(MaxValueRcSize);
 
-		v2 WorkRectMin = V2(View->CurrentX, View->CurrentY - State->FontInfo->AscenderHeight * FontScale);
-		v2 WorkRectDim = V2(20, 100);
+		rect2 MaxValueRc = PrintTextInternal(
+			State,
+			PrintTextType_PrintText,
+			MaxValueTxt,
+			MaxValueRcMin.x + 0.5f * (WorkRectDim.x - MaxValueRcDim.x), 
+			MaxValueRcMin.y,
+			SmallTextScale,
+			State->ColorTable[State->ColorTheme.TextColor]);
+
+		//NOTE(DIMA): Calculating vertical rectangle
+		v2 WorkRectMin = V2(View->CurrentX, MaxValueRcMin.y - State->FontInfo->DescenderHeight * SmallTextScale);
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
 
+		//NOTE(DIMA): Drawing vertical rectangle
 		i32 RectOutlineWidth = 1;
 		PushRect(State->RenderStack, WorkRect, State->ColorTable[State->ColorTheme.FirstColor]);
 		PushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, State->ColorTable[State->ColorTheme.OutlineColor]);
 
+		//NOTE(DIMA): Printing Min value text
+		//TODO(DIMA): Cache theese calculations
+		char MinValueTxt[16];
+		stbsp_sprintf(MinValueTxt, "%.2f", Min);
+		v2 MinValueRcMin = V2(WorkRect.Min.x, WorkRect.Max.y + GetNextRowAdvance(State->FontInfo, SmallTextScale));
+		rect2 MinValueRcSize = PrintTextInternal(
+			State,
+			PrintTextType_GetTextSize,
+			MinValueTxt,
+			0, 0,
+			SmallTextScale);
+		v2 MinValueRcDim = GetRectDim(MaxValueRcSize);
+
+		rect2 MinValueRc = PrintTextInternal(
+			State,
+			PrintTextType_PrintText,
+			MinValueTxt,
+			MinValueRcMin.x + 0.5f * (WorkRectDim.x - MinValueRcDim.x),
+			MinValueRcMin.y,
+			SmallTextScale,
+			State->ColorTable[State->ColorTheme.TextColor]);
+
+		//NOTE(DIMA): Printing name of the element that consist from first 3 chars of the name
+		char SmallTextToPrint[8];
+		stbsp_sprintf(SmallTextToPrint, "%.3s", Name);
+		char *SmallBufAt = SmallTextToPrint;
+		while (*SmallBufAt) {
+			char CurChar = *SmallBufAt;
+
+			if (CurChar >= 'a' && CurChar <= 'z') {
+				*SmallBufAt = CurChar - 'a' + 'A';
+			}
+
+			SmallBufAt++;
+		}
+		rect2 SmallTextRect = PrintTextInternal(State, PrintTextType_GetTextSize, SmallTextToPrint, 0, 0, SmallTextScale);
+		v2 SmallTextRcDim = GetRectDim(SmallTextRect);
+
+		float SmallTextX = WorkRect.Min.x + WorkRectDim.x * 0.5f - SmallTextRcDim.x * 0.5f;
+		//float SmallTextY = MinValueRc.Max.y + GetNextRowAdvance(State->FontInfo, SmallTextScale);
+		float SmallTextY = MinValueRc.Min.y + MinValueRcDim.y + State->FontInfo->AscenderHeight * SmallTextScale;
+
+		rect2 SmallTextRc = PrintTextInternal(
+			State, 
+			PrintTextType_PrintText, 
+			SmallTextToPrint, 
+			SmallTextX, 
+			SmallTextY, 
+			SmallTextScale, 
+			State->ColorTable[State->ColorTheme.TextColor]);
+
+		//NOTE(Dima): Processing the value
 		float Range = Max - Min;
 		if (*Value > Max) {
 			*Value = Max;
@@ -709,7 +798,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			*Value = Min;
 		}
 
-		float RelativePos01 = ((float)(*Value) - Min) / (float)Range;
+		float RelativePos01 = 1.0f - (((float)(*Value) - Min) / (float)Range);
 
 		float CursorWidth = WorkRectDim.x;
 		float CursorHeight = 15.0f;
@@ -720,44 +809,65 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		v2 CursorDim = V2(CursorWidth, CursorHeight);
 		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
 
+		//NOTE(DIMA): Processing interactions
 		v4 CursorColor = State->ColorTable[State->ColorTheme.SecondaryColor];
-		if (MouseInRect(State->Input, CursorRect) || MouseInRect(State->Input, WorkRect)) {
+		b32 IsHot = GUIInteractionIsHot(State, Interaction);
+		b32 MouseInWorkRect = MouseInRect(State->Input, WorkRect);
+		b32 MouseInCursRect = MouseInRect(State->Input, CursorRect);
+		if (MouseInWorkRect && MouseInCursRect) {
 
-			if (MouseButtonWentDown(State->Input, MouseButton_Left) && !GUIInteractionIsHot(State, Interaction)) {
+			if (MouseButtonWentDown(State->Input, MouseButton_Left) && !IsHot) {
 				GUISetInteractionHot(State, Interaction, true);
+				IsHot = true;
 			}
+		}
+
+		if (MouseInCursRect && !IsHot) {
+			char ValStr[64];
+			stbsp_sprintf(ValStr, "%.3f", *Value);
+
+			GUILabel(State, ValStr, State->Input->MouseP);
 		}
 
 		if (MouseButtonWentUp(State->Input, MouseButton_Left) && GUIInteractionIsHot(State, Interaction)) {
 			GUISetInteractionHot(State, Interaction, false);
+			IsHot = false;
 		}
 
-		if (GUIInteractionIsHot(State, Interaction)) {
+		if (IsHot) {
 			CursorColor = State->ColorTable[State->ColorTheme.TextHighlightColor];
 
 			v2 InteractMouseP = State->Input->MouseP;
-			if (InteractMouseP.y > (WorkRect.Max.y - 0.5f * CursorHeight)) {
+			if (InteractMouseP.y > (WorkRect.Min.y - 0.5f * CursorHeight)) {
 				*Value = Max;
 			}
 
-			if (InteractMouseP.y < (WorkRect.Min.y + 0.5f * CursorHeight)) {
+			if (InteractMouseP.y < (WorkRect.Max.y + 0.5f * CursorHeight)) {
 				*Value = Min;
 			}
 
 			float AT = InteractMouseP.y - (WorkRect.Min.y + 0.5f * CursorHeight);
 			AT = Clamp(AT, 0.0f, WorkRectDim.y - CursorHeight);
-			float NewVal01 = AT / (WorkRectDim.y - CursorHeight);
+			float NewVal01 = 1.0f - (AT / (WorkRectDim.y - CursorHeight));
 			float NewValue = Min + NewVal01 * Range;
 			*Value = NewValue;
+
+			char ValStr[16];
+			stbsp_sprintf(ValStr, "%.3f", *Value);
+			GUILabel(State, ValStr, CursorRect.Max);
 		}
 
+		//NOTE(DIMA): Drawing cursor
 		PushRect(State->RenderStack, CursorRect, CursorColor);
 		PushRectOutline(State->RenderStack, CursorRect, 2, State->ColorTable[State->ColorTheme.OutlineColor]);
 
+		//NOTE(DIMA): Postprocessing
+		float MaxWidth = Max(Max(Max(WorkRectDim.x, MaxValueRcDim.x), MinValueRcDim.x), SmallTextRcDim.x);
+
 		GUIDescribeRowElement(
 			State, 
-			V2(WorkRect.Max.x - View->CurrentX + RectOutlineWidth,
-			WorkRect.Max.y - WorkRect.Min.y));
+			V2(MaxWidth,
+			SmallTextRc.Max.y - MaxValueRc.Min.y));
 
 		GUIAdvanceCursor(State);
 	}
@@ -783,17 +893,18 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 			Name, 
 			View->CurrentX, 
 			View->CurrentY, 
-			View->FontScale,
+			GUIState->FontScale,
 			GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
+		v2 NameTextDim = GetRectDim(NameTextSize);
 
 		char ValueBuf[32];
 		stbsp_sprintf(ValueBuf, "%.3f", *Value);
-		rect2 ValueTextSize = PrintTextInternal(GUIState, PrintTextType_GetTextSize, ValueBuf, 0, 0, View->FontScale);
+		rect2 ValueTextSize = PrintTextInternal(GUIState, PrintTextType_GetTextSize, ValueBuf, 0, 0, GUIState->FontScale);
 
 		//NOTE(Dima): Next element to the text is advanced by AscenderHeight
 		v2 WorkRectMin = V2(
-			View->CurrentX + (NameTextSize.Max.x - NameTextSize.Min.x) + GUIState->FontInfo->AscenderHeight,
-			View->CurrentY - GUIState->FontInfo->AscenderHeight);
+			View->CurrentX + NameTextDim.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale,
+			View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
 		v2 WorkRectDim = V2(200, ValueTextSize.Max.y - ValueTextSize.Min.y);
 
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
@@ -857,9 +968,9 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		PushRect(GUIState->RenderStack, CursorRect, CursorColor);
 		PushRectOutline(GUIState->RenderStack, CursorRect, 2, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
-		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight;
+		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float ValueTextX = WorkRectMin.x + WorkRectDim.x * 0.5f - (ValueTextSize.Max.x - ValueTextSize.Min.x) * 0.5f;
-		PrintTextInternal(GUIState, PrintTextType_PrintText, ValueBuf, ValueTextX, ValueTextY, View->FontScale);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, ValueBuf, ValueTextX, ValueTextY, GUIState->FontScale);
 
 #if 0
 		char TextBuf[64];

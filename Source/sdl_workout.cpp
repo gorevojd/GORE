@@ -20,28 +20,39 @@
 		Renderer:
 			Implement bitmap alignment
 			Optimize renderer with multithreading;
-			Fix buffer overlapping in optimized renderer
-			Optimize rectangle rendering
 			Implement Gaussian blur
 
 		Assets:
 			Build font atlas
 			Implement asset packer
+			Asset streaming
 
 		Memory management:
-			Linear memory allocation
+			Splitting stacked memory
 
 		Other:
 			Begin some debugging stuff
 			Split code to platform dependent and platform independent parts
 
 		Platform layer:
-			Thread pool
+			Thread pool     
 			Correct aspect ratio handling
 
-		GUI:
-			Make possibility to add sum stuff to elements that alredy exist in the tree view
+		Sound:
+			Implement sound mixer
+			Optimize sound mixer with SSE
 
+		Profiler:
+			Some basic profile markers to measure perfomance
+
+		GUI:
+			Caching some elements calculations
+			Make possibility to add sum stuff to elements that alredy exist in the tree view
+			New BeginRow/EndRow system
+			Think about vertical text rendering
+			New Label system or depth
+			Image view
+			GUI tree view walkaround by keyboard
 */
 
 GLOBAL_VARIABLE b32 GlobalRunning;
