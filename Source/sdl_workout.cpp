@@ -46,7 +46,7 @@
 			Some basic profile markers to measure perfomance
 
 		GUI:
-			Caching some elements calculations
+			Caching some elements calculations.
 			Make possibility to add sum stuff to elements that alredy exist in the tree view
 			New BeginRow/EndRow system
 			Think about vertical text rendering
@@ -174,6 +174,9 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 					case(SDLK_SPACE): {
 						ProcessButton = &Input->Buttons[KeyType_Space];
 					}break;
+					case(SDLK_RETURN): {
+						ProcessButton = &Input->Buttons[KeyType_Return];
+					}break;
 					case(SDLK_F1): {
 						ProcessButton = &Input->Buttons[KeyType_F1];
 					}break;
@@ -210,7 +213,27 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 					case(SDLK_F12): {
 						ProcessButton = &Input->Buttons[KeyType_F12];
 					}break;
-
+					case(SDLK_BACKQUOTE): {
+						ProcessButton = &Input->Buttons[KeyType_Backquote];
+					}break;
+					case(SDLK_BACKSPACE): {
+						ProcessButton = &Input->Buttons[KeyType_Backspace];
+					}break;
+					case(SDLK_TAB): {
+						ProcessButton = &Input->Buttons[KeyType_Tab];
+					}break;
+					case(SDLK_LEFT): {
+						ProcessButton = &Input->Buttons[KeyType_Left];
+					}break;
+					case(SDLK_RIGHT): {
+						ProcessButton = &Input->Buttons[KeyType_Right];
+					}break;
+					case(SDLK_UP): {
+						ProcessButton = &Input->Buttons[KeyType_Up];
+					}break;
+					case(SDLK_DOWN): {
+						ProcessButton = &Input->Buttons[KeyType_Down];
+					}break;
 					default: {
 
 					}break;
@@ -361,6 +384,17 @@ inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
 		0x000000FF);
 
 	return(Result);
+}
+
+static void SDLSetWindowIcon(SDL_Window* Window) {
+	SDL_Surface *Surface;     // Declare an SDL_Surface to be filled in with pixel data from an image file
+	rgba_buffer Image = LoadIMG("../Data/Images/pot32.png");
+	Surface = SDLSurfaceFromBuffer(&Image);
+	// The icon is attached to the window pointer
+	SDL_SetWindowIcon(Window, Surface);
+
+	// ...and the surface containing the icon pixel data is no longer required.
+	SDL_FreeSurface(Surface);
 }
 
 #if 1
@@ -635,12 +669,14 @@ int main(int ArgsCount, char** Args) {
 	GlobalTime = 0.0f;
 
 	SDL_Window* Window = SDL_CreateWindow(
-		"WindowName",
+		"GOROH Project",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		GlobalBuffer.Width,
 		GlobalBuffer.Height,
 		SDL_WINDOW_OPENGL);
+
+	SDLSetWindowIcon(Window);
 
 	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, 0);
 	if (!Window) {
@@ -701,7 +737,7 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
 		//PushGradient(Stack, V3(GradR, GradG, GradB));
-		PushClear(Stack, V3(0.5f, 0.5f, 0.5f));
+		PushClear(Stack, V3(0.5f, 0.4f, 0.3f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		if (TempBoolForSlider) {

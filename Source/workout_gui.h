@@ -115,14 +115,17 @@ enum gui_element_type {
 };
 
 struct gui_vertical_slider_cache {
+	b32 IsInitialized;
 
 };
 
 struct gui_slider_cache {
+	b32 IsInitialized;
 
 };
 
 struct gui_bool_button_cache {
+	b32 IsInitialized;
 
 };
 
@@ -149,15 +152,11 @@ struct gui_element {
 
 	u32 Type;
 
-	struct{
-		b32 IsInitialized;
-
-		union {
-			gui_vertical_slider_cache VerticalSlider;
-			gui_slider_cache Slider;
-			gui_bool_button_cache BoolButton;
-		};
-	}Cache;
+	union {
+		gui_vertical_slider_cache VerticalSlider;
+		gui_slider_cache Slider;
+		gui_bool_button_cache BoolButton;
+	} Cache;
 };
 
 struct gui_view {
@@ -266,6 +265,8 @@ struct gui_state {
 
 	gui_element* RootNode;
 	gui_element* FreeElementsSentinel;
+	gui_element* WalkaroundElement;
+	b32 WalkaroundEnabled;
 
 	stacked_memory GUIMem;
 

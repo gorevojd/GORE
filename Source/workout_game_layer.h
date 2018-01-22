@@ -24,7 +24,7 @@ extern rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
 extern void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src);
 extern void DeallocateRGBABuffer(rgba_buffer* Buffer);
 
-enum button_type{
+enum button_type {
 	KeyType_W,
 	KeyType_A,
 	KeyType_S,
@@ -38,6 +38,7 @@ enum button_type{
 	KeyType_LCtrl,
 	KeyType_LShift,
 	KeyType_Esc,
+	KeyType_Return,
 	KeyType_F1,
 	KeyType_F2,
 	KeyType_F3,
@@ -50,6 +51,14 @@ enum button_type{
 	KeyType_F10,
 	KeyType_F11,
 	KeyType_F12,
+	KeyType_Backquote,
+	KeyType_Backspace,
+	KeyType_Tab,
+
+	KeyType_Left,
+	KeyType_Right,
+	KeyType_Up,
+	KeyType_Down,
 
 	KeyType_Count,
 };
