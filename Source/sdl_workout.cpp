@@ -53,6 +53,10 @@
 			New Label system or depth
 			Image view
 			GUI tree view walkaround by keyboard
+
+			GUI radio buttons
+			GUI text windows
+			GUI input text maybe
 */
 
 GLOBAL_VARIABLE b32 GlobalRunning;
@@ -771,21 +775,21 @@ int main(int ArgsCount, char** Args) {
 		GUIBeginRow(GUIState);
 		GUIBoolButton(GUIState, "Button1", &BoolInteract);
 		GUIVerticalSlider(GUIState, "VertSlider1", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider2", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider3", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider4", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider5", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider6", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider7", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider8", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider9", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider10", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider11", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider12", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider13", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider14", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider15", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider16", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider2", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider3", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider4", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider5", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider6", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider7", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider8", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider9", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider10", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider11", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider12", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider13", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider14", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider15", -10.0f, 10.0f, &VertSliderInteract);
+		//GUIVerticalSlider(GUIState, "VertSlider16", -10.0f, 10.0f, &VertSliderInteract);
 		GUIVerticalSlider(GUIState, "VertSlider17", -10.0f, 10.0f, &VertSliderInteract);
 		GUIBoolButton(GUIState, "Button2", &BoolInteract);
 		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);

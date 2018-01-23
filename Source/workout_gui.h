@@ -267,6 +267,7 @@ struct gui_state {
 	gui_element* FreeElementsSentinel;
 	gui_element* WalkaroundElement;
 	b32 WalkaroundEnabled;
+	b32 WalkaroundIsHot;
 
 	stacked_memory GUIMem;
 

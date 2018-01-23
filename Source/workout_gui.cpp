@@ -101,6 +101,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->PrevBro = RootNode;
 
 	GUIState->WalkaroundEnabled = false;
+	GUIState->WalkaroundIsHot = false;
 	GUIState->WalkaroundElement = RootNode;
 
 	/*
@@ -166,9 +167,7 @@ inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
 		if (Parent) {
 			if (Parent->ChildrenSentinel != Element) {
 				Result =
-#if 0
 					(Element->Type != GUIElement_StaticItem) &&
-#endif
 					(Element->Type != GUIElement_Row) &&
 					(Element->Type != GUIElement_None);
 			}
@@ -183,34 +182,110 @@ inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
 	return(Result);
 }
 
-inline gui_element* GUIFindNextForWalkaround(gui_element* Element) {
-	gui_element* Result = 0;
+inline b32 GUIElementIsSentinelOfRow(gui_element* Element) {
+	b32 Result = 0;
 
-	gui_element* At = Element->NextBro;
-	while (At != Element) {
-		if (GUIElementIsValidForWalkaround(At)) {
-			Result = At;
-			break;
+	if (Element) {
+		gui_element* Parent = Element->Parent;
+		if (Element == Parent->ChildrenSentinel &&
+			Parent->Type == GUIElement_Row) 
+		{
+			Result = 1;
 		}
-
-		At = At->NextBro;
 	}
 
 	return(Result);
 }
 
-inline gui_element* GUIFindPrevForWalkaround(gui_element* Element) {
+enum gui_walkaround_type {
+	GUIWalkaround_None,
+
+	GUIWalkaround_Next,
+	GUIWalkaround_Prev,
+};
+
+inline gui_element* GUIWalkaroundStep(gui_element* Elem, u32 WalkaroundType) {
 	gui_element* Result = 0;
 
-	gui_element* At = Element->PrevBro;
-	while (At != Element) {
+	if (WalkaroundType == GUIWalkaround_Next) {
+		Result = Elem->NextBro;
+	}
+	else if (WalkaroundType == GUIWalkaround_Prev){
+		Result = Elem->PrevBro;
+	}
+	else {
+		Assert(!"Invalid walkaround type");
+	}
+
+	return(Result);
+}
+
+inline gui_element* GUIFindNextForWalkaroundInRow(gui_element* Row, u32 WalkaroundType) {
+	gui_element* Result = 0;
+
+	gui_element* At = GUIWalkaroundStep(Row->ChildrenSentinel, WalkaroundType);
+
+	while (At != Row->ChildrenSentinel) {
 		if (GUIElementIsValidForWalkaround(At)) {
 			Result = At;
 			break;
 		}
+		else {
+			if (At->Type == GUIElement_Row) {
+				Result = GUIFindNextForWalkaroundInRow(At, WalkaroundType);
+				if (Result) {
+					return(Result);
+				}
+			}
+		}
 
-		At = At->PrevBro;
+		At = GUIWalkaroundStep(At, WalkaroundType);
 	}
+
+	return(Result);
+}
+
+inline gui_element* GUIFindForWalkaround(gui_element* Element, u32 WalkaroundType) {
+	gui_element* Result = 0;
+
+	gui_element* At = GUIWalkaroundStep(Element, WalkaroundType);
+	while (At != Element) {
+
+		if (GUIElementIsValidForWalkaround(At)) {
+			Result = At;
+			break;
+		}
+		else {
+#if 0
+			if (GUIElementIsSentinelOfRow(At)) {
+				At = At->Parent;
+				At = GUIWalkaroundStep(At, WalkaroundType);
+				continue;
+			}
+
+			if (At->Type == GUIElement_Row) {
+				Result = GUIFindNextForWalkaroundInRow(At, WalkaroundType);
+				if (Result) {
+					break;
+				}
+			}
+#endif
+		}
+
+		At = GUIWalkaroundStep(At, WalkaroundType);
+	}
+
+	return(Result);
+}
+
+static gui_element* GUIFindNextForWalkaround(gui_element* Element) {
+	gui_element* Result = GUIFindForWalkaround(Element, GUIWalkaround_Next);
+
+	return(Result);
+}
+
+static gui_element* GUIFindPrevForWalkaround(gui_element* Element) {
+	gui_element* Result = GUIFindForWalkaround(Element, GUIWalkaround_Prev);
 
 	return(Result);
 }
@@ -218,29 +293,63 @@ inline gui_element* GUIFindPrevForWalkaround(gui_element* Element) {
 inline gui_element* GUIFindElementForWalkaroundBFS(gui_element* CurrentElement) {
 	gui_element* Result = 0;
 
+	u32 WalkaroundType = GUIWalkaround_Prev;
+
 	if (CurrentElement->ChildrenSentinel) {
-		gui_element* At = CurrentElement->ChildrenSentinel->PrevBro;
-		if (At != CurrentElement->ChildrenSentinel) {
-			while (At != CurrentElement->ChildrenSentinel) {
+		gui_element* At = GUIWalkaroundStep(CurrentElement->ChildrenSentinel, WalkaroundType);
+		
+		while (At != CurrentElement->ChildrenSentinel) {
 
-				if (GUIElementIsValidForWalkaround(At)) {
-					Result = At;
-					return(Result);
+			if (GUIElementIsValidForWalkaround(At)) {
+				Result = At;
+				return(Result);
+			}
+			else {
+#if 0
+				if (GUIElementIsSentinelOfRow(At)) {
+					At = At->Parent;
+					At = GUIWalkaroundStep(At, WalkaroundType);
+					continue;
 				}
 
-				At = At->PrevBro;
-			}
-
-			At = CurrentElement->ChildrenSentinel->PrevBro;
-			while (At != CurrentElement->ChildrenSentinel) {
-				Result = GUIFindElementForWalkaroundBFS(At);
-				if (Result) {
-					return(Result);
+				if (At->Type == GUIElement_Row) {
+					//Result = GUIFindNextForWalkaroundInRow(At, WalkaroundType);
+					Result = GUIFindElementForWalkaroundBFS(At);
+					if (Result) {
+						return(Result);
+					}
 				}
-
-				At = At->PrevBro;
+#endif
 			}
+
+			At = GUIWalkaroundStep(At, WalkaroundType);
 		}
+
+		At = GUIWalkaroundStep(CurrentElement->ChildrenSentinel, WalkaroundType);
+		while (At != CurrentElement->ChildrenSentinel) {
+			Result = GUIFindElementForWalkaroundBFS(At);
+			if (Result) {
+				return(Result);
+			}
+
+			At = GUIWalkaroundStep(At, WalkaroundType);
+		}
+	}
+
+	return(Result);
+}
+
+inline gui_element* GUIFindTrueParent(gui_element* Elem) {
+	gui_element* Result = 0;
+
+	gui_element* At = Elem->Parent;
+	while (At) {
+		if (GUIElementIsValidForWalkaround(At)) {
+			Result = At;
+			break;
+		}
+
+		At = At->Parent;
 	}
 
 	return(Result);
@@ -250,11 +359,18 @@ inline b32 GUIWalkaroundIsOnElement(gui_state* State, gui_element* Element) {
 	b32 Result = 0;
 
 	if (State->WalkaroundEnabled) {
-		gui_view* View = GetCurrentView(State);
 		if (State->WalkaroundElement == Element) {
 			Result = 1;
 		}
 	}
+
+	return(Result);
+}
+
+inline b32 GUIWalkaroundIsHere(gui_state* State) {
+	gui_view* View = GetCurrentView(State);
+
+	b32 Result = GUIWalkaroundIsOnElement(State, View->CurrentNode);
 
 	return(Result);
 }
@@ -273,19 +389,36 @@ void GUIEndFrame(gui_state* GUIState) {
 			*Walk = GUIFindElementForWalkaroundBFS(*Walk);
 		}
 
-		if (ButtonWentDown(GUIState->Input, KeyType_Up)) {
-			gui_element* PrevElement = GUIFindNextForWalkaround(*Walk);
+		if (!GUIState->WalkaroundIsHot) {
 
-			if (PrevElement) {
-				*Walk = PrevElement;
+			if (ButtonWentDown(GUIState->Input, KeyType_Up)) {
+				gui_element* PrevElement = GUIFindNextForWalkaround(*Walk);
+
+				if (PrevElement) {
+					*Walk = PrevElement;
+				}
 			}
-		}
 
-		if (ButtonWentDown(GUIState->Input, KeyType_Down)) {
-			gui_element* NextElement = GUIFindPrevForWalkaround(*Walk);
-			
-			if (NextElement) {
-				*Walk = NextElement;
+			if (ButtonWentDown(GUIState->Input, KeyType_Down)) {
+				gui_element* NextElement = GUIFindPrevForWalkaround(*Walk);
+
+				if (NextElement) {
+					*Walk = NextElement;
+				}
+			}
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Right)) {
+				if ((*Walk)->Expanded) {
+					gui_element* FirstChildren = GUIFindElementForWalkaroundBFS(*Walk);
+
+					if (FirstChildren) {
+						*Walk = FirstChildren;
+					}
+				}
+			}
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Left)) {
+				*Walk = GUIFindTrueParent(*Walk);
 			}
 		}
 
@@ -293,27 +426,19 @@ void GUIEndFrame(gui_state* GUIState) {
 			if ((*Walk)->Type == GUIElement_TreeNode) {
 				(*Walk)->Expanded = !(*Walk)->Expanded;
 			}
-		}
 
-		if (ButtonWentDown(GUIState->Input, KeyType_Right)) {
-			if ((*Walk)->Expanded) {
-				gui_element* FirstChildren = GUIFindElementForWalkaroundBFS(*Walk);
-
-				if (FirstChildren) {
-					*Walk = FirstChildren;
-				}
+			if ((*Walk)->Type == GUIElement_InteractibleItem) {
+				GUIState->WalkaroundIsHot = !GUIState->WalkaroundIsHot;
 			}
-		}
-
-		if (ButtonWentDown(GUIState->Input, KeyType_Left)) {
-			*Walk = (*Walk)->Parent;
 		}
 
 		if (ButtonWentDown(GUIState->Input, KeyType_Backspace)) {
-			*Walk = (*Walk)->Parent;
+			*Walk = GUIFindTrueParent(*Walk);
 			if ((*Walk)->Expanded) {
 				(*Walk)->Expanded = 0;
 			}
+
+			GUIState->WalkaroundIsHot = 0;
 		}
 
 		if (ButtonWentDown(GUIState->Input, KeyType_Tab)) {
@@ -355,6 +480,9 @@ void GUIEndView(gui_state* State) {
 	gui_view* View = GetCurrentView(State);
 	gui_interaction FontScaleInteraction = GUIVariableInteraction(&State->FontScale, GUIVarType_F32);
 	GUISlider(State, "Font scale", 0.5f, 1.5f, &FontScaleInteraction);
+
+	gui_interaction WalkInteraction = GUIVariableInteraction(&State->WalkaroundEnabled, GUIVarType_B32);
+	GUIBoolButton(State, "Walkaround", &WalkInteraction);
 
 	GUIEndRootBlock(State);
 
@@ -845,6 +973,10 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			}
 		}
 
+		if (GUIWalkaroundIsHere(GUIState)) {
+			PushRectOutline(GUIState->RenderStack, NameRc, 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
+		}
+
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
@@ -1168,6 +1300,15 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 			float NewVal01 = AT / (WorkRectDim.x - CursorWidth);
 			float NewValue = Min + NewVal01 * Range;
 			*Value = NewValue;
+		}
+
+		if (GUIWalkaroundIsOnElement(GUIState, View->CurrentNode)) {
+			if (GUIState->WalkaroundIsHot) {
+
+			}
+			else {
+				PushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
+			}
 		}
 
 		PushRect(GUIState->RenderStack, CursorRect, CursorColor);
