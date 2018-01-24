@@ -256,7 +256,7 @@ inline gui_element* GUIFindForWalkaround(gui_element* Element, u32 WalkaroundTyp
 			break;
 		}
 		else {
-#if 0
+#if 1
 			if (GUIElementIsSentinelOfRow(At)) {
 				At = At->Parent;
 				At = GUIWalkaroundStep(At, WalkaroundType);
@@ -305,7 +305,7 @@ inline gui_element* GUIFindElementForWalkaroundBFS(gui_element* CurrentElement) 
 				return(Result);
 			}
 			else {
-#if 0
+#if 1
 				if (GUIElementIsSentinelOfRow(At)) {
 					At = At->Parent;
 					At = GUIWalkaroundStep(At, WalkaroundType);
@@ -350,6 +350,10 @@ inline gui_element* GUIFindTrueParent(gui_element* Elem) {
 		}
 
 		At = At->Parent;
+	}
+
+	if (!Result) {
+		Result = Elem;
 	}
 
 	return(Result);
@@ -689,6 +693,7 @@ static gui_element* GUIRequestElement(
 	Element->Type = ElementType;
 	Element->Parent = Parent;
 	Element->TempParent = 0;
+	Element->RowCount = 0;
 
 	//NOTE(Dima): Setting interaction ID for dynamic(cached) elements
 	if (ElementIsDynamic && Interaction) {
@@ -727,7 +732,7 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 	}
 
 	if (ElementType == GUIElement_Row) {
-		View->CurrentNode->Parent->RowCount = 0;
+		//View->CurrentNode->Parent->RowCount = 0;
 	}
 
 	View->CurrentNode = View->CurrentNode->Parent;
