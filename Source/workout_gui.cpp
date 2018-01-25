@@ -431,9 +431,11 @@ void GUIEndFrame(gui_state* GUIState) {
 				(*Walk)->Expanded = !(*Walk)->Expanded;
 			}
 
+#if 0
 			if ((*Walk)->Type == GUIElement_InteractibleItem) {
 				GUIState->WalkaroundIsHot = !GUIState->WalkaroundIsHot;
 			}
+#endif
 		}
 
 		if (ButtonWentDown(GUIState->Input, KeyType_Backspace)) {
@@ -881,13 +883,23 @@ void GUIText(gui_state* GUIState, char* Text) {
 			GUIState->FontScale, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
-		View->LastElementHeight = Rc.Max.y - Rc.Min.y;
+		GUIDescribeRowElement(GUIState, GetRectDim(Rc));
 
 		GUIAdvanceCursor(GUIState);
 	}
 
 	GUIEndElement(GUIState, GUIElement_StaticItem);
+}
+
+inline void GUIActionTextAction(gui_interaction* Interaction) {
+	if (Interaction) {
+		if (Interaction->Type == GUIInteraction_VariableLink) {
+			if(Interaction->VariableLink.Type = GUIVarType_B32)
+			{
+				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+			}
+		}
+	}
 }
 
 void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction) {
@@ -905,21 +917,22 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		if (MouseInRect(GUIState->Input, Rc)) {
 			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				if (Interaction->Type == GUIInteraction_VariableLink) {
-					*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
-				}
+				GUIActionTextAction(Interaction);
 			}
 		}
 
-		if (GUIWalkaroundIsOnElement(GUIState, View->CurrentNode)) {
+		if (GUIWalkaroundIsHere(GUIState)) {
 			PushRectOutline(GUIState->RenderStack, Rc , 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIActionTextAction(Interaction);
+			}
 		}
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
-		View->LastElementHeight = Rc.Max.y - Rc.Min.y;
+		GUIDescribeRowElement(GUIState, GetRectDim(Rc));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -955,9 +968,6 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 
 		float OutlineWidth = 1;
 
-		PushRect(GUIState->RenderStack, ButRc, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
-		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
-
 		char TextToPrint[8];
 		if (*Interaction->VariableLink.Value_B32) {
 			rect2 TrueRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "true", PrintButX, PrintButY, GUIState->FontScale);
@@ -970,6 +980,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			stbsp_sprintf(TextToPrint, "%s", "false");
 		}
 
+		v4 ButRectHighlight = GUIState->ColorTable[GUIState->ColorTheme.OutlineColor];
 		v4 TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextColor];
 		if (MouseInRect(GUIState->Input, ButRc)) {
 			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
@@ -980,33 +991,24 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 
 		if (GUIWalkaroundIsHere(GUIState)) {
 			PushRectOutline(GUIState->RenderStack, NameRc, 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+			}
 		}
+
+		PushRect(GUIState->RenderStack, ButRc, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
+		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, ButRectHighlight);
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		View->LastElementWidth = FalseRc.Max.x - View->CurrentX;
-		View->LastElementHeight = FalseRc.Max.y - FalseRc.Min.y + (2.0f * OutlineWidth);
+		GUIDescribeRowElement(GUIState, V2(FalseRc.Max.x - View->CurrentX, FalseRc.Max.y - FalseRc.Min.y + OutlineWidth));
 
 		GUIAdvanceCursor(GUIState);
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
-}
-
-static void GUIProcessVerticalSliderCache(
-	gui_state* State,
-	float CurrentFontScale,
-	gui_vertical_slider_cache* Cache)
-{
-	if (Cache->IsInitialized) {
-
-
-		Cache->IsInitialized = true;
-	}
-	else {
-
-	}
 }
 
 void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction) {
@@ -1044,6 +1046,12 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		v2 WorkRectMin = V2(View->CurrentX, MaxValueRcMin.y - State->FontInfo->DescenderHeight * SmallTextScale);
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
 
+		//NOTE(DIMA): Drawing vertical rectangle
+		i32 RectOutlineWidth = 1;
+
+		PushRect(State->RenderStack, WorkRect, State->ColorTable[State->ColorTheme.FirstColor]);
+		PushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, State->ColorTable[State->ColorTheme.OutlineColor]);
+
 		//NOTE(DIMA): Calculating Min text rectangle
 		//TODO(DIMA): Cache theese calculations
 		char MinValueTxt[16];
@@ -1067,21 +1075,6 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			SmallTextScale,
 			State->ColorTable[State->ColorTheme.TextColor]);
 
-		//NOTE(DIMA): Drawing vertical rectangle
-		i32 RectOutlineWidth = 1;
-		
-#if 0
-		v4 WorkRectColor = State->ColorTable[State->ColorTheme.FirstColor];
-		if (MouseInRect(State->Input, WorkRect)) {
-			WorkRectColor = State->ColorTable[GUIColor_Red];
-		}
-		PushRect(State->RenderStack, WorkRect, WorkRectColor);
-#else
-		PushRect(State->RenderStack, WorkRect, State->ColorTable[State->ColorTheme.FirstColor]);
-#endif
-
-		PushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, State->ColorTable[State->ColorTheme.OutlineColor]);
-
 		//NOTE(DIMA): Printing Min value text
 		rect2 MinValueRc = PrintTextInternal(
 			State,
@@ -1094,7 +1087,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 		//NOTE(DIMA): Printing name of the element that consist from first 3 chars of the name
 		char SmallTextToPrint[8];
-		stbsp_sprintf(SmallTextToPrint, "%.3s", Name);
+		stbsp_sprintf(SmallTextToPrint, "%.4s", Name);
 		char *SmallBufAt = SmallTextToPrint;
 		while (*SmallBufAt) {
 			char CurChar = *SmallBufAt;
@@ -1140,13 +1133,15 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		v2 CursorDim = V2(CursorWidth, CursorHeight);
 		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
 
+		float MaxWidth = Max(Max(Max(WorkRectDim.x, MaxValueRcDim.x), MinValueRcDim.x), SmallTextRcDim.x);
+
+
 		//NOTE(DIMA): Processing interactions
 		v4 CursorColor = State->ColorTable[State->ColorTheme.SecondaryColor];
 		b32 IsHot = GUIInteractionIsHot(State, Interaction);
 		b32 MouseInWorkRect = MouseInRect(State->Input, WorkRect);
 		b32 MouseInCursRect = MouseInRect(State->Input, CursorRect);
 		if (MouseInWorkRect || MouseInCursRect) {
-
 			if (MouseButtonWentDown(State->Input, MouseButton_Left) && !IsHot) {
 				GUISetInteractionHot(State, Interaction, true);
 				IsHot = true;
@@ -1163,6 +1158,41 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		if (MouseButtonWentUp(State->Input, MouseButton_Left) && IsHot) {
 			GUISetInteractionHot(State, Interaction, false);
 			IsHot = false;
+		}
+
+		if (GUIWalkaroundIsHere(State)) {
+
+			if (ButtonWentDown(State->Input, KeyType_Return)) {
+				GUISwapWalkaroundHot(State);
+			}
+
+			if (GUIWalkaroundIsHot(State)) {
+				PushRectOutline(State->RenderStack, WorkRect, 2, State->ColorTable[State->ColorTheme.WalkaroundHotColor]);
+
+				CursorColor = State->ColorTable[State->ColorTheme.TextHighlightColor];
+
+				float ChangeStep = 0.02f * Range;
+				if (ButtonIsDown(State->Input, KeyType_Down)) {
+					float NewValue = *Value - ChangeStep;
+					NewValue = Clamp(NewValue, Min, Max);
+					*Value = NewValue;
+				}
+
+				if (ButtonIsDown(State->Input, KeyType_Up)) {
+					float NewValue = *Value + ChangeStep;
+					NewValue = Clamp(NewValue, Min, Max);
+					*Value = NewValue;
+				}
+
+				char ValStr[16];
+				stbsp_sprintf(ValStr, "%.3f", *Value);
+				GUILabel(State, ValStr, CursorRect.Max);
+			}
+			else {
+				//PushRectOutline(State->RenderStack, Rect2MinDim(MaxValueRcMin, V2(MaxWidth, SmallTextRc.Max.y - MaxValueRc.Min.y)));
+				PushRectOutline(State->RenderStack, SmallTextRc, 2, State->ColorTable[State->ColorTheme.TextHighlightColor]);
+				PushRectOutline(State->RenderStack, WorkRect, 2, State->ColorTable[State->ColorTheme.TextHighlightColor]);
+			}
 		}
 
 		if (IsHot) {
@@ -1193,8 +1223,6 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		PushRectOutline(State->RenderStack, CursorRect, 2, State->ColorTable[State->ColorTheme.OutlineColor]);
 
 		//NOTE(DIMA): Postprocessing
-		float MaxWidth = Max(Max(Max(WorkRectDim.x, MaxValueRcDim.x), MinValueRcDim.x), SmallTextRcDim.x);
-
 		GUIDescribeRowElement(
 			State, 
 			V2(MaxWidth,
@@ -1307,9 +1335,28 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 			*Value = NewValue;
 		}
 
-		if (GUIWalkaroundIsOnElement(GUIState, View->CurrentNode)) {
-			if (GUIState->WalkaroundIsHot) {
+		if (GUIWalkaroundIsHere(GUIState)) {
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUISwapWalkaroundHot(GUIState);
+			}
 
+			if (GUIState->WalkaroundIsHot) {
+				PushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIState->ColorTable[GUIState->ColorTheme.WalkaroundHotColor]);
+
+				CursorColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
+
+				float ChangeStep = Range * 0.02f;
+				if (ButtonIsDown(GUIState->Input, KeyType_Right)) {
+					float NewValue = *Value + ChangeStep;
+					NewValue = Clamp(NewValue, Min, Max);
+					*Value = NewValue;
+				}
+
+				if (ButtonIsDown(GUIState->Input, KeyType_Left)) {
+					float NewValue = *Value - ChangeStep;
+					NewValue = Clamp(NewValue, Min, Max);
+					*Value = NewValue;
+				}
 			}
 			else {
 				PushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
@@ -1445,15 +1492,14 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 			}
 		}
 
-		if (GUIWalkaroundIsOnElement(State, View->CurrentNode)) {
+		if (GUIWalkaroundIsHere(State)) {
 			PushRectOutline(State->RenderStack, Rc, 2, State->ColorTable[State->ColorTheme.TextHighlightColor]);
 		}
 
 		PrintTextInternal(State, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, State->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		View->LastElementWidth = Rc.Max.x - Rc.Min.x;
-		View->LastElementHeight = Rc.Max.y - Rc.Min.y;
+		GUIDescribeRowElement(State, GetRectDim(Rc));
 
 		GUIAdvanceCursor(State);
 	}

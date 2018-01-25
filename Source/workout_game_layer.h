@@ -93,6 +93,12 @@ typedef struct input_system {
 	int GlobalMouseY;
 }input_system;
 
+inline b32 ButtonIsDown(input_system* Input, u32 KeyType) {
+	b32 Result = Input->Buttons[KeyType].IsDown;
+
+	return(Result);
+}
+
 inline b32 ButtonWentDown(input_system* Input, u32 KeyType) {
 
 	b32 Result = 0;

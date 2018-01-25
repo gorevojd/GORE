@@ -47,9 +47,9 @@
 
 		GUI:
 			Caching some elements calculations.
+
 			Make possibility to add sum stuff to elements that alredy exist in the tree view
 			New BeginRow/EndRow system
-			Think about vertical text rendering
 			New Label system or depth
 			Image view
 			GUI tree view walkaround by keyboard
@@ -741,7 +741,8 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
 		//PushGradient(Stack, V3(GradR, GradG, GradB));
-		PushClear(Stack, V3(0.5f, 0.4f, 0.3f));
+		//PushClear(Stack, V3(0.5f, 0.4f, 0.3f));
+		PushClear(Stack, V3(0.3, 0.4f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		if (TempBoolForSlider) {

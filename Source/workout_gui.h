@@ -219,6 +219,8 @@ struct gui_color_theme {
 
 	u32 FirstColor;
 	u32 SecondaryColor;
+
+	u32 WalkaroundHotColor;
 };
 
 inline gui_color_theme GUIDefaultColorTheme() {
@@ -230,11 +232,13 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.OutlineColor = GUIColor_Black;
 
+	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
+
 #if 1
 	Result.FirstColor = GUIColor_PrettyBlue;
 	Result.SecondaryColor = GUIColor_BluishGray;
 #else
-	Result.FirstColor = GUIColor_Purple;
+	Result.FirstColor = GUIColor_OliveDrab;
 	Result.SecondaryColor = GUIColor_Orange;
 
 #endif
@@ -354,6 +358,16 @@ inline u32 GUITreeElementID(gui_element* Element) {
 
 		At = At->Parent;
 	}
+
+	return(Result);
+}
+
+inline void GUISwapWalkaroundHot(gui_state* State) {
+	State->WalkaroundIsHot = !State->WalkaroundIsHot;
+}
+
+inline b32 GUIWalkaroundIsHot(gui_state* State) {
+	b32 Result = State->WalkaroundIsHot;
 
 	return(Result);
 }
