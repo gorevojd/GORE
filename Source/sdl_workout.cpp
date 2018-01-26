@@ -742,7 +742,7 @@ int main(int ArgsCount, char** Args) {
 
 		//PushGradient(Stack, V3(GradR, GradG, GradB));
 		//PushClear(Stack, V3(0.5f, 0.4f, 0.3f));
-		PushClear(Stack, V3(0.3, 0.4f, 0.5f));
+		PushClear(Stack, V3(0.5, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		if (TempBoolForSlider) {
