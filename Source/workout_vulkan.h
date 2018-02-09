@@ -1,6 +1,0 @@
-#ifndef WORKOUT_VULKAN_H_INCLUDED
-#define WORKOUT_VULKAN_H_INCLUDED
-
-
-
-#endif
