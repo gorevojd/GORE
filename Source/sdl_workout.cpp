@@ -22,6 +22,7 @@
 			Optimize renderer with multithreading;
 			Implement Gaussian blur
 
+
 		Assets:
 			Build font atlas
 			Implement asset packer
@@ -678,7 +679,7 @@ int main(int ArgsCount, char** Args) {
 		SDL_WINDOWPOS_UNDEFINED,
 		GlobalBuffer.Width,
 		GlobalBuffer.Height,
-		SDL_WINDOW_OPENGL);
+		0);
 
 	SDLSetWindowIcon(Window);
 
@@ -694,6 +695,7 @@ int main(int ArgsCount, char** Args) {
 
 	rgba_buffer Image = LoadIMG("../Data/Images/image.bmp");
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
+	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
@@ -741,7 +743,7 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
 		//PushGradient(Stack, V3(GradR, GradG, GradB));
-		//PushClear(Stack, V3(0.5f, 0.4f, 0.3f));
+		//PushClear(Stack, V3(0.1f, 0.1f, 0.1f));
 		PushClear(Stack, V3(0.5, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
@@ -759,6 +761,10 @@ int main(int ArgsCount, char** Args) {
 		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
 		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 		gui_interaction VertSliderInteract = GUIVariableInteraction(&TempFloatForVertSlider, GUIVarType_F32);
+		
+		gui_interaction AlphaImageInteraction = GUIVariableInteraction(&AlphaImage, GUIVarType_RGBABuffer);
+		gui_interaction PotImageInteraction = GUIVariableInteraction(&PotImage, GUIVarType_RGBABuffer);
+		gui_interaction LabirImageInteraction = GUIVariableInteraction(&CelluralBitmap, GUIVarType_RGBABuffer);
 
 		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
@@ -809,8 +815,12 @@ int main(int ArgsCount, char** Args) {
 		GUIText(GUIState, "Hello");
 		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 		GUIEndRow(GUIState);
-		GUITreeEnd(GUIState);
 
+		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
+		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
+		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
+
+		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Render");
 		GUITreeEnd(GUIState);
@@ -828,6 +838,7 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
+
 
 		GUIEndFrame(GUIState);
 		EndRenderStack(Stack);

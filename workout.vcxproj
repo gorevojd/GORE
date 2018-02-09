@@ -80,8 +80,8 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>.\Build</OutDir>
     <IntDir>.\Build</IntDir>
-    <IncludePath>D:\DIMA\workout\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\DIMA\workout\Include\SDL2-2.0.7\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>.\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
+    <LibraryPath>.\Include\SDL2-2.0.7\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
