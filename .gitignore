@@ -1,1 +1,3 @@
 workout.VC.db
+Build/**
+!Build/SDL2.dll
