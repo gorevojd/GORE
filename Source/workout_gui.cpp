@@ -139,6 +139,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->ColorTable[GUIColor_DarkGoldenrod] = GUIColorHex("#b8860b");
 	GUIState->ColorTable[GUIColor_OliveDrab] = GUIColorHex("#6b8e23");
 
+	GUIState->ColorTable[GUIColor_Black_x20] = GUIColorHex("#202020");
+
 	//NOTE(DIMA): Initialization of the color theme
 	GUIState->ColorTheme = GUIDefaultColorTheme();
 }
@@ -876,6 +878,64 @@ void GUITransformer(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interac
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
+void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0);
+
+	if (NeedShow) {
+		GUIPreAdvanceCursor(GUIState);
+
+		gui_view* View = GUIGetCurrentView(GUIState);
+
+		gui_element* Window = GUIGetCurrentElement(GUIState);
+		gui_element_cache* Cache = &Window->Cache;
+
+		if (!Cache->IsInitialized) {
+			if (CreationFlags & GUIWindow_DefaultSize) {
+				Cache->Window.Dimension.x = 100;
+				Cache->Window.Dimension.y = 100;
+			}
+			else {
+				Cache->Window.Dimension.x = Width;
+				Cache->Window.Dimension.y = Height;
+			}
+
+			Cache->IsInitialized = true;
+		}
+
+		v2 WindowPosition = V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight);
+		v2* WindowDimension = &Cache->Window.Dimension;
+
+		int WindowOutlineWidth = 3;
+		int InnerSubWindowWidth = 2;
+		rect2 WindowRect = Rect2MinDim(WindowPosition, *WindowDimension);
+
+		PushRect(GUIState->RenderStack, WindowRect, GUIState->ColorTable[GUIState->ColorTheme.WindowBackgroundColor]);
+		PushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+
+		if (CreationFlags & GUIWindow_TopBar) {
+			float TopBarHeight = GUIState->FontScale * GetNextRowAdvance(GUIState->FontInfo);
+
+			if (WindowDimension->y > TopBarHeight) {
+				PushRect(
+					GUIState->RenderStack, 
+					Rect2MinDim(
+						WindowPosition + V2(0, TopBarHeight), 
+						V2(WindowDimension->x, InnerSubWindowWidth)), 
+					GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
+			}
+		}
+
+		if (CreationFlags & GUIWindow_Resizable) {
+			gui_interaction ResizeInteraction = GUIResizeInteraction(WindowRect.Min, WindowDimension, GUIResizeInteraction_Default);
+			GUITransformer(GUIState, "AnchorBR", WindowRect.Max, V2(5, 5), &ResizeInteraction);
+		}
+
+		GUIDescribeRowElement(GUIState, *WindowDimension);
+		GUIAdvanceCursor(GUIState);
+	}
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
 void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
 	GUITreeBegin(GUIState, Name);
 
@@ -888,10 +948,15 @@ void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction)
 		gui_element_cache* Cache = &ImageView->Cache;
 
 		if (!Cache->IsInitialized) {
+			/*
 			Cache->ImageView.Dimension = 
 				V2(Interaction->VariableLink.Value_RGBABuffer->Width,
 				Interaction->VariableLink.Value_RGBABuffer->Height);
+			*/
 
+			Cache->ImageView.Dimension = V2(
+				(float)Interaction->VariableLink.Value_RGBABuffer->Width / 
+				(float)Interaction->VariableLink.Value_RGBABuffer->Height * 100, 100);
 			Cache->IsInitialized = true;
 		}
 		v2* WorkDim = &Cache->ImageView.Dimension;
@@ -1073,6 +1138,57 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeRowElement(GUIState, GetRectDim(Rc));
 
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+}
+
+void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0);
+
+	if (NeedShow) {
+		gui_view* View = GUIGetCurrentView(GUIState);
+
+		GUIPreAdvanceCursor(GUIState);
+
+		rect2 NameRc = PrintTextInternal(
+			GUIState,
+			PrintTextType_PrintText,
+			ButtonName,
+			View->CurrentX,
+			View->CurrentY,
+			GUIState->FontScale,
+			GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
+
+		v2 NameDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
+
+		float OutlineWidth = 1;
+		v4 ButRectHighlight = GUIState->ColorTable[GUIState->ColorTheme.OutlineColor];
+		v4 TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextColor];
+
+		if (MouseInRect(GUIState->Input, NameRc)) {
+			TextHighlightColor = GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor];
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+			}
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			PushRectOutline(GUIState->RenderStack, NameRc, 2, GUIState->ColorTable[GUIState->ColorTheme.TextHighlightColor]);
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+			}
+		}
+
+		PushRect(GUIState->RenderStack, NameRc, GUIState->ColorTable[GUIState->ColorTheme.FirstColor]);
+		PushRectOutline(GUIState->RenderStack, NameRc, OutlineWidth, ButRectHighlight);
+
+		PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
+
+		//NOTE(Dima): Remember last element width for BeginRow/EndRow
+		GUIDescribeRowElement(GUIState, V2(NameRc.Max.x - View->CurrentX, NameRc.Max.y - NameRc.Min.y + OutlineWidth));
 		GUIAdvanceCursor(GUIState);
 	}
 

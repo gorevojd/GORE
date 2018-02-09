@@ -176,6 +176,10 @@ struct gui_transformer_cache {
 	v2 OffsetInAnchor;
 };
 
+struct gui_window_cache {
+	v2 Dimension;
+};
+
 struct gui_element_cache {
 	union {
 		gui_vertical_slider_cache VerticalSlider;
@@ -184,6 +188,7 @@ struct gui_element_cache {
 		gui_image_view_cache ImageView;
 		gui_stackedmem_cache StackedMem;
 		gui_transformer_cache Transformer;
+		gui_window_cache Window;
 	};
 
 	b32 IsInitialized;
@@ -262,6 +267,8 @@ enum gui_color_table_type {
 	GUIColor_DarkGoldenrod,
 	GUIColor_OliveDrab,
 
+	GUIColor_Black_x20,
+
 	GUIColor_Count,
 };
 
@@ -273,6 +280,8 @@ struct gui_color_theme {
 
 	u32 FirstColor;
 	u32 SecondaryColor;
+
+	u32 WindowBackgroundColor;
 
 	u32 WalkaroundHotColor;
 };
@@ -287,6 +296,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.OutlineColor = GUIColor_Black;
 
 	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
+	Result.WindowBackgroundColor = GUIColor_Black_x20;
 
 #if 1
 	Result.FirstColor = GUIColor_PrettyBlue;
@@ -446,6 +456,17 @@ inline b32 GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, 
 	return(Result);
 }
 
+enum gui_window_creation_flags {
+	GUIWindow_Resizable = 1,
+	GUIWindow_Collapsible = 2,
+	GUIWindow_DefaultSize = 4,
+
+	GUIWindow_TopBar = 8,
+	//GUIWindow_TopBar_Close,
+	//GUIWindow_TopBar_Movable,
+	//GUIWindow_TopBar_PrintName,
+};
+
 extern void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
 extern void GUIEndFrame(gui_state* GUIState);
@@ -454,6 +475,7 @@ extern void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack);
 extern void GUIEndTempRenderStack(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
+extern void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction);
 extern void GUIBoolButton(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
@@ -461,6 +483,8 @@ extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui
 extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction);
 extern void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction);
+
+extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
 
 extern void GUIBeginView(gui_state* GUIState);
 extern void GUIEndView(gui_state* State);

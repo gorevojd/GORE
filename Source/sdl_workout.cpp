@@ -746,9 +746,9 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		//PushGradient(Stack, V3(GradR, GradG, GradB));
+		PushGradient(Stack, V3(GradR, GradG, GradB));
 		//PushClear(Stack, V3(0.1f, 0.1f, 0.1f));
-		PushClear(Stack, V3(0.5, 0.5f, 0.5f));
+		//PushClear(Stack, V3(0.5, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		if (TempBoolForSlider) {
@@ -766,8 +766,9 @@ int main(int ArgsCount, char** Args) {
 		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 		gui_interaction VertSliderInteract = GUIVariableInteraction(&TempFloatForVertSlider, GUIVarType_F32);
 		
+
 		gui_interaction AlphaImageInteraction = GUIVariableInteraction(&AlphaImage, GUIVarType_RGBABuffer);
-		gui_interaction PotImageInteraction = GUIVariableInteraction(&PotImage, GUIVarType_RGBABuffer);
+		gui_interaction PotImageInteraction = GUIVariableInteraction(&Image, GUIVarType_RGBABuffer);
 		gui_interaction LabirImageInteraction = GUIVariableInteraction(&CelluralBitmap, GUIVarType_RGBABuffer);
 
 		GUIBeginFrame(GUIState, Stack);
@@ -785,6 +786,13 @@ int main(int ArgsCount, char** Args) {
 		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
 		GUIBoolButton(GUIState, "Button1", &BoolInteract);
+		GUIWindow(
+			GUIState, 
+			"WindowName", 
+			GUIWindow_DefaultSize | 
+			GUIWindow_Resizable |
+			GUIWindow_TopBar,
+			0, 0);
 		GUIVerticalSlider(GUIState, "VertSlider1", -10.0f, 10.0f, &VertSliderInteract);
 		//GUIVerticalSlider(GUIState, "VertSlider2", -10.0f, 10.0f, &VertSliderInteract);
 		//GUIVerticalSlider(GUIState, "VertSlider3", -10.0f, 10.0f, &VertSliderInteract);
@@ -808,6 +816,11 @@ int main(int ArgsCount, char** Args) {
 
 		GUIBoolButton(GUIState, "Button3", &BoolInteract);
 		GUIBoolButton(GUIState, "Button4", &BoolInteract);
+
+		GUIBeginRow(GUIState);
+		GUIButton(GUIState, "MyButton1", &BoolInteract);
+		GUIButton(GUIState, "MyButton2", &BoolInteract);
+		GUIEndRow(GUIState);
 
 		GUIBeginRow(GUIState);
 		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
