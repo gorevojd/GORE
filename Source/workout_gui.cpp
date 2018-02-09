@@ -443,7 +443,7 @@ void GUIEndFrame(gui_state* GUIState) {
 			if ((*Walk)->Expanded) {
 				(*Walk)->Expanded = 0;
 			}
-
+			
 			GUIState->WalkaroundIsHot = 0;
 		}
 

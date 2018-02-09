@@ -679,13 +679,17 @@ int main(int ArgsCount, char** Args) {
 		SDL_WINDOWPOS_UNDEFINED,
 		GlobalBuffer.Width,
 		GlobalBuffer.Height,
-		0);
+		SDL_WINDOW_OPENGL);
+
+	if (!Window) {
+		printf("ERROR: Window is not created");
+	}
 
 	SDLSetWindowIcon(Window);
 
-	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, 0);
-	if (!Window) {
-		printf("ERROR: Window is not created");
+	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);
+	if (!renderer) {
+		printf("ERROR: Renderer is not created");
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
