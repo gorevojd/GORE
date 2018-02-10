@@ -30,6 +30,12 @@ struct gui_variable_link {
 	};
 };
 
+enum gui_move_interaction_type {
+	GUIMoveInteraction_None,
+
+	GUIMoveInteraction_Move,
+};
+
 enum gui_resize_interaction_type {
 	GUIResizeInteraction_None,
 
@@ -45,10 +51,16 @@ struct gui_resize_interaction_context {
 	u32 Type;
 };
 
+struct gui_move_interaction_context {
+	v2* MovePosition;
+	u32 Type;
+};
+
 enum gui_interaction_type {
 	GUIInteraction_None,
 	GUIInteraction_VariableLink,
 	GUIInteraction_ResizeInteraction,
+	GUIInteraction_MoveInteraction,
 };
 
 struct gui_interaction {
@@ -58,6 +70,7 @@ struct gui_interaction {
 	union {
 		gui_variable_link VariableLink;
 		gui_resize_interaction_context ResizeContext;
+		gui_move_interaction_context MoveContext;
 	};
 };
 
@@ -95,6 +108,18 @@ inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 T
 	Result.ResizeContext.DimensionPtr = DimensionPtr;
 	Result.ResizeContext.Position = Position;
 	Result.ResizeContext.Type = Type;
+
+	return(Result);
+}
+
+/* Type is the value of enum: gui_move_interaction_type */
+inline gui_interaction GUIMoveInteraction(v2* MovePosition, u32 Type) {
+	gui_interaction Result;
+
+	Result.Type = GUIInteraction_MoveInteraction;
+
+	Result.MoveContext.MovePosition = MovePosition;
+	Result.MoveContext.Type = Type;
 
 	return(Result);
 }
@@ -190,8 +215,9 @@ struct gui_stackedmem_cache {
 	v2 Dimension;
 };
 
-struct gui_transformer_cache {
+struct gui_anchor_cache {
 	v2 OffsetInAnchor;
+
 };
 
 struct gui_view_cache {
@@ -206,7 +232,7 @@ struct gui_element_cache {
 		gui_bool_button_cache BoolButton;
 		gui_image_view_cache ImageView;
 		gui_stackedmem_cache StackedMem;
-		gui_transformer_cache Transformer;
+		gui_anchor_cache Anchor;
 		gui_view_cache View;
 	};
 
@@ -461,14 +487,14 @@ inline b32 GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, 
 
 enum gui_window_creation_flags {
 	GUIWindow_Resizable = 1,
-	GUIWindow_Collapsible = 2,
-	GUIWindow_DefaultSize = 4,
+	GUIWindow_TopBar_Movable = 2,
+	GUIWindow_Collapsible = 4,
+	GUIWindow_DefaultSize = 8,
 
-	GUIWindow_Fullscreen = 8,
+	GUIWindow_Fullscreen = 16,
 
-	GUIWindow_TopBar = 16,
+	GUIWindow_TopBar = 32,
 	//GUIWindow_TopBar_Close,
-	//GUIWindow_TopBar_Movable,
 	//GUIWindow_TopBar_PrintName,
 };
 

@@ -946,7 +946,7 @@ void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 }
 
-void GUITransformer(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction) {
+void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction) {
 	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction);
 
 	if (NeedShow) {
@@ -954,15 +954,15 @@ void GUITransformer(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interac
 		v4 WorkColor = GUIState->ColorTable[GUIState->ColorTheme.OutlineColor];
 		v2 MouseP = GUIState->Input->MouseP;
 
-		gui_element* Transformer = GUIGetCurrentElement(GUIState);
-		gui_element_cache* Cache = &Transformer->Cache;
+		gui_element* Anchor = GUIGetCurrentElement(GUIState);
+		gui_element_cache* Cache = &Anchor->Cache;
 
 		if (!Cache->IsInitialized) {
-			Cache->Transformer.OffsetInAnchor = {};
+			Cache->Anchor.OffsetInAnchor = {};
 
 			Cache->IsInitialized = true;
 		}
-		v2* OffsetInAnchor = &Cache->Transformer.OffsetInAnchor;
+		v2* OffsetInAnchor = &Cache->Anchor.OffsetInAnchor;
 
 
 		b32 IsHot = GUIInteractionIsHot(GUIState, Interaction);
@@ -981,47 +981,61 @@ void GUITransformer(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interac
 		if (IsHot) {
 
 			v2 WorkRectP = Interaction->ResizeContext.Position;
-			v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
 			/*Getting true position*/
 			MouseP = MouseP - *OffsetInAnchor;
 
 			float MinDimLen = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 			
-			switch (Interaction->ResizeContext.Type) {
-				case GUIResizeInteraction_Default: {
-					*WorkDim = MouseP - WorkRectP;
+			Assert((Interaction->Type == GUIInteraction_MoveInteraction) ||
+				(Interaction->Type == GUIInteraction_ResizeInteraction));
 
-					if (MouseP.x - WorkRectP.x < MinDimLen) {
-						WorkDim->x = MinDimLen;
-					}
+			if (Interaction->Type == GUIInteraction_ResizeInteraction) {
 
-					if (MouseP.y - WorkRectP.y < MinDimLen) {
-						WorkDim->y = MinDimLen;
-					}
-				}break;
+				v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
+				switch (Interaction->ResizeContext.Type) {
+					case GUIResizeInteraction_Default: {
+						*WorkDim = MouseP - WorkRectP;
 
-				case GUIResizeInteraction_Horizontal: {
-					if (MouseP.x - WorkRectP.x < MinDimLen) {
-						WorkDim->x = MinDimLen;
-					}
-				}break;
+						if (MouseP.x - WorkRectP.x < MinDimLen) {
+							WorkDim->x = MinDimLen;
+						}
 
-				case GUIResizeInteraction_Vertical: {
-					if (MouseP.y - WorkRectP.y < MinDimLen) {
-						WorkDim->y = MinDimLen;
-					}
-				}break;
+						if (MouseP.y - WorkRectP.y < MinDimLen) {
+							WorkDim->y = MinDimLen;
+						}
+					}break;
 
-				case GUIResizeInteraction_Proportional: {
-					float WidthToHeight = WorkDim->x / WorkDim->y;
-					WorkDim->y = MouseP.y - WorkRectP.y;
-					WorkDim->x = WorkDim->y * WidthToHeight;
+					case GUIResizeInteraction_Horizontal: {
+						if (MouseP.x - WorkRectP.x < MinDimLen) {
+							WorkDim->x = MinDimLen;
+						}
+					}break;
 
-					if (WorkDim->y < MinDimLen) {
-						WorkDim->y = MinDimLen;
+					case GUIResizeInteraction_Vertical: {
+						if (MouseP.y - WorkRectP.y < MinDimLen) {
+							WorkDim->y = MinDimLen;
+						}
+					}break;
+
+					case GUIResizeInteraction_Proportional: {
+						float WidthToHeight = WorkDim->x / WorkDim->y;
+						WorkDim->y = MouseP.y - WorkRectP.y;
 						WorkDim->x = WorkDim->y * WidthToHeight;
-					}
-				}break;
+
+						if (WorkDim->y < MinDimLen) {
+							WorkDim->y = MinDimLen;
+							WorkDim->x = WorkDim->y * WidthToHeight;
+						}
+					}break;
+				}
+			}
+			else if (Interaction->Type == GUIInteraction_MoveInteraction) {
+				v2* WorkP = Interaction->MoveContext.MovePosition;
+				switch (Interaction->MoveContext.Type) {
+					case GUIMoveInteraction_Move: {
+						*WorkP = MouseP;
+					}break;
+				}
 			}
 		}
 
@@ -1053,15 +1067,17 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 				Cache->View.Dimension.y = Height;
 			}
 
+			Cache->View.Position = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+
 			Cache->IsInitialized = true;
 		}
 
-		v2 WindowPosition = V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight);
 		v2* WindowDimension = &Cache->View.Dimension;
+		v2* WindowPosition = &Cache->View.Position;
 
 		int WindowOutlineWidth = 3;
 		int InnerSubWindowWidth = 2;
-		rect2 WindowRect = Rect2MinDim(WindowPosition, *WindowDimension);
+		rect2 WindowRect = Rect2MinDim(*WindowPosition, *WindowDimension);
 
 		PushRect(GUIState->RenderStack, WindowRect, GUIState->ColorTable[GUIState->ColorTheme.WindowBackgroundColor]);
 		PushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
@@ -1073,7 +1089,7 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 				PushRect(
 					GUIState->RenderStack, 
 					Rect2MinDim(
-						WindowPosition + V2(0, TopBarHeight), 
+						*WindowPosition + V2(0, TopBarHeight), 
 						V2(WindowDimension->x, InnerSubWindowWidth)), 
 					GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 			}
@@ -1081,8 +1097,11 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 
 		if (CreationFlags & GUIWindow_Resizable) {
 			gui_interaction ResizeInteraction = GUIResizeInteraction(WindowRect.Min, WindowDimension, GUIResizeInteraction_Default);
-			GUITransformer(GUIState, "AnchorBR", WindowRect.Max, V2(5, 5), &ResizeInteraction);
+			GUIAnchor(GUIState, "AnchorBR", WindowRect.Max, V2(5, 5), &ResizeInteraction);
 		}
+
+		gui_interaction MoveInteraction = GUIMoveInteraction(WindowPosition, GUIMoveInteraction_Move);
+		GUIAnchor(GUIState, "AnchorMV", WindowRect.Min, V2(5, 5), &MoveInteraction);
 
 		GUIDescribeRowElement(GUIState, *WindowDimension);
 		GUIAdvanceCursor(GUIState);
@@ -1127,7 +1146,7 @@ void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction)
 		PushRectOutline(GUIState->RenderStack, ImageRect, 3, GUIState->ColorTable[GUIState->ColorTheme.OutlineColor]);
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
-		GUITransformer(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
+		GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
 
 		GUIDescribeRowElement(GUIState, GetRectDim(ImageRect));
 		GUIAdvanceCursor(GUIState);
@@ -1210,7 +1229,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 		//View->LastElementHeight = GraphRectDim.y;
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
-		GUITransformer(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
 
 		GUIDescribeRowElement(
 			GUIState,
