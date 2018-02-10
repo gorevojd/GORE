@@ -99,11 +99,34 @@ inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 T
 	return(Result);
 }
 
-struct interactible_rect {
-	rect2 Rect;
+enum gui_view_type {
+	GUIView_Tree,
+	GUIView_Window,
+};
 
-	gui_interaction SizeInteraction;
-	gui_interaction PosInteraction;
+struct gui_view {
+	u32 ID;
+
+	char Name[64];
+
+	u32 ViewType;
+
+	float CurrentX;
+	float CurrentY;
+
+	float LastElementWidth;
+	float LastElementHeight;
+
+	float RowBeginX;
+	float RowBiggestHeight;
+
+	float CurrentPreAdvance;
+
+	gui_view* Parent;
+	gui_view* NextBro;
+	gui_view* PrevBro;
+
+	b32 RowBeginned;
 };
 
 /*
@@ -147,21 +170,16 @@ enum gui_element_type {
 	GUIElement_CachedItem,
 	GUIElement_StaticItem,
 	GUIElement_Row,
+	GUIElement_View,
 };
 
 struct gui_vertical_slider_cache {
-	b32 IsInitialized;
-
 };
 
 struct gui_slider_cache {
-	b32 IsInitialized;
-
 };
 
 struct gui_bool_button_cache {
-	b32 IsInitialized;
-
 };
 
 struct gui_image_view_cache {
@@ -176,7 +194,8 @@ struct gui_transformer_cache {
 	v2 OffsetInAnchor;
 };
 
-struct gui_window_cache {
+struct gui_view_cache {
+	v2 Position;
 	v2 Dimension;
 };
 
@@ -188,7 +207,7 @@ struct gui_element_cache {
 		gui_image_view_cache ImageView;
 		gui_stackedmem_cache StackedMem;
 		gui_transformer_cache Transformer;
-		gui_window_cache Window;
+		gui_view_cache View;
 	};
 
 	b32 IsInitialized;
@@ -206,8 +225,6 @@ struct gui_element {
 	gui_element* PrevBro;
 
 	gui_element* ChildrenSentinel;
-	//gui_element* StaticElementsSentinel;
-	//gui_element* ChildrenFreeSentinel;
 
 	b32 Expanded;
 	char Name[64];
@@ -218,24 +235,6 @@ struct gui_element {
 	u32 Type;
 
 	gui_element_cache Cache;
-};
-
-struct gui_view {
-	float CurrentX;
-	float CurrentY;
-
-	float ViewX;
-	float ViewY;
-
-	float LastElementWidth;
-	float LastElementHeight;
-
-	float RowBeginX;
-	float RowBiggestHeight;
-
-	float CurrentPreAdvance;
-
-	b32 RowBeginned;
 };
 
 enum gui_color_table_type {
@@ -282,6 +281,9 @@ struct gui_color_theme {
 	u32 SecondaryColor;
 
 	u32 WindowBackgroundColor;
+	u32 WindowTextColor;
+	u32 WindowHelpColor;
+	u32 WindowKeywordColor;
 
 	u32 WalkaroundHotColor;
 };
@@ -297,6 +299,9 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
 	Result.WindowBackgroundColor = GUIColor_Black_x20;
+	Result.WindowTextColor = GUIColor_Burlywood;
+	Result.WindowHelpColor = GUIColor_White;
+	Result.WindowKeywordColor = GUIColor_DarkGoldenrod;
 
 #if 1
 	Result.FirstColor = GUIColor_PrettyBlue;
@@ -338,10 +343,12 @@ struct gui_state {
 	b32 WalkaroundEnabled;
 	b32 WalkaroundIsHot;
 
-	stacked_memory GUIMem;
+	gui_view* CurrentView;
+	gui_view* ViewSentinel;
+	gui_view* FreeViewSentinel;
+	gui_view* DefaultView;
 
-	gui_view GUIViews[8];
-	int CurrentViewIndex;
+	stacked_memory GUIMem;
 
 	b32 PlusMinusSymbol;
 
@@ -361,11 +368,7 @@ inline v4 GUIGetThemeColor(gui_state* State, u32 Color) {
 inline gui_view* GUIGetCurrentView(gui_state* GUIState) {
 	gui_view* Result = 0;
 
-	if (GUIState->CurrentViewIndex < ArrayCount(GUIState->GUIViews) &&
-		GUIState->CurrentViewIndex >= 0)
-	{
-		Result = &GUIState->GUIViews[GUIState->CurrentViewIndex];
-	}
+	Result = GUIState->CurrentView;
 
 	return(Result);
 }
@@ -461,7 +464,9 @@ enum gui_window_creation_flags {
 	GUIWindow_Collapsible = 2,
 	GUIWindow_DefaultSize = 4,
 
-	GUIWindow_TopBar = 8,
+	GUIWindow_Fullscreen = 8,
+
+	GUIWindow_TopBar = 16,
 	//GUIWindow_TopBar_Close,
 	//GUIWindow_TopBar_Movable,
 	//GUIWindow_TopBar_PrintName,
@@ -486,8 +491,8 @@ extern void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Inter
 
 extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
 
-extern void GUIBeginView(gui_state* GUIState);
-extern void GUIEndView(gui_state* State);
+extern void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType);
+extern void GUIEndView(gui_state* GUIState, u32 ViewType);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
 
@@ -496,9 +501,6 @@ extern void GUIEndElement(gui_state* State, u32 ElementType);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);
 extern void GUITreeEnd(gui_state* State);
-extern void GUIBeginRootBlock(gui_state* State, char* BlockName);
-extern void GUIEndRootBlock(gui_state* State);
-
 
 #if 0
 extern void GUIBeginTreeFind(gui_state* State, char* NodeName);

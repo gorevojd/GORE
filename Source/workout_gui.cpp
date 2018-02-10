@@ -53,6 +53,10 @@ inline v4 GUIColorHex(char* Str) {
 	return(Result);
 }
 
+inline void GUIResetView(gui_view* View) {
+
+}
+
 void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height){
 	GUIState->RenderStack = 0;
 	GUIState->FontInfo = FontInfo;
@@ -85,6 +89,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	CopyStrings(RootNode->Name, "MainRoot");
 	CopyStrings(RootNode->Text, "MainRoot");
 
+	RootNode->ID = GUIStringHashFNV(RootNode->Name);
 	RootNode->Expanded = 1;
 	RootNode->Depth = 0;
 
@@ -104,6 +109,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->WalkaroundIsHot = false;
 	GUIState->WalkaroundElement = RootNode;
 
+	GUIState->CurrentNode = RootNode;
+
 	/*
 		NOTE(Dima): 
 			Initialization of the "Free store" of the gui elements;
@@ -113,6 +120,36 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->FreeElementsSentinel = PushStruct(&GUIState->GUIMem, gui_element);
 	GUIState->FreeElementsSentinel->NextBro = GUIState->FreeElementsSentinel;
 	GUIState->FreeElementsSentinel->PrevBro = GUIState->FreeElementsSentinel;
+
+	//NOTE(Dima): Initialization of view sentinel
+	GUIState->ViewSentinel = PushStruct(&GUIState->GUIMem, gui_view);
+	GUIState->ViewSentinel->NextBro = GUIState->ViewSentinel;
+	GUIState->ViewSentinel->PrevBro = GUIState->ViewSentinel;
+
+	//NOTE(Dima): Initialization of view free list sentinel element
+	GUIState->FreeViewSentinel = PushStruct(&GUIState->GUIMem, gui_view);
+	GUIState->FreeViewSentinel->NextBro = GUIState->FreeViewSentinel;
+	GUIState->FreeViewSentinel->PrevBro = GUIState->FreeViewSentinel;
+
+	//NOTE(DIMA): Allocating and initializing default view
+	gui_view* DefaultView = PushStruct(&GUIState->GUIMem, gui_view);
+	*DefaultView = {};
+	DefaultView->NextBro = GUIState->ViewSentinel->NextBro;
+	DefaultView->PrevBro = GUIState->ViewSentinel;
+
+	DefaultView->NextBro->PrevBro = DefaultView;
+	DefaultView->PrevBro->NextBro = DefaultView;
+
+	DefaultView->ID = GUIStringHashFNV("DefaultView");
+	CopyStrings(DefaultView->Name, "DefaultView");
+
+	DefaultView->ViewType = GUIView_Tree;
+
+	DefaultView->CurrentX = 0;
+	DefaultView->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+
+	GUIState->DefaultView = DefaultView;
+	GUIState->CurrentView = DefaultView;
 
 	//NOTE(Dima): Initialization of the color table
 	GUIState->ColorTable[GUIColor_Black] = V4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -156,8 +193,6 @@ void GUIEndTempRenderStack(gui_state* GUIState) {
 
 void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
-
-	Assert(GUIState->CurrentViewIndex == 0);
 }
 
 inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
@@ -382,8 +417,8 @@ inline b32 GUIWalkaroundIsHere(gui_state* State) {
 }
 
 void GUIEndFrame(gui_state* GUIState) {
-	GUIState->CurrentViewIndex = 0;
 
+	//NOTE(DIMA): Processing walkaround
 	if (ButtonWentDown(GUIState->Input, KeyType_Backquote)) {
 		GUIState->WalkaroundEnabled = !GUIState->WalkaroundEnabled;
 	}
@@ -459,42 +494,147 @@ void GUIEndFrame(gui_state* GUIState) {
 			}
 		}
 	}
+
+	//NOTE(DIMA): Resetting default view;
+	gui_view* DefView = GUIState->DefaultView;
+	DefView->CurrentX = 0;
+	DefView->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
 }
 
-void GUIBeginView(gui_state* GUIState) {
+inline gui_view* GUIAllocateViewElement(gui_state* State) {
+	gui_view* View = 0;
+
+	if (State->FreeViewSentinel->NextBro != State->FreeViewSentinel) {
+		View = State->FreeViewSentinel->NextBro;
+
+		View->NextBro->PrevBro = View->PrevBro;
+		View->PrevBro->NextBro = View->NextBro;
+	}
+	else {
+		View = PushStruct(&State->GUIMem, gui_view);
+	}
+
+	*View = {};
+
+	return(View);
+}
+
+inline void GUIInsertViewElement(gui_state* State, gui_view* ToInsert) {
+	ToInsert->NextBro = State->ViewSentinel->NextBro;
+	ToInsert->PrevBro = State->ViewSentinel;
+
+	ToInsert->NextBro->PrevBro = ToInsert;
+	ToInsert->PrevBro->NextBro = ToInsert;
+}
+
+inline void GUIFreeViewElement(gui_state* State, gui_view* ToFree) {
+	ToFree->NextBro->PrevBro = ToFree->PrevBro;
+	ToFree->PrevBro->NextBro = ToFree->NextBro;
+
+	ToFree->NextBro = State->FreeViewSentinel->NextBro;
+	ToFree->PrevBro = State->FreeViewSentinel;
+
+	ToFree->NextBro->PrevBro = ToFree;
+	ToFree->PrevBro->NextBro = ToFree;
+}
+
+void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
+	/*
+		NOTE(DIMA):
+			Here I make unique id for view and calculate 
+			it's hash. Then I try to find view in Global
+			list with the same ID. It's perfomance better 
+			than comparing two strings. But there is the 
+			caveat. We need to make sure that the hash
+			calculation function is crypto-strong enough
+			so that the possibility to have 2 same id's 
+			for different strings is very small.
+	*/
+
+	char IdBuf[256];
+	stbsp_snprintf(
+		IdBuf, sizeof(IdBuf),
+		"%s_TreeID_%u",
+		ViewName,
+		GUITreeElementID(GUIState->CurrentNode));
+	u32 IdBufHash = GUIStringHashFNV(IdBuf);
+
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_View, IdBuf, 0);
+	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
+	gui_view* ParentView = GUIState->CurrentView;
+
+	if (!CurrentElement->Cache.IsInitialized) {
+		//IMPORTANT(DIMA): Think about how to choose position that we want
+		CurrentElement->Cache.View.Position = V2(ParentView->CurrentX, ParentView->CurrentY);
+		CurrentElement->Cache.View.Dimension = V2(100, 100);
+
+		CurrentElement->Cache.IsInitialized = true;
+	}
+	v2* ViewPosition = &CurrentElement->Cache.View.Position;
+
+	//NOTE(Dima): Find view in the existing list
+	gui_view* View = 0;
+	for (gui_view* At = GUIState->ViewSentinel->NextBro;
+		At != GUIState->ViewSentinel;
+		At = At->NextBro)
+	{
+		if (IdBufHash == At->ID) {
+			View = At;
+			break;
+		}
+	}
+
+	//NOTE(Dima): View not found. Should allocate it
+	if (View == 0) {
+		View = GUIAllocateViewElement(GUIState);
+		GUIInsertViewElement(GUIState, View);
+
+		View->ID = IdBufHash;
+		View->ViewType = ViewType;
+		View->Parent = ParentView;
+	}
+
+	View->CurrentX = ViewPosition->x;
+	View->CurrentY = ViewPosition->y;
+
+	GUIState->CurrentView = View;
+
+	if (ViewType == GUIView_Tree) {
+		GUITreeBegin(GUIState, ViewName);
+	}
+}
+
+void GUIEndView(gui_state* GUIState, u32 ViewType) {
+
 	gui_view* View = GUIGetCurrentView(GUIState);
 
+	Assert(View->ViewType == ViewType);
 
-	View->CurrentX = View->ViewX;
-	View->CurrentY = View->ViewY + GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+	//TODO(Dima): Remove it from here
+	//GUIBeginRootBlock(State, "GUI");
+	//
+	//gui_interaction PlusMinusInteraction = GUIVariableInteraction(&State->PlusMinusSymbol, GUIVarType_B32);
+	//GUIBoolButton(State, "PlusMinus", &PlusMinusInteraction);
+	//
+	//gui_interaction MemInteraction = GUIVariableInteraction(&State->GUIMem, GUIVarType_StackedMemory);
+	//GUIStackedMemGraph(State, "GUI memory graph", &MemInteraction);
+	//
+	//gui_view* View = GUIGetCurrentView(State);
+	//gui_interaction FontScaleInteraction = GUIVariableInteraction(&State->FontScale, GUIVarType_F32);
+	//GUISlider(State, "Font scale", 0.5f, 1.5f, &FontScaleInteraction);
+	//
+	//gui_interaction WalkInteraction = GUIVariableInteraction(&State->WalkaroundEnabled, GUIVarType_B32);
+	//GUIBoolButton(State, "Walkaround", &WalkInteraction);
+	//
+	//GUIEndRootBlock(State);
 
-	View->RowBeginned = 0;
-	View->RowBiggestHeight = 0;
-	View->RowBeginX = 0;
+	if (ViewType == GUIView_Tree) {
+		GUITreeEnd(GUIState);
+	}
 
-	GUIState->CurrentNode = GUIState->RootNode;
-	View->CurrentPreAdvance = 0.0f;
-}
+	GUIEndElement(GUIState, GUIElement_View);
 
-void GUIEndView(gui_state* State) {
-	GUIBeginRootBlock(State, "GUI");
-	
-	gui_interaction PlusMinusInteraction = GUIVariableInteraction(&State->PlusMinusSymbol, GUIVarType_B32);
-	GUIBoolButton(State, "PlusMinus", &PlusMinusInteraction);
-
-	gui_interaction MemInteraction = GUIVariableInteraction(&State->GUIMem, GUIVarType_StackedMemory);
-	GUIStackedMemGraph(State, "GUI memory graph", &MemInteraction);
-
-	gui_view* View = GUIGetCurrentView(State);
-	gui_interaction FontScaleInteraction = GUIVariableInteraction(&State->FontScale, GUIVarType_F32);
-	GUISlider(State, "Font scale", 0.5f, 1.5f, &FontScaleInteraction);
-
-	gui_interaction WalkInteraction = GUIVariableInteraction(&State->WalkaroundEnabled, GUIVarType_B32);
-	GUIBoolButton(State, "Walkaround", &WalkInteraction);
-
-	GUIEndRootBlock(State);
-
-	State->CurrentViewIndex++;
+	GUIState->CurrentView = GUIState->CurrentView->Parent;
 }
 
 void GUIBeginRow(gui_state* State) {
@@ -613,22 +753,26 @@ static gui_element* GUIRequestElement(
 
 	gui_element* Element = 0;
 
-	//IMPORTANT(DIMA): I need to add cached elements here!!!!!
-	b32 ElementIsDynamic = 
-		(ElementType == GUIElement_TreeNode ||
-		ElementType == GUIElement_CachedItem ||
-		ElementType == GUIElement_InteractibleItem ||
-		ElementType == GUIElement_Row);
+	b32 ElementIsDynamic =
+		(ElementType != GUIElement_None &&
+		ElementType != GUIElement_StaticItem);
 
-	//IMPORTANT(DIMA): !!!
+	u32 ElementHash = 0;
 	if (ElementIsDynamic)
 	{
+		ElementHash = GUIStringHashFNV(ElementName);
+
 		//NOTE(DIMA): Finding the element in the hierarchy
 		for (gui_element* Node = Parent->ChildrenSentinel->NextBro;
 			Node != Parent->ChildrenSentinel;
 			Node = Node->NextBro)
 		{
+			//TODO(Dima): Test perfomance
+#if 0
 			if (StringsAreEqual(ElementName, Node->Name)) {
+#else
+			if (ElementHash == Node->ID) {
+#endif
 				Element = Node;
 				break;
 			}
@@ -683,10 +827,20 @@ static gui_element* GUIRequestElement(
 			Element->ChildrenSentinel = 0;
 		}
 
+		if (ElementType == GUIElement_View) {
+			Element->Expanded = 1;
+			Element->Depth = Parent->Depth;
+
+			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
+			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
+			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
+			Element->ChildrenSentinel->Parent = Element;
+		}
+
 		CopyStrings(Element->Name, ElementName);
 		CopyStrings(Element->Text, ElementName);
 
-		Element->ID = GUIStringHashFNV(ElementName);
+		Element->ID = ElementHash;
 		Element->RowCount = 0;
 		Element->Cache = {};
 	}
@@ -891,19 +1045,19 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 
 		if (!Cache->IsInitialized) {
 			if (CreationFlags & GUIWindow_DefaultSize) {
-				Cache->Window.Dimension.x = 100;
-				Cache->Window.Dimension.y = 100;
+				Cache->View.Dimension.x = 100;
+				Cache->View.Dimension.y = 100;
 			}
 			else {
-				Cache->Window.Dimension.x = Width;
-				Cache->Window.Dimension.y = Height;
+				Cache->View.Dimension.x = Width;
+				Cache->View.Dimension.y = Height;
 			}
 
 			Cache->IsInitialized = true;
 		}
 
 		v2 WindowPosition = V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight);
-		v2* WindowDimension = &Cache->Window.Dimension;
+		v2* WindowDimension = &Cache->View.Dimension;
 
 		int WindowOutlineWidth = 3;
 		int InnerSubWindowWidth = 2;
@@ -1817,22 +1971,3 @@ void GUIEndTreeFind(gui_state* State) {
 	Temp->TempParent = 0;
 }
 #endif
-
-void GUIBeginRootBlock(gui_state* State, char* BlockName) {
-	Assert(StringsAreEqual(State->RootNode->ChildrenSentinel->NextBro->Name, "Root"));
-	gui_element* Root = State->RootNode->ChildrenSentinel->NextBro;
-
-	gui_element* OldParent = State->CurrentNode;
-	State->CurrentNode = Root;
-	State->CurrentNode->TempParent = OldParent;
-
-	GUITreeBegin(State, BlockName);
-}
-
-void GUIEndRootBlock(gui_state* State) {
-	GUITreeEnd(State);
-
-	gui_element* Temp = State->CurrentNode;
-	State->CurrentNode = State->CurrentNode->TempParent;
-	Temp->TempParent = 0;
-}

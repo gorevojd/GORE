@@ -67,8 +67,6 @@ GLOBAL_VARIABLE input_system GlobalInput;
 GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
 
-debug_state GlobalDebugState_;
-debug_state* GlobalDebugState = &GlobalDebugState_;
 
 platform_api PlatformApi;
 
@@ -705,7 +703,6 @@ int main(int ArgsCount, char** Args) {
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
 	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
-	InitDEBUG(GlobalDebugState, &FontInfo);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -730,10 +727,7 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
-
 		END_TIMED_BLOCK(EventProcessing);
-
-		BeginDEBUG(GlobalDebugState);
 
 		render_stack Stack_ = BeginRenderStack(MEGABYTES(1));
 		render_stack* Stack = &Stack_;
@@ -776,12 +770,9 @@ int main(int ArgsCount, char** Args) {
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
 
-
 #if 1
-		GUIBeginView(GUIState);
 		GUIText(GUIState, DebugStr);
-
-		GUITreeBegin(GUIState, "Root");
+		GUIBeginView(GUIState, "Root", GUIView_Tree);
 
 		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
@@ -848,20 +839,16 @@ int main(int ArgsCount, char** Args) {
 		GUITreeBegin(GUIState, "DEBUG");
 		GUITreeEnd(GUIState);
 
-		GUITreeEnd(GUIState);
-
 		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
-		GUIEndView(GUIState);
+		GUIEndView(GUIState, GUIView_Tree);
+
+		GUIText(GUIState, DebugStr);
 #endif
 
 		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
-
 		GUIEndFrame(GUIState);
 		EndRenderStack(Stack);
-
-		OverlayCycleCounters(GlobalDebugState, GUIState);
-		RenderDickInjectionMultithreaded(&RenderThreadQueue, &GlobalDebugState->GUIRenderStack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);
@@ -883,9 +870,6 @@ int main(int ArgsCount, char** Args) {
 
 		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
 		LastMSPerFrame = SPerFrame * 1000.0f;
-
-		ClearDebugCounters(GlobalDebugState);
-		EndDEBUG(GlobalDebugState);
 
 		GlobalTime += SPerFrame;
 	}
