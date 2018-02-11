@@ -774,6 +774,12 @@ int main(int ArgsCount, char** Args) {
 		GUIText(GUIState, DebugStr);
 		GUIBeginView(GUIState, "Root", GUIView_Tree);
 
+		GUITreeBegin(GUIState, "Test2");
+		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
+		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
+		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
+		GUITreeEnd(GUIState);
+
 		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
 		GUIBoolButton(GUIState, "Button1", &BoolInteract);
@@ -824,13 +830,43 @@ int main(int ArgsCount, char** Args) {
 		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 		GUIEndRow(GUIState);
 
-		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
-		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
-		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
-
 		GUITreeEnd(GUIState);
 
-		GUITreeBegin(GUIState, "Render");
+
+		GUITreeBegin(GUIState, "Test3");
+		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUIText(GUIState, "Hello");
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUIText(GUIState, "Hello");
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUIText(GUIState, "Hello");
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);		GUIBeginRow(GUIState);
+		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
+
+		GUIBeginRow(GUIState);
+		GUIText(GUIState, "Hello");
+		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+		GUIEndRow(GUIState);
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Audio");

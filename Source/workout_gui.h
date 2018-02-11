@@ -198,6 +198,20 @@ enum gui_element_type {
 	GUIElement_View,
 };
 
+enum gui_tree_node_exit_state {
+	GUITreeNodeExit_None, 
+	GUITreeNodeExit_Exiting,
+	GUITreeNodeExit_Finished,
+};
+
+struct gui_tree_node_cache {
+	u32 ExitState;
+
+	float StackBeginY;
+	float StackY;
+	float ExitY;
+};
+
 struct gui_vertical_slider_cache {
 };
 
@@ -227,6 +241,7 @@ struct gui_view_cache {
 
 struct gui_element_cache {
 	union {
+		gui_tree_node_cache TreeNode;
 		gui_vertical_slider_cache VerticalSlider;
 		gui_slider_cache Slider;
 		gui_bool_button_cache BoolButton;
@@ -246,6 +261,9 @@ struct gui_element {
 
 	gui_element* Parent;
 	gui_element* TempParent;
+
+	//NOTE(Dima): Used for remembering last tree parent for tree nodes
+	gui_element* TempParentTree;
 
 	gui_element* NextBro;
 	gui_element* PrevBro;
@@ -363,6 +381,7 @@ struct gui_state {
 	i32 ScreenHeight;
 
 	gui_element* CurrentNode;
+	gui_element* CurrentTreeParent;
 	gui_element* RootNode;
 	gui_element* FreeElementsSentinel;
 	gui_element* WalkaroundElement;
@@ -487,13 +506,14 @@ inline b32 GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, 
 
 enum gui_window_creation_flags {
 	GUIWindow_Resizable = 1,
-	GUIWindow_TopBar_Movable = 2,
+	GUIWindow_Movable = 2,
 	GUIWindow_Collapsible = 4,
 	GUIWindow_DefaultSize = 8,
 
 	GUIWindow_Fullscreen = 16,
 
 	GUIWindow_TopBar = 32,
+	GUIWindow_TopBar_Movable = 64,
 	//GUIWindow_TopBar_Close,
 	//GUIWindow_TopBar_PrintName,
 };

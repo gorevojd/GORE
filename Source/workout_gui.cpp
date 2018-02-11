@@ -105,11 +105,15 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->NextBro = RootNode;
 	RootNode->PrevBro = RootNode;
 
+	RootNode->TempParent = 0;
+	RootNode->TempParentTree = 0;
+
 	GUIState->WalkaroundEnabled = false;
 	GUIState->WalkaroundIsHot = false;
 	GUIState->WalkaroundElement = RootNode;
 
 	GUIState->CurrentNode = RootNode;
+	GUIState->CurrentTreeParent = RootNode;
 
 	/*
 		NOTE(Dima): 
@@ -602,6 +606,9 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 	if (ViewType == GUIView_Tree) {
 		GUITreeBegin(GUIState, ViewName);
 	}
+	else if (ViewType == GUIView_Window) {
+
+	}
 }
 
 void GUIEndView(gui_state* GUIState, u32 ViewType) {
@@ -680,7 +687,7 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
-inline void GUIDescribeRowElement(gui_state* State, v2 ElementDim) {
+inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
 	gui_view* View = GUIGetCurrentView(State);
 
 	View->LastElementWidth = ElementDim.x;
@@ -743,6 +750,13 @@ inline void GUIFreeListElement(gui_state* State, gui_element* Element) {
 	Element->PrevBro->NextBro = Element;
 }
 
+inline void GUIInitElementChildrenSentinel(gui_state* GUIState, gui_element* Element) {
+	Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
+	Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
+	Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
+	Element->ChildrenSentinel->Parent = Element;
+}
+
 static gui_element* GUIRequestElement(
 	gui_state* GUIState, 
 	u32 ElementType, 
@@ -768,7 +782,7 @@ static gui_element* GUIRequestElement(
 			Node = Node->NextBro)
 		{
 			//TODO(Dima): Test perfomance
-#if 0
+#if 1
 			if (StringsAreEqual(ElementName, Node->Name)) {
 #else
 			if (ElementHash == Node->ID) {
@@ -798,26 +812,23 @@ static gui_element* GUIRequestElement(
 		Element = GUIAllocateListElement(GUIState);
 		GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-		if (ElementType == GUIElement_TreeNode ||
-			ElementType == GUIElement_CachedItem)
+		//NOTE(Dima): Pre-Setting common values
+		Element->TempParentTree = GUIState->CurrentTreeParent;
+
+		if ((ElementType == GUIElement_TreeNode) ||
+			(ElementType == GUIElement_CachedItem))
 		{
 			Element->Expanded = 1;
 			Element->Depth = Parent->Depth + 1;
 
-			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
-			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->Parent = Element;
+			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
 
 		if (ElementType == GUIElement_Row) {
 			Element->Expanded = 1;
 			Element->Depth = Parent->Depth;
-
-			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
-			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->Parent = Element;
+			
+			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
 
 		if (ElementType == GUIElement_InteractibleItem) {
@@ -831,10 +842,7 @@ static gui_element* GUIRequestElement(
 			Element->Expanded = 1;
 			Element->Depth = Parent->Depth;
 
-			Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
-			Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
-			Element->ChildrenSentinel->Parent = Element;
+			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
 
 		CopyStrings(Element->Name, ElementName);
@@ -845,7 +853,7 @@ static gui_element* GUIRequestElement(
 		Element->Cache = {};
 	}
 
-	//NOTE(Dima): Setting common values
+	//NOTE(Dima): Post-Setting common values
 	Element->Type = ElementType;
 	Element->Parent = Parent;
 	Element->TempParent = 0;
@@ -868,7 +876,11 @@ b32 GUIBeginElement(
 	gui_element* Element = GUIRequestElement(State, ElementType, ElementName, ElementInteraction);
 
 	State->CurrentNode = Element;
-	
+
+	if (Element->Type == GUIElement_TreeNode) {
+		State->CurrentTreeParent = Element;
+	}
+
 	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
 
 	return(NeedShow);
@@ -879,6 +891,18 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 
 	Assert(ElementType == Element->Type);
 
+#if 1
+	gui_view* View = GUIGetCurrentView(State);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		//NOTE(Dima): Here I remember view Y for exit sliding effect
+		gui_element* CurrentTreeParent = State->CurrentTreeParent;
+		Assert((CurrentTreeParent->Type == GUIElement_TreeNode) ||
+			(CurrentTreeParent == State->RootNode));
+		CurrentTreeParent->Cache.TreeNode.StackY = View->CurrentY;
+	}
+#endif
+
 	if (ElementType == GUIElement_StaticItem) {
 		GUIFreeListElement(State, Element);
 	}
@@ -887,7 +911,12 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 		//View->CurrentNode->Parent->RowCount = 0;
 	}
 
-	State->CurrentNode = State->CurrentNode->Parent;
+	if (ElementType == GUIElement_TreeNode) {
+		State->CurrentTreeParent = Element->TempParentTree;
+	}
+
+
+	State->CurrentNode = Element->Parent;
 }
 
 enum print_text_type {
@@ -1103,7 +1132,7 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 		gui_interaction MoveInteraction = GUIMoveInteraction(WindowPosition, GUIMoveInteraction_Move);
 		GUIAnchor(GUIState, "AnchorMV", WindowRect.Min, V2(5, 5), &MoveInteraction);
 
-		GUIDescribeRowElement(GUIState, *WindowDimension);
+		GUIDescribeElementDim(GUIState, *WindowDimension);
 		GUIAdvanceCursor(GUIState);
 	}
 	GUIEndElement(GUIState, GUIElement_CachedItem);
@@ -1148,7 +1177,7 @@ void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction)
 		gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
 		GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
 
-		GUIDescribeRowElement(GUIState, GetRectDim(ImageRect));
+		GUIDescribeElementDim(GUIState, GetRectDim(ImageRect));
 		GUIAdvanceCursor(GUIState);
 	}
 
@@ -1225,13 +1254,10 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Intera
 			GUILabel(GUIState, InfoStr, GUIState->Input->MouseP);
 		}
 
-
-		//View->LastElementHeight = GraphRectDim.y;
-
 		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
 
-		GUIDescribeRowElement(
+		GUIDescribeElementDim(
 			GUIState,
 			V2(GraphRectDim.x + Outer,
 				GraphRectDim.y + (2.0f * Outer)));
@@ -1260,7 +1286,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 			GUIState->FontScale, GUIState->ColorTable[GUIState->ColorTheme.TextColor]);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeRowElement(GUIState, GetRectDim(Rc));
+		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -1309,7 +1335,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeRowElement(GUIState, GetRectDim(Rc));
+		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -1361,7 +1387,7 @@ void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interacti
 		PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeRowElement(GUIState, V2(NameRc.Max.x - View->CurrentX, NameRc.Max.y - NameRc.Min.y + OutlineWidth));
+		GUIDescribeElementDim(GUIState, V2(NameRc.Max.x - View->CurrentX, NameRc.Max.y - NameRc.Min.y + OutlineWidth));
 		GUIAdvanceCursor(GUIState);
 	}
 
@@ -1431,7 +1457,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeRowElement(GUIState, V2(FalseRc.Max.x - View->CurrentX, FalseRc.Max.y - FalseRc.Min.y + OutlineWidth));
+		GUIDescribeElementDim(GUIState, V2(FalseRc.Max.x - View->CurrentX, FalseRc.Max.y - FalseRc.Min.y + OutlineWidth));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -1651,7 +1677,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		PushRectOutline(State->RenderStack, CursorRect, 2, State->ColorTable[State->ColorTheme.OutlineColor]);
 
 		//NOTE(DIMA): Postprocessing
-		GUIDescribeRowElement(
+		GUIDescribeElementDim(
 			State, 
 			V2(MaxWidth,
 			SmallTextRc.Max.y - MaxValueRc.Min.y));
@@ -1806,7 +1832,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, DrawTextX, View->CurrentY, View->FontScale);
 #endif
 
-		GUIDescribeRowElement(
+		GUIDescribeElementDim(
 			GUIState,
 			V2(WorkRect.Max.x - View->CurrentX, 
 			WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth)));
@@ -1891,21 +1917,23 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 	gui_view* View = GUIGetCurrentView(State);
 	
 	b32 NeedShow = GUIBeginElement(State, GUIElement_TreeNode, NodeName, 0);
+	gui_element* Elem = GUIGetCurrentElement(State);
+	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
 
 	gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
 	char TextBuf[64];
 	if (State->PlusMinusSymbol) {
-		stbsp_sprintf(TextBuf, "%c %s", State->CurrentNode->Expanded ? '+' : '-', State->CurrentNode->Text);
+		stbsp_sprintf(TextBuf, "%c %s", Elem->Expanded ? '+' : '-', Elem->Text);
 	}
 	else {
-		stbsp_sprintf(TextBuf, "%s", State->CurrentNode->Text);
+		stbsp_sprintf(TextBuf, "%s", Elem->Text);
 	}
 	
 	if (NeedShow) {
 		GUIPreAdvanceCursor(State);
 
-		gui_interaction Interaction_ = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
-		gui_interaction* Interaction = &Interaction_;
+		//gui_interaction Interaction_ = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
+		//gui_interaction* Interaction = &Interaction_;
 
 		rect2 Rc = PrintTextInternal(State, PrintTextType_GetTextSize, TextBuf, View->CurrentX, View->CurrentY, State->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
@@ -1914,9 +1942,8 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 		if (MouseInRect(State->Input, Rc)) {
 			TextHighlightColor = State->ColorTable[State->ColorTheme.TextHighlightColor];
 			if (MouseButtonWentDown(State->Input, MouseButton_Left)) {
-				if (Interaction->Type == GUIInteraction_VariableLink) {
-					*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
-				}
+				Elem->Expanded = !Elem->Expanded;
+				Cache->ExitState = 0;
 			}
 		}
 
@@ -1927,13 +1954,43 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 		PrintTextInternal(State, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, State->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeRowElement(State, GetRectDim(Rc));
+		GUIDescribeElementDim(State, GetRectDim(Rc));
 
 		GUIAdvanceCursor(State);
+
 	}
+	Elem->Cache.TreeNode.StackBeginY = View->CurrentY;
 }
 
-void GUITreeEnd(gui_state* State) {
+void GUITreeEnd(gui_state* State) {	
+	gui_element* Elem = GUIGetCurrentElement(State);
+	gui_view* View = GUIGetCurrentView(State);
+	
+	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
+
+	if ((Elem->Expanded == false) && 
+		(Cache->ExitState == GUITreeNodeExit_None)) 
+	{
+		Cache->ExitY = Cache->StackY - Cache->StackBeginY;
+		//Cache->ExitY = 100;
+		Cache->ExitState = GUITreeNodeExit_Exiting;
+	}
+
+	if (Cache->ExitState == GUITreeNodeExit_Exiting) {
+		float ExitSpeed = 5.0f;
+		//float ExitSpeed = Cache->ExitY / 8.0f + 4;
+		Cache->ExitY -= ExitSpeed;
+
+		if (Cache->ExitY < 0.0f) {
+			Cache->ExitY = 0.0f;
+			Cache->ExitState = GUITreeNodeExit_Finished;
+		}
+
+		GUIPreAdvanceCursor(State);
+		GUIDescribeElementDim(State, V2(0, Cache->ExitY));
+		GUIAdvanceCursor(State);
+	}
+
 	GUIEndElement(State, GUIElement_TreeNode);
 }
 
