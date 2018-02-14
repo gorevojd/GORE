@@ -42,5 +42,6 @@ inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 1) {
 
 #define PushStruct(StMem, type) (type*)PushSomeMemory(StMem, sizeof(type))
 #define PushArray(StMem, type, count) (type*)PushSomeMemory(StMem, sizeof(type) * count)
+#define PushString(StMem, str) (char*)PushSomeMemory(StMem, StringLength(str) + 1)
 
 #endif

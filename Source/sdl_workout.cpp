@@ -47,13 +47,13 @@
 			Some basic profile markers to measure perfomance
 
 		GUI:
+			New named-color system
+			New row system
+			New Label system or depth
+
 			Caching some elements calculations.
 
 			Make possibility to add sum stuff to elements that alredy exist in the tree view
-			New BeginRow/EndRow system
-			New Label system or depth
-			Image view
-			GUI tree view walkaround by keyboard
 
 			GUI radio buttons
 			GUI text windows
@@ -672,7 +672,7 @@ int main(int ArgsCount, char** Args) {
 	GlobalTime = 0.0f;
 
 	SDL_Window* Window = SDL_CreateWindow(
-		"GOROH Project",
+		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		GlobalBuffer.Width,
@@ -699,7 +699,7 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
-	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
+	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 15);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
 	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
@@ -740,8 +740,8 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		PushGradient(Stack, V3(GradR, GradG, GradB));
-		//PushClear(Stack, V3(0.1f, 0.1f, 0.1f));
+		//PushGradient(Stack, V3(GradR, GradG, GradB));
+		PushClear(Stack, V3(0.08f, 0.08f, 0.08f));
 		//PushClear(Stack, V3(0.5, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
@@ -774,15 +774,10 @@ int main(int ArgsCount, char** Args) {
 		GUIText(GUIState, DebugStr);
 		GUIBeginView(GUIState, "Root", GUIView_Tree);
 
-		GUITreeBegin(GUIState, "Test2");
-		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
-		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
-		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
-		GUITreeEnd(GUIState);
-
 		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
 		GUIBoolButton(GUIState, "Button1", &BoolInteract);
+
 		GUIWindow(
 			GUIState, 
 			"WindowName", 
@@ -790,6 +785,7 @@ int main(int ArgsCount, char** Args) {
 			GUIWindow_Resizable |
 			GUIWindow_TopBar,
 			0, 0);
+
 		GUIVerticalSlider(GUIState, "VertSlider1", -10.0f, 10.0f, &VertSliderInteract);
 		//GUIVerticalSlider(GUIState, "VertSlider2", -10.0f, 10.0f, &VertSliderInteract);
 		//GUIVerticalSlider(GUIState, "VertSlider3", -10.0f, 10.0f, &VertSliderInteract);
@@ -828,15 +824,56 @@ int main(int ArgsCount, char** Args) {
 		//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
 		GUIText(GUIState, "Hello");
 		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+
+		GUIBeginView(GUIState, "InnerView", GUIView_Tree);
+		GUIText(GUIState, "Nikita loh");
+		GUITreeBegin(GUIState, "InnerTree");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUIText(GUIState, "Nikita loh");
+		GUITreeEnd(GUIState);
+		GUITreeBegin(GUIState, "InnerTree1");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUIText(GUIState, "Ivan loh");
+		GUITreeEnd(GUIState);
+		GUIText(GUIState, "Dima pidor");
+		GUIEndView(GUIState, GUIView_Tree);
+
 		GUIEndRow(GUIState);
 
 		GUITreeEnd(GUIState);
 
+		GUITreeBegin(GUIState, "Test2");
+		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
+		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
+		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
+		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Test3");
-		GUIBeginRow(GUIState);
 		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
 
 		GUIBeginRow(GUIState);
 		GUIText(GUIState, "Hello");
@@ -870,6 +907,10 @@ int main(int ArgsCount, char** Args) {
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Audio");
+		GUIColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
+		GUIVector2View(GUIState, V2(1.0f, 256.0f), "Vector2");
+		GUIVector3View(GUIState, V3(1.0f, 20.0f, 300.0f), "Vector3");
+		GUIVector4View(GUIState, V4(12345.0f, 1234.0f, 123456.0f, 5324123.0f), "Vector4");
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "DEBUG");

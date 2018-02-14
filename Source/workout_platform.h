@@ -124,4 +124,17 @@ inline void CopyStrings(char* Dst, char* Src) {
 	*Dst = 0;
 }
 
+inline int StringLength(char* Text) {
+	int Res = 0;
+
+	char* At = Text;
+	while (*At) {
+		Res++;
+
+		At++;
+	}
+
+	return(Res);
+}
+
 #endif
