@@ -620,8 +620,9 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->PrevBro = RootNode;
 	RootNode->NextBro = RootNode;
 
-	CopyStrings(RootNode->Name, "MainRoot");
-	CopyStrings(RootNode->Text, "MainRoot");
+	char* RootNodeName = "MainRoot";
+	RootNode->Name = PushString(&GUIState->GUIMem, RootNodeName);
+	CopyStrings(RootNode->Name, RootNodeName);
 
 	RootNode->ID = GUIStringHashFNV(RootNode->Name);
 	RootNode->Expanded = 1;
@@ -639,7 +640,6 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->NextBro = RootNode;
 	RootNode->PrevBro = RootNode;
 
-	RootNode->TempParent = 0;
 	RootNode->TempParentTree = 0;
 
 	GUIState->WalkaroundEnabled = false;
@@ -679,7 +679,6 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	DefaultView->PrevBro->NextBro = DefaultView;
 
 	DefaultView->ID = GUIStringHashFNV("DefaultView");
-	CopyStrings(DefaultView->Name, "DefaultView");
 
 	DefaultView->ViewType = GUIView_Tree;
 
@@ -1091,15 +1090,15 @@ inline void GUIFreeViewElement(gui_state* State, gui_view* ToFree) {
 
 void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 	/*
-	NOTE(DIMA):
-	Here I make unique id for view and calculate
-	it's hash. Then I try to find view in Global
-	list with the same ID. It's perfomance better
-	than comparing two strings. But there is the
-	caveat. We need to make sure that the hash
-	calculation function is crypto-strong enough
-	so that the possibility to have 2 same id's
-	for different strings is very small.
+		NOTE(DIMA):
+			Here I make unique id for view and calculate
+			it's hash. Then I try to find view in Global
+			list with the same ID. It's perfomance better
+			than comparing two strings. But there is the
+			caveat. We need to make sure that the hash
+			calculation function is crypto-strong enough
+			so that the possibility to have 2 same id's
+			for different strings is very small.
 	*/
 
 	char IdBuf[256];
@@ -1148,6 +1147,7 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 
 	View->CurrentX = ViewPosition->x;
 	View->CurrentY = ViewPosition->y;
+	View->BeginnedRowsCount = 0;
 
 	GUIState->CurrentView = View;
 
@@ -1174,41 +1174,6 @@ void GUIEndView(gui_state* GUIState, u32 ViewType) {
 	GUIState->CurrentView = GUIState->CurrentView->Parent;
 }
 
-void GUIBeginRow(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
-
-	Assert(!View->RowBeginned);
-
-	char NameBuf[16];
-	stbsp_sprintf(NameBuf, "Row:%u", State->CurrentNode->RowCount);
-
-	GUIBeginElement(State, GUIElement_Row, NameBuf, 0);
-
-	View->RowBeginX = View->CurrentX;
-	View->RowBeginned = true;
-	View->RowBiggestHeight = 0;
-}
-
-void GUIEndRow(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
-
-	Assert(View->RowBeginned);
-
-	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
-
-	if (NeedShow) {
-		View->CurrentX = View->RowBeginX;
-		View->CurrentY += View->RowBiggestHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
-	}
-
-	View->RowBeginned = false;
-	View->RowBiggestHeight = 0;
-
-	GUIEndElement(State, GUIElement_Row);
-
-	State->CurrentNode->RowCount++;
-}
-
 inline void GUIPreAdvanceCursor(gui_state* State) {
 	gui_view* View = GUIGetCurrentView(State);
 
@@ -1218,13 +1183,19 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
+inline b32 GUIIsRowBeginned(gui_view* View) {
+	b32 Result = (View->BeginnedRowsCount != 0);
+
+	return(Result);
+}
+
 inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
 	gui_view* View = GUIGetCurrentView(State);
 
 	View->LastElementWidth = ElementDim.x;
 	View->LastElementHeight = ElementDim.y;
 
-	if ((ElementDim.y > View->RowBiggestHeight) && View->RowBeginned) {
+	if ((ElementDim.y > View->RowBiggestHeight) && GUIIsRowBeginned(View)) {
 		View->RowBiggestHeight = ElementDim.y;
 	}
 }
@@ -1232,7 +1203,11 @@ inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
 inline void GUIAdvanceCursor(gui_state* State) {
 	gui_view* View = GUIGetCurrentView(State);
 
+#if 0
 	if (View->RowBeginned) {
+#else
+	if(GUIIsRowBeginned(View)){
+#endif
 		View->CurrentX += View->LastElementWidth + State->FontInfo->AscenderHeight * State->FontScale;
 	}
 	else {
@@ -1244,6 +1219,43 @@ inline void GUIAdvanceCursor(gui_state* State) {
 	}
 
 	View->CurrentX -= View->CurrentPreAdvance;
+}
+
+void GUIBeginRow(gui_state* State) {
+	gui_view* View = GUIGetCurrentView(State);
+
+	char NameBuf[16];
+	stbsp_sprintf(NameBuf, "Row:%u", State->CurrentNode->RowCount);
+
+	GUIBeginElement(State, GUIElement_Row, NameBuf, 0);
+
+	if (!GUIIsRowBeginned) {
+		View->RowBeginX = View->CurrentX;
+		View->RowBiggestHeight = 0;
+	}
+
+	View->BeginnedRowsCount++;
+}
+
+void GUIEndRow(gui_state* State) {
+	gui_view* View = GUIGetCurrentView(State);
+
+	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
+
+	View->BeginnedRowsCount--;
+
+	if (NeedShow) {
+		if (!View->BeginnedRowsCount) {
+			View->CurrentX = View->RowBeginX;
+			View->CurrentY += View->RowBiggestHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
+			View->RowBiggestHeight = 0;
+		}
+	}
+
+
+	GUIEndElement(State, GUIElement_Row);
+
+	State->CurrentNode->RowCount++;
 }
 
 inline gui_element* GUIAllocateListElement(gui_state* State) {
@@ -1376,8 +1388,8 @@ static gui_element* GUIRequestElement(
 			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
 
+		Element->Name = PushString(&GUIState->GUIMem, ElementName);
 		CopyStrings(Element->Name, ElementName);
-		CopyStrings(Element->Text, ElementName);
 
 		Element->ID = ElementHash;
 		Element->RowCount = 0;
@@ -1387,7 +1399,6 @@ static gui_element* GUIRequestElement(
 	//NOTE(Dima): Post-Setting common values
 	Element->Type = ElementType;
 	Element->Parent = Parent;
-	Element->TempParent = 0;
 	Element->RowCount = 0;
 
 	//NOTE(Dima): Setting interaction ID for dynamic(cached) elements
@@ -1410,6 +1421,10 @@ b32 GUIBeginElement(
 
 	if (Element->Type == GUIElement_TreeNode) {
 		State->CurrentTreeParent = Element;
+	}
+
+	if (Element->Type == GUIElement_Row) {
+
 	}
 
 	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
@@ -1439,7 +1454,7 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 	}
 
 	if (ElementType == GUIElement_Row) {
-		//View->CurrentNode->Parent->RowCount = 0;
+
 	}
 
 	if (ElementType == GUIElement_TreeNode) {
@@ -1502,6 +1517,87 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	return(TextRect);
 }
 
+void GUIPerformInteraction(gui_state* GUIState, gui_interaction* Interaction, v4* TextHighlightColor) {
+
+	switch (Interaction->Type) {
+		case GUIInteraction_ResizeInteraction: {
+			v2 WorkRectP = Interaction->ResizeContext.Position;
+			v2 MouseP = GUIState->Input->MouseP - Interaction->ResizeContext.OffsetInAnchor;
+
+			v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
+			if (Interaction->Type == GUIInteraction_ResizeInteraction) {
+
+				v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
+				switch (Interaction->ResizeContext.Type) {
+					case GUIResizeInteraction_Default: {
+						*WorkDim = MouseP - WorkRectP;
+
+						if (MouseP.x - WorkRectP.x < Interaction->ResizeContext.MinDim.x) {
+							WorkDim->x = Interaction->ResizeContext.MinDim.x;
+						}
+
+						if (MouseP.y - WorkRectP.y < Interaction->ResizeContext.MinDim.y) {
+							WorkDim->y = Interaction->ResizeContext.MinDim.y;
+						}
+					}break;
+
+					case GUIResizeInteraction_Horizontal: {
+						if (MouseP.x - WorkRectP.x < Interaction->ResizeContext.MinDim.x) {
+							WorkDim->x = Interaction->ResizeContext.MinDim.x;
+						}
+					}break;
+
+					case GUIResizeInteraction_Vertical: {
+						if (MouseP.y - WorkRectP.y < Interaction->ResizeContext.MinDim.y) {
+							WorkDim->y = Interaction->ResizeContext.MinDim.y;
+						}
+					}break;
+
+					case GUIResizeInteraction_Proportional: {
+						float WidthToHeight = WorkDim->x / WorkDim->y;
+						WorkDim->y = MouseP.y - WorkRectP.y;
+						WorkDim->x = WorkDim->y * WidthToHeight;
+
+						if (WorkDim->y < Interaction->ResizeContext.MinDim.y) {
+							WorkDim->y = Interaction->ResizeContext.MinDim.y;
+							WorkDim->x = WorkDim->y * WidthToHeight;
+						}
+					}break;
+				}
+			}
+		}break;
+
+		case GUIInteraction_MoveInteraction: {
+			v2* WorkP = Interaction->MoveContext.MovePosition;
+			v2 MouseP = GUIState->Input->MouseP - Interaction->MoveContext.OffsetInAnchor;
+
+			switch (Interaction->MoveContext.Type) {
+				case GUIMoveInteraction_Move: {
+					*WorkP = MouseP;
+				}break;
+			}
+		}break;
+
+		case GUIInteraction_TreeInteraction: {
+			if (MouseInRect(GUIState->Input, Interaction->TreeInteraction.ElemRc)) {
+				*TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+				if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+					Interaction->TreeInteraction.Elem->Expanded = !Interaction->TreeInteraction.Elem->Expanded;
+					Interaction->TreeInteraction.Elem->Cache.TreeNode.ExitState = 0;
+				}
+			}
+
+			if (GUIWalkaroundIsHere(GUIState)) {
+				PushRectOutline(
+					GUIState->RenderStack, 
+					Interaction->TreeInteraction.ElemRc, 
+					2, 
+					GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+			}
+		} break;
+	}
+}
+
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 }
@@ -1540,63 +1636,24 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 
 		if (IsHot) {
 
-			v2 WorkRectP = Interaction->ResizeContext.Position;
 			/*Getting true position*/
 			MouseP = MouseP - *OffsetInAnchor;
+			
 
-			float MinDimLen = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+			float MinDimLength = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 
 			Assert((Interaction->Type == GUIInteraction_MoveInteraction) ||
 				(Interaction->Type == GUIInteraction_ResizeInteraction));
 
 			if (Interaction->Type == GUIInteraction_ResizeInteraction) {
-
-				v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
-				switch (Interaction->ResizeContext.Type) {
-					case GUIResizeInteraction_Default: {
-						*WorkDim = MouseP - WorkRectP;
-
-						if (MouseP.x - WorkRectP.x < MinDimLen) {
-							WorkDim->x = MinDimLen;
-						}
-
-						if (MouseP.y - WorkRectP.y < MinDimLen) {
-							WorkDim->y = MinDimLen;
-						}
-					}break;
-
-					case GUIResizeInteraction_Horizontal: {
-						if (MouseP.x - WorkRectP.x < MinDimLen) {
-							WorkDim->x = MinDimLen;
-						}
-					}break;
-
-					case GUIResizeInteraction_Vertical: {
-						if (MouseP.y - WorkRectP.y < MinDimLen) {
-							WorkDim->y = MinDimLen;
-						}
-					}break;
-
-					case GUIResizeInteraction_Proportional: {
-						float WidthToHeight = WorkDim->x / WorkDim->y;
-						WorkDim->y = MouseP.y - WorkRectP.y;
-						WorkDim->x = WorkDim->y * WidthToHeight;
-
-						if (WorkDim->y < MinDimLen) {
-							WorkDim->y = MinDimLen;
-							WorkDim->x = WorkDim->y * WidthToHeight;
-						}
-					}break;
-				}
+				Interaction->ResizeContext.MinDim = V2(MinDimLength, MinDimLength);
+				Interaction->ResizeContext.OffsetInAnchor = *OffsetInAnchor;
 			}
 			else if (Interaction->Type == GUIInteraction_MoveInteraction) {
-				v2* WorkP = Interaction->MoveContext.MovePosition;
-				switch (Interaction->MoveContext.Type) {
-					case GUIMoveInteraction_Move: {
-						*WorkP = MouseP;
-					}break;
-				}
+				Interaction->MoveContext.OffsetInAnchor = *OffsetInAnchor;
 			}
+
+			GUIPerformInteraction(GUIState, Interaction, 0);
 		}
 
 
@@ -1604,69 +1661,6 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
-}
-
-void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0);
-
-	if (NeedShow) {
-		GUIPreAdvanceCursor(GUIState);
-
-		gui_view* View = GUIGetCurrentView(GUIState);
-
-		gui_element* Window = GUIGetCurrentElement(GUIState);
-		gui_element_cache* Cache = &Window->Cache;
-
-		if (!Cache->IsInitialized) {
-			if (CreationFlags & GUIWindow_DefaultSize) {
-				Cache->View.Dimension.x = 100;
-				Cache->View.Dimension.y = 100;
-			}
-			else {
-				Cache->View.Dimension.x = Width;
-				Cache->View.Dimension.y = Height;
-			}
-
-			Cache->View.Position = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
-
-			Cache->IsInitialized = true;
-		}
-
-		v2* WindowDimension = &Cache->View.Dimension;
-		v2* WindowPosition = &Cache->View.Position;
-
-		int WindowOutlineWidth = 3;
-		int InnerSubWindowWidth = 2;
-		rect2 WindowRect = Rect2MinDim(*WindowPosition, *WindowDimension);
-
-		PushRect(GUIState->RenderStack, WindowRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
-		PushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-
-		if (CreationFlags & GUIWindow_TopBar) {
-			float TopBarHeight = GUIState->FontScale * GetNextRowAdvance(GUIState->FontInfo);
-
-			if (WindowDimension->y > TopBarHeight) {
-				PushRect(
-					GUIState->RenderStack,
-					Rect2MinDim(
-						*WindowPosition + V2(0, TopBarHeight),
-						V2(WindowDimension->x, InnerSubWindowWidth)),
-					GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-			}
-		}
-
-		if (CreationFlags & GUIWindow_Resizable) {
-			gui_interaction ResizeInteraction = GUIResizeInteraction(WindowRect.Min, WindowDimension, GUIResizeInteraction_Default);
-			GUIAnchor(GUIState, "AnchorBR", WindowRect.Max, V2(5, 5), &ResizeInteraction);
-		}
-
-		gui_interaction MoveInteraction = GUIMoveInteraction(WindowPosition, GUIMoveInteraction_Move);
-		GUIAnchor(GUIState, "AnchorMV", WindowRect.Min, V2(5, 5), &MoveInteraction);
-
-		GUIDescribeElementDim(GUIState, *WindowDimension);
-		GUIAdvanceCursor(GUIState);
-	}
-	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
 void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
@@ -2550,42 +2544,29 @@ void GUITreeBegin(gui_state* State, char* NodeName) {
 	gui_element* Elem = GUIGetCurrentElement(State);
 	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
 
-	gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
+	//gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
 	char TextBuf[64];
 	if (State->PlusMinusSymbol) {
-		stbsp_sprintf(TextBuf, "%c %s", Elem->Expanded ? '+' : '-', Elem->Text);
+		stbsp_sprintf(TextBuf, "%c %s", Elem->Expanded ? '+' : '-', Elem->Name);
 	}
 	else {
-		stbsp_sprintf(TextBuf, "%s", Elem->Text);
+		stbsp_sprintf(TextBuf, "%s", Elem->Name);
 	}
 
 	if (NeedShow) {
 		GUIPreAdvanceCursor(State);
 
-		//gui_interaction Interaction_ = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
-		//gui_interaction* Interaction = &Interaction_;
-
 		rect2 Rc = PrintTextInternal(State, PrintTextType_GetTextSize, TextBuf, View->CurrentX, View->CurrentY, State->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 		v4 TextHighlightColor = GUIGetColor(State, State->ColorTheme.TextColor);
-		if (MouseInRect(State->Input, Rc)) {
-			TextHighlightColor = GUIGetColor(State, State->ColorTheme.TextHighlightColor);
-			if (MouseButtonWentDown(State->Input, MouseButton_Left)) {
-				Elem->Expanded = !Elem->Expanded;
-				Cache->ExitState = 0;
-			}
-		}
 
-		if (GUIWalkaroundIsHere(State)) {
-			PushRectOutline(State->RenderStack, Rc, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
-		}
+		gui_interaction TreeInteraction = GUITreeInteraction(Elem, Rc);
+		GUIPerformInteraction(State, &TreeInteraction, &TextHighlightColor);
 
 		PrintTextInternal(State, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, State->FontScale, TextHighlightColor);
 
-		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElementDim(State, GetRectDim(Rc));
-
 		GUIAdvanceCursor(State);
 
 	}
@@ -2623,6 +2604,79 @@ void GUITreeEnd(gui_state* State) {
 
 	GUIEndElement(State, GUIElement_TreeNode);
 }
+
+
+void GUIWindowBegin(gui_state* GUIState, char* Name) {
+
+}
+
+void GUIWindowEnd(gui_state* GUIState) {
+
+}
+
+void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
+	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0);
+
+	if (NeedShow) {
+		GUIPreAdvanceCursor(GUIState);
+
+		gui_view* View = GUIGetCurrentView(GUIState);
+
+		gui_element* Window = GUIGetCurrentElement(GUIState);
+		gui_element_cache* Cache = &Window->Cache;
+
+		if (!Cache->IsInitialized) {
+			if (CreationFlags & GUIWindow_DefaultSize) {
+				Cache->View.Dimension.x = 100;
+				Cache->View.Dimension.y = 100;
+			}
+			else {
+				Cache->View.Dimension.x = Width;
+				Cache->View.Dimension.y = Height;
+			}
+
+			Cache->View.Position = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+
+			Cache->IsInitialized = true;
+		}
+
+		v2* WindowDimension = &Cache->View.Dimension;
+		v2* WindowPosition = &Cache->View.Position;
+
+		int WindowOutlineWidth = 3;
+		int InnerSubWindowWidth = 2;
+		rect2 WindowRect = Rect2MinDim(*WindowPosition, *WindowDimension);
+
+		PushRect(GUIState->RenderStack, WindowRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
+		PushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		if (CreationFlags & GUIWindow_TopBar) {
+			float TopBarHeight = GUIState->FontScale * GetNextRowAdvance(GUIState->FontInfo);
+
+			if (WindowDimension->y > TopBarHeight) {
+				PushRect(
+					GUIState->RenderStack,
+					Rect2MinDim(
+						*WindowPosition + V2(0, TopBarHeight),
+						V2(WindowDimension->x, InnerSubWindowWidth)),
+					GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			}
+		}
+
+		if (CreationFlags & GUIWindow_Resizable) {
+			gui_interaction ResizeInteraction = GUIResizeInteraction(WindowRect.Min, WindowDimension, GUIResizeInteraction_Default);
+			GUIAnchor(GUIState, "AnchorBR", WindowRect.Max, V2(5, 5), &ResizeInteraction);
+		}
+
+		gui_interaction MoveInteraction = GUIMoveInteraction(WindowPosition, GUIMoveInteraction_Move);
+		GUIAnchor(GUIState, "AnchorMV", WindowRect.Min, V2(5, 5), &MoveInteraction);
+
+		GUIDescribeElementDim(GUIState, *WindowDimension);
+		GUIAdvanceCursor(GUIState);
+	}
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
 
 #if 0
 static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {

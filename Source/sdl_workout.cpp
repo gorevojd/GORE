@@ -47,9 +47,10 @@
 			Some basic profile markers to measure perfomance
 
 		GUI:
-			New named-color system
-			New row system
+			New named-color system. Think about how to retrieve and store. Get by name maybe
+
 			New Label system or depth
+			Overlapping interactions handling
 
 			Caching some elements calculations.
 
@@ -655,9 +656,10 @@ int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
-	sdl_thread_entry RenderThreadEntries[4];
+#define SDL_RENDER_THREAD_ENTRIES 4
+	sdl_thread_entry RenderThreadEntries[SDL_RENDER_THREAD_ENTRIES];
 	thread_queue RenderThreadQueue;
-	SDLInitThreadQueue(&RenderThreadQueue, RenderThreadEntries, 4);
+	SDLInitThreadQueue(&RenderThreadQueue, RenderThreadEntries, SDL_RENDER_THREAD_ENTRIES);
 
 	PlatformApi.AddEntry = SDLAddEntry;
 	PlatformApi.FinishAll = SDLCompleteQueueWork;
@@ -861,9 +863,7 @@ int main(int ArgsCount, char** Args) {
 		GUITreeEnd(GUIState);
 		GUIText(GUIState, "Dima pidor");
 		GUIEndView(GUIState, GUIView_Tree);
-
 		GUIEndRow(GUIState);
-
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Test2");
@@ -908,8 +908,11 @@ int main(int ArgsCount, char** Args) {
 
 		GUITreeBegin(GUIState, "Audio");
 		GUIColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
+		GUIBeginRow(GUIState);
 		GUIVector2View(GUIState, V2(1.0f, 256.0f), "Vector2");
+		GUIText(GUIState, "Hello");
 		GUIVector3View(GUIState, V3(1.0f, 20.0f, 300.0f), "Vector3");
+		GUIEndRow(GUIState);
 		GUIVector4View(GUIState, V4(12345.0f, 1234.0f, 123456.0f, 5324123.0f), "Vector4");
 		GUITreeEnd(GUIState);
 

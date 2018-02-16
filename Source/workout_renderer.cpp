@@ -1,6 +1,7 @@
 #include "workout_renderer.h"
 
 #include <thread>
+#include <mutex>
 
 #define WORKOUT_FAST_RENDERING 1
 
@@ -867,6 +868,8 @@ struct render_queue_work {
 	render_stack* Stack;
 	rgba_buffer* Buffer;
 	rect2 ClipRect;
+
+	int i, j;
 };
 
 PLATFORM_THREAD_QUEUE_CALLBACK(RenderQueueWork) {
@@ -918,6 +921,7 @@ void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, 
 			Work->Buffer = Buffer;
 			Work->Stack = Stack;
 			Work->ClipRect = Rect;
+
 			//if ((j & 1) == (i & 1)) {
 			PlatformApi.AddEntry(Queue, RenderQueueWork, Work);
 			//}

@@ -53,19 +53,29 @@ enum gui_resize_interaction_type {
 struct gui_resize_interaction_context {
 	v2* DimensionPtr;
 	v2 Position;
+	v2 MinDim;
+	v2 OffsetInAnchor;
 	u32 Type;
 };
 
 struct gui_move_interaction_context {
 	v2* MovePosition;
 	u32 Type;
+	v2 OffsetInAnchor;
+};
+
+struct gui_tree_interaction_context {
+	struct gui_element* Elem;
+	rect2 ElemRc;
 };
 
 enum gui_interaction_type {
 	GUIInteraction_None,
+
 	GUIInteraction_VariableLink,
 	GUIInteraction_ResizeInteraction,
 	GUIInteraction_MoveInteraction,
+	GUIInteraction_TreeInteraction,
 };
 
 struct gui_interaction {
@@ -76,6 +86,7 @@ struct gui_interaction {
 		gui_variable_link VariableLink;
 		gui_resize_interaction_context ResizeContext;
 		gui_move_interaction_context MoveContext;
+		gui_tree_interaction_context TreeInteraction;
 	};
 };
 
@@ -103,7 +114,7 @@ inline gui_variable_link GUIVariableLink(void* Variable, u32 Type) {
 }
 
 inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
-	gui_interaction Result;
+	gui_interaction Result = {};
 
 	Result.VariableLink = GUIVariableLink(Variable, Type);
 	Result.Type = GUIInteraction_VariableLink;
@@ -114,7 +125,7 @@ inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
 
 /* Type is the value of enum: gui_resize_interaction_type */
 inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 Type) {
-	gui_interaction Result;
+	gui_interaction Result = {};
 
 	Result.Type = GUIInteraction_ResizeInteraction;
 
@@ -127,12 +138,23 @@ inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 T
 
 /* Type is the value of enum: gui_move_interaction_type */
 inline gui_interaction GUIMoveInteraction(v2* MovePosition, u32 Type) {
-	gui_interaction Result;
+	gui_interaction Result = {};
 
 	Result.Type = GUIInteraction_MoveInteraction;
 
 	Result.MoveContext.MovePosition = MovePosition;
 	Result.MoveContext.Type = Type;
+
+	return(Result);
+}
+
+inline gui_interaction GUITreeInteraction(struct gui_element* Elem, rect2 ElemRc) {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_TreeInteraction;
+
+	Result.TreeInteraction.Elem = Elem;
+	Result.TreeInteraction.ElemRc = ElemRc;
 
 	return(Result);
 }
@@ -144,8 +166,6 @@ enum gui_view_type {
 
 struct gui_view {
 	u32 ID;
-
-	char Name[64];
 
 	u32 ViewType;
 
@@ -164,7 +184,7 @@ struct gui_view {
 	gui_view* NextBro;
 	gui_view* PrevBro;
 
-	b32 RowBeginned;
+	int BeginnedRowsCount;
 };
 
 /*
@@ -273,7 +293,7 @@ struct gui_element {
 	s32 Depth;
 
 	gui_element* Parent;
-	gui_element* TempParent;
+	//gui_element* TempParent;
 
 	//NOTE(Dima): Used for remembering last tree parent for tree nodes
 	gui_element* TempParentTree;
@@ -284,8 +304,7 @@ struct gui_element {
 	gui_element* ChildrenSentinel;
 
 	b32 Expanded;
-	char Name[64];
-	char Text[64];
+	char* Name;
 
 	u32 RowCount;
 
