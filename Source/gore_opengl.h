@@ -1,0 +1,6 @@
+#ifndef GORE_OPENGL_H_INCLUDED
+
+
+
+#define GORE_OPENGL_H_INCLUDED
+#endif
