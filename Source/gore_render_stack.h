@@ -1,10 +1,12 @@
-#ifndef WORKOUT_RENDER_STACK_H
-#define WORKOUT_RENDER_STACK_H
+#ifndef GORE_RENDER_STACK_H
+#define GORE_RENDER_STACK_H
 
-#include "workout_game_layer.h"
+#include "gore_game_layer.h"
 
 struct render_stack {
 	stacked_memory Data;
+
+	u32 EntryCount;
 };
 
 enum render_stack_entry_type {

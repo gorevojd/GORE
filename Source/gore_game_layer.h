@@ -1,7 +1,7 @@
 #ifndef GAME_LAYER_H
 #define GAME_LAYER_H
 
-#include "workout_platform.h"
+#include "gore_platform.h"
 
 struct data_buffer {
 	u8* Data;

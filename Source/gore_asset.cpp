@@ -1,4 +1,4 @@
-#include "workout_asset.h"
+#include "gore_asset.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"

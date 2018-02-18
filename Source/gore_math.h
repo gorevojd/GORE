@@ -1,5 +1,5 @@
-#ifndef WORKOUT_MATH_H
-#define WORKOUT_MATH_H
+#ifndef GORE_MATH_H
+#define GORE_MATH_H
 
 struct v2 {
 	float x, y;

@@ -1,10 +1,10 @@
-#ifndef WORKOUT_RENDERER_H
-#define WORKOUT_RENDERER_H
+#ifndef GORE_RENDERER_H
+#define GORE_RENDERER_H
 
-#include "workout_game_layer.h"
-#include "workout_render_stack.h"
+#include "gore_game_layer.h"
+#include "gore_render_stack.h"
 
-#include "workout_debug.h"
+#include "gore_debug.h"
 
 extern void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect);
 extern void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer);

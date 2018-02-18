@@ -1,9 +1,8 @@
-#include "workout_gui.h"
+#include "gore_gui.h"
 
 #define STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
-
 
 inline v4 GUIColor255(int R, int G, int B) {
 	float OneOver255 = 1.0f / 255.0f;
@@ -598,6 +597,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->Input = Input;
 
 	GUIState->FontScale = 1.0f;
+	GUIState->LastFontScale = 1.0f;
+	GUIState->TextElemsCacheShouldBeReinitialized = false;
 
 	GUIState->ScreenWidth = Width;
 	GUIState->ScreenHeight = Height;
@@ -755,6 +756,7 @@ inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
 				Result =
 					(Element->Type != GUIElement_StaticItem) &&
 					(Element->Type != GUIElement_Row) &&
+					(Element->Type != GUIElement_View) &&
 					(Element->Type != GUIElement_None);
 			}
 		}
@@ -1013,12 +1015,12 @@ void GUIEndFrame(gui_state* GUIState) {
 		}
 
 		if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+#if 0
 			if ((*Walk)->Type == GUIElement_TreeNode) {
 				(*Walk)->Expanded = !(*Walk)->Expanded;
 				(*Walk)->Cache.TreeNode.ExitState = GUITreeNodeExit_None;
 			}
 
-#if 0
 			if ((*Walk)->Type == GUIElement_InteractibleItem) {
 				GUIState->WalkaroundIsHot = !GUIState->WalkaroundIsHot;
 			}
@@ -1049,6 +1051,16 @@ void GUIEndFrame(gui_state* GUIState) {
 	gui_view* DefView = GUIState->DefaultView;
 	DefView->CurrentX = 0;
 	DefView->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+
+	//NOTE(Dima): Checking for if cache should be reinitialized
+	if (GUIState->TextElemsCacheShouldBeReinitialized) {
+		GUIState->TextElemsCacheShouldBeReinitialized = false;
+	}
+
+	if (Abs(GUIState->FontScale - GUIState->LastFontScale) > 0.00001f) {
+		GUIState->TextElemsCacheShouldBeReinitialized = true;
+	}
+	GUIState->LastFontScale = GUIState->FontScale;
 }
 
 inline gui_view* GUIAllocateViewElement(gui_state* State) {
@@ -1109,8 +1121,7 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 		GUITreeElementID(GUIState->CurrentNode));
 	u32 IdBufHash = GUIStringHashFNV(IdBuf);
 
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_View, IdBuf, 0);
-	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
+	gui_element* CurrentElement = GUIBeginElement(GUIState, GUIElement_View, IdBuf, 0, 1);
 	gui_view* ParentView = GUIState->CurrentView;
 
 	if (!CurrentElement->Cache.IsInitialized) {
@@ -1143,6 +1154,7 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 		View->ID = IdBufHash;
 		View->ViewType = ViewType;
 		View->Parent = ParentView;
+		View->NeedHorizontalAdvance = (ViewType == GUIView_Tree);
 	}
 
 	View->CurrentX = ViewPosition->x;
@@ -1150,13 +1162,6 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 	View->BeginnedRowsCount = 0;
 
 	GUIState->CurrentView = View;
-
-	if (ViewType == GUIView_Tree) {
-		GUITreeBegin(GUIState, ViewName);
-	}
-	else if (ViewType == GUIView_Window) {
-
-	}
 }
 
 void GUIEndView(gui_state* GUIState, u32 ViewType) {
@@ -1164,10 +1169,6 @@ void GUIEndView(gui_state* GUIState, u32 ViewType) {
 	gui_view* View = GUIGetCurrentView(GUIState);
 
 	Assert(View->ViewType == ViewType);
-
-	if (ViewType == GUIView_Tree) {
-		GUITreeEnd(GUIState);
-	}
 
 	GUIEndElement(GUIState, GUIElement_View);
 
@@ -1179,7 +1180,12 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 
 	gui_element* Element = State->CurrentNode;
 
-	View->CurrentPreAdvance = (Element->Depth - 1) * 2 * State->FontScale * State->FontInfo->AscenderHeight;
+	float PreAdvanceValue = 0.0f;
+	if (View->NeedHorizontalAdvance) {
+		PreAdvanceValue = (Element->Depth - 1) * 2 * State->FontScale * State->FontInfo->AscenderHeight;
+	}
+	View->CurrentPreAdvance = PreAdvanceValue;
+
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
@@ -1192,8 +1198,7 @@ inline b32 GUIIsRowBeginned(gui_view* View) {
 inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
 	gui_view* View = GUIGetCurrentView(State);
 
-	View->LastElementWidth = ElementDim.x;
-	View->LastElementHeight = ElementDim.y;
+	View->LastElementDim = ElementDim;
 
 	if ((ElementDim.y > View->RowBiggestHeight) && GUIIsRowBeginned(View)) {
 		View->RowBiggestHeight = ElementDim.y;
@@ -1208,13 +1213,13 @@ inline void GUIAdvanceCursor(gui_state* State) {
 #else
 	if(GUIIsRowBeginned(View)){
 #endif
-		View->CurrentX += View->LastElementWidth + State->FontInfo->AscenderHeight * State->FontScale;
+		View->CurrentX += View->LastElementDim.x + State->FontInfo->AscenderHeight * State->FontScale;
 	}
 	else {
 #if 0
 		View->CurrentY += GetNextRowAdvance(State->FontInfo, 1.2f);
 #else
-		View->CurrentY += View->LastElementHeight + GetNextRowAdvance(State->FontInfo) * 0.2f;
+		View->CurrentY += View->LastElementDim.y + GetNextRowAdvance(State->FontInfo) * 0.2f;
 #endif
 	}
 
@@ -1227,7 +1232,7 @@ void GUIBeginRow(gui_state* State) {
 	char NameBuf[16];
 	stbsp_sprintf(NameBuf, "Row:%u", State->CurrentNode->RowCount);
 
-	GUIBeginElement(State, GUIElement_Row, NameBuf, 0);
+	GUIBeginElement(State, GUIElement_Row, NameBuf, 0, 1, 0);
 
 	if (!GUIIsRowBeginned) {
 		View->RowBeginX = View->CurrentX;
@@ -1251,7 +1256,6 @@ void GUIEndRow(gui_state* State) {
 			View->RowBiggestHeight = 0;
 		}
 	}
-
 
 	GUIEndElement(State, GUIElement_Row);
 
@@ -1304,11 +1308,14 @@ static gui_element* GUIRequestElement(
 	gui_state* GUIState,
 	u32 ElementType,
 	char* ElementName,
-	gui_interaction* Interaction)
+	gui_interaction* Interaction,
+	b32 InitExpandedState,
+	b32 IncrementDepth)
 {
 	gui_element* Parent = GUIState->CurrentNode;
 
 	gui_element* Element = 0;
+	i32 ElementIncrementDepthValue = (IncrementDepth != 0);
 
 	b32 ElementIsDynamic =
 		(ElementType != GUIElement_None &&
@@ -1340,10 +1347,12 @@ static gui_element* GUIRequestElement(
 		Element = GUIAllocateListElement(GUIState);
 		GUIInsertListElement(Parent->ChildrenSentinel, Element);
 
-		Element->Expanded = 1;
+		Element->Expanded = InitExpandedState;
 		Element->Depth = Parent->Depth + 1;
+
 		Element->RowCount = 0;
 		Element->ID = 0;
+		Element->Cache = {};
 
 		Element->ChildrenSentinel = 0;
 	}
@@ -1358,6 +1367,7 @@ static gui_element* GUIRequestElement(
 		//NOTE(Dima): Pre-Setting common values
 		Element->TempParentTree = GUIState->CurrentTreeParent;
 
+#if 0
 		if ((ElementType == GUIElement_TreeNode) ||
 			(ElementType == GUIElement_CachedItem))
 		{
@@ -1387,6 +1397,30 @@ static gui_element* GUIRequestElement(
 
 			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
+#else
+		if ((ElementType == GUIElement_TreeNode) ||
+			(ElementType == GUIElement_CachedItem))
+		{
+			GUIInitElementChildrenSentinel(GUIState, Element);
+		}
+
+		if (ElementType == GUIElement_Row) {
+			ElementIncrementDepthValue = 0;
+			GUIInitElementChildrenSentinel(GUIState, Element);
+		}
+
+		if (ElementType == GUIElement_InteractibleItem) {
+			Element->ChildrenSentinel = 0;
+		}
+
+		if (ElementType == GUIElement_View) {
+			ElementIncrementDepthValue = 0;
+			GUIInitElementChildrenSentinel(GUIState, Element);
+		}
+
+		Element->Expanded = InitExpandedState;
+		Element->Depth = Parent->Depth + ElementIncrementDepthValue;
+#endif
 
 		Element->Name = PushString(&GUIState->GUIMem, ElementName);
 		CopyStrings(Element->Name, ElementName);
@@ -1407,15 +1441,17 @@ static gui_element* GUIRequestElement(
 	}
 
 	return(Element);
-	}
+}
 
-b32 GUIBeginElement(
+gui_element* GUIBeginElement(
 	gui_state* State,
 	u32 ElementType,
 	char* ElementName,
-	gui_interaction* ElementInteraction)
+	gui_interaction* ElementInteraction,
+	b32 InitExpandedState,
+	b32 IncrementDepth)
 {
-	gui_element* Element = GUIRequestElement(State, ElementType, ElementName, ElementInteraction);
+	gui_element* Element = GUIRequestElement(State, ElementType, ElementName, ElementInteraction, InitExpandedState, IncrementDepth);
 
 	State->CurrentNode = Element;
 
@@ -1427,9 +1463,9 @@ b32 GUIBeginElement(
 
 	}
 
-	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
+	//b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
 
-	return(NeedShow);
+	return(Element);
 }
 
 void GUIEndElement(gui_state* State, u32 ElementType) {
@@ -1478,6 +1514,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	float CurrentY = Py;
 
 	char* At = Text;
+	int PushedEntriesCount = 0;
 
 	font_info* FontInfo = State->FontInfo;
 	render_stack* Stack = State->RenderStack;
@@ -1497,6 +1534,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+			PushedEntriesCount += 2;
 		}
 
 		float Kerning = 0.0f;
@@ -1517,8 +1555,10 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	return(TextRect);
 }
 
-void GUIPerformInteraction(gui_state* GUIState, gui_interaction* Interaction, v4* TextHighlightColor) {
-
+void GUIPerformInteraction(
+	gui_state* GUIState, 
+	gui_interaction* Interaction) 
+{
 	switch (Interaction->Type) {
 		case GUIInteraction_ResizeInteraction: {
 			v2 WorkRectP = Interaction->ResizeContext.Position;
@@ -1579,22 +1619,22 @@ void GUIPerformInteraction(gui_state* GUIState, gui_interaction* Interaction, v4
 		}break;
 
 		case GUIInteraction_TreeInteraction: {
-			if (MouseInRect(GUIState->Input, Interaction->TreeInteraction.ElemRc)) {
-				*TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
-				if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-					Interaction->TreeInteraction.Elem->Expanded = !Interaction->TreeInteraction.Elem->Expanded;
-					Interaction->TreeInteraction.Elem->Cache.TreeNode.ExitState = 0;
-				}
-			}
+			Interaction->TreeInteraction.Elem->Expanded = !Interaction->TreeInteraction.Elem->Expanded;
+			Interaction->TreeInteraction.Elem->Cache.TreeNode.ExitState = 0;
+			
 
-			if (GUIWalkaroundIsHere(GUIState)) {
-				PushRectOutline(
-					GUIState->RenderStack, 
-					Interaction->TreeInteraction.ElemRc, 
-					2, 
-					GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
-			}
 		} break;
+
+		case GUIInteraction_BoolInteraction: {
+			b32* WorkValue = Interaction->BoolInteraction.BoolLink.Value_B32;
+			if (WorkValue) {
+				*WorkValue = !(*WorkValue);
+			}
+		}break;
+
+		case GUIInteraction_MenuBarInteraction: {
+
+		}break;
 	}
 }
 
@@ -1603,9 +1643,10 @@ void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 }
 
 void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
+
 		rect2 WorkRect = Rect2MinDim(Pos, Dim);
 		v4 WorkColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 		v2 MouseP = GUIState->Input->MouseP;
@@ -1653,7 +1694,7 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 				Interaction->MoveContext.OffsetInAnchor = *OffsetInAnchor;
 			}
 
-			GUIPerformInteraction(GUIState, Interaction, 0);
+			GUIPerformInteraction(GUIState, Interaction);
 		}
 
 
@@ -1663,141 +1704,143 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
+void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 	GUITreeBegin(GUIState, Name);
 
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0);
 
-	if (NeedShow) {
-		rgba_buffer* Buffer = Interaction->VariableLink.Value_RGBABuffer;
+	if (Buffer) {
+		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
+		if (GUIElementShouldBeUpdated(Element)) {
+			//rgba_buffer* Buffer = Interaction->VariableLink.Value_RGBABuffer;
 
-		gui_element* ImageView = GUIGetCurrentElement(GUIState);
-		gui_element_cache* Cache = &ImageView->Cache;
 
-		if (!Cache->IsInitialized) {
-			/*
-			Cache->ImageView.Dimension =
-			V2(Interaction->VariableLink.Value_RGBABuffer->Width,
-			Interaction->VariableLink.Value_RGBABuffer->Height);
-			*/
+			gui_element* ImageView = GUIGetCurrentElement(GUIState);
+			gui_element_cache* Cache = &ImageView->Cache;
 
-			Cache->ImageView.Dimension = V2(
-				(float)Interaction->VariableLink.Value_RGBABuffer->Width /
-				(float)Interaction->VariableLink.Value_RGBABuffer->Height * 100, 100);
-			Cache->IsInitialized = true;
+			if (!Cache->IsInitialized) {
+				Cache->ImageView.Dimension = V2(
+					(float)Buffer->Width /
+					(float)Buffer->Height * 100, 100);
+				Cache->IsInitialized = true;
+			}
+			v2* WorkDim = &Cache->ImageView.Dimension;
+
+			gui_view* View = GUIGetCurrentView(GUIState);
+
+			GUIPreAdvanceCursor(GUIState);
+
+			rect2 ImageRect;
+			ImageRect.Min = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+			ImageRect.Max = ImageRect.Min + *WorkDim;
+
+			PushBitmap(GUIState->RenderStack, Buffer, ImageRect.Min, GetRectHeight(ImageRect));
+			PushRectOutline(GUIState->RenderStack, ImageRect, 3, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+			gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
+			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
+
+
+			GUIDescribeElementDim(GUIState, GetRectDim(ImageRect));
+			GUIAdvanceCursor(GUIState);
 		}
-		v2* WorkDim = &Cache->ImageView.Dimension;
-
-		gui_view* View = GUIGetCurrentView(GUIState);
-
-		GUIPreAdvanceCursor(GUIState);
-
-		rect2 ImageRect;
-		ImageRect.Min = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
-		ImageRect.Max = ImageRect.Min + *WorkDim;
-
-		PushBitmap(GUIState->RenderStack, Buffer, ImageRect.Min, GetRectHeight(ImageRect));
-		PushRectOutline(GUIState->RenderStack, ImageRect, 3, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-
-		gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
-		GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
-
-		GUIDescribeElementDim(GUIState, GetRectDim(ImageRect));
-		GUIAdvanceCursor(GUIState);
+		GUIEndElement(GUIState, GUIElement_CachedItem);
 	}
-
-	GUIEndElement(GUIState, GUIElement_CachedItem);
+	else {
+		GUIText(GUIState, "NULL");
+	}
 
 	GUITreeEnd(GUIState);
 }
 
-void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction) {
+void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack) {
 	GUITreeBegin(GUIState, Name);
 
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, Interaction);
 
-	Assert(Interaction->VariableLink.Type == GUIVarType_StackedMemory);
+	if (MemoryStack) {
+		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
+		if (GUIElementShouldBeUpdated(Element)) {
+			gui_view* View = GUIGetCurrentView(GUIState);
 
-	if (NeedShow) {
-		stacked_memory* WorkMem = Interaction->VariableLink.Value_StackedMemory;
+			GUIPreAdvanceCursor(GUIState);
 
-		gui_view* View = GUIGetCurrentView(GUIState);
+			gui_element* StackedMem = GUIGetCurrentElement(GUIState);
+			gui_element_cache* Cache = &StackedMem->Cache;
 
-		GUIPreAdvanceCursor(GUIState);
+			if (!Cache->IsInitialized) {
 
-		gui_element* StackedMem = GUIGetCurrentElement(GUIState);
-		gui_element_cache* Cache = &StackedMem->Cache;
+				Cache->StackedMem.Dimension =
+					V2(GUIState->FontInfo->AscenderHeight * 40.0f,
+						GUIState->FontInfo->AscenderHeight * 3.0f);
 
-		if (!Cache->IsInitialized) {
+				Cache->IsInitialized = true;
+			}
 
-			Cache->StackedMem.Dimension =
-				V2(GUIState->FontInfo->AscenderHeight * 40.0f,
-					GUIState->FontInfo->AscenderHeight * 3.0f);
+			v2* WorkDim = &Cache->StackedMem.Dimension;
 
-			Cache->IsInitialized = true;
+			rect2 GraphRect;
+			GraphRect.Min.x = View->CurrentX;
+			GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+			GraphRect.Max = GraphRect.Min + *WorkDim;
+
+			v2 GraphRectDim = GetRectDim(GraphRect);
+
+			u64 OccupiedCount = MemoryStack->Used;
+			u64 FreeCount = (u64)MemoryStack->MaxSize - OccupiedCount;
+			u64 TotalCount = MemoryStack->MaxSize;
+
+			float OccupiedPercentage = (float)OccupiedCount / (float)TotalCount;
+
+			rect2 OccupiedRect = Rect2MinDim(GraphRect.Min, V2(GraphRectDim.x * OccupiedPercentage, GraphRectDim.y));
+			rect2 FreeRect = Rect2MinDim(
+				V2(OccupiedRect.Max.x, OccupiedRect.Min.y),
+				V2(GraphRectDim.x * (1.0f - OccupiedPercentage), GraphRectDim.y));
+
+			float Inner = 2.0f;
+			float Outer = 3.0f;
+
+			PushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+			PushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			PushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
+			PushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+			PushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+			if (MouseInRect(GUIState->Input, GraphRect)) {
+				char InfoStr[128];
+				stbsp_sprintf(
+					InfoStr,
+					"Occupied: %llu(%.2f%%); Total: %llu",
+					OccupiedCount,
+					(float)OccupiedCount / (float)TotalCount * 100.0f,
+					TotalCount);
+
+				GUILabel(GUIState, InfoStr, GUIState->Input->MouseP);
+			}
+
+			gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
+			GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+
+			GUIDescribeElementDim(
+				GUIState,
+				V2(GraphRectDim.x + Outer,
+					GraphRectDim.y + (2.0f * Outer)));
+
+			GUIAdvanceCursor(GUIState);
 		}
 
-		v2* WorkDim = &Cache->StackedMem.Dimension;
-
-		rect2 GraphRect;
-		GraphRect.Min.x = View->CurrentX;
-		GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
-		GraphRect.Max = GraphRect.Min + *WorkDim;
-
-		v2 GraphRectDim = GetRectDim(GraphRect);
-
-		u64 OccupiedCount = WorkMem->Used;
-		u64 FreeCount = (u64)WorkMem->MaxSize - OccupiedCount;
-		u64 TotalCount = WorkMem->MaxSize;
-
-		float OccupiedPercentage = (float)OccupiedCount / (float)TotalCount;
-
-		rect2 OccupiedRect = Rect2MinDim(GraphRect.Min, V2(GraphRectDim.x * OccupiedPercentage, GraphRectDim.y));
-		rect2 FreeRect = Rect2MinDim(
-			V2(OccupiedRect.Max.x, OccupiedRect.Min.y),
-			V2(GraphRectDim.x * (1.0f - OccupiedPercentage), GraphRectDim.y));
-
-		float Inner = 2.0f;
-		float Outer = 3.0f;
-
-		PushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-		PushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-		PushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
-		PushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-
-		PushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-
-		if (MouseInRect(GUIState->Input, GraphRect)) {
-			char InfoStr[128];
-			stbsp_sprintf(
-				InfoStr,
-				"Occupied: %llu(%.2f%%); Total: %llu",
-				OccupiedCount,
-				(float)OccupiedCount / (float)TotalCount * 100.0f,
-				TotalCount);
-
-			GUILabel(GUIState, InfoStr, GUIState->Input->MouseP);
-		}
-
-		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
-		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
-
-		GUIDescribeElementDim(
-			GUIState,
-			V2(GraphRectDim.x + Outer,
-				GraphRectDim.y + (2.0f * Outer)));
-
-		GUIAdvanceCursor(GUIState);
+		GUIEndElement(GUIState, GUIElement_CachedItem);
+	}
+	else {
+		GUIText(GUIState, "NULL");
 	}
 
-	GUIEndElement(GUIState, GUIElement_CachedItem);
 	GUITreeEnd(GUIState);
 }
 
 void GUIText(gui_state* GUIState, char* Text) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
@@ -1820,9 +1863,9 @@ void GUIText(gui_state* GUIState, char* Text) {
 }
 
 static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Name, float ViewMultiplier) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
@@ -1846,6 +1889,9 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 		else if (Link->Type == GUIVarType_I32) {
 			stbsp_sprintf(ValueBuf, "%d", *Link->Value_I32);
 		}
+		else if (Link->Type == GUIVarType_STR) {
+			stbsp_sprintf(ValueBuf, "%s", Link->Value_STR);
+		}
 
 		char Buf[64];
 		if (Name) {
@@ -1855,12 +1901,26 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 			stbsp_sprintf(Buf, "%s", ValueBuf);
 		}
 
+#if 0
+		if (!Element->Cache.IsInitialized ||
+			GUIState->TextElemsCacheShouldBeReinitialized) 
+		{
+			rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, 0, 0, GUIState->FontScale);
+			//NOTE(Dima): Using cache for button because of the same purpose
+			Element->Cache.Button.ButtonRectDim = GetRectDim(TxtSizeRc);
+			Element->Cache.IsInitialized = true;
+		}
+		v2* TxtDim = &Element->Cache.Button.ButtonRectDim;
+#else
 		rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, 0, 0, GUIState->FontScale);
-		v2 TxtDim = GetRectDim(TxtSizeRc);
+		//NOTE(Dima): Using cache for button because of the same purpose
+		v2 TxtDim_ = GetRectDim(TxtSizeRc);
+		v2* TxtDim = &TxtDim_;
+#endif
 
 		rect2 WorkRect = Rect2MinDim(
 			V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight),
-			V2(GUIState->FontInfo->AscenderHeight* GUIState->FontScale * ViewMultiplier, TxtDim.y));
+			V2(GUIState->FontInfo->AscenderHeight* GUIState->FontScale * ViewMultiplier, TxtDim->y));
 
 		v2 WorkRectDim = GetRectDim(WorkRect);
 
@@ -1871,7 +1931,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 			GUIState,
 			PrintTextType_PrintText,
 			Buf,
-			WorkRect.Min.x + WorkRectDim.x * 0.5f - TxtDim.x * 0.5f,
+			WorkRect.Min.x + WorkRectDim.x * 0.5f - TxtDim->x * 0.5f,
 			View->CurrentY,
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
@@ -1884,9 +1944,9 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 }
 
 void GUIColorRectView(gui_state* GUIState, v4 Color) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
@@ -1907,6 +1967,20 @@ void GUIColorRectView(gui_state* GUIState, v4 Color) {
 	GUIEndElement(GUIState, GUIElement_StaticItem);
 }
 
+void GUIInt32View(gui_state* GUIState, i32 Int, char* Name) {
+	GUIBeginRow(GUIState);
+
+	if (Name) {
+		GUIText(GUIState, Name);
+	}
+
+	gui_variable_link Link1 = GUIVariableLink(&Int, GUIVarType_I32);
+
+	GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
+
+	GUIEndRow(GUIState);
+}
+
 void GUIColorView(gui_state* GUIState, v4 Color, char* Name) {
 	GUIBeginRow(GUIState);
 
@@ -1917,17 +1991,19 @@ void GUIColorView(gui_state* GUIState, v4 Color, char* Name) {
 	int ValR = (int)(Color.r * 255.0f);
 	int ValG = (int)(Color.g * 255.0f);
 	int ValB = (int)(Color.b * 255.0f);
-	int ValA = (int)(Color.a * 255.0f);
+
+	char HexViewBuf[8];
+	stbsp_sprintf(HexViewBuf, "#%02.X%02.X%02.X", (u8)ValR, (u8)ValG, (u8)ValB);
 
 	gui_variable_link Link1 = GUIVariableLink(&ValR, GUIVarType_I32);
 	gui_variable_link Link2 = GUIVariableLink(&ValG, GUIVarType_I32);
 	gui_variable_link Link3 = GUIVariableLink(&ValB, GUIVarType_I32);
-	gui_variable_link Link4 = GUIVariableLink(&ValA, GUIVarType_I32);
+	gui_variable_link Link4 = GUIVariableLink(HexViewBuf, GUIVarType_STR);
 
 	GUIValueView(GUIState, &Link1, "R", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
 	GUIValueView(GUIState, &Link2, "G", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
 	GUIValueView(GUIState, &Link3, "B", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link4, "A", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
+	GUIValueView(GUIState, &Link4, 0, GUI_VALUE_VIEW_MULTIPLIER);
 
 	GUIColorRectView(GUIState, Color);
 
@@ -2000,9 +2076,9 @@ inline void GUIActionTextAction(gui_interaction* Interaction) {
 }
 
 void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Text, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Text, 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
@@ -2011,10 +2087,11 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+
 		if (MouseInRect(GUIState->Input, Rc)) {
 			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				GUIActionTextAction(Interaction);
+				GUIPerformInteraction(GUIState, Interaction);
 			}
 		}
 
@@ -2022,7 +2099,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 			PushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
-				GUIActionTextAction(Interaction);
+				GUIPerformInteraction(GUIState, Interaction);
 			}
 		}
 
@@ -2038,66 +2115,95 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 }
 
 void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 NameRc = PrintTextInternal(
-			GUIState,
-			PrintTextType_PrintText,
-			ButtonName,
-			View->CurrentX,
-			View->CurrentY,
-			GUIState->FontScale,
-			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
-
-		v2 NameDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
+		if (!Element->Cache.IsInitialized || 
+			GUIState->TextElemsCacheShouldBeReinitialized) 
+		{
+			rect2 NameRc = PrintTextInternal(
+				GUIState,
+				PrintTextType_GetTextSize,
+				ButtonName,
+				View->CurrentX,
+				View->CurrentY,
+				GUIState->FontScale,
+				GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+			Element->Cache.Button.ButtonRectDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
+			Element->Cache.IsInitialized = true;
+		}
+		
+		rect2 WorkRect = Rect2MinDim(V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight), Element->Cache.Button.ButtonRectDim);
 
 		float OutlineWidth = 1;
 		v4 ButRectHighlight = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
-
-		if (MouseInRect(GUIState->Input, NameRc)) {
+		
+		if (MouseInRect(GUIState->Input, WorkRect)) {
 			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+				GUIPerformInteraction(GUIState, Interaction);
 			}
 		}
+
+		PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+		PushRectOutline(GUIState->RenderStack, WorkRect, OutlineWidth, ButRectHighlight);
 
 		if (GUIWalkaroundIsHere(GUIState)) {
-			PushRectOutline(GUIState->RenderStack, NameRc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+			PushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
-				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+				GUIPerformInteraction(GUIState, Interaction);
 			}
 		}
-
-		PushRect(GUIState->RenderStack, NameRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-		PushRectOutline(GUIState->RenderStack, NameRc, OutlineWidth, ButRectHighlight);
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, V2(NameRc.Max.x - View->CurrentX, NameRc.Max.y - NameRc.Min.y + OutlineWidth));
+		GUIDescribeElementDim(GUIState, V2(WorkRect.Max.x - View->CurrentX, WorkRect.Max.y - WorkRect.Min.y + OutlineWidth));
 		GUIAdvanceCursor(GUIState);
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0);
+void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 NameRc = PrintTextInternal(
+
+		if (!Element->Cache.IsInitialized ||
+			GUIState->TextElemsCacheShouldBeReinitialized)
+		{
+			rect2 ButRect = PrintTextInternal(
+				GUIState,
+				PrintTextType_GetTextSize,
+				"false",
+				0, 0,
+				GUIState->FontScale);
+			Element->Cache.BoolButton.ButtonRectDim = GetRectDim(ButRect);
+
+			rect2 TrueRc = PrintTextInternal(
+				GUIState, 
+				PrintTextType_GetTextSize, 
+				"true", 
+				0, 0, 
+				GUIState->FontScale);
+			Element->Cache.BoolButton.ButtonTrueDim = GetRectDim(TrueRc);
+
+			Element->Cache.IsInitialized = true;
+		}
+
+		rect2 NameRect = PrintTextInternal(
 			GUIState,
 			PrintTextType_PrintText,
 			ButtonName,
@@ -2105,53 +2211,67 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 			View->CurrentY,
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
-		v2 NameDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
+		v2 NameDim = GetRectDim(NameRect);
+
+		v2* ButDim = &Element->Cache.BoolButton.ButtonRectDim;
+		v2* TrueDim = &Element->Cache.BoolButton.ButtonTrueDim;
 
 		float PrintButX = View->CurrentX + NameDim.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float PrintButY = View->CurrentY;
 
-		rect2 FalseRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "false", PrintButX, PrintButY, GUIState->FontScale);
-		v2 FalseDim = GetRectDim(FalseRc);
-		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), FalseDim);
+		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), *ButDim);
+		rect2 NameRc = Rect2MinDim(V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), NameDim);
 
 		float OutlineWidth = 1;
 
+		gui_variable_link BoolLink = GUIVariableLink(Value, GUIVarType_B32);
+		gui_interaction BoolInteraction = GUIBoolInteraction(BoolLink, ButRc, NameRc);
+
 		char TextToPrint[8];
-		if (*Interaction->VariableLink.Value_B32) {
-			rect2 TrueRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, "true", PrintButX, PrintButY, GUIState->FontScale);
-			v2 TrueDim = GetRectDim(TrueRc);
-			PrintButX = FalseRc.Min.x + (FalseDim.x - TrueDim.x) * 0.5f;
+		if (Value) {
+			if (*Value) {
 
-			stbsp_sprintf(TextToPrint, "%s", "true");
-		}
-		else {
-			stbsp_sprintf(TextToPrint, "%s", "false");
-		}
+				PrintButX = ButRc.Min.x + (ButDim->x - TrueDim->x) * 0.5f;
 
-		v4 ButRectHighlight = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
-		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
-		if (MouseInRect(GUIState->Input, ButRc)) {
-			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+				stbsp_sprintf(TextToPrint, "%s", "true");
+			}
+			else {
+				stbsp_sprintf(TextToPrint, "%s", "false");
 			}
 		}
+		else {
+			stbsp_sprintf(TextToPrint, "%s", "NULL");
+		}
 
-		if (GUIWalkaroundIsHere(GUIState)) {
-			PushRectOutline(GUIState->RenderStack, NameRc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+		if (Value) {
+			if (MouseInRect(GUIState->Input, ButRc)) {
+				TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+				if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+					*Value = !(*Value);
+				}
+			}
 
-			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
-				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
+			if (GUIWalkaroundIsHere(GUIState)) {
+				PushRectOutline(
+					GUIState->RenderStack,
+					NameRc,
+					2,
+					GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+
+				if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+					*Value = !(*Value);
+				}
 			}
 		}
 
 		PushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, ButRectHighlight);
+		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, V2(FalseRc.Max.x - View->CurrentX, FalseRc.Max.y - FalseRc.Min.y + OutlineWidth));
+		GUIDescribeElementDim(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2160,9 +2280,9 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, gui_interaction* Inter
 }
 
 void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(State, GUIElement_InteractibleItem, Name, Interaction);
+	gui_element* Element = GUIBeginElement(State, GUIElement_InteractibleItem, Name, Interaction, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(State);
 		gui_vertical_slider_cache* Cache = &State->CurrentNode->Cache.VerticalSlider;
 		float FontScale = State->FontScale;
@@ -2383,9 +2503,9 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 }
 
 void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		gui_view* View = GUIGetCurrentView(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
@@ -2537,45 +2657,59 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUITreeBegin(gui_state* State, char* NodeName) {
-	gui_view* View = GUIGetCurrentView(State);
+void GUITreeBegin(gui_state* GUIState, char* NodeName) {
+	gui_view* View = GUIGetCurrentView(GUIState);
 
-	b32 NeedShow = GUIBeginElement(State, GUIElement_TreeNode, NodeName, 0);
-	gui_element* Elem = GUIGetCurrentElement(State);
-	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, NodeName, 0, 0);
+	gui_tree_node_cache* Cache = &Element->Cache.TreeNode;
 
 	//gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
 	char TextBuf[64];
-	if (State->PlusMinusSymbol) {
-		stbsp_sprintf(TextBuf, "%c %s", Elem->Expanded ? '+' : '-', Elem->Name);
+	if (GUIState->PlusMinusSymbol) {
+		stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Name);
 	}
 	else {
-		stbsp_sprintf(TextBuf, "%s", Elem->Name);
+		stbsp_sprintf(TextBuf, "%s", Element->Name);
 	}
 
-	if (NeedShow) {
-		GUIPreAdvanceCursor(State);
+	if (GUIElementShouldBeUpdated(Element)) {
+		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(State, PrintTextType_GetTextSize, TextBuf, View->CurrentX, View->CurrentY, State->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, TextBuf, View->CurrentX, View->CurrentY, GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
-		v4 TextHighlightColor = GUIGetColor(State, State->ColorTheme.TextColor);
 
-		gui_interaction TreeInteraction = GUITreeInteraction(Elem, Rc);
-		GUIPerformInteraction(State, &TreeInteraction, &TextHighlightColor);
+		gui_interaction TreeInteraction = GUITreeInteraction(Element, Rc);
 
-		PrintTextInternal(State, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, State->FontScale, TextHighlightColor);
+		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+		if (MouseInRect(GUIState->Input, Rc)) {
+			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				GUIPerformInteraction(GUIState, &TreeInteraction);
+			}
+		}
 
-		GUIDescribeElementDim(State, GetRectDim(Rc));
-		GUIAdvanceCursor(State);
+		if (GUIWalkaroundIsHere(GUIState)) {
+			PushRectOutline(
+				GUIState->RenderStack,
+				Rc, 2,
+				GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIPerformInteraction(GUIState, &TreeInteraction);
+			}
+		}
+
+		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
+
+		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
+		GUIAdvanceCursor(GUIState);
 	}
-	Elem->Cache.TreeNode.StackBeginY = View->CurrentY;
+	Element->Cache.TreeNode.StackBeginY = View->CurrentY;
 }
 
 void GUITreeEnd(gui_state* State) {
 	gui_element* Elem = GUIGetCurrentElement(State);
-	gui_view* View = GUIGetCurrentView(State);
 
 	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
 
@@ -2615,9 +2749,9 @@ void GUIWindowEnd(gui_state* GUIState) {
 }
 
 void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
-	b32 NeedShow = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1);
 
-	if (NeedShow) {
+	if (GUIElementShouldBeUpdated(Element)) {
 		GUIPreAdvanceCursor(GUIState);
 
 		gui_view* View = GUIGetCurrentView(GUIState);
@@ -2677,6 +2811,61 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
+void GUIBeginMenuBar(gui_state* GUIState, char* MenuName) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, MenuName, 0, 1, 0);
+	Element->Cache.MenuNode.ChildrenCount = 0;
+
+
+}
+
+void GUIEndMenuBar(gui_state* GUIState) {
+	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
+	
+	GUIBeginRow(GUIState);
+	gui_element* RowElement = GUIGetCurrentElement(GUIState);
+	gui_element* AtMenuItem = CurrentElement->ChildrenSentinel->PrevBro;
+	for (; AtMenuItem != RowElement; AtMenuItem = AtMenuItem->PrevBro) {
+		gui_interaction Interaction = GUIMenuBarInteraction();
+
+		GUIButton(GUIState, AtMenuItem->Name, &Interaction);
+	}
+
+	GUIEndRow(GUIState);
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+void GUIBeginMenuBarItem(gui_state* GUIState, char* ItemName) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, ItemName, 0, 0);
+	Element->Cache.MenuNode.ChildrenCount = 0;
+
+	
+}
+
+void GUIEndMenuBarItem(gui_state* GUIState) {
+	gui_element* Element = GUIGetCurrentElement(GUIState);
+	gui_element* Parent = Element->Parent;
+
+	gui_view* View = GUIGetCurrentView(GUIState);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		gui_interaction Interaction = GUIMenuBarInteraction();
+
+		GUIButton(GUIState, Element->Name, &Interaction);
+
+		Parent->Cache.MenuNode.MaxWidth = Max(View->LastElementDim.x, Parent->Cache.MenuNode.MaxWidth);
+		Parent->Cache.MenuNode.MaxHeight += View->LastElementDim.y;
+		Parent->Cache.MenuNode.ChildrenCount++;
+
+
+	}
+
+	GUIEndElement(GUIState, GUIElement_TreeNode);
+}
+
+void GUIMenuBarItem(gui_state* GUIState, char* ItemName) {
+	GUIBeginMenuBarItem(GUIState, ItemName);
+	GUIEndMenuBarItem(GUIState);
+}
 
 #if 0
 static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {
@@ -2731,4 +2920,3 @@ void GUIEndTreeFind(gui_state* State) {
 	Temp->TempParent = 0;
 }
 #endif
-

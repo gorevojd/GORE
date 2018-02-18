@@ -1,5 +1,5 @@
-#ifndef WORKOUT_PLATFORM_H
-#define WORKOUT_PLATFORM_H
+#ifndef GORE_PLATFORM_H
+#define GORE_PLATFORM_H
 
 #define GLOBAL_VARIABLE static
 
@@ -36,6 +36,10 @@ typedef signed long long i64;
 #define Max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#ifndef Abs
+#define Abs(a) ((a) >= 0) ? (a) : -(a)
+#endif
+
 #ifndef GET_ALIGN_OFFSET
 #define GET_ALIGN_OFFSET(val, align) ((align - ((size_t)val & (align - 1))) & (align - 1))
 #endif 
@@ -48,9 +52,9 @@ typedef signed long long i64;
 #define KILOBYTES(count) ((count) * 1024)
 #endif
 
-#include "workout_math.h"
-#include "workout_random.h"
-#include "workout_stacked_memory.h"
+#include "gore_math.h"
+#include "gore_random.h"
+#include "gore_stacked_memory.h"
 
 #include <intrin.h>
 

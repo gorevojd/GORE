@@ -1,9 +1,9 @@
-#include "workout_renderer.h"
+#include "gore_renderer.h"
 
 #include <thread>
 #include <mutex>
 
-#define WORKOUT_FAST_RENDERING 1
+#define GORE_FAST_RENDERING 1
 
 #define MM(mm, i) (mm).m128_f32[i]
 #define MMI(mm, i) (mm).m128i_u32[i]
@@ -805,7 +805,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case(RenderStackEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
-#if !WORKOUT_FAST_RENDERING
+#if !GORE_FAST_RENDERING
 				RenderBitmap(
 					Buffer, 
 					EntryBitmap->Bitmap, 
@@ -827,7 +827,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case(RenderStackEntry_Clear): {
 				render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
 
-#if !WORKOUT_FAST_RENDERING
+#if !GORE_FAST_RENDERING
 				RenderClear(Buffer, EntryClear->Color, ClipRect);
 #else
 				//RenderClearFast(Buffer, EntryClear->Color, ClipRect);
@@ -838,7 +838,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case(RenderStackEntry_Gradient): {
 				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
 
-#if !WORKOUT_FAST_RENDERING
+#if !GORE_FAST_RENDERING
 				RenderGradient(Buffer, EntryGrad->Color, ClipRect);
 #else
 				RenderGradientFast(Buffer, EntryGrad->Color, ClipRect);
@@ -848,7 +848,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case(RenderStackEntry_Rectangle): {
 				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
 
-#if !WORKOUT_FAST_RENDERING
+#if !GORE_FAST_RENDERING
 				RenderRect(Buffer, EntryRect->P, EntryRect->Dim, EntryRect->ModulationColor, ClipRect);
 #else
 				RenderRectFast(Buffer, EntryRect->P, EntryRect->Dim, EntryRect->ModulationColor, ClipRect);

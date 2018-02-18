@@ -2,13 +2,16 @@
 #include <stdio.h>
 #include <thread>
 
-#include "workout_game_layer.h"
+#define STB_SPRINTF_IMPLEMENTATION
+#include "stb_sprintf.h"
 
-#include "workout_debug.h"
-#include "workout_render_stack.h"
-#include "workout_renderer.h"
-#include "workout_asset.h"
-#include "workout_gui.h"
+#include "gore_game_layer.h"
+
+#include "gore_debug.h"
+#include "gore_render_stack.h"
+#include "gore_renderer.h"
+#include "gore_asset.h"
+#include "gore_gui.h"
 
 /*
 	NOTE(Dima):
@@ -747,6 +750,7 @@ int main(int ArgsCount, char** Args) {
 		//PushClear(Stack, V3(0.5, 0.5f, 0.5f));
 		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
+		//PushRect(Stack, Rect2MinDim(V2(0, 0), V2(300, 100)), V4(1.0f, 0.4f, 0.0f, 1.0f));
 		if (TempBoolForSlider) {
 			PushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
 		}
@@ -761,7 +765,6 @@ int main(int ArgsCount, char** Args) {
 		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
 		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 		gui_interaction VertSliderInteract = GUIVariableInteraction(&TempFloatForVertSlider, GUIVarType_F32);
-		
 
 		gui_interaction AlphaImageInteraction = GUIVariableInteraction(&AlphaImage, GUIVarType_RGBABuffer);
 		gui_interaction PotImageInteraction = GUIVariableInteraction(&Image, GUIVarType_RGBABuffer);
@@ -772,13 +775,14 @@ int main(int ArgsCount, char** Args) {
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
 
-#if 1
 		GUIText(GUIState, DebugStr);
+#if 1
 		GUIBeginView(GUIState, "Root", GUIView_Tree);
 
+		GUITreeBegin(GUIState, "Root");
 		GUITreeBegin(GUIState, "Test");
 		GUIBeginRow(GUIState);
-		GUIBoolButton(GUIState, "Button1", &BoolInteract);
+		GUIBoolButton(GUIState, "Button1", &TempBoolForSlider);
 
 		GUIWindow(
 			GUIState, 
@@ -805,12 +809,12 @@ int main(int ArgsCount, char** Args) {
 		//GUIVerticalSlider(GUIState, "VertSlider15", -10.0f, 10.0f, &VertSliderInteract);
 		//GUIVerticalSlider(GUIState, "VertSlider16", -10.0f, 10.0f, &VertSliderInteract);
 		GUIVerticalSlider(GUIState, "VertSlider17", -10.0f, 10.0f, &VertSliderInteract);
-		GUIBoolButton(GUIState, "Button2", &BoolInteract);
+		GUIBoolButton(GUIState, "Button2", &TempBoolForSlider);
 		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);
 		GUIEndRow(GUIState);
 
-		GUIBoolButton(GUIState, "Button3", &BoolInteract);
-		GUIBoolButton(GUIState, "Button4", &BoolInteract);
+		GUIBoolButton(GUIState, "Button3", &TempBoolForSlider);
+		GUIBoolButton(GUIState, "Button4", &TempBoolForSlider);
 
 		GUIBeginRow(GUIState);
 		GUIButton(GUIState, "MyButton1", &BoolInteract);
@@ -827,6 +831,7 @@ int main(int ArgsCount, char** Args) {
 		GUIText(GUIState, "Hello");
 		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 
+#if 1
 		GUIBeginView(GUIState, "InnerView", GUIView_Tree);
 		GUIText(GUIState, "Nikita loh");
 		GUITreeBegin(GUIState, "InnerTree");
@@ -863,13 +868,16 @@ int main(int ArgsCount, char** Args) {
 		GUITreeEnd(GUIState);
 		GUIText(GUIState, "Dima pidor");
 		GUIEndView(GUIState, GUIView_Tree);
+#endif
 		GUIEndRow(GUIState);
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Test2");
-		GUIImageView(GUIState, "CelluralImage", &LabirImageInteraction);
-		GUIImageView(GUIState, "AlphaImage", &AlphaImageInteraction);
-		GUIImageView(GUIState, "PotImage", &PotImageInteraction);
+		GUIImageView(GUIState, "CelluralImage", &CelluralBitmap);
+		GUIImageView(GUIState, "AlphaImage", &AlphaImage);
+		GUIStackedMemGraph(GUIState, "NULLMemGraph", 0);
+		GUIStackedMemGraph(GUIState, "NullImageTest", 0);
+		GUIImageView(GUIState, "PotImage", &Image);
 		GUITreeEnd(GUIState);
 
 		GUITreeBegin(GUIState, "Test3");
@@ -914,15 +922,59 @@ int main(int ArgsCount, char** Args) {
 		GUIVector3View(GUIState, V3(1.0f, 20.0f, 300.0f), "Vector3");
 		GUIEndRow(GUIState);
 		GUIVector4View(GUIState, V4(12345.0f, 1234.0f, 123456.0f, 5324123.0f), "Vector4");
+		GUIInt32View(GUIState, 12345, "TestInt");
 		GUITreeEnd(GUIState);
 
-		GUITreeBegin(GUIState, "DEBUG");
+#if 1
+		GUITreeBegin(GUIState, "Test4");
+		GUIBeginMenuBar(GUIState, "Menu1");
+
+		GUIBeginMenuBarItem(GUIState, "Dima");
+		GUIMenuBarItem(GUIState, "Item_1_1");
+		GUIMenuBarItem(GUIState, "Item_1_2");
+		GUIMenuBarItem(GUIState, "Item_1_3");
+		GUIEndMenuBarItem(GUIState);
+
+		GUIBeginMenuBarItem(GUIState, "Ivan");
+		GUIMenuBarItem(GUIState, "Item_2_1");
+		GUIMenuBarItem(GUIState, "Item_2_2");
+		GUIMenuBarItem(GUIState, "Item_2_3");
+		GUIEndMenuBarItem(GUIState);
+
+		GUIBeginMenuBarItem(GUIState, "Vovan");
+		GUIMenuBarItem(GUIState, "Item_3_1");
+		GUIMenuBarItem(GUIState, "Item_3_2");
+		GUIMenuBarItem(GUIState, "Item_3_3");
+		GUIEndMenuBarItem(GUIState);
+		GUIEndMenuBar(GUIState);
+		GUITreeEnd(GUIState);
+#endif
+
+		GUITreeBegin(GUIState, "Colors");
+		for (int ColorIndex = 0;
+			ColorIndex < Min(30, GUIColor_Count);
+			ColorIndex++)
+		{
+			gui_color_slot* Slot = &GUIState->ColorTable[ColorIndex];
+
+			char ColorNameBuf[32];
+			stbsp_sprintf(ColorNameBuf, "%-15s", Slot->Name);
+
+			GUIColorView(GUIState, Slot->Color, ColorNameBuf);
+		}
+		GUITreeEnd(GUIState);
+
+		GUITreeBegin(GUIState, "RENDER");
+		GUIStackedMemGraph(GUIState, "RenderMemGraph", &Stack->Data);
+		GUIInt32View(GUIState, Stack->EntryCount, "RenderEntriesCount");
+		GUITreeEnd(GUIState);
+
 		GUITreeEnd(GUIState);
 
 		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
 		GUIEndView(GUIState, GUIView_Tree);
 
-		GUIText(GUIState, DebugStr);
+		//GUIText(GUIState, DebugStr);
 #endif
 
 		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);

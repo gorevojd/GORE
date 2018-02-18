@@ -1,14 +1,14 @@
-#ifndef WORKOUT_GUI_H
-#define WORKOUT_GUI_H
+#ifndef GORE_GUI_H
+#define GORE_GUI_H
 
-#include "workout_render_stack.h"
+#include "gore_render_stack.h"
 
-#include "workout_asset.h"
+#include "gore_asset.h"
 
 #define GUI_VALUE_VIEW_MULTIPLIER 8
 #define GUI_VALUE_COLOR_VIEW_MULTIPLIER 5
 
-#define GUI_EXT_COLORS_ENABLED 0
+#define GUI_EXT_COLORS_ENABLED 1
 
 enum gui_variable_type {
 	GUIVarType_F32,
@@ -17,6 +17,7 @@ enum gui_variable_type {
 	GUIVarType_U64,
 	GUIVarType_I64,
 	GUIVarType_B32,
+	GUIVarType_STR,
 	GUIVarType_StackedMemory,
 	GUIVarType_RGBABuffer,
 };
@@ -30,6 +31,7 @@ struct gui_variable_link {
 		u64* Value_U64;
 		i64* Value_I64;
 		b32* Value_B32;
+		char* Value_STR;
 		stacked_memory* Value_StackedMemory;
 		rgba_buffer* Value_RGBABuffer;
 	};
@@ -66,7 +68,19 @@ struct gui_move_interaction_context {
 
 struct gui_tree_interaction_context {
 	struct gui_element* Elem;
-	rect2 ElemRc;
+	//rect2 ElemRc;
+	v4* TextHighlightColor;
+};
+
+struct gui_bool_interaction_context {
+	//rect2 ElemRect;
+	//rect2 TextRect;
+	gui_variable_link BoolLink;
+	v4* TextHighlightColor;
+};
+
+struct gui_menu_bar_interaction_context {
+
 };
 
 enum gui_interaction_type {
@@ -76,6 +90,8 @@ enum gui_interaction_type {
 	GUIInteraction_ResizeInteraction,
 	GUIInteraction_MoveInteraction,
 	GUIInteraction_TreeInteraction,
+	GUIInteraction_BoolInteraction,
+	GUIInteraction_MenuBarInteraction,
 };
 
 struct gui_interaction {
@@ -87,6 +103,7 @@ struct gui_interaction {
 		gui_resize_interaction_context ResizeContext;
 		gui_move_interaction_context MoveContext;
 		gui_tree_interaction_context TreeInteraction;
+		gui_bool_interaction_context BoolInteraction;
 	};
 };
 
@@ -100,6 +117,7 @@ inline gui_variable_link GUIVariableLink(void* Variable, u32 Type) {
 		case GUIVarType_U32: {Link.Value_U32 = (u32*)Variable; }break;
 		case GUIVarType_I64: {Link.Value_I64 = (i64*)Variable; }break;
 		case GUIVarType_U64: {Link.Value_U64 = (u64*)Variable; }break;
+		case GUIVarType_STR: {Link.Value_STR = (char*)Variable; }break;
 		case GUIVarType_StackedMemory: {
 			Link.Value_StackedMemory = (stacked_memory*)Variable;
 		}break;
@@ -154,14 +172,31 @@ inline gui_interaction GUITreeInteraction(struct gui_element* Elem, rect2 ElemRc
 	Result.Type = GUIInteraction_TreeInteraction;
 
 	Result.TreeInteraction.Elem = Elem;
-	Result.TreeInteraction.ElemRc = ElemRc;
+
+	return(Result);
+}
+
+inline gui_interaction GUIBoolInteraction(gui_variable_link BoolLink, rect2 ElemRc, rect2 TextRc) {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_BoolInteraction;
+
+	Result.BoolInteraction.BoolLink = BoolLink;
+
+	return(Result);
+}
+
+inline gui_interaction GUIMenuBarInteraction() {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_MenuBarInteraction;
 
 	return(Result);
 }
 
 enum gui_view_type {
+	GUIView_Simple,
 	GUIView_Tree,
-	GUIView_Window,
 };
 
 struct gui_view {
@@ -172,8 +207,7 @@ struct gui_view {
 	float CurrentX;
 	float CurrentY;
 
-	float LastElementWidth;
-	float LastElementHeight;
+	v2 LastElementDim;
 
 	float RowBeginX;
 	float RowBiggestHeight;
@@ -185,6 +219,7 @@ struct gui_view {
 	gui_view* PrevBro;
 
 	int BeginnedRowsCount;
+	b32 NeedHorizontalAdvance;
 };
 
 /*
@@ -249,9 +284,16 @@ struct gui_vertical_slider_cache {
 };
 
 struct gui_slider_cache {
+
+};
+
+struct gui_button_cache {
+	v2 ButtonRectDim;
 };
 
 struct gui_bool_button_cache {
+	v2 ButtonRectDim;
+	v2 ButtonTrueDim;
 };
 
 struct gui_image_view_cache {
@@ -264,7 +306,6 @@ struct gui_stackedmem_cache {
 
 struct gui_anchor_cache {
 	v2 OffsetInAnchor;
-
 };
 
 struct gui_view_cache {
@@ -272,16 +313,25 @@ struct gui_view_cache {
 	v2 Dimension;
 };
 
+struct gui_menu_node_cache{
+	float MaxWidth;
+	float MaxHeight;
+
+	u32 ChildrenCount;
+};
+
 struct gui_element_cache {
 	union {
 		gui_tree_node_cache TreeNode;
 		gui_vertical_slider_cache VerticalSlider;
 		gui_slider_cache Slider;
+		gui_button_cache Button;
 		gui_bool_button_cache BoolButton;
 		gui_image_view_cache ImageView;
 		gui_stackedmem_cache StackedMem;
 		gui_anchor_cache Anchor;
 		gui_view_cache View;
+		gui_menu_node_cache MenuNode;
 	};
 
 	b32 IsInitialized;
@@ -895,7 +945,8 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.WindowKeywordColor = GUIColor_DarkGoldenrod;
 
 #if 1
-	Result.FirstColor = GUIColor_BloodOrange;
+	//Result.FirstColor = GUIColor_BloodOrange;
+	Result.FirstColor = GUIColor_Purple;
 	Result.SecondaryColor = GUIColor_BluishGray;
 #else
 	Result.FirstColor = GUIColor_OliveDrab;
@@ -927,6 +978,9 @@ struct gui_state {
 	render_stack* TempRenderStack;
 
 	float FontScale;
+	float LastFontScale;
+
+	b32 TextElemsCacheShouldBeReinitialized;
 
 	input_system* Input;
 
@@ -1057,6 +1111,33 @@ inline b32 GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, 
 	return(Result);
 }
 
+#if 0
+enum gui_align_type {
+	GUIAlign_Begin,
+	GUIAlign_Center,
+	GUIAlign_End,
+};
+
+inline float GUIGetAlignValueForType(u32 AlignType) {
+	float Result = 0.0f;
+
+	if (AlignType == GUIAlign_Begin) {
+		Result = 0.0f;
+	}
+	else if (AlignType == GUIAlign_Center) {
+		Result = 0.5f;
+	}
+	else if (AlignType == GUIAlign_End) {
+		Result = 1.0f;
+	}
+	else {
+		Assert(!"Invalid align type")
+	}
+
+	return(Result);
+}
+#endif
+
 enum gui_window_creation_flags {
 	GUIWindow_Resizable = 1,
 	GUIWindow_Movable = 2,
@@ -1080,26 +1161,39 @@ extern void GUIEndTempRenderStack(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
 extern void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction);
-extern void GUIBoolButton(gui_state* GUIState, char* Text, gui_interaction* Interaction);
+extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
-extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, gui_interaction* Interaction);
-extern void GUIImageView(gui_state* GUIState, char* Name, gui_interaction* Interaction);
+extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
+extern void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer);
 extern void GUIColorView(gui_state* GUIState, v4 Color, char* Name);
 extern void GUIVector2View(gui_state* GUIState, v2 Value, char* Name);
 extern void GUIVector3View(gui_state* GUIState, v3 Value, char* Name);
 extern void GUIVector4View(gui_state* GUIState, v4 Value, char* Name);
+extern void GUIInt32View(gui_state* GUIState, i32 Int, char* Name);
 
 extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
+
+extern void GUIBeginMenuBar(gui_state* GUIState, char* MenuName);
+extern void GUIEndMenuBar(gui_state* GUIState);
+extern void GUIBeginMenuBarItem(gui_state* GUIState, char* ItemName);
+extern void GUIEndMenuBarItem(gui_state* GUIState);
+extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
 
 extern void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType);
 extern void GUIEndView(gui_state* GUIState, u32 ViewType);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
 
-extern b32 GUIBeginElement(gui_state* State, u32 ElementType, char* ElementName, gui_interaction* ElementInteraction);
+extern gui_element* GUIBeginElement(
+	gui_state* State,
+	u32 ElementType,
+	char* ElementName,
+	gui_interaction* ElementInteraction,
+	b32 InitExpandedState = 0,
+	b32 IncrementDepth = 1);
 extern void GUIEndElement(gui_state* State, u32 ElementType);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);

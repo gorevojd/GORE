@@ -1,7 +1,7 @@
-#ifndef WORKOUT_ASSET_H
-#define WORKOUT_ASSET_H
+#ifndef GORE_ASSET_H
+#define GORE_ASSET_H
 
-#include "workout_game_layer.h"
+#include "gore_game_layer.h"
 
 #define MAX_FONT_INFO_GLYPH_COUNT 256
 

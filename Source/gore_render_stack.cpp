@@ -1,4 +1,4 @@
-#include "workout_render_stack.h"
+#include "gore_render_stack.h"
 
 render_stack BeginRenderStack(u32 Size) {
 	render_stack Result;
@@ -6,6 +6,7 @@ render_stack BeginRenderStack(u32 Size) {
 	u32 MemoryToAlloc = Size;
 
 	Result.Data = AllocateStackedMemory(MemoryToAlloc);
+	Result.EntryCount = 0;
 
 	return(Result);
 }
@@ -32,6 +33,7 @@ inline void* PushRenderEntryToStack(render_stack* Stack, u32 SizeOfType, u32 Typ
 	render_stack_entry_header* Header = 
 		(render_stack_entry_header*)PushToRenderStack(Stack, sizeof(render_stack_entry_header));
 	
+	Stack->EntryCount++;
 	Header->Type = TypeEnum;
 	Header->SizeOfEntryType = SizeOfType;
 	void* EntryData = PushToRenderStack(Stack, SizeOfType);

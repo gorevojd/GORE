@@ -159,30 +159,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\sdl_workout.cpp" />
-    <ClCompile Include="Source\workout_asset.cpp" />
-    <ClCompile Include="Source\workout_debug.cpp" />
-    <ClCompile Include="Source\workout_game_layer.cpp" />
-    <ClCompile Include="Source\workout_gui.cpp" />
-    <ClCompile Include="Source\workout_renderer.cpp" />
-    <ClCompile Include="Source\workout_render_stack.cpp" />
-    <ClCompile Include="Source\workout_vulkan.cpp" />
+    <ClCompile Include="Source\sdl_gore.cpp" />
+    <ClCompile Include="Source\gore_asset.cpp" />
+    <ClCompile Include="Source\gore_debug.cpp" />
+    <ClCompile Include="Source\gore_game_layer.cpp" />
+    <ClCompile Include="Source\gore_gui.cpp" />
+    <ClCompile Include="Source\gore_renderer.cpp" />
+    <ClCompile Include="Source\gore_render_stack.cpp" />
+    <ClCompile Include="Source\gore_vulkan.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\stb_sprintf.h" />
-    <ClInclude Include="Source\workout_asset.h" />
-    <ClInclude Include="Source\workout_debug.h" />
-    <ClInclude Include="Source\workout_game_layer.h" />
+    <ClInclude Include="Source\gore_asset.h" />
+    <ClInclude Include="Source\gore_debug.h" />
+    <ClInclude Include="Source\gore_game_layer.h" />
     <ClInclude Include="Source\stb_image.h" />
     <ClInclude Include="Source\stb_truetype.h" />
-    <ClInclude Include="Source\workout_gui.h" />
-    <ClInclude Include="Source\workout_math.h" />
-    <ClInclude Include="Source\workout_platform.h" />
-    <ClInclude Include="Source\workout_random.h" />
-    <ClInclude Include="Source\workout_renderer.h" />
-    <ClInclude Include="Source\workout_render_stack.h" />
-    <ClInclude Include="Source\workout_stacked_memory.h" />
-    <ClInclude Include="Source\workout_vulkan.h" />
+    <ClInclude Include="Source\gore_gui.h" />
+    <ClInclude Include="Source\gore_math.h" />
+    <ClInclude Include="Source\gore_platform.h" />
+    <ClInclude Include="Source\gore_random.h" />
+    <ClInclude Include="Source\gore_renderer.h" />
+    <ClInclude Include="Source\gore_render_stack.h" />
+    <ClInclude Include="Source\gore_stacked_memory.h" />
+    <ClInclude Include="Source\gore_vulkan.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
