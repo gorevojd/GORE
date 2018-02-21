@@ -661,33 +661,33 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	GUIState->FreeElementsSentinel->PrevBro = GUIState->FreeElementsSentinel;
 
 	//NOTE(Dima): Initialization of view sentinel
-	GUIState->ViewSentinel = PushStruct(&GUIState->GUIMem, gui_view);
-	GUIState->ViewSentinel->NextBro = GUIState->ViewSentinel;
-	GUIState->ViewSentinel->PrevBro = GUIState->ViewSentinel;
+	GUIState->LayoutSentinel = PushStruct(&GUIState->GUIMem, gui_layout);
+	GUIState->LayoutSentinel->NextBro = GUIState->LayoutSentinel;
+	GUIState->LayoutSentinel->PrevBro = GUIState->LayoutSentinel;
 
 	//NOTE(Dima): Initialization of view free list sentinel element
-	GUIState->FreeViewSentinel = PushStruct(&GUIState->GUIMem, gui_view);
-	GUIState->FreeViewSentinel->NextBro = GUIState->FreeViewSentinel;
-	GUIState->FreeViewSentinel->PrevBro = GUIState->FreeViewSentinel;
+	GUIState->FreeLayoutSentinel = PushStruct(&GUIState->GUIMem, gui_layout);
+	GUIState->FreeLayoutSentinel->NextBro = GUIState->FreeLayoutSentinel;
+	GUIState->FreeLayoutSentinel->PrevBro = GUIState->FreeLayoutSentinel;
 
 	//NOTE(DIMA): Allocating and initializing default view
-	gui_view* DefaultView = PushStruct(&GUIState->GUIMem, gui_view);
+	gui_layout* DefaultView = PushStruct(&GUIState->GUIMem, gui_layout);
 	*DefaultView = {};
-	DefaultView->NextBro = GUIState->ViewSentinel->NextBro;
-	DefaultView->PrevBro = GUIState->ViewSentinel;
+	DefaultView->NextBro = GUIState->LayoutSentinel->NextBro;
+	DefaultView->PrevBro = GUIState->LayoutSentinel;
 
 	DefaultView->NextBro->PrevBro = DefaultView;
 	DefaultView->PrevBro->NextBro = DefaultView;
 
 	DefaultView->ID = GUIStringHashFNV("DefaultView");
 
-	DefaultView->ViewType = GUIView_Tree;
+	DefaultView->ViewType = GUILayout_Tree;
 
 	DefaultView->CurrentX = 0;
 	DefaultView->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
 
-	GUIState->DefaultView = DefaultView;
-	GUIState->CurrentView = DefaultView;
+	GUIState->DefaultLayout = DefaultView;
+	GUIState->CurrentLayout = DefaultView;
 
 	//NOTE(Dima): Initialization of the color table
 	GUIState->ColorTable[GUIColor_Black] = GUICreateColorSlot(GUIState, V4(0.0f, 0.0f, 0.0f, 1.0f), "Black");
@@ -756,7 +756,7 @@ inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
 				Result =
 					(Element->Type != GUIElement_StaticItem) &&
 					(Element->Type != GUIElement_Row) &&
-					(Element->Type != GUIElement_View) &&
+					(Element->Type != GUIElement_Layout) &&
 					(Element->Type != GUIElement_None);
 			}
 		}
@@ -960,7 +960,7 @@ inline b32 GUIWalkaroundIsOnElement(gui_state* State, gui_element* Element) {
 }
 
 inline b32 GUIWalkaroundIsHere(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	b32 Result = GUIWalkaroundIsOnElement(State, State->CurrentNode);
 
@@ -1048,7 +1048,7 @@ void GUIEndFrame(gui_state* GUIState) {
 	}
 
 	//NOTE(DIMA): Resetting default view;
-	gui_view* DefView = GUIState->DefaultView;
+	gui_layout* DefView = GUIState->DefaultLayout;
 	DefView->CurrentX = 0;
 	DefView->CurrentY = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
 
@@ -1063,17 +1063,17 @@ void GUIEndFrame(gui_state* GUIState) {
 	GUIState->LastFontScale = GUIState->FontScale;
 }
 
-inline gui_view* GUIAllocateViewElement(gui_state* State) {
-	gui_view* View = 0;
+inline gui_layout* GUIAllocateViewElement(gui_state* State) {
+	gui_layout* View = 0;
 
-	if (State->FreeViewSentinel->NextBro != State->FreeViewSentinel) {
-		View = State->FreeViewSentinel->NextBro;
+	if (State->FreeLayoutSentinel->NextBro != State->FreeLayoutSentinel) {
+		View = State->FreeLayoutSentinel->NextBro;
 
 		View->NextBro->PrevBro = View->PrevBro;
 		View->PrevBro->NextBro = View->NextBro;
 	}
 	else {
-		View = PushStruct(&State->GUIMem, gui_view);
+		View = PushStruct(&State->GUIMem, gui_layout);
 	}
 
 	*View = {};
@@ -1081,26 +1081,26 @@ inline gui_view* GUIAllocateViewElement(gui_state* State) {
 	return(View);
 }
 
-inline void GUIInsertViewElement(gui_state* State, gui_view* ToInsert) {
-	ToInsert->NextBro = State->ViewSentinel->NextBro;
-	ToInsert->PrevBro = State->ViewSentinel;
+inline void GUIInsertViewElement(gui_state* State, gui_layout* ToInsert) {
+	ToInsert->NextBro = State->LayoutSentinel->NextBro;
+	ToInsert->PrevBro = State->LayoutSentinel;
 
 	ToInsert->NextBro->PrevBro = ToInsert;
 	ToInsert->PrevBro->NextBro = ToInsert;
 }
 
-inline void GUIFreeViewElement(gui_state* State, gui_view* ToFree) {
+inline void GUIFreeViewElement(gui_state* State, gui_layout* ToFree) {
 	ToFree->NextBro->PrevBro = ToFree->PrevBro;
 	ToFree->PrevBro->NextBro = ToFree->NextBro;
 
-	ToFree->NextBro = State->FreeViewSentinel->NextBro;
-	ToFree->PrevBro = State->FreeViewSentinel;
+	ToFree->NextBro = State->FreeLayoutSentinel->NextBro;
+	ToFree->PrevBro = State->FreeLayoutSentinel;
 
 	ToFree->NextBro->PrevBro = ToFree;
 	ToFree->PrevBro->NextBro = ToFree;
 }
 
-void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
+void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType) {
 	/*
 		NOTE(DIMA):
 			Here I make unique id for view and calculate
@@ -1117,66 +1117,66 @@ void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType) {
 	stbsp_snprintf(
 		IdBuf, sizeof(IdBuf),
 		"%s_TreeID_%u",
-		ViewName,
+		LayoutName,
 		GUITreeElementID(GUIState->CurrentNode));
 	u32 IdBufHash = GUIStringHashFNV(IdBuf);
 
-	gui_element* CurrentElement = GUIBeginElement(GUIState, GUIElement_View, IdBuf, 0, 1);
-	gui_view* ParentView = GUIState->CurrentView;
+	gui_element* CurrentElement = GUIBeginElement(GUIState, GUIElement_Layout, IdBuf, 0, 1);
+	gui_layout* ParentView = GUIState->CurrentLayout;
 
 	if (!CurrentElement->Cache.IsInitialized) {
 		//IMPORTANT(DIMA): Think about how to choose position that we want
-		CurrentElement->Cache.View.Position = V2(ParentView->CurrentX, ParentView->CurrentY);
-		CurrentElement->Cache.View.Dimension = V2(100, 100);
+		CurrentElement->Cache.Layout.Position = V2(ParentView->CurrentX, ParentView->CurrentY);
+		CurrentElement->Cache.Layout.Dimension = V2(100, 100);
 
 		CurrentElement->Cache.IsInitialized = true;
 	}
-	v2* ViewPosition = &CurrentElement->Cache.View.Position;
+	v2* ViewPosition = &CurrentElement->Cache.Layout.Position;
 
 
 	//NOTE(Dima): Find view in the existing list
-	gui_view* View = 0;
-	for (gui_view* At = GUIState->ViewSentinel->NextBro;
-		At != GUIState->ViewSentinel;
+	gui_layout* Layout = 0;
+	for (gui_layout* At = GUIState->LayoutSentinel->NextBro;
+		At != GUIState->LayoutSentinel;
 		At = At->NextBro)
 	{
 		if (IdBufHash == At->ID) {
-			View = At;
+			Layout = At;
 			break;
 		}
 	}
 
 	//NOTE(Dima): View not found. Should allocate it
-	if (View == 0) {
-		View = GUIAllocateViewElement(GUIState);
-		GUIInsertViewElement(GUIState, View);
+	if (Layout == 0) {
+		Layout = GUIAllocateViewElement(GUIState);
+		GUIInsertViewElement(GUIState, Layout);
 
-		View->ID = IdBufHash;
-		View->ViewType = ViewType;
-		View->Parent = ParentView;
-		View->NeedHorizontalAdvance = (ViewType == GUIView_Tree);
+		Layout->ID = IdBufHash;
+		Layout->ViewType = LayoutType;
+		Layout->Parent = ParentView;
+		Layout->NeedHorizontalAdvance = (LayoutType == GUILayout_Tree);
 	}
 
-	View->CurrentX = ViewPosition->x;
-	View->CurrentY = ViewPosition->y;
-	View->BeginnedRowsCount = 0;
+	Layout->CurrentX = ViewPosition->x;
+	Layout->CurrentY = ViewPosition->y;
+	Layout->BeginnedRowsCount = 0;
 
-	GUIState->CurrentView = View;
+	GUIState->CurrentLayout = Layout;
 }
 
-void GUIEndView(gui_state* GUIState, u32 ViewType) {
+void GUIEndLayout(gui_state* GUIState, u32 LayoutType) {
 
-	gui_view* View = GUIGetCurrentView(GUIState);
+	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
-	Assert(View->ViewType == ViewType);
+	Assert(View->ViewType == LayoutType);
 
-	GUIEndElement(GUIState, GUIElement_View);
+	GUIEndElement(GUIState, GUIElement_Layout);
 
-	GUIState->CurrentView = GUIState->CurrentView->Parent;
+	GUIState->CurrentLayout = GUIState->CurrentLayout->Parent;
 }
 
 inline void GUIPreAdvanceCursor(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_element* Element = State->CurrentNode;
 
@@ -1189,15 +1189,16 @@ inline void GUIPreAdvanceCursor(gui_state* State) {
 	View->CurrentX += View->CurrentPreAdvance;
 }
 
-inline b32 GUIIsRowBeginned(gui_view* View) {
+inline b32 GUIIsRowBeginned(gui_layout* View) {
 	b32 Result = (View->BeginnedRowsCount != 0);
 
 	return(Result);
 }
 
-inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
-	gui_view* View = GUIGetCurrentView(State);
+inline void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
+	gui_layout* View = GUIGetCurrentLayout(State);
 
+	View->LastElementP = ElementP;
 	View->LastElementDim = ElementDim;
 
 	if ((ElementDim.y > View->RowBiggestHeight) && GUIIsRowBeginned(View)) {
@@ -1206,7 +1207,7 @@ inline void GUIDescribeElementDim(gui_state* State, v2 ElementDim) {
 }
 
 inline void GUIAdvanceCursor(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 #if 0
 	if (View->RowBeginned) {
@@ -1227,7 +1228,7 @@ inline void GUIAdvanceCursor(gui_state* State) {
 }
 
 void GUIBeginRow(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	char NameBuf[16];
 	stbsp_sprintf(NameBuf, "Row:%u", State->CurrentNode->RowCount);
@@ -1243,7 +1244,7 @@ void GUIBeginRow(gui_state* State) {
 }
 
 void GUIEndRow(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
 
@@ -1413,8 +1414,14 @@ static gui_element* GUIRequestElement(
 			Element->ChildrenSentinel = 0;
 		}
 
-		if (ElementType == GUIElement_View) {
+		if (ElementType == GUIElement_Layout) {
 			ElementIncrementDepthValue = 0;
+			GUIInitElementChildrenSentinel(GUIState, Element);
+		}
+
+		if (ElementType == GUIElement_MenuBar ||
+			ElementType == GUIElement_MenuItem)
+		{
 			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
 
@@ -1474,7 +1481,7 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 	Assert(ElementType == Element->Type);
 
 #if 1
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	if (GUIElementShouldBeUpdated(Element)) {
 		//NOTE(Dima): Here I remember view Y for exit sliding effect
@@ -1633,7 +1640,7 @@ void GUIPerformInteraction(
 		}break;
 
 		case GUIInteraction_MenuBarInteraction: {
-
+			Interaction->MenuMarInteraction.MenuElement->Expanded = !Interaction->MenuMarInteraction.MenuElement->Expanded;
 		}break;
 	}
 }
@@ -1725,7 +1732,7 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 			}
 			v2* WorkDim = &Cache->ImageView.Dimension;
 
-			gui_view* View = GUIGetCurrentView(GUIState);
+			gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 			GUIPreAdvanceCursor(GUIState);
 
@@ -1740,7 +1747,7 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
 
 
-			GUIDescribeElementDim(GUIState, GetRectDim(ImageRect));
+			GUIDescribeElement(GUIState, GetRectDim(ImageRect), ImageRect.Min);
 			GUIAdvanceCursor(GUIState);
 		}
 		GUIEndElement(GUIState, GUIElement_CachedItem);
@@ -1759,7 +1766,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 	if (MemoryStack) {
 		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
 		if (GUIElementShouldBeUpdated(Element)) {
-			gui_view* View = GUIGetCurrentView(GUIState);
+			gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 			GUIPreAdvanceCursor(GUIState);
 
@@ -1820,10 +1827,10 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 			gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
 			GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
 
-			GUIDescribeElementDim(
+			GUIDescribeElement(
 				GUIState,
-				V2(GraphRectDim.x + Outer,
-					GraphRectDim.y + (2.0f * Outer)));
+				V2(GraphRectDim.x + Outer, GraphRectDim.y + (2.0f * Outer)),
+				GraphRect.Min);
 
 			GUIAdvanceCursor(GUIState);
 		}
@@ -1841,7 +1848,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -1854,7 +1861,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 			GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
+		GUIDescribeElement(GUIState, GetRectDim(Rc), V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -1866,7 +1873,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -1936,7 +1943,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
-		GUIDescribeElementDim(GUIState, WorkRectDim);
+		GUIDescribeElement(GUIState, WorkRectDim, WorkRect.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 
@@ -1947,7 +1954,7 @@ void GUIColorRectView(gui_state* GUIState, v4 Color) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -1960,7 +1967,7 @@ void GUIColorRectView(gui_state* GUIState, v4 Color) {
 			GUIState->RenderStack, WorkRect, 1,
 			GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-		GUIDescribeElementDim(GUIState, GetRectDim(WorkRect));
+		GUIDescribeElement(GUIState, GetRectDim(WorkRect), WorkRect.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 
@@ -2079,7 +2086,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Text, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -2106,7 +2113,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
+		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2118,7 +2125,7 @@ void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interacti
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -2164,7 +2171,7 @@ void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interacti
 		PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, V2(WorkRect.Max.x - View->CurrentX, WorkRect.Max.y - WorkRect.Min.y + OutlineWidth));
+		GUIDescribeElement(GUIState, V2(WorkRect.Max.x - View->CurrentX, WorkRect.Max.y - WorkRect.Min.y), WorkRect.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 
@@ -2176,7 +2183,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 
 	if (GUIElementShouldBeUpdated(Element)) {
 
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -2271,7 +2278,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElementDim(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth));
+		GUIDescribeElement(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth), V2(View->CurrentX, ButRc.Min.y));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2283,7 +2290,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 	gui_element* Element = GUIBeginElement(State, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(State);
+		gui_layout* View = GUIGetCurrentLayout(State);
 		gui_vertical_slider_cache* Cache = &State->CurrentNode->Cache.VerticalSlider;
 		float FontScale = State->FontScale;
 		float SmallTextScale = FontScale * 0.8f;
@@ -2491,10 +2498,11 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		PushRectOutline(State->RenderStack, CursorRect, 2, GUIGetColor(State, State->ColorTheme.OutlineColor));
 
 		//NOTE(DIMA): Postprocessing
-		GUIDescribeElementDim(
+		//TODO(DIMA): Get correct begin position
+		GUIDescribeElement(
 			State,
-			V2(MaxWidth,
-				SmallTextRc.Max.y - MaxValueRc.Min.y));
+			V2(MaxWidth, SmallTextRc.Max.y - MaxValueRc.Min.y),
+			V2(View->CurrentX, SmallTextScale * State->FontInfo->AscenderHeight));
 
 		GUIAdvanceCursor(State);
 	}
@@ -2506,7 +2514,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -2646,10 +2654,11 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, DrawTextX, View->CurrentY, View->FontScale);
 #endif
 
-		GUIDescribeElementDim(
+		GUIDescribeElement(
 			GUIState,
 			V2(WorkRect.Max.x - View->CurrentX,
-				WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth)));
+				WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth)),
+			V2(View->CurrentX, WorkRect.Min.y));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2658,7 +2667,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 }
 
 void GUITreeBegin(gui_state* GUIState, char* NodeName) {
-	gui_view* View = GUIGetCurrentView(GUIState);
+	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, NodeName, 0, 0);
 	gui_tree_node_cache* Cache = &Element->Cache.TreeNode;
@@ -2702,7 +2711,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
 
-		GUIDescribeElementDim(GUIState, GetRectDim(Rc));
+		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 	Element->Cache.TreeNode.StackBeginY = View->CurrentY;
@@ -2710,6 +2719,8 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 
 void GUITreeEnd(gui_state* State) {
 	gui_element* Elem = GUIGetCurrentElement(State);
+
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
 
@@ -2731,7 +2742,7 @@ void GUITreeEnd(gui_state* State) {
 		}
 		else {
 			GUIPreAdvanceCursor(State);
-			GUIDescribeElementDim(State, V2(0, Cache->ExitY));
+			GUIDescribeElement(State, V2(0, Cache->ExitY), V2(View->CurrentX, View->CurrentY));
 			GUIAdvanceCursor(State);
 		}
 	}
@@ -2754,28 +2765,28 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 	if (GUIElementShouldBeUpdated(Element)) {
 		GUIPreAdvanceCursor(GUIState);
 
-		gui_view* View = GUIGetCurrentView(GUIState);
+		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		gui_element* Window = GUIGetCurrentElement(GUIState);
 		gui_element_cache* Cache = &Window->Cache;
 
 		if (!Cache->IsInitialized) {
 			if (CreationFlags & GUIWindow_DefaultSize) {
-				Cache->View.Dimension.x = 100;
-				Cache->View.Dimension.y = 100;
+				Cache->Layout.Dimension.x = 100;
+				Cache->Layout.Dimension.y = 100;
 			}
 			else {
-				Cache->View.Dimension.x = Width;
-				Cache->View.Dimension.y = Height;
+				Cache->Layout.Dimension.x = Width;
+				Cache->Layout.Dimension.y = Height;
 			}
 
-			Cache->View.Position = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+			Cache->Layout.Position = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
 
 			Cache->IsInitialized = true;
 		}
 
-		v2* WindowDimension = &Cache->View.Dimension;
-		v2* WindowPosition = &Cache->View.Position;
+		v2* WindowDimension = &Cache->Layout.Dimension;
+		v2* WindowPosition = &Cache->Layout.Position;
 
 		int WindowOutlineWidth = 3;
 		int InnerSubWindowWidth = 2;
@@ -2805,66 +2816,105 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 		gui_interaction MoveInteraction = GUIMoveInteraction(WindowPosition, GUIMoveInteraction_Move);
 		GUIAnchor(GUIState, "AnchorMV", WindowRect.Min, V2(5, 5), &MoveInteraction);
 
-		GUIDescribeElementDim(GUIState, *WindowDimension);
+		GUIDescribeElement(GUIState, *WindowDimension, WindowRect.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
+inline gui_element* GUIFindMenuParentNode(gui_element* CurrentElement) {
+	gui_element* Result = 0;
+
+	gui_element* At = CurrentElement->Parent;
+	while (At->Parent != 0) {
+		if (At->Type == GUIElement_MenuBar) {
+			Result = At;
+			break;
+		}
+
+		At = At->Parent;
+	}
+
+	return(Result);
+}
+
 void GUIBeginMenuBar(gui_state* GUIState, char* MenuName) {
-	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, MenuName, 0, 1, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_MenuBar, MenuName, 0, 1, 0);
 	Element->Cache.MenuNode.ChildrenCount = 0;
-
-
+	Element->Cache.MenuNode.MaxHeight = 0;
+	Element->Cache.MenuNode.MaxWidth = 0;
+	GUIBeginRow(GUIState);
 }
 
 void GUIEndMenuBar(gui_state* GUIState) {
-	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
-	
-	GUIBeginRow(GUIState);
-	gui_element* RowElement = GUIGetCurrentElement(GUIState);
-	gui_element* AtMenuItem = CurrentElement->ChildrenSentinel->PrevBro;
-	for (; AtMenuItem != RowElement; AtMenuItem = AtMenuItem->PrevBro) {
-		gui_interaction Interaction = GUIMenuBarInteraction();
-
-		GUIButton(GUIState, AtMenuItem->Name, &Interaction);
-	}
 
 	GUIEndRow(GUIState);
-	GUIEndElement(GUIState, GUIElement_CachedItem);
+	GUIEndElement(GUIState, GUIElement_MenuBar);
 }
 
-void GUIBeginMenuBarItem(gui_state* GUIState, char* ItemName) {
-	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, ItemName, 0, 0);
-	Element->Cache.MenuNode.ChildrenCount = 0;
+void GUIBeginMenuItemInternal(gui_state* GUIState, char* ItemName, u32 MenuItemType) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_MenuItem, ItemName, 0, 0, 0);
 
+	Element->Cache.MenuNode.ChildrenCount = 0;
+	Element->Cache.MenuNode.MaxHeight = 0;
+	Element->Cache.MenuNode.MaxWidth = 0;
+}
+
+void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
+	gui_element* Element = GUIGetCurrentElement(GUIState);
+	gui_element* MenuElem = GUIFindMenuParentNode(Element);
+
+	GUIEndElement(GUIState, GUIElement_MenuItem);
 	
+	gui_layout* View = GUIGetCurrentLayout(GUIState);
+	if (GUIElementShouldBeUpdated(Element)) {
+		gui_interaction Interaction = GUIMenuBarInteraction(Element);
+
+		if (MenuItemType == GUIMenuItem_MenuBarItem) {
+			char Buf[64];
+			stbsp_sprintf(Buf, "@#!%s", Element->Name);
+			GUIButton(GUIState, Buf, &Interaction);
+		}
+
+		MenuElem->Cache.MenuNode.MaxWidth = Max(View->LastElementDim.x, MenuElem->Cache.MenuNode.MaxWidth);
+		MenuElem->Cache.MenuNode.MaxHeight += View->LastElementDim.y;
+		MenuElem->Cache.MenuNode.ChildrenCount++;
+
+		if (Element->Expanded) {
+#if 1
+			rect2 WorkRect = Rect2MinDim(View->LastElementP + V2(0, View->LastElementDim.y),
+				V2(MenuElem->Cache.MenuNode.MaxWidth, MenuElem->Cache.MenuNode.MaxHeight));
+#else
+			rect2 WorkRect = Rect2MinDim(View->LastElementP + V2(0, View->LastElementDim.y),
+				V2(MenuElem->Cache.MenuNode.MaxWidth, MenuElem->Cache.MenuNode.ChildrenCount* GetNextRowAdvance(GUIState->FontInfo, 1.2)));
+#endif
+
+			PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
+			PushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+			GUIBeginLayout(GUIState, Element->Name, GUILayout_Simple);
+			
+			gui_element* At = Element->ChildrenSentinel->PrevBro;
+			for (; At != Element->ChildrenSentinel; At = At->PrevBro) {
+				GUIText(GUIState, At->Name);
+			}
+		
+			GUIEndLayout(GUIState, GUILayout_Simple);
+		}
+	}
+}
+
+void GUIBeginMenuBarItem(gui_state* GUIState, char* Name) {
+	GUIBeginMenuItemInternal(GUIState, Name, GUIMenuItem_MenuBarItem);
 }
 
 void GUIEndMenuBarItem(gui_state* GUIState) {
-	gui_element* Element = GUIGetCurrentElement(GUIState);
-	gui_element* Parent = Element->Parent;
-
-	gui_view* View = GUIGetCurrentView(GUIState);
-
-	if (GUIElementShouldBeUpdated(Element)) {
-		gui_interaction Interaction = GUIMenuBarInteraction();
-
-		GUIButton(GUIState, Element->Name, &Interaction);
-
-		Parent->Cache.MenuNode.MaxWidth = Max(View->LastElementDim.x, Parent->Cache.MenuNode.MaxWidth);
-		Parent->Cache.MenuNode.MaxHeight += View->LastElementDim.y;
-		Parent->Cache.MenuNode.ChildrenCount++;
-
-
-	}
-
-	GUIEndElement(GUIState, GUIElement_TreeNode);
+	GUIEndMenuItemInternal(GUIState, GUIMenuItem_MenuBarItem);
 }
 
 void GUIMenuBarItem(gui_state* GUIState, char* ItemName) {
-	GUIBeginMenuBarItem(GUIState, ItemName);
-	GUIEndMenuBarItem(GUIState);
+	GUIBeginMenuItemInternal(GUIState, ItemName, GUIMenuItem_MenuItem);
+	GUIEndMenuItemInternal(GUIState, GUIMenuItem_MenuItem);
 }
 
 #if 0
@@ -2898,7 +2948,7 @@ static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {
 }
 
 void GUIBeginTreeFind(gui_state* State, char* NodeName) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_element* NeededElement = GUIWalkaroundBFS(State->RootNode, NodeName);
 	Assert(NeededElement);
@@ -2911,7 +2961,7 @@ void GUIBeginTreeFind(gui_state* State, char* NodeName) {
 }
 
 void GUIEndTreeFind(gui_state* State) {
-	gui_view* View = GUIGetCurrentView(State);
+	gui_layout* View = GUIGetCurrentLayout(State);
 
 	GUITreeEnd(State);
 

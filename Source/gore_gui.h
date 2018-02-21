@@ -80,7 +80,7 @@ struct gui_bool_interaction_context {
 };
 
 struct gui_menu_bar_interaction_context {
-
+	gui_element* MenuElement;
 };
 
 enum gui_interaction_type {
@@ -104,6 +104,7 @@ struct gui_interaction {
 		gui_move_interaction_context MoveContext;
 		gui_tree_interaction_context TreeInteraction;
 		gui_bool_interaction_context BoolInteraction;
+		gui_menu_bar_interaction_context MenuMarInteraction;
 	};
 };
 
@@ -186,20 +187,21 @@ inline gui_interaction GUIBoolInteraction(gui_variable_link BoolLink, rect2 Elem
 	return(Result);
 }
 
-inline gui_interaction GUIMenuBarInteraction() {
+inline gui_interaction GUIMenuBarInteraction(gui_element* MenuElement) {
 	gui_interaction Result = {};
 
 	Result.Type = GUIInteraction_MenuBarInteraction;
+	Result.MenuMarInteraction.MenuElement = MenuElement;
 
 	return(Result);
 }
 
-enum gui_view_type {
-	GUIView_Simple,
-	GUIView_Tree,
+enum gui_layout_type {
+	GUILayout_Simple,
+	GUILayout_Tree,
 };
 
-struct gui_view {
+struct gui_layout {
 	u32 ID;
 
 	u32 ViewType;
@@ -207,6 +209,7 @@ struct gui_view {
 	float CurrentX;
 	float CurrentY;
 
+	v2 LastElementP;
 	v2 LastElementDim;
 
 	float RowBeginX;
@@ -214,9 +217,9 @@ struct gui_view {
 
 	float CurrentPreAdvance;
 
-	gui_view* Parent;
-	gui_view* NextBro;
-	gui_view* PrevBro;
+	gui_layout* Parent;
+	gui_layout* NextBro;
+	gui_layout* PrevBro;
 
 	int BeginnedRowsCount;
 	b32 NeedHorizontalAdvance;
@@ -263,7 +266,10 @@ enum gui_element_type {
 	GUIElement_CachedItem,
 	GUIElement_StaticItem,
 	GUIElement_Row,
-	GUIElement_View,
+	GUIElement_Layout,
+
+	GUIElement_MenuBar,
+	GUIElement_MenuItem,
 };
 
 enum gui_tree_node_exit_state {
@@ -308,7 +314,7 @@ struct gui_anchor_cache {
 	v2 OffsetInAnchor;
 };
 
-struct gui_view_cache {
+struct gui_layout_cache {
 	v2 Position;
 	v2 Dimension;
 };
@@ -330,7 +336,7 @@ struct gui_element_cache {
 		gui_image_view_cache ImageView;
 		gui_stackedmem_cache StackedMem;
 		gui_anchor_cache Anchor;
-		gui_view_cache View;
+		gui_layout_cache Layout;
 		gui_menu_node_cache MenuNode;
 	};
 
@@ -995,10 +1001,10 @@ struct gui_state {
 	b32 WalkaroundEnabled;
 	b32 WalkaroundIsHot;
 
-	gui_view* CurrentView;
-	gui_view* ViewSentinel;
-	gui_view* FreeViewSentinel;
-	gui_view* DefaultView;
+	gui_layout* CurrentLayout;
+	gui_layout* LayoutSentinel;
+	gui_layout* FreeLayoutSentinel;
+	gui_layout* DefaultLayout;
 
 	stacked_memory GUIMem;
 
@@ -1017,10 +1023,10 @@ inline v4 GUIGetThemeColor(gui_state* State, u32 Color) {
 }
 */
 
-inline gui_view* GUIGetCurrentView(gui_state* GUIState) {
-	gui_view* Result = 0;
+inline gui_layout* GUIGetCurrentLayout(gui_state* GUIState) {
+	gui_layout* Result = 0;
 
-	Result = GUIState->CurrentView;
+	Result = GUIState->CurrentLayout;
 
 	return(Result);
 }
@@ -1152,6 +1158,11 @@ enum gui_window_creation_flags {
 	//GUIWindow_TopBar_PrintName,
 };
 
+enum gui_menu_item_type {
+	GUIMenuItem_MenuBarItem,
+	GUIMenuItem_MenuItem,
+};
+
 extern void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
 extern void GUIEndFrame(gui_state* GUIState);
@@ -1178,12 +1189,12 @@ extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Wi
 
 extern void GUIBeginMenuBar(gui_state* GUIState, char* MenuName);
 extern void GUIEndMenuBar(gui_state* GUIState);
-extern void GUIBeginMenuBarItem(gui_state* GUIState, char* ItemName);
+extern void GUIBeginMenuBarItem(gui_state* GUIState, char* Name);
 extern void GUIEndMenuBarItem(gui_state* GUIState);
 extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
 
-extern void GUIBeginView(gui_state* GUIState, char* ViewName, u32 ViewType);
-extern void GUIEndView(gui_state* GUIState, u32 ViewType);
+extern void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType);
+extern void GUIEndLayout(gui_state* GUIState, u32 LayoutType);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
 

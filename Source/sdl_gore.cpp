@@ -777,7 +777,7 @@ int main(int ArgsCount, char** Args) {
 
 		GUIText(GUIState, DebugStr);
 #if 1
-		GUIBeginView(GUIState, "Root", GUIView_Tree);
+		GUIBeginLayout(GUIState, "Root", GUILayout_Tree);
 
 		GUITreeBegin(GUIState, "Root");
 		GUITreeBegin(GUIState, "Test");
@@ -832,7 +832,7 @@ int main(int ArgsCount, char** Args) {
 		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
 
 #if 1
-		GUIBeginView(GUIState, "InnerView", GUIView_Tree);
+		GUIBeginLayout(GUIState, "InnerView", GUILayout_Tree);
 		GUIText(GUIState, "Nikita loh");
 		GUITreeBegin(GUIState, "InnerTree");
 		GUIText(GUIState, "Nikita loh");
@@ -867,7 +867,7 @@ int main(int ArgsCount, char** Args) {
 		GUIText(GUIState, "Ivan loh");
 		GUITreeEnd(GUIState);
 		GUIText(GUIState, "Dima pidor");
-		GUIEndView(GUIState, GUIView_Tree);
+		GUIEndLayout(GUIState, GUILayout_Tree);
 #endif
 		GUIEndRow(GUIState);
 		GUITreeEnd(GUIState);
@@ -972,7 +972,7 @@ int main(int ArgsCount, char** Args) {
 		GUITreeEnd(GUIState);
 
 		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
-		GUIEndView(GUIState, GUIView_Tree);
+		GUIEndLayout(GUIState, GUILayout_Tree);
 
 		//GUIText(GUIState, DebugStr);
 #endif
