@@ -1,4 +1,8 @@
+
 #include <SDL.h>
+#include <SDL_opengl.h>
+//#include <gl/GL.h>
+
 #include <stdio.h>
 #include <thread>
 
@@ -12,6 +16,7 @@
 #include "gore_renderer.h"
 #include "gore_asset.h"
 #include "gore_gui.h"
+#include "gore_opengl.h"
 
 /*
 	NOTE(Dima):
@@ -70,7 +75,6 @@ GLOBAL_VARIABLE input_system GlobalInput;
 
 GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
-
 
 platform_api PlatformApi;
 
@@ -600,7 +604,7 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 			}
 		}
 #else
-		CopyMemory(Buffer->Buf, Temp.Buf, Buffer->Width * Buffer->Height);
+		MEMCopy(Buffer->Buf, Temp.Buf, Buffer->Width * Buffer->Height);
 #endif
 
 		DeallocateCelluralBuffer(&Temp);
@@ -614,7 +618,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
 
-	render_stack Stack = BeginRenderStack(10 * 1024 * 1024);
+	render_stack Stack = BeginRenderStack(10 * 1024 * 1024, Buffer->Width, Buffer->Height);
 
 	u8* At = Buffer->Buf;
 	for (i32 Y = 0; Y < Buffer->Height; Y++) {
@@ -672,17 +676,33 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: SDL has been not initialized");
 	}
 
-	GlobalBuffer = AllocateRGBABuffer(1366, 768);
+#define GORE_WINDOW_WIDTH 1366
+#define GORE_WINDOW_HEIGHT 768
+
+	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
 	GlobalTime = 0.0f;
+
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
 	SDL_Window* Window = SDL_CreateWindow(
 		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		GlobalBuffer.Width,
-		GlobalBuffer.Height,
+		GORE_WINDOW_WIDTH,
+		GORE_WINDOW_HEIGHT,
 		SDL_WINDOW_OPENGL);
+
+	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
+	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
+	SDL_GL_SetSwapInterval(1);
 
 	if (!Window) {
 		printf("ERROR: Window is not created");
@@ -690,7 +710,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDLSetWindowIcon(Window);
 
-	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);
+	SDL_Renderer* renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
 	if (!renderer) {
 		printf("ERROR: Renderer is not created");
 	}
@@ -734,7 +754,7 @@ int main(int ArgsCount, char** Args) {
 		}
 		END_TIMED_BLOCK(EventProcessing);
 
-		render_stack Stack_ = BeginRenderStack(MEGABYTES(1));
+		render_stack Stack_ = BeginRenderStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
@@ -769,7 +789,7 @@ int main(int ArgsCount, char** Args) {
 		gui_interaction AlphaImageInteraction = GUIVariableInteraction(&AlphaImage, GUIVarType_RGBABuffer);
 		gui_interaction PotImageInteraction = GUIVariableInteraction(&Image, GUIVarType_RGBABuffer);
 		gui_interaction LabirImageInteraction = GUIVariableInteraction(&CelluralBitmap, GUIVarType_RGBABuffer);
-
+		
 		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
 		float LastFrameFPS = 1000.0f / LastMSPerFrame;
@@ -933,12 +953,24 @@ int main(int ArgsCount, char** Args) {
 		GUIMenuBarItem(GUIState, "Item_1_1");
 		GUIMenuBarItem(GUIState, "Item_1_2");
 		GUIMenuBarItem(GUIState, "Item_1_3");
+		GUIMenuBarItem(GUIState, "Item_1_1asdf");
+		GUIMenuBarItem(GUIState, "Item_1_2asdf");
+		GUIMenuBarItem(GUIState, "Item_1_3asdf");
+		GUIMenuBarItem(GUIState, "Item_1_1asdfasdf");
+		GUIMenuBarItem(GUIState, "Item_1_2asdfasdf");
+		GUIMenuBarItem(GUIState, "Item_1_3asdfasdf");
 		GUIEndMenuBarItem(GUIState);
 
 		GUIBeginMenuBarItem(GUIState, "Ivan");
 		GUIMenuBarItem(GUIState, "Item_2_1");
 		GUIMenuBarItem(GUIState, "Item_2_2");
 		GUIMenuBarItem(GUIState, "Item_2_3");
+		GUIMenuBarItem(GUIState, "Item_2_1asdf");
+		GUIMenuBarItem(GUIState, "Item_2_2asdf");
+		GUIMenuBarItem(GUIState, "Item_2_3asdf");
+		GUIMenuBarItem(GUIState, "Item_2_1asdfasdf");
+		GUIMenuBarItem(GUIState, "Item_2_2asdfasdf");
+		GUIMenuBarItem(GUIState, "Item_2_3asdfasdf");
 		GUIEndMenuBarItem(GUIState);
 
 		GUIBeginMenuBarItem(GUIState, "Vovan");
@@ -977,10 +1009,16 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
-		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
-		GUIEndFrame(GUIState);
-		EndRenderStack(Stack);
+#if 1
+		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+		
+		OpenGLRenderStackToOutput(Stack);
+		
+		SDL_GL_SwapWindow(Window);
+	
+#else
+		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);
@@ -992,19 +1030,25 @@ int main(int ArgsCount, char** Args) {
 		GlobalRenderTextureRect.y = 0;
 		GlobalRenderTextureRect.w = Mode.w;
 		GlobalRenderTextureRect.h = Mode.h;
-
+		
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, GlobalRenderTexture, 0, &GlobalRenderTextureRect);
 		SDL_RenderPresent(renderer);
-
+		
 		SDL_DestroyTexture(GlobalRenderTexture);
 		SDL_FreeSurface(Surf);
+#endif
+
+		GUIEndFrame(GUIState);
+		EndRenderStack(Stack);
 
 		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
 		LastMSPerFrame = SPerFrame * 1000.0f;
 
 		GlobalTime += SPerFrame;
 	}
+
+	SDL_GL_DeleteContext(SDLOpenGLRenderContext);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(Window);
 

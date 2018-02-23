@@ -92,7 +92,7 @@ struct platform_api {
 	thread_queue* RenderQueue;
 };
 
-inline void CopyMemory(void* Dest, void* Src, u64 Size) {
+inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
 		*((u8*)Dest + i) = *((u8*)Src + i);
 	}

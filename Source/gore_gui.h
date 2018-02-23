@@ -323,7 +323,11 @@ struct gui_menu_node_cache{
 	float MaxWidth;
 	float MaxHeight;
 
+	float SumHeight;
+	float SumWidth;
+
 	u32 ChildrenCount;
+	u32 Type;
 };
 
 struct gui_element_cache {

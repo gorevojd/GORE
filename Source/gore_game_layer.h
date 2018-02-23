@@ -16,6 +16,8 @@ struct rgba_buffer {
 	v2 Align;
 
 	u32 Pitch;
+
+	void* TextureHandle;
 };
 
 extern data_buffer ReadFileToDataBuffer(char* FileName);

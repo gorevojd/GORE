@@ -6,6 +6,9 @@
 struct render_stack {
 	stacked_memory Data;
 
+	int WindowWidth;
+	int WindowHeight;
+
 	u32 EntryCount;
 };
 
@@ -51,7 +54,7 @@ extern void PushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth
 extern void PushClear(render_stack* Stack, v3 Clear);
 extern void PushGradient(render_stack* Stack, v3 Color);
 
-extern render_stack BeginRenderStack(u32 Size);
+extern render_stack BeginRenderStack(u32 Size, int WindowWidth, int WindowHeight);
 extern void EndRenderStack(render_stack* Stack);
 
 #endif

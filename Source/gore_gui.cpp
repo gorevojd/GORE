@@ -1860,7 +1860,6 @@ void GUIText(gui_state* GUIState, char* Text) {
 			View->CurrentY,
 			GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
-		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, GetRectDim(Rc), V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight));
 
 		GUIAdvanceCursor(GUIState);
@@ -2827,7 +2826,9 @@ inline gui_element* GUIFindMenuParentNode(gui_element* CurrentElement) {
 
 	gui_element* At = CurrentElement->Parent;
 	while (At->Parent != 0) {
-		if (At->Type == GUIElement_MenuBar) {
+		if (At->Type == GUIElement_MenuBar ||
+			At->Type == GUIElement_MenuItem) 
+		{
 			Result = At;
 			break;
 		}
@@ -2858,10 +2859,15 @@ void GUIBeginMenuItemInternal(gui_state* GUIState, char* ItemName, u32 MenuItemT
 	Element->Cache.MenuNode.ChildrenCount = 0;
 	Element->Cache.MenuNode.MaxHeight = 0;
 	Element->Cache.MenuNode.MaxWidth = 0;
+	Element->Cache.MenuNode.SumHeight = 0;
+	Element->Cache.MenuNode.SumWidth = 0;
+	Element->Cache.MenuNode.Type = MenuItemType;
 }
 
 void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
 	gui_element* Element = GUIGetCurrentElement(GUIState);
+	Assert(Element->Cache.MenuNode.Type == MenuItemType);
+
 	gui_element* MenuElem = GUIFindMenuParentNode(Element);
 
 	GUIEndElement(GUIState, GUIElement_MenuItem);
@@ -2876,30 +2882,80 @@ void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
 			GUIButton(GUIState, Buf, &Interaction);
 		}
 
-		MenuElem->Cache.MenuNode.MaxWidth = Max(View->LastElementDim.x, MenuElem->Cache.MenuNode.MaxWidth);
-		MenuElem->Cache.MenuNode.MaxHeight += View->LastElementDim.y;
-		MenuElem->Cache.MenuNode.ChildrenCount++;
-
 		if (Element->Expanded) {
-#if 1
-			rect2 WorkRect = Rect2MinDim(View->LastElementP + V2(0, View->LastElementDim.y),
-				V2(MenuElem->Cache.MenuNode.MaxWidth, MenuElem->Cache.MenuNode.MaxHeight));
-#else
-			rect2 WorkRect = Rect2MinDim(View->LastElementP + V2(0, View->LastElementDim.y),
-				V2(MenuElem->Cache.MenuNode.MaxWidth, MenuElem->Cache.MenuNode.ChildrenCount* GetNextRowAdvance(GUIState->FontInfo, 1.2)));
-#endif
+
+			float AscenderByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+			float RowAdvance = GetNextRowAdvance(GUIState->FontInfo, GUIState->FontScale);
+
+			float InMenuElementSpacingPersentage = 1.2f;
+			rect2 WorkRect; 
+			v2 WorkRectDim = V2(Element->Cache.MenuNode.MaxWidth + GUIState->FontInfo->AscenderHeight * 2.0f, 
+				(Element->Cache.MenuNode.ChildrenCount) * RowAdvance * InMenuElementSpacingPersentage + 
+				(InMenuElementSpacingPersentage - 1.0f) * RowAdvance);
+
+			if (Element->Cache.MenuNode.Type == GUIMenuItem_MenuBarItem) {
+				WorkRect = Rect2MinDim(
+					View->LastElementP + V2(0, View->LastElementDim.y),
+					WorkRectDim);
+			}
+			else if (Element->Cache.MenuNode.Type == GUIMenuItem_MenuItem){
+				//WorkRect = Rect2MinDim()
+			}
+			else {
+				Assert(!"Invalid path!");
+			}
 
 			PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
 			PushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-			GUIBeginLayout(GUIState, Element->Name, GUILayout_Simple);
-			
 			gui_element* At = Element->ChildrenSentinel->PrevBro;
+			float AtY = WorkRect.Min.y + AscenderByScale + (InMenuElementSpacingPersentage - 1.0f) * RowAdvance;
 			for (; At != Element->ChildrenSentinel; At = At->PrevBro) {
-				GUIText(GUIState, At->Name);
+
+				rect2 MenuItemTextRc = PrintTextInternal(
+					GUIState,
+					PrintTextType_GetTextSize,
+					At->Name, 0, 0,
+					GUIState->FontScale);
+				v2 MenuItemTextDim = GetRectDim(MenuItemTextRc);
+
+				float PrintX = WorkRect.Min.x + WorkRectDim.x * 0.5f - MenuItemTextDim.x * 0.5f;
+				float PrintY = AtY;
+
+				v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+
+				rect2 InteractTextRc = Rect2MinDim(
+					V2(WorkRect.Min.x, PrintY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), 
+					V2(WorkRectDim.x, MenuItemTextDim.y));
+
+#if 1
+				InteractTextRc.Min.x += AscenderByScale * 0.2f;
+				InteractTextRc.Max.x -= AscenderByScale * 0.2f;
+#endif
+
+				if (MouseInRect(GUIState->Input, InteractTextRc)) {
+					//TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+
+					PushRect(GUIState->RenderStack, InteractTextRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+					PushRectOutline(GUIState->RenderStack, InteractTextRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+				}
+
+				PrintTextInternal(GUIState, PrintTextType_PrintText, At->Name, PrintX, PrintY, GUIState->FontScale, TextHighlightColor);
+
+				AtY += GetNextRowAdvance(GUIState->FontInfo, GUIState->FontScale) * InMenuElementSpacingPersentage;
 			}
-		
-			GUIEndLayout(GUIState, GUILayout_Simple);
+		}
+
+		//NOTE(DIMA): 
+		if (MenuItemType == GUIMenuItem_MenuItem) {
+			rect2 ElemTextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Element->Name, 0, 0, GUIState->FontScale);
+			GUIDescribeElement(GUIState, GetRectDim(ElemTextRc), V2(0, 0));
+
+			MenuElem->Cache.MenuNode.MaxWidth = Max(View->LastElementDim.x, MenuElem->Cache.MenuNode.MaxWidth);
+			MenuElem->Cache.MenuNode.MaxHeight = Max(View->LastElementDim.y, MenuElem->Cache.MenuNode.MaxHeight);
+			MenuElem->Cache.MenuNode.SumHeight += View->LastElementDim.y;
+			MenuElem->Cache.MenuNode.SumWidth += View->LastElementDim.x;
+			MenuElem->Cache.MenuNode.ChildrenCount++;
 		}
 	}
 }
