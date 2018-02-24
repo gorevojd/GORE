@@ -17,6 +17,8 @@ struct rgba_buffer {
 
 	u32 Pitch;
 
+	float WidthOverHeight;
+
 	void* TextureHandle;
 };
 
@@ -93,6 +95,8 @@ typedef struct input_system {
 
 	int GlobalMouseX;
 	int GlobalMouseY;
+
+	float DeltaTime;
 }input_system;
 
 inline b32 ButtonIsDown(input_system* Input, u32 KeyType) {

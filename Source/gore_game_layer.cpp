@@ -41,6 +41,7 @@ rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
 
 	Result.Align.x = 0.0f;
 	Result.Align.y = 0.0f;
+	Result.WidthOverHeight = (float)Width / (float)Height;
 
 	u32 MemoryForBufRequired = Width * Height * 4;
 	u32 AlignedMemoryBufSize = MemoryForBufRequired + Align;

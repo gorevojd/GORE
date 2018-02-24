@@ -18,6 +18,12 @@ struct glyph_info {
 	float YOffset;
 	float Advance;
 	float LeftBearingX;
+
+	float AtlasU;
+	float AtlasV;
+
+	v2 AtlasMinUV;
+	v2 AtlasMaxUV;
 };
 
 struct font_info {
@@ -30,6 +36,8 @@ struct font_info {
 	int GlyphsCount;
 	int* KerningPairs;
 	glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
+
+	rgba_buffer FontAtlasImage;
 };
 
 extern font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f);

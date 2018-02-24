@@ -1526,6 +1526,8 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	font_info* FontInfo = State->FontInfo;
 	render_stack* Stack = State->RenderStack;
 
+	PushBeginText(Stack, FontInfo);
+
 	while (*At) {
 		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
 		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
@@ -1539,8 +1541,14 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 			BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
 			BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
 
+#if 0
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+#else
+			PushGlyph(Stack, FontInfo, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			PushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+#endif
+
 			PushedEntriesCount += 2;
 		}
 
@@ -1553,6 +1561,8 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 
 		++At;
 	}
+
+	PushEndText(Stack);
 
 	TextRect.Min.x = Px;
 	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
@@ -1655,7 +1665,11 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 	if (GUIElementShouldBeUpdated(Element)) {
 
 		rect2 WorkRect = Rect2MinDim(Pos, Dim);
+#if 1
 		v4 WorkColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+#else
+		v4 WorkColor = GUIGetColor(GUIState, GUIColor_Red);
+#endif
 		v2 MouseP = GUIState->Input->MouseP;
 
 		gui_element* Anchor = GUIGetCurrentElement(GUIState);
@@ -1731,6 +1745,7 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 				Cache->IsInitialized = true;
 			}
 			v2* WorkDim = &Cache->ImageView.Dimension;
+			int OutlineWidth = 3;
 
 			gui_layout* View = GUIGetCurrentLayout(GUIState);
 
@@ -1741,11 +1756,11 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 			ImageRect.Max = ImageRect.Min + *WorkDim;
 
 			PushBitmap(GUIState->RenderStack, Buffer, ImageRect.Min, GetRectHeight(ImageRect));
-			PushRectOutline(GUIState->RenderStack, ImageRect, 3, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			PushRectOutline(GUIState->RenderStack, ImageRect, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
 			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
-
+			GUIAnchor(GUIState, "Anchor1", ImageRect.Min + V2(0, ImageRect.Max.y - ImageRect.Min.y), V2(ImageRect.Max.x - ImageRect.Min.x, OutlineWidth), &ResizeInteraction);
 
 			GUIDescribeElement(GUIState, GetRectDim(ImageRect), ImageRect.Min);
 			GUIAdvanceCursor(GUIState);
@@ -2732,7 +2747,7 @@ void GUITreeEnd(gui_state* State) {
 	}
 
 	if (Cache->ExitState == GUITreeNodeExit_Exiting) {
-		float ExitSpeed = Cache->ExitY / 8.0f + 4;
+		float ExitSpeed = (Cache->ExitY / 8.0f + 4) * State->Input->DeltaTime * 65.0f;
 		Cache->ExitY -= ExitSpeed;
 
 		if (Cache->ExitY < 0.0f) {

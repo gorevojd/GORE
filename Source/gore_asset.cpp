@@ -14,6 +14,9 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 	int DescenderHeight;
 	int LineGap;
 
+	u32 AtlasHeight = 0;
+	u32 AtlasWidth = 0;
+
 	stbtt_InitFont(&FontInfo, FontFileBuffer.Data, 0);
 
 	float Scale = stbtt_ScaleForPixelHeight(&FontInfo, Height);
@@ -28,7 +31,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 	Result.DescenderHeight = (float)DescenderHeight * Scale;
 	Result.LineGap = (float)LineGap * Scale;
 
-	for (char Codepoint = ' '; Codepoint < '~'; Codepoint++) {
+	for (char Codepoint = ' '; Codepoint <= '~'; Codepoint++) {
 
 		Result.CodepointToGlyphMapping[Codepoint] = Result.GlyphsCount;
 		glyph_info* Glyph = &Result.Glyphs[Result.GlyphsCount++];
@@ -73,6 +76,9 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 		Glyph->Bitmap.Align.x = 0.0f;  //TODO
 		Glyph->Bitmap.Align.y = 0.0f;  //TODO
 
+		AtlasWidth += Glyph->Width;
+		AtlasHeight = Max(AtlasHeight, Glyph->Height);
+
 		u32 CurrentX = 0;
 		u32 CurrentY = 0;
 		for (int Y = 0; Y < Glyph->Height; Y++) {
@@ -113,6 +119,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 		stbtt_FreeBitmap(Bitmap, 0); /*???*/
 	}
 
+	//NOTE(dima): Processing kerning
 	u32 KerningOneRowSize = sizeof(int) * Result.GlyphsCount;
 	Result.KerningPairs = (int*)malloc(KerningOneRowSize * KerningOneRowSize);
 
@@ -127,6 +134,30 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 
 			Result.KerningPairs[KerningIndex] = (float)Kern * Scale;
 		}
+	}
+
+	//NOTE(dima): Building font atlas
+	Result.FontAtlasImage = AllocateRGBABuffer(AtlasWidth, AtlasHeight);
+
+	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
+	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
+
+	u32 AtWidth = 0;
+	for (int GlyphIndex = 0; GlyphIndex < Result.GlyphsCount; GlyphIndex++) {
+		glyph_info* Glyph = &Result.Glyphs[GlyphIndex];
+
+		for (int YIndex = 0; YIndex < Glyph->Height; YIndex++) {
+			u32* At = (u32*)Glyph->Bitmap.Pixels + YIndex * Glyph->Width;
+			u32* To = (u32*)Result.FontAtlasImage.Pixels + YIndex * AtlasWidth + AtWidth;
+			for (int XIndex = 0; XIndex < Glyph->Width; XIndex++) {
+				*To++ = *At++;
+			}
+		}
+
+		Glyph->AtlasMinUV = V2((float)AtWidth * OneOverAtlasWidth, 0.0f);
+		Glyph->AtlasMaxUV = V2((float)(AtWidth + Glyph->Width) * OneOverAtlasWidth, Glyph->Height * OneOverAtlasHeight);
+
+		AtWidth += Glyph->Width;
 	}
 
 	FreeDataBuffer(&FontFileBuffer);
@@ -149,6 +180,7 @@ rgba_buffer LoadIMG(char* Path) {
 	Result.Width = Width;
 	Result.Height = Height;
 	Result.Pitch = 4 * Width;
+	Result.WidthOverHeight = (float)Width / (float)Height;
 
 	u32 RawImageSize = Width * Height * 4;
 	u32 PixelsCount = Width * Height;

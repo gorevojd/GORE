@@ -1,9 +1,6 @@
 #include "gore_opengl.h"
 
-void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-
-	rect2 Rect = Rect2MinDim(P, Dim);
-
+GLuint OpenGLAllocateTexture(rgba_buffer* Buffer) {
 	GLuint TextureHandle;
 	glGenTextures(1, &TextureHandle);
 
@@ -14,7 +11,7 @@ void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glTexImage2D(
-		GL_TEXTURE_2D, 
+		GL_TEXTURE_2D,
 		0,
 		GL_RGBA,
 		Buffer->Width,
@@ -24,7 +21,30 @@ void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1
 		GL_UNSIGNED_BYTE,
 		Buffer->Pixels);
 
+	Buffer->TextureHandle = (void*)TextureHandle;
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return(TextureHandle);
+}
+
+void OpenGLDeallocateTexture(rgba_buffer* Buffer) {
+	GLuint TextureHandle = (GLuint)Buffer->TextureHandle;
+
+	glDeleteTextures(1, &TextureHandle);
+	Buffer->TextureHandle = (void*)0;
+}
+
+void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+
+	rect2 Rect = Rect2MinDim(P, Dim);
+
+	if (!Buffer->TextureHandle) {
+		OpenGLAllocateTexture(Buffer);
+	}
+
 	//glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, (size_t)Buffer->TextureHandle);
 	glBegin(GL_TRIANGLES);
 
 	glColor4f(Color.r, Color.g, Color.b, Color.a);
@@ -45,8 +65,6 @@ void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1
 
 	glEnd();
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glDeleteTextures(1, &TextureHandle);
 }
 
 void OpenGLRenderRectangle(rect2 Rect, v4 Color) {
@@ -89,6 +107,7 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 
 	OpenGLSetScreenspace(Stack->WindowWidth, Stack->WindowHeight);
 
+	//NOTE(dima): Iteration through render stack
 	u8* At = Stack->Data.BaseAddress;
 	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
 
@@ -102,14 +121,7 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 			case(RenderStackEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
-				float WidthOverHeight =
-					(float)EntryBitmap->Bitmap->Width /
-					(float)EntryBitmap->Bitmap->Height;
-
-				float TargetWidth = WidthOverHeight * EntryBitmap->Height;
-				v2 Dim = V2(TargetWidth, EntryBitmap->Height);
-
-				OpenGLRenderBitmap(EntryBitmap->Bitmap, EntryBitmap->P, Dim, EntryBitmap->ModulationColor);
+				OpenGLRenderBitmap(EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
 			}break;
 
 			case(RenderStackEntry_Clear): {
@@ -133,6 +145,55 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
 
 				OpenGLRenderRectangle(Rect2MinDim(EntryRect->P, EntryRect->Dim), EntryRect->ModulationColor);
+			}break;
+
+			case RenderStackEntry_Glyph: {
+				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
+
+				glyph_info* Glyph = &EntryGlyph->FontInfo->Glyphs[EntryGlyph->FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
+
+				v4 Color = EntryGlyph->ModulationColor;
+				rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
+				v2 MinUV = Glyph->AtlasMinUV;
+				v2 MaxUV = Glyph->AtlasMaxUV;
+
+				glBegin(GL_TRIANGLES);
+
+				glColor4f(Color.r, Color.g, Color.b, Color.a);
+
+				glTexCoord2f(MinUV.x, MinUV.y);
+				glVertex2f(Rect.Min.x, Rect.Min.y);
+				glTexCoord2f(MaxUV.x, MinUV.y);
+				glVertex2f(Rect.Max.x, Rect.Min.y);
+				glTexCoord2f(MaxUV.x, MaxUV.y);
+				glVertex2f(Rect.Max.x, Rect.Max.y);
+
+				glTexCoord2f(MinUV.x, MinUV.y);
+				glVertex2f(Rect.Min.x, Rect.Min.y);
+				glTexCoord2f(MaxUV.x, MaxUV.y);
+				glVertex2f(Rect.Max.x, Rect.Max.y);
+				glTexCoord2f(MinUV.x, MaxUV.y);
+				glVertex2f(Rect.Min.x, Rect.Max.y);
+
+				glEnd();
+			}break;
+
+			case RenderStackEntry_BeginText: {
+				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
+
+				rgba_buffer* Buffer = &EntryBeginText->FontInfo->FontAtlasImage;
+
+				if (!Buffer->TextureHandle) {
+					OpenGLAllocateTexture(Buffer);
+				}
+
+				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
+			}break;
+
+			case RenderStackEntry_EndText: {
+				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
+
+				glBindTexture(GL_TEXTURE_2D, 0);
 			}break;
 
 			default: {

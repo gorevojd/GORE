@@ -810,7 +810,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 					Buffer, 
 					EntryBitmap->Bitmap, 
 					EntryBitmap->P,
-					EntryBitmap->Height, 
+					EntryBitmap->Dim.y, 
 					EntryBitmap->ModulationColor,
 					ClipRect);
 #else
@@ -818,7 +818,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 					Buffer,
 					EntryBitmap->Bitmap,
 					EntryBitmap->P,
-					EntryBitmap->Height,
+					EntryBitmap->Dim.y,
 					EntryBitmap->ModulationColor,
 					ClipRect);
 #endif
@@ -853,6 +853,42 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 #else
 				RenderRectFast(Buffer, EntryRect->P, EntryRect->Dim, EntryRect->ModulationColor, ClipRect);
 #endif
+			}break;
+
+			case RenderStackEntry_Glyph: {
+				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
+
+				font_info* FontInfo = EntryGlyph->FontInfo;
+
+#if !GORE_FAST_RENDERING
+				RenderBitmap(
+					Buffer,
+					&FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]].Bitmap,
+					EntryGlyph->P,
+					EntryGlyph->Dim.y,
+					EntryGlyph->ModulationColor,
+					ClipRect);
+#else
+				RenderBitmapFast(
+					Buffer,
+					&FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]].Bitmap,
+					EntryGlyph->P,
+					EntryGlyph->Dim.y,
+					EntryGlyph->ModulationColor,
+					ClipRect);
+#endif
+			}break;
+
+			case RenderStackEntry_BeginText: {
+				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
+
+				//NOTE(dima): Nothing to do
+			}break;
+
+			case RenderStackEntry_EndText: {
+				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
+
+				//NOTE(dima): Nothing to do
 			}break;
 
 			default: {

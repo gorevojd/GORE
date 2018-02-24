@@ -42,22 +42,20 @@ inline void* PushRenderEntryToStack(render_stack* Stack, u32 SizeOfType, u32 Typ
 
 	return(EntryData);
 }
-#define PUSH_RENDER_ENTRY(Stack, type, entry_type_enum)	(PushRenderEntryToStack(Stack, sizeof(type), entry_type_enum))
+#define PUSH_RENDER_ENTRY(Stack, type, entry_type_enum)	(type *)(PushRenderEntryToStack(Stack, sizeof(type), entry_type_enum))
 
 void PushBitmap(render_stack* Stack, rgba_buffer* Bitmap, v2 P, float Height, v4 ModulationColor) {
-	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderStackEntry_Bitmap);
-	render_stack_entry_bitmap* Entry = (render_stack_entry_bitmap*)EntryData;
+	render_stack_entry_bitmap* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderStackEntry_Bitmap);
 
 	Entry->P = P;
-	Entry->Height = Height;
+	Entry->Dim = V2(Bitmap->WidthOverHeight * Height, Height);
 	Entry->ModulationColor = ModulationColor;
 
 	Entry->Bitmap = Bitmap;
 }
 
 void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor) {
-	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
-	render_stack_entry_rectangle* Entry = (render_stack_entry_rectangle*)EntryData;
+	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
 
 	Entry->P = P;
 	Entry->Dim = Dim;
@@ -66,8 +64,7 @@ void PushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor) {
 
 
 void PushRect(render_stack* Stack, rect2 Rect, v4 ModulationColor) {
-	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
-	render_stack_entry_rectangle* Entry = (render_stack_entry_rectangle*)EntryData;
+	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
 
 	Entry->P = Rect.Min;
 	Entry->Dim = Rect.Max - Rect.Min;
@@ -104,15 +101,37 @@ void PushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Co
 }
 
 void PushClear(render_stack* Stack, v3 Clear){
-	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderStackEntry_Clear);
-	render_stack_entry_clear* Entry = (render_stack_entry_clear*)EntryData;
+	render_stack_entry_clear* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderStackEntry_Clear);
 
 	Entry->Color = Clear;
 }
 
 void PushGradient(render_stack* Stack, v3 Color) {
-	void* EntryData = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderStackEntry_Gradient);
-	render_stack_entry_gradient* Entry = (render_stack_entry_gradient*)EntryData;
+	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderStackEntry_Gradient);
 
 	Entry->Color = Color;
+}
+
+void PushBeginText(render_stack* Stack, font_info* FontInfo) {
+	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderStackEntry_BeginText);
+
+	Entry->FontInfo = FontInfo;
+}
+
+void PushEndText(render_stack* Stack) {
+	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderStackEntry_EndText);
+
+
+}
+
+void PushGlyph(render_stack* Stack, font_info* FontInfo, int Codepoint, v2 P, float Height, v4 ModulationColor) {
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Glyph);
+
+	glyph_info* Glyph = &FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[Codepoint]];
+
+	Entry->Codepoint = Codepoint;
+	Entry->P = P;
+	Entry->ModulationColor = ModulationColor;
+	Entry->Dim = V2(Glyph->Bitmap.WidthOverHeight * Height, Height);
+	Entry->FontInfo = FontInfo;
 }
