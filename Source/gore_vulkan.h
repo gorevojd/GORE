@@ -1,6 +1,0 @@
-#ifndef GORE_VULKAN_H_INCLUDED
-#define GORE_VULKAN_H_INCLUDED
-
-
-
-#endif

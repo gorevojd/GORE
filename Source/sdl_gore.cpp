@@ -1,6 +1,4 @@
-
 #include <SDL.h>
-#include <SDL_opengl.h>
 //#include <gl/GL.h>
 
 #include <stdio.h>
@@ -11,11 +9,12 @@
 
 #include "gore_game_layer.h"
 
-#include "gore_debug.h"
 #include "gore_render_stack.h"
 #include "gore_renderer.h"
 #include "gore_asset.h"
 #include "gore_gui.h"
+
+#include "sdl_gl_gore.h"
 #include "gore_opengl.h"
 
 /*
@@ -30,9 +29,7 @@
 			Optimize renderer with multithreading;
 			Implement Gaussian blur
 
-
 		Assets:
-			Build font atlas
 			Implement asset packer
 			Asset streaming
 
@@ -55,14 +52,13 @@
 			Some basic profile markers to measure perfomance
 
 		GUI:
+			Push text to list and render at the end of the frame... This should optimize OpenGL texture bindings
 			New named-color system. Think about how to retrieve and store. Get by name maybe
 
 			New Label system or depth
 			Overlapping interactions handling
 
 			Caching some elements calculations.
-
-			Make possibility to add sum stuff to elements that alredy exist in the tree view
 
 			GUI radio buttons
 			GUI text windows
@@ -692,6 +688,7 @@ int main(int ArgsCount, char** Args) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
+	//SDLLoadOpenGLFunctions();
 	SDL_Window* Window = SDL_CreateWindow(
 		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
@@ -739,7 +736,6 @@ int main(int ArgsCount, char** Args) {
 	while (GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
 
-		BEGIN_TIMED_BLOCK(EventProcessing);
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -752,7 +748,6 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
-		END_TIMED_BLOCK(EventProcessing);
 
 		render_stack Stack_ = BeginRenderStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;

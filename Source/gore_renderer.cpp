@@ -28,7 +28,6 @@ static void RenderClear(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	MaxX = Clamp(MaxX, (int)ClipRect.Min.x, (int)ClipRect.Max.x);
 	MaxY = Clamp(MaxY, (int)ClipRect.Min.y, (int)ClipRect.Max.y);
 
-	BEGIN_TIMED_BLOCK(ClearPixelFill);
 	for (u32 DestY = MinY; DestY < MaxY; DestY++) {
 		for (u32 DestX = MinX; DestX < MaxX; DestX++) {
 			u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
@@ -36,7 +35,6 @@ static void RenderClear(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 			*OutDest = OutColor;
 		}
 	}
-	END_TIMED_BLOCK(ClearPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
@@ -76,7 +74,6 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 		_mm_or_si128(mmOutColorSh_r, mmOutColorSh_g),
 		_mm_or_si128(mmOutColorSh_b, mmOutColorSh_a));
 
-	BEGIN_TIMED_BLOCK(ClearPixelFill);
 	for (u32 DestY = MinY; DestY < MaxY; DestY++) {
 		for (u32 DestX = MinX; DestX < MaxX; DestX += 4) {
 			//u32* OutDest = (u32*)Buffer->Pixels + DestY * Buffer->Width + DestX;
@@ -106,7 +103,6 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 			_mm_storeu_si128((__m128i*)OutDest, mmResultColor);
 		}
 	}
-	END_TIMED_BLOCK(ClearPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
@@ -126,7 +122,6 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
 	float OneOverWidth = 1.0f / (float)Buffer->Width;
 	float OneOverHeight = 1.0f / (float)Buffer->Height;
 
-	BEGIN_TIMED_BLOCK(GradientPixelFill);
 	for (int VertIndex = MinY; VertIndex < MaxY; VertIndex++) {
 
 		DeltaV = (float)VertIndex * OneOverHeight;
@@ -148,7 +143,6 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
 			//*Pixel++ = 0xFF0000FF;
 		}
 	}
-	END_TIMED_BLOCK(GradientPixelFill, Buffer->Width * Buffer->Height);
 }
 
 static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
@@ -186,7 +180,6 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 
 	__m128i mmFF = _mm_set1_epi32(0xFF);
 
-	BEGIN_TIMED_BLOCK(GradientPixelFill);
 	for (int VertIndex = MinY; VertIndex < MaxY; VertIndex++) {
 
 		DeltaV = (float)VertIndex * OneOverHeight;
@@ -234,7 +227,6 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 			_mm_storeu_si128((__m128i*)Pixel, mmOutColor);
 		}
 	}
-	END_TIMED_BLOCK(GradientPixelFill, Buffer->Width * Buffer->Height);
 }
 
 
@@ -319,8 +311,6 @@ static void RenderBitmapFast(
 	mmModulationColor_g = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_g));
 	mmModulationColor_b = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_b));
 	mmModulationColor_a = _mm_min_ps(mmOne, _mm_max_ps(mmZero, mmModulationColor_a));
-
-	BEGIN_TIMED_BLOCK(BitmapPixelFill);
 
 	for (int DestY = MinY; DestY < MaxY; DestY++) {
 
@@ -471,7 +461,6 @@ static void RenderBitmapFast(
 	}
 
 	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
-	END_TIMED_BLOCK(BitmapPixelFill, PixelFillCount);
 }
 
 static void RenderBitmap(
@@ -525,7 +514,6 @@ static void RenderBitmap(
 	float OneOverWidth = 1.0f / (float)TargetWidth;
 	float OneOverHeight = 1.0f / (float)TargetHeight;
 
-	BEGIN_TIMED_BLOCK(BitmapPixelFill);
 
 	for (int DestY = MinY; DestY < MaxY; DestY++) {
 
@@ -604,7 +592,6 @@ static void RenderBitmap(
 	}
 
 	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
-	END_TIMED_BLOCK(BitmapPixelFill, PixelFillCount);
 }
 
 void RenderRect(
@@ -719,7 +706,6 @@ void RenderRectFast(
 	__m128i mmDestWidth = _mm_set1_epi32(Buffer->Width);
 	__m128 mmDestWidthF = _mm_cvtepi32_ps(mmDestWidth);
 
-	BEGIN_TIMED_BLOCK(RectPixelFill);
 
 	for (int DestY = MinY; DestY < MaxY; DestY++) {
 		for (int DestX = MinX; DestX < MaxX; DestX += 4) {
@@ -788,7 +774,6 @@ void RenderRectFast(
 	}
 
 	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
-	END_TIMED_BLOCK(RectPixelFill, PixelFillCount);
 }
 
 void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect) {

@@ -1,5 +1,5 @@
-#ifndef GORE_ASSET_H
-#define GORE_ASSET_H
+#ifndef GORE_ASSET_H_INCLUDED
+#define GORE_ASSET_H_INCLUDED
 
 #include "gore_game_layer.h"
 

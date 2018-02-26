@@ -4,8 +4,6 @@
 #include "gore_game_layer.h"
 #include "gore_render_stack.h"
 
-#include "gore_debug.h"
-
 extern void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect);
 extern void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer);
 extern void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer);

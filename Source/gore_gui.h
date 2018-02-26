@@ -4,6 +4,7 @@
 #include "gore_render_stack.h"
 
 #include "gore_asset.h"
+#include "gore_input.h"
 
 #define GUI_VALUE_VIEW_MULTIPLIER 8
 #define GUI_VALUE_COLOR_VIEW_MULTIPLIER 5

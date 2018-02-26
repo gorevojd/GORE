@@ -1,5 +1,5 @@
-#ifndef GORE_RENDER_STACK_H
-#define GORE_RENDER_STACK_H
+#ifndef GORE_RENDER_STACK_H_INCLUDED
+#define GORE_RENDER_STACK_H_INCLUDED
 
 #include "gore_game_layer.h"
 #include "gore_asset.h"
