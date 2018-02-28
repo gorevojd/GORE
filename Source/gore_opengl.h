@@ -2,7 +2,33 @@
 
 #include "gore_game_layer.h"
 #include "gore_render_stack.h"
+
 #include <SDL_opengl.h>
+
+extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+extern PFNGLGENBUFFERSPROC glGenBuffers;
+extern PFNGLBINDBUFFERPROC glBindBuffer;
+extern PFNGLBUFFERDATAPROC glBufferData;
+extern PFNGLBUFFERSUBDATAPROC glBufferSubData;
+extern PFNGLMAPBUFFERPROC glMapBuffer;
+extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+extern PFNGLUSEPROGRAMPROC glUseProgram;
+extern PFNGLCREATESHADERPROC glCreateShader;
+extern PFNGLSHADERSOURCEPROC glShaderSource;
+extern PFNGLCOMPILESHADERPROC glCompileShader;
+extern PFNGLGETSHADERIVPROC glGetShaderiv;
+extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+extern PFNGLDELETESHADERPROC glDeleteShader;
+extern PFNGLCREATEPROGRAMPROC glCreateProgram;
+extern PFNGLATTACHSHADERPROC glAttachShader;
+extern PFNGLDETACHSHADERPROC glDetachShader;
+extern PFNGLLINKPROGRAMPROC glLinkProgram;
+extern PFNGLGETPROGRAMIVPROC glGetProgramiv;
+extern PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
 
 extern void OpenGLRenderStackToOutput(render_stack* Stack);
 

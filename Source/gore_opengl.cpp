@@ -99,6 +99,107 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
+void OpenGLRenderCube(v3 Pos) {
+	
+	GLfloat CubeVertices[] = {
+		/*P N UV*/
+		//NOTE(Dima): Front side
+		-0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+		//NOTE(Dima): Top side
+		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		//NOTE(Dima): Right side
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		//NOTE(Dima): Left side
+		-0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		//NOTE(Dima): Back side
+		0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+		-0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+		//NOTE(Dima): Down side
+		-0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
+	};
+
+	GLuint CubeIndices[] = {
+		0, 1, 2,
+		0, 2, 3,
+
+		4, 5, 6,
+		4, 6, 7,
+
+		8, 9, 10,
+		8, 10, 11,
+
+		12, 13, 14,
+		12, 14, 15,
+
+		16, 17, 18,
+		16, 18, 19,
+
+		20, 21, 22,
+		20, 22, 23
+	};
+
+#if 1
+	GLuint VAO, VBO, EBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &EBO);
+
+	glBindVertexArray(VAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), CubeVertices, GL_DYNAMIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CubeIndices), CubeIndices, GL_DYNAMIC_DRAW);
+
+#if 0
+	glEnableVertexAttribArray();
+	//TODO(Dima): Change last param for actual mesh
+	glVertexAttribPointer(Common->VertPID, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
+
+	glEnableVertexAttribArray(Common->VertUVID);
+	glVertexAttribPointer(Common->VertUVID, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)(6 * sizeof(GLfloat)));
+
+	glEnableVertexAttribArray(Common->VertNID);
+	glVertexAttribPointer(Common->VertNID, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)(3 * sizeof(GLfloat)));
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	UseProgramBegin(Program, Setup, ModelTransform);
+	glBindVertexArray(VAO);
+
+	//TODO(Dima): Change indices count;
+	glDrawArrays(GL_TRIANGLES, 0, ArrayCount(CubeIndices));
+
+	glBindVertexArray(0);
+	UseProgramEnd(&Program->Common);
+#endif
+
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &EBO);
+#endif
+}
+
 void OpenGLRenderStackToOutput(render_stack* Stack) {
 	glEnable(GL_TEXTURE_2D);
 
@@ -157,10 +258,7 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 				v2 MinUV = Glyph->AtlasMinUV;
 				v2 MaxUV = Glyph->AtlasMaxUV;
 
-				glBegin(GL_TRIANGLES);
-
 				glColor4f(Color.r, Color.g, Color.b, Color.a);
-
 				glTexCoord2f(MinUV.x, MinUV.y);
 				glVertex2f(Rect.Min.x, Rect.Min.y);
 				glTexCoord2f(MaxUV.x, MinUV.y);
@@ -175,7 +273,6 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 				glTexCoord2f(MinUV.x, MaxUV.y);
 				glVertex2f(Rect.Min.x, Rect.Max.y);
 
-				glEnd();
 			}break;
 
 			case RenderStackEntry_BeginText: {
@@ -188,11 +285,14 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 				}
 
 				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
+				glBegin(GL_TRIANGLES);
+
 			}break;
 
 			case RenderStackEntry_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 
+				glEnd();
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}break;
 

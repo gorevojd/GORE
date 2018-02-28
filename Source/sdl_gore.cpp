@@ -11,11 +11,34 @@
 
 #include "gore_render_stack.h"
 #include "gore_renderer.h"
-#include "gore_asset.h"
-#include "gore_gui.h"
+#include "gore_engine.h"
 
-#include "sdl_gl_gore.h"
 #include "gore_opengl.h"
+
+PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+PFNGLGENBUFFERSPROC glGenBuffers;
+PFNGLBINDBUFFERPROC glBindBuffer;
+PFNGLBUFFERDATAPROC glBufferData;
+PFNGLBUFFERSUBDATAPROC glBufferSubData;
+PFNGLMAPBUFFERPROC glMapBuffer;
+PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+PFNGLUSEPROGRAMPROC glUseProgram;
+PFNGLCREATESHADERPROC glCreateShader;
+PFNGLSHADERSOURCEPROC glShaderSource;
+PFNGLCOMPILESHADERPROC glCompileShader;
+PFNGLGETSHADERIVPROC glGetShaderiv;
+PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+PFNGLDELETESHADERPROC glDeleteShader;
+PFNGLCREATEPROGRAMPROC glCreateProgram;
+PFNGLATTACHSHADERPROC glAttachShader;
+PFNGLDETACHSHADERPROC glDetachShader;
+PFNGLLINKPROGRAMPROC glLinkProgram;
+PFNGLGETPROGRAMIVPROC glGetProgramiv;
+PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
 
 /*
 	NOTE(Dima):
@@ -73,6 +96,9 @@ GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
 
 platform_api PlatformApi;
+profile_record_table GlobalRecordTable_ = {};
+profile_record_table *GlobalRecordTable = &GlobalRecordTable_;
+
 
 static u64 SDLGetClocks() {
 	u64 Result = SDL_GetPerformanceCounter();
@@ -687,8 +713,8 @@ int main(int ArgsCount, char** Args) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 
-	//SDLLoadOpenGLFunctions();
 	SDL_Window* Window = SDL_CreateWindow(
 		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
@@ -700,6 +726,31 @@ int main(int ArgsCount, char** Args) {
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
 	SDL_GL_SetSwapInterval(0);
+
+	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
+	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
+	glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glDeleteVertexArrays");
+	glGenBuffers = (PFNGLGENBUFFERSPROC)SDL_GL_GetProcAddress("glGenBuffers");
+	glBindBuffer = (PFNGLBINDBUFFERPROC)SDL_GL_GetProcAddress("glBindBuffer");
+	glBufferData = (PFNGLBUFFERDATAPROC)SDL_GL_GetProcAddress("glBufferData");
+	glBufferSubData = (PFNGLBUFFERSUBDATAPROC)SDL_GL_GetProcAddress("glBufferSubData");
+	glMapBuffer = (PFNGLMAPBUFFERPROC)SDL_GL_GetProcAddress("glMapBuffer");
+	glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteBuffers");
+	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribPointer");
+	glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
+	glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
+	glShaderSource = (PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
+	glCompileShader = (PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
+	glGetShaderiv = (PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
+	glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress("glGetShaderInfoLog");
+	glDeleteShader = (PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
+	glCreateProgram = (PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
+	glAttachShader = (PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
+	glDetachShader = (PFNGLDETACHSHADERPROC)SDL_GL_GetProcAddress("glDetachShader");
+	glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
+	glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
+	glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
 
 	if (!Window) {
 		printf("ERROR: Window is not created");

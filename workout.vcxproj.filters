@@ -39,7 +39,10 @@
     <ClCompile Include="Source\gore_profile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\sdl_gl_gore.cpp">
+    <ClCompile Include="Source\gore_engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\gore_network.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,7 +92,10 @@
     <ClInclude Include="Source\gore_profile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\sdl_gl_gore.h">
+    <ClInclude Include="Source\gore_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\gore_network.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
