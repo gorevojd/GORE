@@ -24,6 +24,7 @@ PFNGLBUFFERDATAPROC glBufferData;
 PFNGLBUFFERSUBDATAPROC glBufferSubData;
 PFNGLMAPBUFFERPROC glMapBuffer;
 PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
 PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
 PFNGLUSEPROGRAMPROC glUseProgram;
@@ -39,6 +40,41 @@ PFNGLDETACHSHADERPROC glDetachShader;
 PFNGLLINKPROGRAMPROC glLinkProgram;
 PFNGLGETPROGRAMIVPROC glGetProgramiv;
 PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
+
+PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+PFNGLUNIFORM1FPROC glUniform1f;
+PFNGLUNIFORM2FPROC glUniform2f;
+PFNGLUNIFORM3FPROC glUniform3f;
+PFNGLUNIFORM4FPROC glUniform4f;
+PFNGLUNIFORM1IPROC glUniform1i;
+PFNGLUNIFORM2IPROC glUniform2i;
+PFNGLUNIFORM3IPROC glUniform3i;
+PFNGLUNIFORM4IPROC glUniform4i;
+PFNGLUNIFORM1UIPROC glUniform1ui;
+PFNGLUNIFORM2UIPROC glUniform2ui;
+PFNGLUNIFORM3UIPROC glUniform3ui;
+PFNGLUNIFORM4UIPROC glUniform4ui;
+PFNGLUNIFORM1FVPROC glUniform1fv;
+PFNGLUNIFORM2FVPROC glUniform2fv;
+PFNGLUNIFORM3FVPROC glUniform3fv;
+PFNGLUNIFORM4FVPROC glUniform4fv;
+PFNGLUNIFORM1IVPROC glUniform1iv;
+PFNGLUNIFORM2IVPROC glUniform2iv;
+PFNGLUNIFORM3IVPROC glUniform3iv;
+PFNGLUNIFORM4IVPROC glUniform4iv;
+PFNGLUNIFORM1UIVPROC glUniform1uiv;
+PFNGLUNIFORM2UIVPROC glUniform2uiv;
+PFNGLUNIFORM3UIVPROC glUniform3uiv;
+PFNGLUNIFORM4UIVPROC glUniform4uiv;
+PFNGLUNIFORMMATRIX2FVPROC glUniformMatrix2fv;
+PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
+PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+PFNGLUNIFORMMATRIX2X3FVPROC glUniformMatrix2x3fv;
+PFNGLUNIFORMMATRIX3X2FVPROC glUniformMatrix3x2fv;
+PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
+PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
+PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
+PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 
 /*
 	NOTE(Dima):
@@ -404,6 +440,9 @@ static void ProcessInput(input_system* System) {
 static gui_state GUIState_;
 static gui_state* GUIState = &GUIState_;
 
+static gl_state GLState_;
+static gl_state* GLState = &GLState_;
+
 inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
 	SDL_Surface* Result = SDL_CreateRGBSurfaceFrom(
 		Buffer->Pixels,
@@ -736,6 +775,7 @@ int main(int ArgsCount, char** Args) {
 	glBufferSubData = (PFNGLBUFFERSUBDATAPROC)SDL_GL_GetProcAddress("glBufferSubData");
 	glMapBuffer = (PFNGLMAPBUFFERPROC)SDL_GL_GetProcAddress("glMapBuffer");
 	glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteBuffers");
+	glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress("glGetAttribLocation");
 	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
 	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribPointer");
 	glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
@@ -751,6 +791,40 @@ int main(int ArgsCount, char** Args) {
 	glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
 	glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
 	glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
+	glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress("glGetUniformLocation");
+	glUniform1f = (PFNGLUNIFORM1FPROC)SDL_GL_GetProcAddress("glUniform1f");
+	glUniform2f = (PFNGLUNIFORM2FPROC)SDL_GL_GetProcAddress("glUniform2f");
+	glUniform3f = (PFNGLUNIFORM3FPROC)SDL_GL_GetProcAddress("glUniform3f");
+	glUniform4f = (PFNGLUNIFORM4FPROC)SDL_GL_GetProcAddress("glUniform4f");
+	glUniform1i = (PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
+	glUniform2i = (PFNGLUNIFORM2IPROC)SDL_GL_GetProcAddress("glUniform2i");
+	glUniform3i = (PFNGLUNIFORM3IPROC)SDL_GL_GetProcAddress("glUniform3i");
+	glUniform4i = (PFNGLUNIFORM4IPROC)SDL_GL_GetProcAddress("glUniform4i");
+	glUniform1ui = (PFNGLUNIFORM1UIPROC)SDL_GL_GetProcAddress("glUniform1ui");
+	glUniform2ui = (PFNGLUNIFORM2UIPROC)SDL_GL_GetProcAddress("glUniform2ui");
+	glUniform3ui = (PFNGLUNIFORM3UIPROC)SDL_GL_GetProcAddress("glUniform3ui");
+	glUniform4ui = (PFNGLUNIFORM4UIPROC)SDL_GL_GetProcAddress("glUniform4ui");
+	glUniform1fv = (PFNGLUNIFORM1FVPROC)SDL_GL_GetProcAddress("glUniform1fv");
+	glUniform2fv = (PFNGLUNIFORM2FVPROC)SDL_GL_GetProcAddress("glUniform2fv");
+	glUniform3fv = (PFNGLUNIFORM3FVPROC)SDL_GL_GetProcAddress("glUniform3fv");
+	glUniform4fv = (PFNGLUNIFORM4FVPROC)SDL_GL_GetProcAddress("glUniform4fv");
+	glUniform1iv = (PFNGLUNIFORM1IVPROC)SDL_GL_GetProcAddress("glUniform1iv");
+	glUniform2iv = (PFNGLUNIFORM2IVPROC)SDL_GL_GetProcAddress("glUniform2iv");
+	glUniform3iv = (PFNGLUNIFORM3IVPROC)SDL_GL_GetProcAddress("glUniform3iv");
+	glUniform4iv = (PFNGLUNIFORM4IVPROC)SDL_GL_GetProcAddress("glUniform4iv");
+	glUniform1uiv = (PFNGLUNIFORM1UIVPROC)SDL_GL_GetProcAddress("glUniform1uiv");
+	glUniform2uiv = (PFNGLUNIFORM2UIVPROC)SDL_GL_GetProcAddress("glUniform2uiv");
+	glUniform3uiv = (PFNGLUNIFORM3UIVPROC)SDL_GL_GetProcAddress("glUniform3uiv");
+	glUniform4uiv = (PFNGLUNIFORM4UIVPROC)SDL_GL_GetProcAddress("glUniform4uiv");
+	glUniformMatrix2fv = (PFNGLUNIFORMMATRIX2FVPROC)SDL_GL_GetProcAddress("glUniformMatrix2fv");
+	glUniformMatrix3fv = (PFNGLUNIFORMMATRIX3FVPROC)SDL_GL_GetProcAddress("glUniformMatrix3fv");
+	glUniformMatrix4fv = (PFNGLUNIFORMMATRIX4FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4fv");
+	glUniformMatrix2x3fv = (PFNGLUNIFORMMATRIX2X3FVPROC)SDL_GL_GetProcAddress("glUniformMatrix2x3fv");
+	glUniformMatrix3x2fv = (PFNGLUNIFORMMATRIX3X2FVPROC)SDL_GL_GetProcAddress("glUniformMatrix3x2fv");
+	glUniformMatrix2x4fv = (PFNGLUNIFORMMATRIX2X4FVPROC)SDL_GL_GetProcAddress("glUniformMatrix2x4fv");
+	glUniformMatrix4x2fv = (PFNGLUNIFORMMATRIX4X2FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x2fv");
+	glUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)SDL_GL_GetProcAddress("glUniformMatrix3x4fv");
+	glUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x3fv");
 
 	if (!Window) {
 		printf("ERROR: Window is not created");
@@ -776,6 +850,7 @@ int main(int ArgsCount, char** Args) {
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
 	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+	OpenGLInitState(GLState);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -1092,7 +1167,7 @@ int main(int ArgsCount, char** Args) {
 #if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		
-		OpenGLRenderStackToOutput(Stack);
+		OpenGLRenderStackToOutput(GLState, Stack);
 		
 		SDL_GL_SwapWindow(Window);
 	

@@ -1,5 +1,83 @@
 #include "gore_opengl.h"
 
+GLuint OpenGLLoadProgramFromSource(char* VertexPath, char* FragmentPath) {
+	char InfoLog[512];
+	int Success;
+	
+	GLuint VertexShader;
+	GLuint FragmentShader;
+	GLuint Program;
+
+	VertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(VertexShader, 1, &VertexPath, 0);
+	glCompileShader(VertexShader);
+	
+	glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
+	if (!Success) {
+		glGetShaderInfoLog(VertexShader, sizeof(InfoLog), 0, InfoLog);
+		//TODO(dima): Logging
+	}
+
+	FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(FragmentShader, 1, &FragmentPath, 0);
+	glCompileShader(FragmentShader);
+
+	glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
+	if (!Success) {
+		glGetShaderInfoLog(FragmentShader, sizeof(InfoLog), 0, InfoLog);
+		//TODO(dima): Logging
+	}
+
+	Program = glCreateProgram();
+	glAttachShader(Program, VertexShader);
+	glAttachShader(Program, FragmentShader);
+	glLinkProgram(Program);
+
+	glGetProgramiv(Program, GL_LINK_STATUS, &Success);
+	if (!Success) {
+		glGetProgramInfoLog(Program, sizeof(InfoLog), 0, InfoLog);
+		//TODO(dima): Logging
+	}
+
+	glDeleteShader(VertexShader);
+	glDeleteShader(FragmentShader);
+
+	return(Program);
+}
+
+gl_program OpenGLLoadShader(char* VertexPath, char* FragmentPath) {
+	gl_program Result = {};
+
+	Result.Handle = OpenGLLoadProgramFromSource(VertexPath, FragmentPath);
+
+	return(Result);
+}
+
+gl_wtf_shader OpenGLLoadWtfShader() {
+	gl_wtf_shader Result = {};
+	
+	char* VertexPath = "../Data/Shaders/WtfShader.vert";
+	char* FragmentPath = "../Data/Shaders/WtfShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PositionIndex = glGetAttribLocation(Result.Program.Handle, "Position");
+	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "Normal");
+	Result.UVIndex = glGetAttribLocation(Result.Program.Handle, "UV");
+
+	Result.ModelMatrixLocation = glGetUniform
+
+	return(Result);
+}
+
+inline void OpenGLUseProgramBegin(gl_program* Program) {
+	glUseProgram(Program->Handle);
+}
+
+inline void OpenGLUseProgramEnd(gl_program* Program) {
+	glUseProgram(0);
+}
+
 GLuint OpenGLAllocateTexture(rgba_buffer* Buffer) {
 	GLuint TextureHandle;
 	glGenTextures(1, &TextureHandle);
@@ -99,7 +177,7 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderCube(v3 Pos) {
+void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos) {
 	
 	GLfloat CubeVertices[] = {
 		/*P N UV*/
@@ -155,58 +233,48 @@ void OpenGLRenderCube(v3 Pos) {
 		20, 22, 23
 	};
 
-#if 1
-	GLuint VAO, VBO, EBO;
-
+	GLuint VAO, EBO, VBO;
+	
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glGenBuffers(1, &EBO);
 
 	glBindVertexArray(VAO);
-
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), CubeVertices, GL_DYNAMIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CubeIndices), CubeIndices, GL_DYNAMIC_DRAW);
-
-#if 0
-	glEnableVertexAttribArray();
-	//TODO(Dima): Change last param for actual mesh
-	glVertexAttribPointer(Common->VertPID, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
-
-	glEnableVertexAttribArray(Common->VertUVID);
-	glVertexAttribPointer(Common->VertUVID, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)(6 * sizeof(GLfloat)));
-
-	glEnableVertexAttribArray(Common->VertNID);
-	glVertexAttribPointer(Common->VertNID, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (GLvoid*)(3 * sizeof(GLfloat)));
-
+	glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), CubeVertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CubeIndices), CubeIndices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glEnableVertexAttribArray(Shader->PositionIndex);
+	glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)0);
+	
+	glEnableVertexAttribArray(Shader->UVIndex);
+	glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)(3 * sizeof(GLuint)));
+
+	glEnableVertexAttribArray(Shader->NormalIndex);
+	glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)(5 * sizeof(GLuint)));
+
 	glBindVertexArray(0);
 
-	UseProgramBegin(Program, Setup, ModelTransform);
+	//NOTE(dima): Rendering
+	glUseProgram(Shader->Program.Handle);
 	glBindVertexArray(VAO);
-
-	//TODO(Dima): Change indices count;
-	glDrawArrays(GL_TRIANGLES, 0, ArrayCount(CubeIndices));
-
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
-	UseProgramEnd(&Program->Common);
-#endif
-
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
-#endif
+	glUseProgram(0);
 }
 
-void OpenGLRenderStackToOutput(render_stack* Stack) {
+void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	glEnable(GL_TEXTURE_2D);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	OpenGLSetScreenspace(Stack->WindowWidth, Stack->WindowHeight);
+
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
 	u8* At = Stack->Data.BaseAddress;
@@ -233,7 +301,7 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 					EntryClear->Color.g,
 					EntryClear->Color.b,
 					1.0f);
-				glClear(GL_COLOR_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}break;
 
 			case(RenderStackEntry_Gradient): {
@@ -259,6 +327,7 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 				v2 MaxUV = Glyph->AtlasMaxUV;
 
 				glColor4f(Color.r, Color.g, Color.b, Color.a);
+
 				glTexCoord2f(MinUV.x, MinUV.y);
 				glVertex2f(Rect.Min.x, Rect.Min.y);
 				glTexCoord2f(MaxUV.x, MinUV.y);
@@ -303,4 +372,10 @@ void OpenGLRenderStackToOutput(render_stack* Stack) {
 
 		At += Header->SizeOfEntryType;
 	}
+}
+
+void OpenGLInitState(gl_state* State) {
+	*State = {};
+
+	State->WtfShader = OpenGLLoadWtfShader();
 }
