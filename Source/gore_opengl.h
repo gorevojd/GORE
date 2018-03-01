@@ -1,6 +1,6 @@
 #ifndef GORE_OPENGL_H_INCLUDED
 
-#include "gore_game_layer.h"
+#include "gore_platform.h"
 #include "gore_render_stack.h"
 
 #include <SDL_opengl.h>
@@ -10,13 +10,13 @@ struct gl_program {
 };
 
 struct gl_wtf_shader {
-	GLuint PositionIndex;
-	GLuint UVIndex;
-	GLuint NormalIndex;
+	GLint PositionIndex;
+	GLint UVIndex;
+	GLint NormalIndex;
 
-	int ModelMatrixLocation;
-	int ViewMatrixLocation;
-	int ProjectionMatrixLocation;
+	GLint ModelMatrixLocation;
+	GLint ViewMatrixLocation;
+	GLint ProjectionMatrixLocation;
 
 	gl_program Program;
 };
@@ -87,9 +87,22 @@ extern PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
 extern PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
 extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 
-extern void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack);
+typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
+extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
+
+extern void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderWidth, u32 RenderHeight);
 
 extern void OpenGLInitState(gl_state* State);
+
+inline b32 OpenGLArrayIsValid(GLint ArrayIndex) {
+	b32 Result = 0;
+
+	if (ArrayIndex != -1) {
+		Result = true;
+	}
+
+	return(Result);
+}
 
 #define GORE_OPENGL_H_INCLUDED
 #endif

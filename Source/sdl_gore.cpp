@@ -75,6 +75,7 @@ PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
 PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
 PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
 PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
+MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 /*
 	NOTE(Dima):
@@ -469,6 +470,46 @@ static void SDLSetWindowIcon(SDL_Window* Window) {
 	SDL_FreeSurface(Surface);
 }
 
+PLATFORM_READ_FILE(SDLReadEntireFile) {
+	platform_read_file_result Result = {};
+
+	SDL_RWops* File = SDL_RWFromFile(FilePath, "rb");
+
+	if (File != 0) {
+#if 0
+		Sint64 FileSize = SDL_RWsize(File);
+#else
+		Sint64 FileSize;
+		SDL_RWseek(File, 0, RW_SEEK_END);
+		FileSize = SDL_RWtell(File);
+		SDL_RWseek(File, 0, RW_SEEK_SET);
+#endif
+
+		Result.Data = SDL_calloc(FileSize + 1, 1);
+		Result.Size = FileSize;
+
+		SDL_RWread(File, Result.Data, 1, FileSize);
+
+		SDL_RWclose(File);
+	}
+
+	return(Result);
+}
+
+PLATFORM_WRITE_FILE(SDLWriteEntireFile) {
+	SDL_RWops* File = SDL_RWFromFile(FilePath, "wb");
+
+	SDL_RWwrite(File, Data, 1, Size);
+
+	SDL_RWclose(File);
+}
+
+PLATFORM_FREE_FILE_MEMORY(SDLFreeFileMemory) {
+	if (FileReadResult->Data) {
+		SDL_free(FileReadResult->Data);
+	}
+}
+
 #if 1
 struct sdl_thread_entry {
 	thread_queue* Queue;
@@ -732,6 +773,9 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AddEntry = SDLAddEntry;
 	PlatformApi.FinishAll = SDLCompleteQueueWork;
 	PlatformApi.RenderQueue = &RenderThreadQueue;
+	PlatformApi.ReadFile = SDLReadEntireFile;
+	PlatformApi.WriteFile = SDLWriteEntireFile;
+	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -752,7 +796,8 @@ int main(int ArgsCount, char** Args) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
 	SDL_Window* Window = SDL_CreateWindow(
 		"GORE",
@@ -825,6 +870,7 @@ int main(int ArgsCount, char** Args) {
 	glUniformMatrix4x2fv = (PFNGLUNIFORMMATRIX4X2FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x2fv");
 	glUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)SDL_GL_GetProcAddress("glUniformMatrix3x4fv");
 	glUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x3fv");
+	_glDrawElements = (MYPFNGLDRAWELEMENTSPROC)SDL_GL_GetProcAddress("glDrawElements");
 
 	if (!Window) {
 		printf("ERROR: Window is not created");
@@ -1167,7 +1213,8 @@ int main(int ArgsCount, char** Args) {
 #if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		
-		OpenGLRenderStackToOutput(GLState, Stack);
+
+		OpenGLRenderStackToOutput(GLState, Stack, GlobalBuffer.Width, GlobalBuffer.Height);
 		
 		SDL_GL_SwapWindow(Window);
 	

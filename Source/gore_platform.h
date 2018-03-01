@@ -6,7 +6,6 @@
 #define Assert(cond) if(!(cond)){ *((int*)0) = 0;}
 #define ArrayCount(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-
 #ifndef PRETTY_TYPES_DEFINED
 #define PRETTY_TYPES_DEFINED
 
@@ -85,13 +84,6 @@ typedef PLATFORM_THREAD_QUEUE_ADD_ENTRY(platform_thread_queue_add_entry);
 #define PLATFORM_THREAD_QUEUE_FINISH_ALL(name) void name(thread_queue* Queue)
 typedef PLATFORM_THREAD_QUEUE_FINISH_ALL(platform_thread_queue_finish_all);
 
-struct platform_api {
-	platform_thread_queue_add_entry* AddEntry;
-	platform_thread_queue_finish_all* FinishAll;
-
-	thread_queue* RenderQueue;
-};
-
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
 		*((u8*)Dest + i) = *((u8*)Src + i);
@@ -140,5 +132,32 @@ inline int StringLength(char* Text) {
 
 	return(Res);
 }
+
+struct platform_read_file_result {
+	u64 Size;
+	void* Data;
+};
+
+#define PLATFORM_READ_FILE(name) platform_read_file_result name(char* FilePath)
+typedef PLATFORM_READ_FILE(platform_read_file);
+
+#define PLATFORM_WRITE_FILE(name) void name(char* FilePath, void* Data, u64 Size)
+typedef PLATFORM_WRITE_FILE(platform_write_file);
+
+#define PLATFORM_FREE_FILE_MEMORY(name) void name(platform_read_file_result* FileReadResult)
+typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
+
+struct platform_api {
+	platform_thread_queue_add_entry* AddEntry;
+	platform_thread_queue_finish_all* FinishAll;
+
+	thread_queue* RenderQueue;
+
+	platform_read_file* ReadFile;
+	platform_write_file* WriteFile;
+	platform_free_file_memory* FreeFileMemory;
+};
+
+extern platform_api PlatformApi;
 
 #endif

@@ -1,6 +1,6 @@
 #include "gore_opengl.h"
 
-GLuint OpenGLLoadProgramFromSource(char* VertexPath, char* FragmentPath) {
+GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	char InfoLog[512];
 	int Success;
 	
@@ -9,7 +9,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexPath, char* FragmentPath) {
 	GLuint Program;
 
 	VertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(VertexShader, 1, &VertexPath, 0);
+	glShaderSource(VertexShader, 1, &VertexSource, 0);
 	glCompileShader(VertexShader);
 	
 	glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
@@ -19,7 +19,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexPath, char* FragmentPath) {
 	}
 
 	FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(FragmentShader, 1, &FragmentPath, 0);
+	glShaderSource(FragmentShader, 1, &FragmentSource, 0);
 	glCompileShader(FragmentShader);
 
 	glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
@@ -48,7 +48,15 @@ GLuint OpenGLLoadProgramFromSource(char* VertexPath, char* FragmentPath) {
 gl_program OpenGLLoadShader(char* VertexPath, char* FragmentPath) {
 	gl_program Result = {};
 
-	Result.Handle = OpenGLLoadProgramFromSource(VertexPath, FragmentPath);
+	platform_read_file_result VertexFile = PlatformApi.ReadFile(VertexPath);
+	platform_read_file_result FragmentFile = PlatformApi.ReadFile(FragmentPath);
+
+	Result.Handle = OpenGLLoadProgramFromSource(
+		(char*)VertexFile.Data, 
+		(char*)FragmentFile.Data);
+
+	PlatformApi.FreeFileMemory(&VertexFile);
+	PlatformApi.FreeFileMemory(&FragmentFile);
 
 	return(Result);
 }
@@ -65,7 +73,9 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "Normal");
 	Result.UVIndex = glGetAttribLocation(Result.Program.Handle, "UV");
 
-	Result.ModelMatrixLocation = glGetUniform
+	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
+	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
+	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
 
 	return(Result);
 }
@@ -177,7 +187,7 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos) {
+void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 RenderHeight) {
 	
 	GLfloat CubeVertices[] = {
 		/*P N UV*/
@@ -242,32 +252,60 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos) {
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), CubeVertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CubeIndices), CubeIndices, GL_STATIC_DRAW);
+
+	if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+		glEnableVertexAttribArray(Shader->PositionIndex);
+		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)0);
+	}
+
+	if (OpenGLArrayIsValid(Shader->UVIndex)) {
+		glEnableVertexAttribArray(Shader->UVIndex);
+		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+	}
+
+	if (OpenGLArrayIsValid(Shader->NormalIndex)) {
+		glEnableVertexAttribArray(Shader->NormalIndex);
+		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+	}
+
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	glEnableVertexAttribArray(Shader->PositionIndex);
-	glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)0);
-	
-	glEnableVertexAttribArray(Shader->UVIndex);
-	glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)(3 * sizeof(GLuint)));
-
-	glEnableVertexAttribArray(Shader->NormalIndex);
-	glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 7 * sizeof(GLfloat), (void*)(5 * sizeof(GLuint)));
-
 	glBindVertexArray(0);
 
-	//NOTE(dima): Rendering
 	glUseProgram(Shader->Program.Handle);
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	v3 ViewPos = V3(0.0f, 0.0f, 10.0f);
+	v3 ViewDir = V3(0.0f, 0.0f, -1.0f);
+
+	mat4 ModelMatrix = Identity();
+	ModelMatrix = Translate(ModelMatrix, Pos);
+	//ModelMatrix = Translate(ModelMatrix, V3(0.0f, 0.0f, -0.001f));
+	mat4 ViewMatrix = LookAt(ViewPos, ViewPos + ViewDir, V3(0.0f, 1.0f, 0.0f));
+	//mat4 ViewMatrix = Translate(Identity(), V3(0.0f, 0.0f, -3.0f));
+
+	mat4 ProjectionMatrix = PerspectiveProjection(RenderWidth, RenderHeight, 45.0f, 1000.0f, 0.01f);
+
+	glUniformMatrix4fv(Shader->ModelMatrixLocation, 1, GL_TRUE, ModelMatrix.E);
+	glUniformMatrix4fv(Shader->ViewMatrixLocation, 1, GL_TRUE, ViewMatrix.E);
+	glUniformMatrix4fv(Shader->ProjectionMatrixLocation, 1, GL_TRUE, ProjectionMatrix.E);
+
+	//NOTE(dima): Rendering
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	//glDrawArrays(GL_TRIANGLES, 0, 36);
+
 	glBindVertexArray(0);
 	glUseProgram(0);
+
+	glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &EBO);
+	glDeleteVertexArrays(1, &VAO);
 }
 
-void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
+void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderWidth, u32 RenderHeight) {
 	glEnable(GL_TEXTURE_2D);
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -372,6 +410,24 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 		At += Header->SizeOfEntryType;
 	}
+
+#if 1
+	glEnable(GL_DEPTH_TEST);
+	for (int i = -5; i < 5; i++) {
+		for (int j = -5; j < 5; j++) {
+			for (int k = -5; k < 5; k++) {
+
+				if (i != 0 && j != 0 && k != 0) {
+					OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), RenderWidth, RenderHeight);
+				}
+			}
+		}
+	}
+	glDisable(GL_DEPTH_TEST);
+#else
+	OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), RenderWidth, RenderHeight);
+
+#endif
 }
 
 void OpenGLInitState(gl_state* State) {
