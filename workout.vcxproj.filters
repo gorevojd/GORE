@@ -42,7 +42,10 @@
     <ClCompile Include="Source\gore_engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\gore_network.cpp">
+    <ClCompile Include="Source\geometrika.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\gore_game_common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -95,7 +98,13 @@
     <ClInclude Include="Source\gore_engine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Source\gore_network.h">
+    <ClInclude Include="Source\geometrika.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\gore_game_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\gore_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

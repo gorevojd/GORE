@@ -176,18 +176,20 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	float a = 2.0f / (float)Width;
 	float b = -2.0f / (float)Height;
 
+	float c = 2.0f / 10000.0f;
+
 	float ProjMatrix[] = {
 		a, 0, 0, 0,
 		0, b, 0, 0,
-		0, 0, 1.0f, 0,
-		-1.0f, 1.0f, 0, 1.0f
+		0, 0, c, 0,
+		-1.0f, 1.0f, -1.0f, 1.0f
 	};
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 RenderHeight) {
+void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 RenderHeight, game_camera_setup* CameraSetup) {
 	
 	GLfloat CubeVertices[] = {
 		/*P N UV*/
@@ -282,18 +284,17 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 	mat4 ModelMatrix = Identity();
 	ModelMatrix = Translate(ModelMatrix, Pos);
 	//ModelMatrix = Translate(ModelMatrix, V3(0.0f, 0.0f, -0.001f));
-	mat4 ViewMatrix = LookAt(ViewPos, ViewPos + ViewDir, V3(0.0f, 1.0f, 0.0f));
-	//mat4 ViewMatrix = Translate(Identity(), V3(0.0f, 0.0f, -3.0f));
-
-	mat4 ProjectionMatrix = PerspectiveProjection(RenderWidth, RenderHeight, 45.0f, 1000.0f, 0.01f);
 
 	glUniformMatrix4fv(Shader->ModelMatrixLocation, 1, GL_TRUE, ModelMatrix.E);
-	glUniformMatrix4fv(Shader->ViewMatrixLocation, 1, GL_TRUE, ViewMatrix.E);
-	glUniformMatrix4fv(Shader->ProjectionMatrixLocation, 1, GL_TRUE, ProjectionMatrix.E);
+	glUniformMatrix4fv(Shader->ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniformMatrix4fv(Shader->ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
 
 	//NOTE(dima): Rendering
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
 	//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 	glBindVertexArray(0);
@@ -304,12 +305,12 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 	glDeleteVertexArrays(1, &VAO);
 }
 
-void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderWidth, u32 RenderHeight) {
+void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-	OpenGLSetScreenspace(Stack->WindowWidth, Stack->WindowHeight);
+	OpenGLSetScreenspace(Stack->RenderWidth, Stack->RenderHeight);
 
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -317,6 +318,8 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderW
 	//NOTE(dima): Iteration through render stack
 	u8* At = Stack->Data.BaseAddress;
 	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
+
+	game_camera_setup* CameraSetup = 0;
 
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;
@@ -366,19 +369,21 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderW
 
 				glColor4f(Color.r, Color.g, Color.b, Color.a);
 
-				glTexCoord2f(MinUV.x, MinUV.y);
-				glVertex2f(Rect.Min.x, Rect.Min.y);
-				glTexCoord2f(MaxUV.x, MinUV.y);
-				glVertex2f(Rect.Max.x, Rect.Min.y);
-				glTexCoord2f(MaxUV.x, MaxUV.y);
-				glVertex2f(Rect.Max.x, Rect.Max.y);
+				float Depth = 1000.0f;
 
 				glTexCoord2f(MinUV.x, MinUV.y);
-				glVertex2f(Rect.Min.x, Rect.Min.y);
+				glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+				glTexCoord2f(MaxUV.x, MinUV.y);
+				glVertex3f(Rect.Max.x, Rect.Min.y, Depth);
 				glTexCoord2f(MaxUV.x, MaxUV.y);
-				glVertex2f(Rect.Max.x, Rect.Max.y);
+				glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
+
+				glTexCoord2f(MinUV.x, MinUV.y);
+				glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+				glTexCoord2f(MaxUV.x, MaxUV.y);
+				glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
 				glTexCoord2f(MinUV.x, MaxUV.y);
-				glVertex2f(Rect.Min.x, Rect.Max.y);
+				glVertex3f(Rect.Min.x, Rect.Max.y, Depth);
 
 			}break;
 
@@ -403,6 +408,12 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderW
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}break;
 
+			case RenderStackEntry_CameraSetup: {
+				render_stack_entry_camera_setup* EntryCameraSetup = (render_stack_entry_camera_setup*)At;
+
+				CameraSetup = &EntryCameraSetup->CameraSetup;
+			}break;
+
 			default: {
 				Assert(!"Invalid entry type");
 			}break;
@@ -412,13 +423,13 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderW
 	}
 
 #if 1
-	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_DEPTH_TEST);
 	for (int i = -5; i < 5; i++) {
 		for (int j = -5; j < 5; j++) {
 			for (int k = -5; k < 5; k++) {
 
 				if (i != 0 && j != 0 && k != 0) {
-					OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), RenderWidth, RenderHeight);
+					OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
 				}
 			}
 		}

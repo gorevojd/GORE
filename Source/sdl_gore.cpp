@@ -9,6 +9,8 @@
 
 #include "gore_game_layer.h"
 
+#include "geometrika.h"
+
 #include "gore_render_stack.h"
 #include "gore_renderer.h"
 #include "gore_engine.h"
@@ -428,6 +430,9 @@ static void ProcessInput(input_system* System) {
 	int GlobalMouseY;
 	SDL_GetGlobalMouseState(&GlobalMouseX, &GlobalMouseY);
 
+	System->LastMouseX = System->GlobalMouseX;
+	System->LastMouseY = System->GlobalMouseY;
+
 	System->GlobalMouseX = GlobalMouseX;
 	System->GlobalMouseY = GlobalMouseY;
 
@@ -720,7 +725,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
 
-	render_stack Stack = BeginRenderStack(10 * 1024 * 1024, Buffer->Width, Buffer->Height);
+	render_stack Stack = RENDERBeginStack(10 * 1024 * 1024, Buffer->Width, Buffer->Height);
 
 	u8* At = Buffer->Buf;
 	for (i32 Y = 0; Y < Buffer->Height; Y++) {
@@ -748,7 +753,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 			//RenderRectFast
 
-			PushRect(&Stack, DrawRect, Color);
+			RENDERPushRect(&Stack, DrawRect, Color);
 
 			++At;
 		}
@@ -756,7 +761,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 	RenderDickInjection(&Stack, &Res);
 
-	EndRenderStack(&Stack);
+	RENDEREndStack(&Stack);
 
 	return(Res);
 }
@@ -895,6 +900,8 @@ int main(int ArgsCount, char** Args) {
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 15);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
+	geometrika_state GameState = {};
+
 	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	OpenGLInitState(GLState);
 
@@ -921,7 +928,7 @@ int main(int ArgsCount, char** Args) {
 			SDLGoFullscreen(Window);
 		}
 
-		render_stack Stack_ = BeginRenderStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
@@ -932,21 +939,21 @@ int main(int ArgsCount, char** Args) {
 		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
 		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
 
-		//PushGradient(Stack, V3(GradR, GradG, GradB));
-		PushClear(Stack, V3(0.1f, 0.1f, 0.1f));
-		//PushClear(Stack, V3(0.5, 0.5f, 0.5f));
-		//PushBitmap(Stack, &Image, { 0, 0 }, 800);
+		//RENDERPushGradient(Stack, V3(GradR, GradG, GradB));
+		RENDERPushClear(Stack, V3(0.1f, 0.1f, 0.1f));
+		//RENDERPushClear(Stack, V3(0.5, 0.5f, 0.5f));
+		//RENDERPushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
-		//PushRect(Stack, Rect2MinDim(V2(0, 0), V2(300, 100)), V4(1.0f, 0.4f, 0.0f, 1.0f));
+		//RENDERPushRect(Stack, Rect2MinDim(V2(0, 0), V2(300, 100)), V4(1.0f, 0.4f, 0.0f, 1.0f));
 		if (TempBoolForSlider) {
-			PushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
+			RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
 		}
 
-		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
-		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
-		//PushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
+		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
+		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
 		//
-		//PushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
+		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
 
 		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
@@ -1209,12 +1216,12 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
+		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 #if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
-		
 
-		OpenGLRenderStackToOutput(GLState, Stack, GlobalBuffer.Width, GlobalBuffer.Height);
+		OpenGLRenderStackToOutput(GLState, Stack);
 		
 		SDL_GL_SwapWindow(Window);
 	
@@ -1241,7 +1248,7 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		GUIEndFrame(GUIState);
-		EndRenderStack(Stack);
+		RENDEREndStack(Stack);
 
 		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
 		LastMSPerFrame = SPerFrame * 1000.0f;

@@ -90,7 +90,7 @@ extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
 extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
-extern void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack, u32 RenderWidth, u32 RenderHeight);
+extern void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack);
 
 extern void OpenGLInitState(gl_state* State);
 

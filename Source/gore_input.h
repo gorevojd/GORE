@@ -66,6 +66,9 @@ typedef struct input_system {
 	int MouseX;
 	int MouseY;
 
+	int LastMouseX;
+	int LastMouseY;
+
 	v2 MouseP;
 
 	int GlobalMouseX;

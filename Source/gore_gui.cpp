@@ -1526,7 +1526,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	font_info* FontInfo = State->FontInfo;
 	render_stack* Stack = State->RenderStack;
 
-	PushBeginText(Stack, FontInfo);
+	RENDERPushBeginText(Stack, FontInfo);
 
 	while (*At) {
 		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
@@ -1545,8 +1545,8 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
 #else
-			PushGlyph(Stack, FontInfo, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			PushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
 #endif
 
 			PushedEntriesCount += 2;
@@ -1562,7 +1562,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 		++At;
 	}
 
-	PushEndText(Stack);
+	RENDERPushEndText(Stack);
 
 	TextRect.Min.x = Px;
 	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
@@ -1719,7 +1719,7 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 		}
 
 
-		PushRect(GUIState->RenderStack, WorkRect, WorkColor);
+		RENDERPushRect(GUIState->RenderStack, WorkRect, WorkColor);
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
@@ -1755,8 +1755,8 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 			ImageRect.Min = V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
 			ImageRect.Max = ImageRect.Min + *WorkDim;
 
-			PushBitmap(GUIState->RenderStack, Buffer, ImageRect.Min, GetRectHeight(ImageRect));
-			PushRectOutline(GUIState->RenderStack, ImageRect, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushBitmap(GUIState->RenderStack, Buffer, ImageRect.Min, GetRectHeight(ImageRect));
+			RENDERPushRectOutline(GUIState->RenderStack, ImageRect, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
 			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
@@ -1820,12 +1820,12 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 			float Inner = 2.0f;
 			float Outer = 3.0f;
 
-			PushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-			PushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-			PushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
-			PushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+			RENDERPushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
+			RENDERPushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-			PushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			if (MouseInRect(GUIState->Input, GraphRect)) {
 				char InfoStr[128];
@@ -1945,8 +1945,8 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 
 		v2 WorkRectDim = GetRectDim(WorkRect);
 
-		PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
-		PushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		PrintTextInternal(
 			GUIState,
@@ -1976,8 +1976,8 @@ void GUIColorRectView(gui_state* GUIState, v4 Color) {
 			V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight),
 			V2(GUIState->FontInfo->AscenderHeight * GUI_VALUE_COLOR_VIEW_MULTIPLIER, GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale));
 
-		PushRect(GUIState->RenderStack, WorkRect, Color);
-		PushRectOutline(
+		RENDERPushRect(GUIState->RenderStack, WorkRect, Color);
+		RENDERPushRectOutline(
 			GUIState->RenderStack, WorkRect, 1,
 			GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
@@ -2117,7 +2117,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		}
 
 		if (GUIWalkaroundIsHere(GUIState)) {
-			PushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+			RENDERPushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
 				GUIPerformInteraction(GUIState, Interaction);
@@ -2171,11 +2171,11 @@ void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interacti
 			}
 		}
 
-		PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-		PushRectOutline(GUIState->RenderStack, WorkRect, OutlineWidth, ButRectHighlight);
+		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, OutlineWidth, ButRectHighlight);
 
 		if (GUIWalkaroundIsHere(GUIState)) {
-			PushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+			RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
 				GUIPerformInteraction(GUIState, Interaction);
@@ -2274,7 +2274,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 			}
 
 			if (GUIWalkaroundIsHere(GUIState)) {
-				PushRectOutline(
+				RENDERPushRectOutline(
 					GUIState->RenderStack,
 					NameRc,
 					2,
@@ -2286,8 +2286,8 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 			}
 		}
 
-		PushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-		PushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+		RENDERPushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+		RENDERPushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
 
@@ -2338,8 +2338,8 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		//NOTE(DIMA): Drawing vertical rectangle
 		i32 RectOutlineWidth = 1;
 
-		PushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.FirstColor));
-		PushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(State, State->ColorTheme.OutlineColor));
+		RENDERPushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.FirstColor));
+		RENDERPushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(State, State->ColorTheme.OutlineColor));
 
 		//NOTE(DIMA): Calculating Min text rectangle
 		//TODO(DIMA): Cache theese calculations
@@ -2456,7 +2456,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			}
 
 			if (GUIWalkaroundIsHot(State)) {
-				PushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.WalkaroundHotColor));
+				RENDERPushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.WalkaroundHotColor));
 
 				CursorColor = GUIGetColor(State, State->ColorTheme.TextHighlightColor);
 
@@ -2478,9 +2478,9 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 				GUILabel(State, ValStr, CursorRect.Max);
 			}
 			else {
-				//PushRectOutline(State->RenderStack, Rect2MinDim(MaxValueRcMin, V2(MaxWidth, SmallTextRc.Max.y - MaxValueRc.Min.y)));
-				PushRectOutline(State->RenderStack, SmallTextRc, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
-				PushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
+				//RENDERPushRectOutline(State->RenderStack, Rect2MinDim(MaxValueRcMin, V2(MaxWidth, SmallTextRc.Max.y - MaxValueRc.Min.y)));
+				RENDERPushRectOutline(State->RenderStack, SmallTextRc, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
+				RENDERPushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
 			}
 		}
 
@@ -2508,8 +2508,8 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		}
 
 		//NOTE(DIMA): Drawing cursor
-		PushRect(State->RenderStack, CursorRect, CursorColor);
-		PushRectOutline(State->RenderStack, CursorRect, 2, GUIGetColor(State, State->ColorTheme.OutlineColor));
+		RENDERPushRect(State->RenderStack, CursorRect, CursorColor);
+		RENDERPushRectOutline(State->RenderStack, CursorRect, 2, GUIGetColor(State, State->ColorTheme.OutlineColor));
 
 		//NOTE(DIMA): Postprocessing
 		//TODO(DIMA): Get correct begin position
@@ -2564,8 +2564,8 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		float RectOutlineWidth = 1.0f;
 
-		PushRect(GUIState->RenderStack, WorkRect, WorkRectColor);
-		PushRectOutline(GUIState->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+		RENDERPushRect(GUIState->RenderStack, WorkRect, WorkRectColor);
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		float Range = Max - Min;
 		if (*Value > Max) {
@@ -2631,7 +2631,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 			}
 
 			if (GUIState->WalkaroundIsHot) {
-				PushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundHotColor));
+				RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundHotColor));
 
 				CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
@@ -2649,12 +2649,12 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 				}
 			}
 			else {
-				PushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+				RENDERPushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
 			}
 		}
 
-		PushRect(GUIState->RenderStack, CursorRect, CursorColor);
-		PushRectOutline(GUIState->RenderStack, CursorRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+		RENDERPushRect(GUIState->RenderStack, CursorRect, CursorColor);
+		RENDERPushRectOutline(GUIState->RenderStack, CursorRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float ValueTextX = WorkRectMin.x + WorkRectDim.x * 0.5f - (ValueTextSize.Max.x - ValueTextSize.Min.x) * 0.5f;
@@ -2713,7 +2713,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 		}
 
 		if (GUIWalkaroundIsHere(GUIState)) {
-			PushRectOutline(
+			RENDERPushRectOutline(
 				GUIState->RenderStack,
 				Rc, 2,
 				GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
@@ -2806,14 +2806,14 @@ void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u3
 		int InnerSubWindowWidth = 2;
 		rect2 WindowRect = Rect2MinDim(*WindowPosition, *WindowDimension);
 
-		PushRect(GUIState->RenderStack, WindowRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
-		PushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+		RENDERPushRect(GUIState->RenderStack, WindowRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
+		RENDERPushRectOutline(GUIState->RenderStack, WindowRect, WindowOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		if (CreationFlags & GUIWindow_TopBar) {
 			float TopBarHeight = GUIState->FontScale * GetNextRowAdvance(GUIState->FontInfo);
 
 			if (WindowDimension->y > TopBarHeight) {
-				PushRect(
+				RENDERPushRect(
 					GUIState->RenderStack,
 					Rect2MinDim(
 						*WindowPosition + V2(0, TopBarHeight),
@@ -2920,8 +2920,8 @@ void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
 				Assert(!"Invalid path!");
 			}
 
-			PushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
-			PushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.WindowBackgroundColor));
+			RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			gui_element* At = Element->ChildrenSentinel->PrevBro;
 			float AtY = WorkRect.Min.y + AscenderByScale + (InMenuElementSpacingPersentage - 1.0f) * RowAdvance;
@@ -2951,8 +2951,8 @@ void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
 				if (MouseInRect(GUIState->Input, InteractTextRc)) {
 					//TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
-					PushRect(GUIState->RenderStack, InteractTextRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
-					PushRectOutline(GUIState->RenderStack, InteractTextRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+					RENDERPushRect(GUIState->RenderStack, InteractTextRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+					RENDERPushRectOutline(GUIState->RenderStack, InteractTextRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 				}
 
 				PrintTextInternal(GUIState, PrintTextType_PrintText, At->Name, PrintX, PrintY, GUIState->FontScale, TextHighlightColor);
