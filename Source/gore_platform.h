@@ -84,6 +84,21 @@ inline int StringLength(char* Text) {
 	return(Res);
 }
 
+inline u32 StringHashFNV(char* Name) {
+	u32 Result = 2166136261;
+
+	char* At = Name;
+	while (*At) {
+
+		Result *= 16777619;
+		Result ^= *At;
+
+		At++;
+	}
+
+	return(Result);
+}
+
 struct platform_read_file_result {
 	u64 Size;
 	void* Data;
@@ -98,6 +113,9 @@ typedef PLATFORM_WRITE_FILE(platform_write_file);
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(platform_read_file_result* FileReadResult)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
+#define PLATFORM_PLACE_CURSOR_AT_CENTER(name) void name()
+typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
+
 struct platform_api {
 	platform_thread_queue_add_entry* AddEntry;
 	platform_thread_queue_finish_all* FinishAll;
@@ -107,6 +125,8 @@ struct platform_api {
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;
 	platform_free_file_memory* FreeFileMemory;
+
+	platform_place_cursor_at_center* PlaceCursorAtCenter;
 };
 
 extern platform_api PlatformApi;

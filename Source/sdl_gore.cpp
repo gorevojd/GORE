@@ -86,30 +86,6 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 /*
 	TODO(Dima):
-		Renderer:
-			Implement bitmap alignment
-			Optimize renderer with multithreading;
-			Implement Gaussian blur
-
-		Assets:
-			Implement asset packer
-			Asset streaming
-
-		Memory management:
-			Splitting stacked memory
-
-		Other:
-			Begin some debugging stuff
-			Split code to platform dependent and platform independent parts
-
-		Platform layer:
-			Thread pool     
-			Correct aspect ratio handling
-
-		Sound:
-			Implement sound mixer
-			Optimize sound mixer with SSE
-
 		Profiler:
 			Some basic profile markers to measure perfomance
 
@@ -125,6 +101,32 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 			GUI radio buttons
 			GUI text windows
 			GUI input text maybe
+
+		Sound:
+			Implement sound mixer
+			Optimize sound mixer with SSE
+
+		Assets:
+			Implement asset packer
+			Asset streaming
+			Model loading
+
+		Renderer:
+			Implement bitmap alignment
+			Optimize renderer with multithreading;
+			Implement Gaussian blur
+
+		Memory management:
+			Splitting stacked memory
+			Dynamically growing memory layout
+
+		Other:
+			Begin some debugging stuff
+			Split code to platform dependent and platform independent parts
+
+		Platform layer:
+			Thread pool
+			Correct aspect ratio handling
 */
 
 GLOBAL_VARIABLE b32 GlobalRunning;
@@ -421,20 +423,28 @@ static void ProcessInput(input_system* System) {
 	int MouseX;
 	int MouseY;
 	u32 MouseState = SDL_GetMouseState(&MouseX, &MouseY);
-
-	System->MouseX = MouseX;
-	System->MouseY = MouseY;
+	System->LastMouseP = System->MouseP;
 	System->MouseP = V2(MouseX, MouseY);
 
 	int GlobalMouseX;
 	int GlobalMouseY;
 	SDL_GetGlobalMouseState(&GlobalMouseX, &GlobalMouseY);
+	System->LastGlobalMouseP = System->GlobalMouseP;
+	System->GlobalMouseP = V2(GlobalMouseX, GlobalMouseY);
 
-	System->LastMouseX = System->GlobalMouseX;
-	System->LastMouseY = System->GlobalMouseY;
+	//NOTE(dima): Setting center position of the window
+	SDL_Window* Window = SDL_GL_GetCurrentWindow();
+	int WindowWidth;
+	int WindowHeight;
+	SDL_GetWindowSize(Window, &WindowWidth, &WindowHeight);
+	System->CenterP.x = WindowWidth >> 1;
+	System->CenterP.y = WindowHeight >> 1;
 
-	System->GlobalMouseX = GlobalMouseX;
-	System->GlobalMouseY = GlobalMouseY;
+	//NOTE(dima): Setting center position of the screen
+	SDL_DisplayMode DisplayMode;
+	SDL_GetDesktopDisplayMode(0, &DisplayMode);
+	System->GlobalCenterP.x = DisplayMode.w >> 1;
+	System->GlobalCenterP.y = DisplayMode.h >> 1;
 
 	b32 MRightIsDown = MouseState & SDL_BUTTON_RMASK;
 	b32 MLeftIsDown = MouseState & SDL_BUTTON_LMASK;
@@ -513,6 +523,19 @@ PLATFORM_FREE_FILE_MEMORY(SDLFreeFileMemory) {
 	if (FileReadResult->Data) {
 		SDL_free(FileReadResult->Data);
 	}
+}
+
+PLATFORM_PLACE_CURSOR_AT_CENTER(SDLPlaceCursorAtCenter) {
+#if 0
+	SDL_DisplayMode DisplayMode;
+	SDL_GetDesktopDisplayMode(0, &DisplayMode);
+
+	SDL_WarpMouseGlobal(DisplayMode.w >> 1, DisplayMode.h >> 1);
+#else
+	SDL_Window* Window = SDL_GL_GetCurrentWindow();
+
+	SDL_WarpMouseInWindow(Window, GlobalInput.CenterP.x, GlobalInput.CenterP.y);
+#endif
 }
 
 #if 1
@@ -781,6 +804,7 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.ReadFile = SDLReadEntireFile;
 	PlatformApi.WriteFile = SDLWriteEntireFile;
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
+	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -1216,7 +1240,7 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
-		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 #if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);

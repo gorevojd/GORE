@@ -9,6 +9,8 @@
 struct geometrika_state {
 	b32 IsInitialized;
 
+	b32 CapturingMouse;
+
 	game_camera Camera;
 };
 

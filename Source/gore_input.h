@@ -63,16 +63,13 @@ typedef struct input_system {
 	button_state Buttons[KeyType_Count];
 	button_state MouseButtons[MouseButton_Count];
 
-	int MouseX;
-	int MouseY;
-
-	int LastMouseX;
-	int LastMouseY;
-
 	v2 MouseP;
+	v2 CenterP;
+	v2 LastMouseP;
 
-	int GlobalMouseX;
-	int GlobalMouseY;
+	v2 GlobalMouseP;
+	v2 GlobalCenterP;
+	v2 LastGlobalMouseP;
 
 	float DeltaTime;
 }input_system;
@@ -138,10 +135,10 @@ inline b32 MouseInRect(input_system* Input, rect2 Rect) {
 	b32 Result = 0;
 
 	Result =
-		(Input->MouseX >= Rect.Min.x) &&
-		(Input->MouseY >= Rect.Min.y) &&
-		(Input->MouseX <= Rect.Max.x) &&
-		(Input->MouseY <= Rect.Max.y);
+		(Input->MouseP.x >= Rect.Min.x) &&
+		(Input->MouseP.y >= Rect.Min.y) &&
+		(Input->MouseP.x <= Rect.Max.x) &&
+		(Input->MouseP.y <= Rect.Max.y);
 
 	return(Result);
 }
@@ -154,10 +151,10 @@ inline b32 MouseInRect(input_system* Input, v2 P, v2 Dim) {
 	Rect.Max = P + Dim;
 
 	Result =
-		(Input->MouseX >= Rect.Min.x) &&
-		(Input->MouseY >= Rect.Min.y) &&
-		(Input->MouseX <= Rect.Max.x) &&
-		(Input->MouseY <= Rect.Max.y);
+		(Input->MouseP.x >= Rect.Min.x) &&
+		(Input->MouseP.y >= Rect.Min.y) &&
+		(Input->MouseP.x <= Rect.Max.x) &&
+		(Input->MouseP.y <= Rect.Max.y);
 
 	return(Result);
 }

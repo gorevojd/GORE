@@ -422,6 +422,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 		At += Header->SizeOfEntryType;
 	}
 
+#if 0
 #if 1
 	//glEnable(GL_DEPTH_TEST);
 	for (int i = -5; i < 5; i++) {
@@ -438,6 +439,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 #else
 	OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), RenderWidth, RenderHeight);
 
+#endif
 #endif
 }
 

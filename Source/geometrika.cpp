@@ -4,14 +4,21 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_stack* RenderStack, i
 	if (!State->IsInitialized) {
 
 		State->Camera = GAMECreateCamera();
+		State->CapturingMouse = 1;
 
 		State->IsInitialized = 1;
 	}
 
-	float DeltaXAngle = -(Input->GlobalMouseX - Input->LastMouseX) * DEG_TO_RAD;
-	float DeltaYAngle = -(Input->GlobalMouseY - Input->LastMouseY) * DEG_TO_RAD;
+	float MouseSpeed = 0.1f;
 
-	GAMEUpdateCameraVectors(&State->Camera, DeltaYAngle, DeltaXAngle, 0.0f);
+	if (State->CapturingMouse) {
+		float DeltaXAngle = -(Input->MouseP.x - Input->CenterP.x) * DEG_TO_RAD * MouseSpeed;
+		float DeltaYAngle = -(Input->MouseP.y - Input->CenterP.y) * DEG_TO_RAD * MouseSpeed;
+
+		GAMEUpdateCameraVectors(&State->Camera, DeltaYAngle, DeltaXAngle, 0.0f);
+		
+		PlatformApi.PlaceCursorAtCenter();
+	}
 
 	//NOTE(dima): Camera movement
 	v3 MoveVector = V3(0.0f, 0.0f, 0.0f);
@@ -32,7 +39,12 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_stack* RenderStack, i
 	float CameraSpeed = 10.0f;
 	MoveVector = MoveVector * CameraSpeed * Input->DeltaTime;
 	State->Camera.Position += State->Camera.Front * MoveVector.z;
-	State->Camera.Position += State->Camera.Left * MoveVector.x;
+	State->Camera.Position -= State->Camera.Left * MoveVector.x;
+	State->Camera.Position += State->Camera.Up * MoveVector.y;
+
+	if (ButtonWentDown(Input, KeyType_Backquote)) {
+		State->CapturingMouse = !State->CapturingMouse;
+	}
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		&State->Camera,

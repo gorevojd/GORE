@@ -1,0 +1,5 @@
+#ifndef GORE_DEBUG_H_INCLUDED
+#define GORE_DEBUG_H_INCLUDED
+
+
+#endif

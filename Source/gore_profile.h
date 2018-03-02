@@ -12,8 +12,9 @@ enum profile_record_type {
 	ProfileRecord_BeginTiming,
 	ProfileRecord_EndTiming,
 
-	ProfileRecord_BeginBlock,
-	ProfileRecord_EndBlock,
+	//NOTE(dima): sections are just categories that will be visible in the debug overlay
+	ProfileRecord_BeginSection,
+	ProfileRecord_EndSection,
 	ProfileRecord_Value,
 };
 
@@ -31,25 +32,60 @@ struct profile_record {
 	};
 };
 
+struct profile_timing_snapshot {
+	u64 BeginClock;
+	u16 ThreadID;
+
+	u64 ChildrenSumClocks;
+
+	u32 HitCount;
+};
+
 struct profile_record_table {
 	SDL_atomic_t CurrentRecordIndex;
 	SDL_atomic_t CurrentTableIndex;
 
 	int RecordsMaxCount;
-	profile_record Records[2][1024];
+	profile_record Records[2][4096];
+};
+
+enum profile_block_entry_type {
+	ProfileBlockEntry_None,
+
+	ProfileBlockEntry_Timing,
+	ProfileBlockEntry_Section,
+};
+
+struct profile_block_entry {
+	u32 BlockEntryType;
+
+	//TODO(dima): change this to ID and hash calculation
+	char* Name;
+
+	profile_block_entry* Parent;
+
+	profile_block_entry* NextBro;
+	profile_block_entry* PrevBro;
+
+	profile_block_entry* ChildrenSentinel;
+
+	union {
+		profile_timing_snapshot TimingSnapshot;
+	};
 };
 
 struct profile_frame {
+	profile_block_entry* CurrentTimingBlock;
 
+	profile_block_entry* TimingBlockSentinel;
 };
 
 
 #define PROFILE_FRAMES_COUNT 256
 struct profile_state {
+
 	profile_frame Frames[PROFILE_FRAMES_COUNT];
 	u32 CollectionFrameIndex;
-
-
 };
 
 extern profile_record_table* GlobalRecordTable;

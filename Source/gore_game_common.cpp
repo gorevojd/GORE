@@ -20,8 +20,6 @@ void GAMEUpdateCameraVectors(
 	Camera->Front.y = Sin(Camera->Pitch);
 	Camera->Front.z = Sin(Camera->Yaw) * Cos(Camera->Pitch);
 
-	Camera->Front = Normalize(Camera->Front);
-
 	Camera->Left = Normalize(Cross(WorldUp, Camera->Front));
 	Camera->Up = Normalize(Cross(Camera->Front, Camera->Left));
 }
