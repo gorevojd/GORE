@@ -89,6 +89,9 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 		Profiler:
 			Some basic profile markers to measure perfomance
 
+		DEBUG:
+			Draw some profile overlays based on section blocks
+
 		GUI:
 			Push text to list and render at the end of the frame... This should optimize OpenGL texture bindings
 			New named-color system. Think about how to retrieve and store. Get by name maybe

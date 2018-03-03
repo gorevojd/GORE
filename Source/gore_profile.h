@@ -34,9 +34,10 @@ struct profile_record {
 
 struct profile_timing_snapshot {
 	u64 BeginClock;
-	u16 ThreadID;
-
 	u64 ChildrenSumClocks;
+	u64 ClocksElapsed;
+
+	u16 ThreadID;
 
 	u32 HitCount;
 };
@@ -61,6 +62,7 @@ struct profile_block_entry {
 
 	//TODO(dima): change this to ID and hash calculation
 	char* Name;
+	u32 ID;
 
 	profile_block_entry* Parent;
 
@@ -83,9 +85,12 @@ struct profile_frame {
 
 #define PROFILE_FRAMES_COUNT 256
 struct profile_state {
-
 	profile_frame Frames[PROFILE_FRAMES_COUNT];
 	u32 CollectionFrameIndex;
+
+	profile_block_entry* FirstFreeBlock;
+
+	stacked_memory ProfileMemory;
 };
 
 extern profile_record_table* GlobalRecordTable;
