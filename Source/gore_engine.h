@@ -3,7 +3,7 @@
 
 #include "gore_platform.h"
 
-#include "gore_profile.h"
+#include "gore_debug.h"
 #include "gore_gui.h"
 #include "gore_asset.h"
 

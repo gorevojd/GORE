@@ -140,8 +140,8 @@ GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
 
 platform_api PlatformApi;
-profile_record_table GlobalRecordTable_ = {};
-profile_record_table *GlobalRecordTable = &GlobalRecordTable_;
+debug_record_table GlobalRecordTable_ = {};
+debug_record_table *GlobalRecordTable = &GlobalRecordTable_;
 
 
 static u64 SDLGetClocks() {
@@ -563,7 +563,7 @@ void SDLAddEntry(thread_queue* Queue, thread_queue_callback* Callback, void* Dat
 	SDL_SemPost((SDL_sem*)Queue->Semaphore);
 }
 
-b32  SDLDoNextWork(thread_queue* Queue) {
+b32 SDLDoNextWork(thread_queue* Queue) {
 	b32 ShouldSleep = 0;
 
 	SDL_CompilerBarrier();
@@ -1293,6 +1293,5 @@ int main(int ArgsCount, char** Args) {
 
 	printf("Program has been succesfully ended\n");
 
-	system("pause");
 	return(0);
 }

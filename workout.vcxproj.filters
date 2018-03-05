@@ -36,9 +36,6 @@
     <ClCompile Include="Source\gore_opengl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\gore_profile.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\gore_engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -93,9 +90,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\gore_input.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\gore_profile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\gore_engine.h">
