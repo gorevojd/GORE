@@ -72,6 +72,9 @@ struct debug_statistic {
 
 	debug_statistic* NextInHash;
 
+	debug_statistic* NextBro;
+	debug_statistic* PrevBro;
+
 	union {
 		debug_statistic_timing Timing;
 	};
@@ -119,11 +122,13 @@ struct debug_profiled_frame {
 	debug_tree_node* CurrentSection;
 
 	debug_statistic* TimingStatistics[DEBUG_TIMING_STATISTICS_COUNT];
+	debug_statistic* TimingStatisticSentinel;
 };
 
 #define DEBUG_FRAMES_COUNT 256
 struct debug_state {
-	debug_tree_node* FirstFreeBlock;
+	debug_tree_node* FreeBlockSentinel;
+	debug_statistic* FreeStatisticSentinel;
 
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
 	u32 ProcessFrameIndex;

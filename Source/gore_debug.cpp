@@ -4,8 +4,8 @@ inline void DEBUGDeallocateTreeNode(debug_state* State, debug_tree_node* Entry) 
 	Entry->PrevBro->NextBro = Entry->NextBro;
 	Entry->NextBro->PrevBro = Entry->PrevBro;
 
-	Entry->NextBro = State->FirstFreeBlock->NextBro;
-	Entry->PrevBro = State->FirstFreeBlock;
+	Entry->NextBro = State->FreeBlockSentinel->NextBro;
+	Entry->PrevBro = State->FreeBlockSentinel;
 
 	Entry->NextBro->PrevBro = Entry;
 	Entry->PrevBro->NextBro = Entry;
@@ -14,8 +14,8 @@ inline void DEBUGDeallocateTreeNode(debug_state* State, debug_tree_node* Entry) 
 inline debug_tree_node* DEBUGAllocateTreeNode(debug_state* State) {
 	debug_tree_node* Result = 0;
 
-	if (State->FirstFreeBlock->NextBro != State->FirstFreeBlock) {
-		Result = State->FirstFreeBlock->NextBro;
+	if (State->FreeBlockSentinel->NextBro != State->FreeBlockSentinel) {
+		Result = State->FreeBlockSentinel->NextBro;
 
 		Result->PrevBro->NextBro = Result->NextBro;
 		Result->NextBro->PrevBro = Result->PrevBro;
@@ -36,7 +36,45 @@ inline void DEBUGInsertToList(debug_tree_node* Sentinel, debug_tree_node* Entry)
 }
 
 inline debug_tree_node* DEBUGAllocateSentinelTreeNode(debug_state* State) {
-	debug_tree_node* Sentinel = PushStruct(&State->DebugMemory, debug_tree_node);
+	debug_tree_node* Sentinel = DEBUGAllocateTreeNode(State);
+
+	Sentinel->NextBro = Sentinel;
+	Sentinel->PrevBro = Sentinel;
+
+	return(Sentinel);
+}
+
+inline debug_statistic* DEBUGAllocateStatistic(debug_state* State) {
+	debug_statistic* Result = 0;
+
+	if (State->FreeStatisticSentinel->NextBro != State->FreeStatisticSentinel) {
+		Result = State->FreeStatisticSentinel->NextBro;
+		
+		Result->PrevBro->NextBro = Result->NextBro;
+		Result->NextBro->PrevBro = Result->PrevBro;
+	}
+	else {
+		Result = PushStruct(&State->DebugMemory, debug_statistic);
+	}
+
+	return(Result);
+}
+
+inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statistic) {
+	Statistic->NextBro->PrevBro = Statistic->PrevBro;
+	Statistic->PrevBro->NextBro = Statistic->NextBro;
+
+	Statistic->PrevBro = State->FreeStatisticSentinel;
+	Statistic->NextBro = State->FreeStatisticSentinel->NextBro;
+
+	Statistic->PrevBro->NextBro = Statistic;
+	Statistic->NextBro->PrevBro = Statistic;
+
+	Statistic->NextInHash = 0;
+}
+
+inline debug_statistic* DEBUGAllocateSentinelStatistic(debug_state* State) {
+	debug_statistic* Sentinel = DEBUGAllocateStatistic(State);
 
 	Sentinel->NextBro = Sentinel;
 	Sentinel->PrevBro = Sentinel;
@@ -80,13 +118,84 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(debug_state* State, debug_tree_no
 	return(NewBlock);
 }
 
-static void DEBUGFreeCollectedFrameInfo(debug_profiled_frame* Frame) {
+inline debug_statistic* DEBUGInitDebugStatistic(
+	debug_state* State, 
+	debug_statistic** StatisticArray,
+	debug_statistic* StatisticSentinel, 
+	char* UniqueName) 
+{
+	debug_statistic* Statistic = 0;
 
+	//NOTE(dima): Finding needed element in the hash table
+	u32 RecordHash = StringHashFNV(UniqueName);
+	u32 TimingStatisticIndex = RecordHash & (DEBUG_TIMING_STATISTICS_COUNT - 1);
+	Statistic = StatisticArray[TimingStatisticIndex];
+
+	debug_statistic* PrevInHash = 0;
+
+	while (Statistic) {
+		if (Statistic->ID == RecordHash) {
+			break;
+		}
+
+		PrevInHash = Statistic;
+		Statistic = Statistic->NextInHash;
+	}
+
+	//NOTE(dima): If element was not found in hash table
+	if (Statistic == 0) {
+		Statistic = DEBUGAllocateStatistic(State);
+
+		Statistic->NextBro = StatisticSentinel->NextBro;
+		Statistic->PrevBro = StatisticSentinel;
+
+		Statistic->NextBro->PrevBro = Statistic;
+		Statistic->PrevBro->NextBro = Statistic;
+		Statistic->NextInHash = 0;
+
+		if (PrevInHash) {
+			PrevInHash->NextInHash = Statistic;
+		}
+
+		Statistic->ID = RecordHash;
+		Statistic->Timing = {};
+	}
+
+
+	return(Statistic);
+}
+
+static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
+	debug_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
+	while (TimingAt != Frame->TimingStatisticSentinel) {
+		debug_statistic* TempNext = TimingAt->NextBro;
+		
+		DEBUGDeallocateStatistic(State, TimingAt);
+
+		TimingAt = TempNext;
+	}
+
+	for (int TimingStatisticIndex = 0;
+		TimingStatisticIndex < DEBUG_TIMING_STATISTICS_COUNT;
+		TimingStatisticIndex++)
+	{
+
+		debug_statistic* Stat = Frame->TimingStatistics[TimingStatisticIndex];
+
+		Stat = 0;
+	}
 }
 
 void DEBUGInit(debug_state* State) {
 	State->DebugMemory = AllocateStackedMemory(MEGABYTES(16));
-	State->FirstFreeBlock = DEBUGAllocateTreeNode(State);
+	
+	State->FreeBlockSentinel = PushStruct(&State->DebugMemory, debug_tree_node);
+	State->FreeBlockSentinel->NextBro = State->FreeBlockSentinel;
+	State->FreeBlockSentinel->PrevBro = State->FreeBlockSentinel;
+
+	State->FreeStatisticSentinel = PushStruct(&State->DebugMemory, debug_statistic);
+	State->FreeStatisticSentinel->NextBro = State->FreeStatisticSentinel;
+	State->FreeStatisticSentinel->PrevBro = State->FreeStatisticSentinel;
 
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
@@ -100,14 +209,7 @@ void DEBUGInit(debug_state* State) {
 		Frame->CurrentSection = Frame->SectionSentinel;
 		Frame->CurrentTiming = Frame->TimingSentinel;
 
-		for (int TimingStatisticIndex = 0;
-			TimingStatisticIndex < DEBUG_TIMING_STATISTICS_COUNT;
-			TimingStatisticIndex++)
-		{
-			debug_statistic* Stat = Frame->TimingStatistics[TimingStatisticIndex];
-
-			Stat = 0;
-		}
+		DEBUGFreeFrameInfo(State, Frame);
 	}
 }
 
@@ -137,28 +239,7 @@ void DEBUGProcessCollectedRecords(debug_state* State) {
 			}break;
 
 			case DebugRecord_EndTiming: {
-#if 0
-				profile_block_entry* CurrentBlock = Frame->CurrentTimingBlock;
-				Assert(CurrentBlock->BlockEntryType == ProfileBlockEntry_Timing);
 
-				profile_timing_snapshot* TimingSnapshot = &CurrentBlock->TimingSnapshot;
-
-				//TODO(dima): Add this block total time to parent ChildrenSumClocks
-				//TODO(dima): Or calculate childrens time
-
-				TimingSnapshot->ClocksElapsed = Record->Clocks - TimingSnapshot->BeginClock;
-				//????
-				TimingSnapshot->HitCount += 1;
-
-				TimingSnapshot->ChildrenSumClocks = 0;
-				profile_block_entry* At = CurrentBlock->ChildrenSentinel->NextBro;
-				for (At; At != CurrentBlock->ChildrenSentinel; At = At->NextBro) {
-					TimingSnapshot->ChildrenSumClocks += At->TimingSnapshot.ClocksElapsed;
-				}
-
-				//NOTE(dima): Setting frame's current block to this block's parent
-				Frame->CurrentTimingBlock = CurrentBlock->Parent;
-#endif
 				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
 				Assert(CurrentBlock->TreeNodeType == DebugTreeNode_Section);
 				debug_timing_snapshot* TimingSnapshot = &CurrentBlock->TimingSnapshot;
@@ -174,10 +255,13 @@ void DEBUGProcessCollectedRecords(debug_state* State) {
 				}
 
 				//NOTE(dima): Finding needed element in the hash table
-				u32 RecordHash = StringHashFNV(Record->UniqueName);
-				u32 TimingStatisticIndex = RecordHash & (DEBUG_TIMING_STATISTICS_COUNT - 1);
-				debug_statistic* TimingStatistic = Frame->TimingStatistics[TimingStatisticIndex];
+				debug_statistic* TimingStatistic = DEBUGInitDebugStatistic(
+					State, 
+					Frame->TimingStatistics, 
+					Frame->TimingStatisticSentinel, 
+					Record->UniqueName);
 
+				TimingStatistic->Type = DebugStatistic_Timing;
 				TimingStatistic->Timing.TotalClocks += TimingSnapshot->ClocksElapsed;
 				TimingStatistic->Timing.HitCount += 1;
 				TimingStatistic->Timing.TotalClocksInChildren = TimingSnapshot->ChildrenSumClocks;
