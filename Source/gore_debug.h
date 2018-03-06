@@ -3,6 +3,7 @@
 
 
 #include "gore_platform.h"
+#include "gore_gui.h"
 
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
@@ -41,6 +42,20 @@ struct debug_timing_snapshot {
 	u32 ThreadID;
 
 	u32 HitCount;
+};
+
+enum debug_value_type {
+	DebugValue_I32,
+	DebugValue_U32,
+	DebugValue_Vector2,
+	DebugValue_Vector3,
+	DebugValue_Vector4,
+};
+
+struct debug_value_link {
+	u32 Type;
+
+	void* Value;
 };
 
 struct debug_record_table {
@@ -85,6 +100,7 @@ enum debug_tree_node_type {
 
 	DebugTreeNode_Timing,
 	DebugTreeNode_Section,
+	DebugTreeNode_Value,
 };
 
 struct debug_id {
@@ -118,8 +134,8 @@ struct debug_profiled_frame {
 	debug_tree_node* CurrentTiming;
 	debug_tree_node* TimingSentinel;
 
-	debug_tree_node* SectionSentinel;
 	debug_tree_node* CurrentSection;
+	debug_tree_node* SectionSentinel;
 
 	debug_statistic* TimingStatistics[DEBUG_TIMING_STATISTICS_COUNT];
 	debug_statistic* TimingStatisticSentinel;
@@ -130,10 +146,15 @@ struct debug_state {
 	debug_tree_node* FreeBlockSentinel;
 	debug_statistic* FreeStatisticSentinel;
 
+	debug_tree_node* RootSection;
+	debug_tree_node* CurrentSection;
+
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
 	u32 ProcessFrameIndex;
 
 	stacked_memory DebugMemory;
+
+	gui_state* GUIState;
 };
 
 

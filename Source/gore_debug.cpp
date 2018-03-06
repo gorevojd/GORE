@@ -110,7 +110,11 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(debug_state* State, debug_tree_no
 		CopyStrings(NewBlock->UniqueName, Name);
 		NewBlock->ID = StringHashFNV(NewBlock->UniqueName);
 
-		NewBlock->ChildrenSentinel = DEBUGAllocateSentinelTreeNode(State);
+		if (Type == DebugTreeNode_Section ||
+			Type == DebugTreeNode_Timing) 
+		{
+			NewBlock->ChildrenSentinel = DEBUGAllocateSentinelTreeNode(State);
+		}
 
 		DEBUGInsertToList(CurrentBlock, NewBlock);
 	}
@@ -179,15 +183,14 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 		TimingStatisticIndex < DEBUG_TIMING_STATISTICS_COUNT;
 		TimingStatisticIndex++)
 	{
-
-		debug_statistic* Stat = Frame->TimingStatistics[TimingStatisticIndex];
-
-		Stat = 0;
+		Frame->TimingStatistics[TimingStatisticIndex] = 0;
 	}
 }
 
-void DEBUGInit(debug_state* State) {
+void DEBUGInit(debug_state* State, gui_state* GUIState) {
 	State->DebugMemory = AllocateStackedMemory(MEGABYTES(16));
+
+	State->GUIState = GUIState;
 	
 	State->FreeBlockSentinel = PushStruct(&State->DebugMemory, debug_tree_node);
 	State->FreeBlockSentinel->NextBro = State->FreeBlockSentinel;
@@ -197,17 +200,20 @@ void DEBUGInit(debug_state* State) {
 	State->FreeStatisticSentinel->NextBro = State->FreeStatisticSentinel;
 	State->FreeStatisticSentinel->PrevBro = State->FreeStatisticSentinel;
 
+	State->RootSection= DEBUGAllocateSentinelTreeNode(State);
+	State->CurrentSection = State->RootSection;
+
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
 		FrameIndex++)
 	{
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 
-		Frame->SectionSentinel = DEBUGAllocateSentinelTreeNode(State);
 		Frame->TimingSentinel = DEBUGAllocateSentinelTreeNode(State);
-
-		Frame->CurrentSection = Frame->SectionSentinel;
 		Frame->CurrentTiming = Frame->TimingSentinel;
+
+		Frame->SectionSentinel = DEBUGAllocateSentinelTreeNode(State);
+		Frame->CurrentSection = Frame->SectionSentinel;
 
 		DEBUGFreeFrameInfo(State, Frame);
 	}
@@ -270,25 +276,60 @@ void DEBUGProcessCollectedRecords(debug_state* State) {
 			}break;
 
 			case DebugRecord_BeginSection: {
-				debug_tree_node* CurrentBlock = Frame->CurrentSection;
+				debug_tree_node* CurrentSection = Frame->CurrentSection;
 
-				debug_tree_node* NewBlock = DEBUGInitLayerTreeNode(State, CurrentBlock, Record->UniqueName, DebugTreeNode_Section);
+				debug_tree_node* NewBlock = DEBUGInitLayerTreeNode(State, CurrentSection, Record->UniqueName, DebugTreeNode_Section);
 
 				//NOTE(dima): Setting frame's current section to newly pushed block
 				Frame->CurrentSection = NewBlock;
 			}break;
 
 			case DebugRecord_EndSection: {
-				debug_tree_node* CurrentBlock = Frame->CurrentSection;
-				Assert(CurrentBlock->TreeNodeType == DebugTreeNode_Section);
+				debug_tree_node* CurrentSection = Frame->CurrentSection;
+				Assert(CurrentSection->TreeNodeType == DebugTreeNode_Section);
 
 				//NOTE(dima): Setting frame's current section to this block's parent
-				Frame->CurrentSection = CurrentBlock->Parent;
+				Frame->CurrentSection = CurrentSection->Parent;
 			}break;
+
+			case DebugRecord_Value: {
+
+			} break;
 		}
 
+		//TODO(dima): Think about when to do this
 		int NewTableIndex = !GlobalRecordTable->CurrentTableIndex.value;
 		SDL_AtomicSet(&GlobalRecordTable->CurrentTableIndex, NewTableIndex);
 		SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
+
+		Assert(State->CurrentSection == State->RootSection);
 	}
+}
+
+void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
+	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
+	
+	for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
+		switch (At->TreeNodeType) {
+			case DebugTreeNode_Section: {
+				GUITreeBegin(State->GUIState, TreeNode->UniqueName);
+				DEBUGOutputSectionChildrenToGUI(State, At);
+				GUITreeEnd(State->GUIState);
+			}break;
+
+			case DebugTreeNode_Value: {
+
+			}break;
+		}
+	}
+}
+
+void DEBUGOverlayToOutput(debug_state* State, render_stack* RenderStack) {
+	GUIBeginFrame(State->GUIState, RenderStack);
+
+	GUIBeginLayout(State->GUIState, "Root", GUILayout_Simple);
+	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
+	GUIEndLayout(State->GUIState, GUILayout_Simple);
+
+	GUIEndFrame(State->GUIState);
 }
