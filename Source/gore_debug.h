@@ -1,7 +1,6 @@
 #ifndef GORE_DEBUG_H_INCLUDED
 #define GORE_DEBUG_H_INCLUDED
 
-
 #include "gore_platform.h"
 #include "gore_gui.h"
 
@@ -201,5 +200,6 @@ struct debug_timing {
 		DEBUGAddRecord(Name, UniqueName, DebugRecord_EndTiming);
 	}
 };
+
 
 #endif

@@ -212,6 +212,14 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_goldenrod4] = GUICreateColorSlot(GUIState, GUIColorHex("#8b6914"), "goldenrod4");
 	GUIState->ColorTable[GUIColorExt_gray] = GUICreateColorSlot(GUIState, GUIColorHex("#bebebe"), "gray");
 	GUIState->ColorTable[GUIColorExt_gray1] = GUICreateColorSlot(GUIState, GUIColorHex("#030303"), "gray1");
+	GUIState->ColorTable[GUIColorExt_gray2] = GUICreateColorSlot(GUIState, GUIColorHex("#050505"), "gray2");
+	GUIState->ColorTable[GUIColorExt_gray3] = GUICreateColorSlot(GUIState, GUIColorHex("#080808"), "gray3");
+	GUIState->ColorTable[GUIColorExt_gray4] = GUICreateColorSlot(GUIState, GUIColorHex("#0a0a0a"), "gray4");
+	GUIState->ColorTable[GUIColorExt_gray5] = GUICreateColorSlot(GUIState, GUIColorHex("#0d0d0d"), "gray5");
+	GUIState->ColorTable[GUIColorExt_gray6] = GUICreateColorSlot(GUIState, GUIColorHex("#0f0f0f"), "gray6");
+	GUIState->ColorTable[GUIColorExt_gray7] = GUICreateColorSlot(GUIState, GUIColorHex("#121212"), "gray7");
+	GUIState->ColorTable[GUIColorExt_gray8] = GUICreateColorSlot(GUIState, GUIColorHex("#141414"), "gray8");
+	GUIState->ColorTable[GUIColorExt_gray9] = GUICreateColorSlot(GUIState, GUIColorHex("#171717"), "gray9");
 	GUIState->ColorTable[GUIColorExt_gray10] = GUICreateColorSlot(GUIState, GUIColorHex("#1a1a1a"), "gray10");
 	GUIState->ColorTable[GUIColorExt_gray11] = GUICreateColorSlot(GUIState, GUIColorHex("#1c1c1c"), "gray11");
 	GUIState->ColorTable[GUIColorExt_gray12] = GUICreateColorSlot(GUIState, GUIColorHex("#1f1f1f"), "gray12");
@@ -222,7 +230,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray17] = GUICreateColorSlot(GUIState, GUIColorHex("#2b2b2b"), "gray17");
 	GUIState->ColorTable[GUIColorExt_gray18] = GUICreateColorSlot(GUIState, GUIColorHex("#2e2e2e"), "gray18");
 	GUIState->ColorTable[GUIColorExt_gray19] = GUICreateColorSlot(GUIState, GUIColorHex("#303030"), "gray19");
-	GUIState->ColorTable[GUIColorExt_gray2] = GUICreateColorSlot(GUIState, GUIColorHex("#050505"), "gray2");
 	GUIState->ColorTable[GUIColorExt_gray20] = GUICreateColorSlot(GUIState, GUIColorHex("#333333"), "gray20");
 	GUIState->ColorTable[GUIColorExt_gray21] = GUICreateColorSlot(GUIState, GUIColorHex("#363636"), "gray21");
 	GUIState->ColorTable[GUIColorExt_gray22] = GUICreateColorSlot(GUIState, GUIColorHex("#383838"), "gray22");
@@ -233,7 +240,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray27] = GUICreateColorSlot(GUIState, GUIColorHex("#454545"), "gray27");
 	GUIState->ColorTable[GUIColorExt_gray28] = GUICreateColorSlot(GUIState, GUIColorHex("#474747"), "gray28");
 	GUIState->ColorTable[GUIColorExt_gray29] = GUICreateColorSlot(GUIState, GUIColorHex("#4a4a4a"), "gray29");
-	GUIState->ColorTable[GUIColorExt_gray3] = GUICreateColorSlot(GUIState, GUIColorHex("#080808"), "gray3");
 	GUIState->ColorTable[GUIColorExt_gray30] = GUICreateColorSlot(GUIState, GUIColorHex("#4d4d4d"), "gray30");
 	GUIState->ColorTable[GUIColorExt_gray31] = GUICreateColorSlot(GUIState, GUIColorHex("#4f4f4f"), "gray31");
 	GUIState->ColorTable[GUIColorExt_gray32] = GUICreateColorSlot(GUIState, GUIColorHex("#525252"), "gray32");
@@ -244,7 +250,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray37] = GUICreateColorSlot(GUIState, GUIColorHex("#5e5e5e"), "gray37");
 	GUIState->ColorTable[GUIColorExt_gray38] = GUICreateColorSlot(GUIState, GUIColorHex("#616161"), "gray38");
 	GUIState->ColorTable[GUIColorExt_gray39] = GUICreateColorSlot(GUIState, GUIColorHex("#636363"), "gray39");
-	GUIState->ColorTable[GUIColorExt_gray4] = GUICreateColorSlot(GUIState, GUIColorHex("#0a0a0a"), "gray4");
 	GUIState->ColorTable[GUIColorExt_gray40] = GUICreateColorSlot(GUIState, GUIColorHex("#666666"), "gray40");
 	GUIState->ColorTable[GUIColorExt_gray41] = GUICreateColorSlot(GUIState, GUIColorHex("#696969"), "gray41");
 	GUIState->ColorTable[GUIColorExt_gray42] = GUICreateColorSlot(GUIState, GUIColorHex("#6b6b6b"), "gray42");
@@ -255,7 +260,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray47] = GUICreateColorSlot(GUIState, GUIColorHex("#787878"), "gray47");
 	GUIState->ColorTable[GUIColorExt_gray48] = GUICreateColorSlot(GUIState, GUIColorHex("#7a7a7a"), "gray48");
 	GUIState->ColorTable[GUIColorExt_gray49] = GUICreateColorSlot(GUIState, GUIColorHex("#7d7d7d"), "gray49");
-	GUIState->ColorTable[GUIColorExt_gray5] = GUICreateColorSlot(GUIState, GUIColorHex("#0d0d0d"), "gray5");
 	GUIState->ColorTable[GUIColorExt_gray50] = GUICreateColorSlot(GUIState, GUIColorHex("#7f7f7f"), "gray50");
 	GUIState->ColorTable[GUIColorExt_gray51] = GUICreateColorSlot(GUIState, GUIColorHex("#828282"), "gray51");
 	GUIState->ColorTable[GUIColorExt_gray52] = GUICreateColorSlot(GUIState, GUIColorHex("#858585"), "gray52");
@@ -266,7 +270,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray57] = GUICreateColorSlot(GUIState, GUIColorHex("#919191"), "gray57");
 	GUIState->ColorTable[GUIColorExt_gray58] = GUICreateColorSlot(GUIState, GUIColorHex("#949494"), "gray58");
 	GUIState->ColorTable[GUIColorExt_gray59] = GUICreateColorSlot(GUIState, GUIColorHex("#969696"), "gray59");
-	GUIState->ColorTable[GUIColorExt_gray6] = GUICreateColorSlot(GUIState, GUIColorHex("#0f0f0f"), "gray6");
 	GUIState->ColorTable[GUIColorExt_gray60] = GUICreateColorSlot(GUIState, GUIColorHex("#999999"), "gray60");
 	GUIState->ColorTable[GUIColorExt_gray61] = GUICreateColorSlot(GUIState, GUIColorHex("#9c9c9c"), "gray61");
 	GUIState->ColorTable[GUIColorExt_gray62] = GUICreateColorSlot(GUIState, GUIColorHex("#9e9e9e"), "gray62");
@@ -277,7 +280,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray67] = GUICreateColorSlot(GUIState, GUIColorHex("#ababab"), "gray67");
 	GUIState->ColorTable[GUIColorExt_gray68] = GUICreateColorSlot(GUIState, GUIColorHex("#adadad"), "gray68");
 	GUIState->ColorTable[GUIColorExt_gray69] = GUICreateColorSlot(GUIState, GUIColorHex("#b0b0b0"), "gray69");
-	GUIState->ColorTable[GUIColorExt_gray7] = GUICreateColorSlot(GUIState, GUIColorHex("#121212"), "gray7");
 	GUIState->ColorTable[GUIColorExt_gray70] = GUICreateColorSlot(GUIState, GUIColorHex("#b3b3b3"), "gray70");
 	GUIState->ColorTable[GUIColorExt_gray71] = GUICreateColorSlot(GUIState, GUIColorHex("#b5b5b5"), "gray71");
 	GUIState->ColorTable[GUIColorExt_gray72] = GUICreateColorSlot(GUIState, GUIColorHex("#b8b8b8"), "gray72");
@@ -288,7 +290,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray77] = GUICreateColorSlot(GUIState, GUIColorHex("#c4c4c4"), "gray77");
 	GUIState->ColorTable[GUIColorExt_gray78] = GUICreateColorSlot(GUIState, GUIColorHex("#c7c7c7"), "gray78");
 	GUIState->ColorTable[GUIColorExt_gray79] = GUICreateColorSlot(GUIState, GUIColorHex("#c9c9c9"), "gray79");
-	GUIState->ColorTable[GUIColorExt_gray8] = GUICreateColorSlot(GUIState, GUIColorHex("#141414"), "gray8");
 	GUIState->ColorTable[GUIColorExt_gray80] = GUICreateColorSlot(GUIState, GUIColorHex("#cccccc"), "gray80");
 	GUIState->ColorTable[GUIColorExt_gray81] = GUICreateColorSlot(GUIState, GUIColorHex("#cfcfcf"), "gray81");
 	GUIState->ColorTable[GUIColorExt_gray82] = GUICreateColorSlot(GUIState, GUIColorHex("#d1d1d1"), "gray82");
@@ -299,7 +300,6 @@ static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_gray87] = GUICreateColorSlot(GUIState, GUIColorHex("#dedede"), "gray87");
 	GUIState->ColorTable[GUIColorExt_gray88] = GUICreateColorSlot(GUIState, GUIColorHex("#e0e0e0"), "gray88");
 	GUIState->ColorTable[GUIColorExt_gray89] = GUICreateColorSlot(GUIState, GUIColorHex("#e3e3e3"), "gray89");
-	GUIState->ColorTable[GUIColorExt_gray9] = GUICreateColorSlot(GUIState, GUIColorHex("#171717"), "gray9");
 	GUIState->ColorTable[GUIColorExt_gray90] = GUICreateColorSlot(GUIState, GUIColorHex("#e5e5e5"), "gray90");
 	GUIState->ColorTable[GUIColorExt_gray91] = GUICreateColorSlot(GUIState, GUIColorHex("#e8e8e8"), "gray91");
 	GUIState->ColorTable[GUIColorExt_gray92] = GUICreateColorSlot(GUIState, GUIColorHex("#ebebeb"), "gray92");
@@ -1724,6 +1724,76 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
+
+void GUIFramesGraph(gui_state* GUIState, u32 Count) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ProfileFrameGraph", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		gui_element_cache* Cache = &Element->Cache;
+
+		if (!Cache->IsInitialized) {
+
+			Cache->StackedMem.Dimension =
+				V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15);
+
+
+			Cache->IsInitialized = true;
+		}
+
+		v2* WorkDim = &Cache->StackedMem.Dimension;
+
+		GUIPreAdvanceCursor(GUIState);
+
+		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+
+		float OneColumnWidth = WorkDim->x / (float)Count;
+
+		v2 ColumnDim = V2(OneColumnWidth, WorkDim->y);
+		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
+
+		for (int ColumnIndex = 0;
+			ColumnIndex < Count;
+			ColumnIndex++)
+		{
+
+			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
+
+			ColumnRect.Min.x += OneColumnWidth;
+			ColumnRect.Max.x += OneColumnWidth;
+		}
+
+		v2 BarDim = V2(1.0f, WorkDim->y);
+
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, WorkDim->y));
+		for (int BarIndex = 0;
+			BarIndex < Count - 1;
+			BarIndex++)
+		{
+			RENDERPushRect(GUIState->RenderStack, BarRect, OutlineColor);
+		
+			BarRect.Min.x += OneColumnWidth;
+			BarRect.Max.x += OneColumnWidth;
+
+		}
+
+		rect2 GraphRect = Rect2MinDim(GraphMin, *WorkDim);
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
+
+		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+
+		GUIDescribeElement(GUIState, *WorkDim, GraphMin);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
 
 void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 	GUITreeBegin(GUIState, Name);

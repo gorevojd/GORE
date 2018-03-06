@@ -543,6 +543,14 @@ enum gui_color_table_type {
 	GUIColorExt_goldenrod4,
 	GUIColorExt_gray,
 	GUIColorExt_gray1,
+	GUIColorExt_gray2,
+	GUIColorExt_gray3,
+	GUIColorExt_gray4,
+	GUIColorExt_gray5,
+	GUIColorExt_gray6,
+	GUIColorExt_gray7,
+	GUIColorExt_gray8,
+	GUIColorExt_gray9,
 	GUIColorExt_gray10,
 	GUIColorExt_gray11,
 	GUIColorExt_gray12,
@@ -553,7 +561,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray17,
 	GUIColorExt_gray18,
 	GUIColorExt_gray19,
-	GUIColorExt_gray2,
 	GUIColorExt_gray20,
 	GUIColorExt_gray21,
 	GUIColorExt_gray22,
@@ -564,7 +571,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray27,
 	GUIColorExt_gray28,
 	GUIColorExt_gray29,
-	GUIColorExt_gray3,
 	GUIColorExt_gray30,
 	GUIColorExt_gray31,
 	GUIColorExt_gray32,
@@ -575,7 +581,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray37,
 	GUIColorExt_gray38,
 	GUIColorExt_gray39,
-	GUIColorExt_gray4,
 	GUIColorExt_gray40,
 	GUIColorExt_gray41,
 	GUIColorExt_gray42,
@@ -586,7 +591,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray47,
 	GUIColorExt_gray48,
 	GUIColorExt_gray49,
-	GUIColorExt_gray5,
 	GUIColorExt_gray50,
 	GUIColorExt_gray51,
 	GUIColorExt_gray52,
@@ -597,7 +601,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray57,
 	GUIColorExt_gray58,
 	GUIColorExt_gray59,
-	GUIColorExt_gray6,
 	GUIColorExt_gray60,
 	GUIColorExt_gray61,
 	GUIColorExt_gray62,
@@ -608,7 +611,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray67,
 	GUIColorExt_gray68,
 	GUIColorExt_gray69,
-	GUIColorExt_gray7,
 	GUIColorExt_gray70,
 	GUIColorExt_gray71,
 	GUIColorExt_gray72,
@@ -619,7 +621,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray77,
 	GUIColorExt_gray78,
 	GUIColorExt_gray79,
-	GUIColorExt_gray8,
 	GUIColorExt_gray80,
 	GUIColorExt_gray81,
 	GUIColorExt_gray82,
@@ -630,7 +631,6 @@ enum gui_color_table_type {
 	GUIColorExt_gray87,
 	GUIColorExt_gray88,
 	GUIColorExt_gray89,
-	GUIColorExt_gray9,
 	GUIColorExt_gray90,
 	GUIColorExt_gray91,
 	GUIColorExt_gray92,
@@ -1197,6 +1197,8 @@ extern void GUIEndMenuBar(gui_state* GUIState);
 extern void GUIBeginMenuBarItem(gui_state* GUIState, char* Name);
 extern void GUIEndMenuBarItem(gui_state* GUIState);
 extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
+
+extern void GUIFramesGraph(gui_state* GUIState, u32 Count);
 
 extern void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType);
 extern void GUIEndLayout(gui_state* GUIState, u32 LayoutType);

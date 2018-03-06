@@ -1,5 +1,4 @@
 #include <SDL.h>
-//#include <gl/GL.h>
 
 #include <stdio.h>
 #include <thread>
@@ -1035,6 +1034,8 @@ int main(int ArgsCount, char** Args) {
 		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);
 		GUIEndRow(GUIState);
 
+		GUIFramesGraph(GUIState, 256);
+
 		GUIBoolButton(GUIState, "Button3", &TempBoolForSlider);
 		GUIBoolButton(GUIState, "Button4", &TempBoolForSlider);
 
@@ -1245,7 +1246,7 @@ int main(int ArgsCount, char** Args) {
 
 		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
-#if 1
+#if 0
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLRenderStackToOutput(GLState, Stack);
