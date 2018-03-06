@@ -1731,29 +1731,17 @@ void GUIFramesGraph(gui_state* GUIState, u32 Count) {
 	if (GUIElementShouldBeUpdated(Element)) {
 		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
-		gui_element_cache* Cache = &Element->Cache;
-
-		if (!Cache->IsInitialized) {
-
-			Cache->StackedMem.Dimension =
-				V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15);
-
-
-			Cache->IsInitialized = true;
-		}
-
-		v2* WorkDim = &Cache->StackedMem.Dimension;
-
 		GUIPreAdvanceCursor(GUIState);
 
 		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15);
 
-		float OneColumnWidth = WorkDim->x / (float)Count;
+		float OneColumnWidth = GraphDim.x / (float)Count;
 
-		v2 ColumnDim = V2(OneColumnWidth, WorkDim->y);
+		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
 		for (int ColumnIndex = 0;
@@ -1767,9 +1755,9 @@ void GUIFramesGraph(gui_state* GUIState, u32 Count) {
 			ColumnRect.Max.x += OneColumnWidth;
 		}
 
-		v2 BarDim = V2(1.0f, WorkDim->y);
+		v2 BarDim = V2(1.0f, GraphDim.y);
 
-		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, WorkDim->y));
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
 		for (int BarIndex = 0;
 			BarIndex < Count - 1;
 			BarIndex++)
@@ -1781,13 +1769,15 @@ void GUIFramesGraph(gui_state* GUIState, u32 Count) {
 
 		}
 
-		rect2 GraphRect = Rect2MinDim(GraphMin, *WorkDim);
+		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
 		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
 
-		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
+#if 0
+		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+#endif
 
-		GUIDescribeElement(GUIState, *WorkDim, GraphMin);
+		GUIDescribeElement(GUIState, GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState);
 	}
 
