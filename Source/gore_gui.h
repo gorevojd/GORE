@@ -11,6 +11,8 @@
 
 #define GUI_EXT_COLORS_ENABLED 1
 
+struct gui_state;
+
 enum gui_variable_type {
 	GUIVarType_F32,
 	GUIVarType_U32,
@@ -1022,6 +1024,13 @@ struct gui_state {
 	gui_color_slot ColorTable[GUIColor_Count];
 };
 
+inline v4 GUIGetColor(gui_state* GUIState, u32 ColorIndex) {
+	v4 Result = GUIState->ColorTable[ColorIndex].Color;
+
+	return(Result);
+}
+
+
 /*
 inline v4 GUIGetThemeColor(gui_state* State, u32 Color) {
 	v4 Result = State->ColorTable[State->ColorTheme[]]
@@ -1198,8 +1207,6 @@ extern void GUIBeginMenuBarItem(gui_state* GUIState, char* Name);
 extern void GUIEndMenuBarItem(gui_state* GUIState);
 extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
 
-extern void GUIFramesGraph(gui_state* GUIState, u32 Count);
-
 extern void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType);
 extern void GUIEndLayout(gui_state* GUIState, u32 LayoutType);
 extern void GUIBeginRow(gui_state* State);
@@ -1213,6 +1220,10 @@ extern gui_element* GUIBeginElement(
 	b32 InitExpandedState = 0,
 	b32 IncrementDepth = 1);
 extern void GUIEndElement(gui_state* State, u32 ElementType);
+
+extern void GUIPreAdvanceCursor(gui_state* State);
+extern void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP);
+extern void GUIAdvanceCursor(gui_state* State);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);
 extern void GUITreeEnd(gui_state* State);

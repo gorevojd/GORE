@@ -203,6 +203,7 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 	State->RootSection= DEBUGAllocateSentinelTreeNode(State);
 	State->CurrentSection = State->RootSection;
 
+#if 0
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
 		FrameIndex++)
@@ -217,6 +218,7 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 
 		DEBUGFreeFrameInfo(State, Frame);
 	}
+#endif
 }
 
 void DEBUGProcessCollectedRecords(debug_state* State) {
@@ -323,6 +325,127 @@ void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNo
 		}
 	}
 }
+
+void DEBUGFramesSlider(debug_state* State) {
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "FrameSlider", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		GUIPreAdvanceCursor(GUIState);
+
+		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.1f);
+
+		float OneColumnWidth = GraphDim.x / (float)DEBUG_FRAMES_COUNT;
+
+		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
+		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
+
+#if 0
+		for (int ColumnIndex = 0;
+			ColumnIndex < DEBUG_FRAMES_COUNT;
+			ColumnIndex++)
+		{
+
+			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
+
+			ColumnRect.Min.x += OneColumnWidth;
+			ColumnRect.Max.x += OneColumnWidth;
+		}
+#endif
+
+		v2 BarDim = V2(1.0f, GraphDim.y);
+
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
+		for (int BarIndex = 0;
+			BarIndex < DEBUG_FRAMES_COUNT - 1;
+			BarIndex++)
+		{
+			RENDERPushRect(GUIState->RenderStack, BarRect, OutlineColor);
+
+			BarRect.Min.x += OneColumnWidth;
+			BarRect.Max.x += OneColumnWidth;
+
+		}
+
+		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
+
+		GUIDescribeElement(GUIState, GraphDim, GraphMin);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+void DEBUGFramesGraph(debug_state* State) {
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ProfileFrameGraph", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		GUIPreAdvanceCursor(GUIState);
+
+		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15f);
+
+		float OneColumnWidth = GraphDim.x / (float)DEBUG_FRAMES_COUNT;
+
+		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
+		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
+
+		for (int ColumnIndex = 0;
+			ColumnIndex < DEBUG_FRAMES_COUNT;
+			ColumnIndex++)
+		{
+
+			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
+
+			ColumnRect.Min.x += OneColumnWidth;
+			ColumnRect.Max.x += OneColumnWidth;
+		}
+
+		v2 BarDim = V2(1.0f, GraphDim.y);
+
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
+		for (int BarIndex = 0;
+			BarIndex < DEBUG_FRAMES_COUNT - 1;
+			BarIndex++)
+		{
+			RENDERPushRect(GUIState->RenderStack, BarRect, OutlineColor);
+
+			BarRect.Min.x += OneColumnWidth;
+			BarRect.Max.x += OneColumnWidth;
+
+		}
+
+		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
+
+#if 0
+		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+#endif
+
+		GUIDescribeElement(GUIState, GraphDim, GraphMin);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+
 
 void DEBUGOverlayToOutput(debug_state* State, render_stack* RenderStack) {
 	GUIBeginFrame(State->GUIState, RenderStack);

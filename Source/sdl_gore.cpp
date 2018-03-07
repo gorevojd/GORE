@@ -458,6 +458,9 @@ static void ProcessInput(input_system* System) {
 static gui_state GUIState_;
 static gui_state* GUIState = &GUIState_;
 
+static debug_state DEBUGState_;
+static debug_state* DEBUGState = &DEBUGState_;
+
 static gl_state GLState_;
 static gl_state* GLState = &GLState_;
 
@@ -930,6 +933,7 @@ int main(int ArgsCount, char** Args) {
 
 	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	OpenGLInitState(GLState);
+	DEBUGInit(DEBUGState, GUIState);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -1034,7 +1038,8 @@ int main(int ArgsCount, char** Args) {
 		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);
 		GUIEndRow(GUIState);
 
-		GUIFramesGraph(GUIState, 256);
+		DEBUGFramesGraph(DEBUGState);
+		DEBUGFramesSlider(DEBUGState);
 
 		GUIBoolButton(GUIState, "Button3", &TempBoolForSlider);
 		GUIBoolButton(GUIState, "Button4", &TempBoolForSlider);

@@ -73,13 +73,6 @@ inline gui_color_slot GUICreateColorSlot(gui_state* GUIState, v4 Color, char* Na
 	return(Res);
 }
 
-inline v4 GUIGetColor(gui_state* GUIState, u32 ColorIndex) {
-	v4 Result = GUIState->ColorTable[ColorIndex].Color;
-
-	return(Result);
-}
-
-
 #if GUI_EXT_COLORS_ENABLED
 static void GUIExtInitColors(gui_state* GUIState) {
 	GUIState->ColorTable[GUIColorExt_AliceBlue] = GUICreateColorSlot(GUIState, GUIColorHex("#f0f8ff"), "AliceBlue");
@@ -1175,7 +1168,7 @@ void GUIEndLayout(gui_state* GUIState, u32 LayoutType) {
 	GUIState->CurrentLayout = GUIState->CurrentLayout->Parent;
 }
 
-inline void GUIPreAdvanceCursor(gui_state* State) {
+void GUIPreAdvanceCursor(gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_element* Element = State->CurrentNode;
@@ -1195,7 +1188,7 @@ inline b32 GUIIsRowBeginned(gui_layout* View) {
 	return(Result);
 }
 
-inline void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
+void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	View->LastElementP = ElementP;
@@ -1206,7 +1199,7 @@ inline void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
 	}
 }
 
-inline void GUIAdvanceCursor(gui_state* State) {
+void GUIAdvanceCursor(gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 #if 0
@@ -1724,66 +1717,6 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
-
-void GUIFramesGraph(gui_state* GUIState, u32 Count) {
-	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ProfileFrameGraph", 0, 1, 1);
-
-	if (GUIElementShouldBeUpdated(Element)) {
-		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
-
-		GUIPreAdvanceCursor(GUIState);
-
-		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
-
-		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
-		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15);
-
-		float OneColumnWidth = GraphDim.x / (float)Count;
-
-		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
-		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
-
-		for (int ColumnIndex = 0;
-			ColumnIndex < Count;
-			ColumnIndex++)
-		{
-
-			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
-
-			ColumnRect.Min.x += OneColumnWidth;
-			ColumnRect.Max.x += OneColumnWidth;
-		}
-
-		v2 BarDim = V2(1.0f, GraphDim.y);
-
-		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
-		for (int BarIndex = 0;
-			BarIndex < Count - 1;
-			BarIndex++)
-		{
-			RENDERPushRect(GUIState->RenderStack, BarRect, OutlineColor);
-		
-			BarRect.Min.x += OneColumnWidth;
-			BarRect.Max.x += OneColumnWidth;
-
-		}
-
-		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
-		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
-
-#if 0
-		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
-		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
-#endif
-
-		GUIDescribeElement(GUIState, GraphDim, GraphMin);
-		GUIAdvanceCursor(GUIState);
-	}
-
-	GUIEndElement(GUIState, GUIElement_CachedItem);
-}
-
 
 void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 	GUITreeBegin(GUIState, Name);

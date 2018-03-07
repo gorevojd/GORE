@@ -202,4 +202,8 @@ struct debug_timing {
 };
 
 
+extern void DEBUGFramesSlider(debug_state* State);
+extern void DEBUGFramesGraph(debug_state* State);
+extern void DEBUGInit(debug_state* State, gui_state* GUIState);
+
 #endif
