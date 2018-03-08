@@ -46,15 +46,29 @@ struct debug_timing_snapshot {
 enum debug_value_type {
 	DebugValue_I32,
 	DebugValue_U32,
+	
+	DebugValue_Text,
+
 	DebugValue_Vector2,
 	DebugValue_Vector3,
 	DebugValue_Vector4,
+	DebugValue_Color,
+
+	DebugValue_FrameSlider,
+	DebugValue_MainFramesGraph,
 };
 
 struct debug_value_link {
 	u32 Type;
 
-	void* Value;
+	union {
+		i32* Value_I32;
+		u32* Value_U32;
+
+		v2* Value_V2;
+		v3* Value_V3;
+		v4* Value_V4;
+	};
 };
 
 struct debug_record_table {
@@ -149,7 +163,8 @@ struct debug_state {
 	debug_tree_node* CurrentSection;
 
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
-	u32 ProcessFrameIndex;
+	u32 CollationFrameIndex;
+	u32 ViewFrameIndex;
 
 	stacked_memory DebugMemory;
 
@@ -205,5 +220,6 @@ struct debug_timing {
 extern void DEBUGFramesSlider(debug_state* State);
 extern void DEBUGFramesGraph(debug_state* State);
 extern void DEBUGInit(debug_state* State, gui_state* GUIState);
+extern void DEBUGProcessRecords(debug_state* State);
 
 #endif

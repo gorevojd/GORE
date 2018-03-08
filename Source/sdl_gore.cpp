@@ -1249,9 +1249,9 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
-		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
-#if 0
+#if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLRenderStackToOutput(GLState, Stack);

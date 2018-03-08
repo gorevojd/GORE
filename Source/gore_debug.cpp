@@ -203,7 +203,6 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 	State->RootSection= DEBUGAllocateSentinelTreeNode(State);
 	State->CurrentSection = State->RootSection;
 
-#if 0
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
 		FrameIndex++)
@@ -213,22 +212,35 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 		Frame->TimingSentinel = DEBUGAllocateSentinelTreeNode(State);
 		Frame->CurrentTiming = Frame->TimingSentinel;
 
+		Frame->TimingStatisticSentinel = DEBUGAllocateSentinelStatistic(State);
+
 		Frame->SectionSentinel = DEBUGAllocateSentinelTreeNode(State);
 		Frame->CurrentSection = Frame->SectionSentinel;
 
 		DEBUGFreeFrameInfo(State, Frame);
 	}
-#endif
 }
 
-void DEBUGProcessCollectedRecords(debug_state* State) {
+inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
+	debug_profiled_frame* Frame = &State->Frames[State->CollationFrameIndex];
+
+	return(Frame);
+}
+
+inline void DEBUGIncrementFrameIndices(debug_state* State) {
+	State->CollationFrameIndex = (State->CollationFrameIndex + 1) % DEBUG_FRAMES_COUNT;
+}
+
+void DEBUGProcessRecords(debug_state* State) {
 	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
+
 	for (u32 CollectedRecordIndex = 0;
 		CollectedRecordIndex < RecordCount;
 		CollectedRecordIndex++)
 	{
 		debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value];
-		debug_profiled_frame* Frame = &State->Frames[State->ProcessFrameIndex];
+
+		debug_profiled_frame* Frame = DEBUGGetCollationFrame(State);
 
 		switch (Record->RecordType) {
 			case DebugRecord_BeginTiming: {
@@ -298,14 +310,17 @@ void DEBUGProcessCollectedRecords(debug_state* State) {
 
 			} break;
 		}
-
-		//TODO(dima): Think about when to do this
-		int NewTableIndex = !GlobalRecordTable->CurrentTableIndex.value;
-		SDL_AtomicSet(&GlobalRecordTable->CurrentTableIndex, NewTableIndex);
-		SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
-
-		Assert(State->CurrentSection == State->RootSection);
 	}
+
+	DEBUGIncrementFrameIndices(State);
+
+	//TODO(dima): Think about when to do this
+	int NewTableIndex = !GlobalRecordTable->CurrentTableIndex.value;
+	SDL_AtomicSet(&GlobalRecordTable->CurrentTableIndex, NewTableIndex);
+	SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
+
+	//NOTE(dima): Section pointer must be equal to initial
+	Assert(State->CurrentSection == State->RootSection);
 }
 
 void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
@@ -326,6 +341,12 @@ void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNo
 	}
 }
 
+inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, v2 Dim, v4 Color) {
+	rect2 ColumnRect = Rect2MinDim(V2(InitP.x + Dim.x * FrameIndex, InitP.y), Dim);
+
+	RENDERPushRect(GUIState->RenderStack, ColumnRect, Color);
+}
+
 void DEBUGFramesSlider(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
 
@@ -340,7 +361,7 @@ void DEBUGFramesSlider(debug_state* State) {
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.1f);
+		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 3);
 
 		float OneColumnWidth = GraphDim.x / (float)DEBUG_FRAMES_COUNT;
 
@@ -360,6 +381,9 @@ void DEBUGFramesSlider(debug_state* State) {
 		}
 #endif
 
+		//NOTE(dima): Collation frame column
+		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Orange));
+
 		v2 BarDim = V2(1.0f, GraphDim.y);
 
 		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
@@ -375,7 +399,7 @@ void DEBUGFramesSlider(debug_state* State) {
 		}
 
 		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
-		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 2, OutlineColor);
 
 		GUIDescribeElement(GUIState, GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState);
@@ -455,4 +479,10 @@ void DEBUGOverlayToOutput(debug_state* State, render_stack* RenderStack) {
 	GUIEndLayout(State->GUIState, GUILayout_Simple);
 
 	GUIEndFrame(State->GUIState);
+}
+
+void DEBUGUpdate(debug_state* State) {
+	DEBUGProcessRecords(State);
+
+	DEBUGOverlayToOutput(State, State->GUIState->RenderStack);
 }
