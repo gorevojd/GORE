@@ -306,6 +306,8 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 }
 
 void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
+	FUNCTION_TIMING();
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

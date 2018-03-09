@@ -775,6 +775,8 @@ void RenderRectFast(
 }
 
 void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
+	FUNCTION_TIMING();
+
 	u8* At = Stack->Data.BaseAddress;
 	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
 
@@ -905,7 +907,9 @@ void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
 	SoftwareRenderStackToOutput(Stack, Buffer, ClipRect);
 }
 
-void RenderDickInjectionMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer) {
+void RenderMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer) {
+	FUNCTION_TIMING();
+
 #if 0
 	rect2 ClipRect;
 	ClipRect.Min = V2(0, 0);

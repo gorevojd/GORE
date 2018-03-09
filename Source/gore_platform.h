@@ -5,6 +5,7 @@
 #include "gore_math.h"
 #include "gore_random.h"
 #include "gore_stacked_memory.h"
+#include "gore_debug_layer.h"
 
 #include <intrin.h>
 

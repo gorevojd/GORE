@@ -615,8 +615,8 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->NextBro = RootNode;
 
 	char* RootNodeName = "MainRoot";
-	RootNode->Name = PushString(&GUIState->GUIMem, RootNodeName);
 	CopyStrings(RootNode->Name, RootNodeName);
+	CopyStrings(RootNode->Text, RootNodeName);
 
 	RootNode->ID = GUIStringHashFNV(RootNode->Name);
 	RootNode->Expanded = 1;
@@ -1199,7 +1199,7 @@ void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
 	}
 }
 
-void GUIAdvanceCursor(gui_state* State) {
+void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 #if 0
@@ -1213,7 +1213,7 @@ void GUIAdvanceCursor(gui_state* State) {
 #if 0
 		View->CurrentY += GetNextRowAdvance(State->FontInfo, 1.2f);
 #else
-		View->CurrentY += View->LastElementDim.y + GetNextRowAdvance(State->FontInfo) * 0.2f;
+		View->CurrentY += View->LastElementDim.y + GetNextRowAdvance(State->FontInfo) * 0.2 + AdditionalYSpacing;
 #endif
 	}
 
@@ -1422,8 +1422,8 @@ static gui_element* GUIRequestElement(
 		Element->Depth = Parent->Depth + ElementIncrementDepthValue;
 #endif
 
-		Element->Name = PushString(&GUIState->GUIMem, ElementName);
 		CopyStrings(Element->Name, ElementName);
+		CopyStrings(Element->Text, ElementName);
 
 		Element->ID = ElementHash;
 		Element->RowCount = 0;
@@ -1563,6 +1563,33 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	TextRect.Max.y = Py - FontInfo->DescenderHeight * Scale;
 
 	return(TextRect);
+}
+
+void GUITextBase(
+	gui_state* GUIState, 
+	char* Text, 
+	v2 Pos, 
+	v4 TextColor, 
+	float FontScale,
+	v4 TextHighlightColor,
+	v4 BackgroundColor, 
+	u32 OutlineWidth,
+	v4 OutlineColor)
+{
+	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos.x, Pos.y, FontScale);
+
+	v4 CurTextColor = TextColor;
+	if (MouseInRect(GUIState->Input, TextRc)) {
+		CurTextColor = TextHighlightColor;
+	}
+
+	RENDERPushRect(GUIState->RenderStack, TextRc, BackgroundColor);
+
+	if (OutlineWidth > 0) {
+		RENDERPushRectOutline(GUIState->RenderStack, TextRc, OutlineWidth, OutlineColor);
+	}
+
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos.x, Pos.y, FontScale, CurTextColor);
 }
 
 void GUIPerformInteraction(
@@ -2673,6 +2700,14 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
+void GUIChangeTreeNodeText(gui_state* GUIState, char* Text) {
+	gui_element* Elem = GUIGetCurrentElement(GUIState);
+
+	if (Elem->Type == GUIElement_TreeNode) {
+		CopyStrings(Elem->Text, Text);
+	}
+}
+
 void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
@@ -2680,7 +2715,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 	gui_tree_node_cache* Cache = &Element->Cache.TreeNode;
 
 	//gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
-	char TextBuf[64];
+	char TextBuf[128];
 	if (GUIState->PlusMinusSymbol) {
 		stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Name);
 	}

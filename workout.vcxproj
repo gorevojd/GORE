@@ -175,6 +175,7 @@
   <ItemGroup>
     <ClInclude Include="Source\geometrika.h" />
     <ClInclude Include="Source\gore_debug.h" />
+    <ClInclude Include="Source\gore_debug_layer.h" />
     <ClInclude Include="Source\gore_engine.h" />
     <ClInclude Include="Source\gore_game_common.h" />
     <ClInclude Include="Source\gore_input.h" />

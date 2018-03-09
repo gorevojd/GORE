@@ -28,7 +28,7 @@ inline void DeallocateStackedMemory(stacked_memory* Mem) {
 	Mem->Used = 0;
 }
 
-inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 1) {
+inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 
 	u32 AlignOffset = GET_ALIGN_OFFSET(Mem->BaseAddress, Align);
 

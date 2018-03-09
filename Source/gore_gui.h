@@ -367,7 +367,8 @@ struct gui_element {
 	gui_element* ChildrenSentinel;
 
 	b32 Expanded;
-	char* Name;
+	char Name[32];
+	char Text[32];
 
 	u32 RowCount;
 
@@ -1208,6 +1209,7 @@ extern void GUIEndMenuBarItem(gui_state* GUIState);
 extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
 
 extern void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType);
+extern void GUIChangeTreeNodeText(gui_state* GUIState, char* Text);
 extern void GUIEndLayout(gui_state* GUIState, u32 LayoutType);
 extern void GUIBeginRow(gui_state* State);
 extern void GUIEndRow(gui_state* State);
@@ -1223,10 +1225,21 @@ extern void GUIEndElement(gui_state* State, u32 ElementType);
 
 extern void GUIPreAdvanceCursor(gui_state* State);
 extern void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP);
-extern void GUIAdvanceCursor(gui_state* State);
+extern void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing = 0.0f);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText);
 extern void GUITreeEnd(gui_state* State);
+
+void GUITextBase(
+	gui_state* GUIState,
+	char* Text,
+	v2 Pos,
+	v4 TextColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
+	float FontScale = 1.0f,
+	v4 TextHighlightColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
+	v4 BackgroundColor = V4(0.0f, 0.5f, 1.0f, 1.0f),
+	u32 OutlineWidth = 0,
+	v4 OutlineColor = V4(0.0f, 0.0f, 0.0f, 1.0f));
 
 #if 0
 extern void GUIBeginTreeFind(gui_state* State, char* NodeName);

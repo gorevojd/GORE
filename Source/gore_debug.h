@@ -7,31 +7,6 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
-enum debug_record_type {
-	ProfileRecord_None,
-
-	DebugRecord_BeginTiming,
-	DebugRecord_EndTiming,
-
-	//NOTE(dima): sections are just categories that will be visible in the debug overlay
-	DebugRecord_BeginSection,
-	DebugRecord_EndSection,
-	DebugRecord_Value,
-};
-
-struct debug_record {
-	char* Name;
-	char* UniqueName;
-
-	u32 RecordType;
-
-	union {
-		struct {
-			u64 Clocks;
-			u16 ThreadID;
-		};
-	};
-};
 
 struct debug_timing_snapshot {
 	u64 BeginClock;
@@ -41,42 +16,6 @@ struct debug_timing_snapshot {
 	u32 ThreadID;
 
 	u32 HitCount;
-};
-
-enum debug_value_type {
-	DebugValue_I32,
-	DebugValue_U32,
-	
-	DebugValue_Text,
-
-	DebugValue_Vector2,
-	DebugValue_Vector3,
-	DebugValue_Vector4,
-	DebugValue_Color,
-
-	DebugValue_FrameSlider,
-	DebugValue_MainFramesGraph,
-};
-
-struct debug_value_link {
-	u32 Type;
-
-	union {
-		i32* Value_I32;
-		u32* Value_U32;
-
-		v2* Value_V2;
-		v3* Value_V3;
-		v4* Value_V4;
-	};
-};
-
-struct debug_record_table {
-	SDL_atomic_t CurrentRecordIndex;
-	SDL_atomic_t CurrentTableIndex;
-
-	int RecordsMaxCount;
-	debug_record Records[2][4096];
 };
 
 enum debug_statistic_type {
@@ -97,6 +36,7 @@ struct debug_statistic {
 	u32 Type;
 
 	u32 ID;
+	char Name[64];
 
 	debug_statistic* NextInHash;
 
@@ -126,7 +66,7 @@ struct debug_id {
 struct debug_tree_node {
 	u32 TreeNodeType;
 
-	char* UniqueName;
+	char* Name;
 	u32 ID;
 
 	debug_tree_node* Parent;
@@ -163,63 +103,21 @@ struct debug_state {
 	debug_tree_node* CurrentSection;
 
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
+	u32 NewestFrameIndex;
+	u32 OldestFrameIndex;
 	u32 CollationFrameIndex;
 	u32 ViewFrameIndex;
+
 
 	stacked_memory DebugMemory;
 
 	gui_state* GUIState;
 };
 
-
-extern debug_record_table* GlobalRecordTable;
-
-#define DEBUG_ID_TO_STRING(id) #id
-
-#define DEBUG_UNIQUE_STRING_(id, func, line, counter) id "@" func "@" ## DEBUG_ID_TO_STRING(line) ## "@" ## DEBUG_ID_TO_STRING(counter)
-#define DEBUG_UNIQUE_STRING(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, __LINE__, __COUNTER__)
-
-inline void DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
-	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
-	Assert(Index < GlobalRecordTable->RecordsMaxCount);
-
-	debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value] + Index;
-
-	Record->Name = Name;
-	Record->UniqueName = UniqueName;
-	Record->Clocks = __rdtsc();
-	Record->RecordType = RecordType;
-	//TODO(dima): think about perfomance of this
-	Record->ThreadID = SDL_ThreadID();
-}
-
-#define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
-
-#define BEGIN_TIMING(name) ADD_DEBUG_RECORD(name, ProfileRecord_BeginTiming)
-#define END_TIMING() ADD_DEBUG_RECORD("End", ProfileRecord_EndTiming)
-
-#define FUNCTION_TIMING() debug_timing FunctionTiming_##__COUNTER__(__FUNCTION__, DEBUG_UNIQUE_STRING(__FUNCTION__));
-
-struct debug_timing {
-	char* Name;
-	char* UniqueName;
-
-	debug_timing(char* Name, char* UniqueName) {
-		this->Name = Name;
-		this->UniqueName = UniqueName;
-
-		DEBUGAddRecord(Name, UniqueName, DebugRecord_BeginTiming);
-	}
-
-	~debug_timing() {
-		DEBUGAddRecord(Name, UniqueName, DebugRecord_EndTiming);
-	}
-};
-
-
 extern void DEBUGFramesSlider(debug_state* State);
 extern void DEBUGFramesGraph(debug_state* State);
 extern void DEBUGInit(debug_state* State, gui_state* GUIState);
 extern void DEBUGProcessRecords(debug_state* State);
+extern void DEBUGUpdate(debug_state* State);
 
 #endif

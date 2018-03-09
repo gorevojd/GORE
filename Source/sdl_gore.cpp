@@ -179,6 +179,8 @@ inline void ProcessButtonState(button_state* State, b32 IsDown, b32 TransitionHa
 }
 
 static void ProcessEvents(SDL_Window* Window, input_system* Input) {
+	FUNCTION_TIMING();
+
 	SDL_Event CurrentEvent;
 
 	for (int ButtonIndex = 0;
@@ -422,6 +424,8 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 }
 
 static void ProcessInput(input_system* System) {
+	FUNCTION_TIMING();
+
 	int MouseX;
 	int MouseY;
 	u32 MouseState = SDL_GetMouseState(&MouseX, &MouseY);
@@ -945,6 +949,10 @@ int main(int ArgsCount, char** Args) {
 	while (GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
 
+		DEBUG_FRAME_BARRIER(LastMSPerFrame);
+
+		BEGIN_SECTION("LayerSDL");
+		BEGIN_SECTION("EventProcessing");
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -957,6 +965,8 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
+		END_SECTION();
+
 
 		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
@@ -979,9 +989,9 @@ int main(int ArgsCount, char** Args) {
 			RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
 		}
 
-		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
-		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
-		//RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
+		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
+		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 
@@ -1000,7 +1010,8 @@ int main(int ArgsCount, char** Args) {
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
 
 		GUIText(GUIState, DebugStr);
-#if 1
+#if 0
+
 		GUIBeginLayout(GUIState, "Root", GUILayout_Tree);
 
 		GUITreeBegin(GUIState, "Root");
@@ -1249,7 +1260,12 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
-		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+		BEGIN_SECTION("DEBUG");
+		DEBUGUpdate(DEBUGState);
+		END_SECTION();
+
+		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+
 
 #if 1
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
@@ -1259,7 +1275,8 @@ int main(int ArgsCount, char** Args) {
 		SDL_GL_SwapWindow(Window);
 	
 #else
-		RenderDickInjectionMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
+		BEGIN_SECTION("RENDERING");
+		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);
@@ -1278,10 +1295,13 @@ int main(int ArgsCount, char** Args) {
 		
 		SDL_DestroyTexture(GlobalRenderTexture);
 		SDL_FreeSurface(Surf);
+		END_SECTION();
 #endif
 
 		GUIEndFrame(GUIState);
 		RENDEREndStack(Stack);
+
+		END_SECTION();
 
 		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
 		LastMSPerFrame = SPerFrame * 1000.0f;
