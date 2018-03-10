@@ -82,6 +82,32 @@ inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statis
 	Statistic->NextInHash = 0;
 }
 
+inline void DEBUGInsertStatisticAfter(debug_statistic* After, debug_statistic* ToInsert) {
+	if (After != ToInsert) {
+		ToInsert->PrevBro->NextBro = ToInsert->NextBro;
+		ToInsert->NextBro->PrevBro = ToInsert->PrevBro;
+
+		ToInsert->PrevBro = After;
+		ToInsert->NextBro = After->NextBro;
+
+		ToInsert->NextBro->PrevBro = ToInsert;
+		ToInsert->PrevBro->NextBro = ToInsert;
+	}
+}
+
+inline void DEBUGInsertStatisticBefore(debug_statistic* Before, debug_statistic* ToInsert) {
+	if (Before != ToInsert) {
+		ToInsert->PrevBro->NextBro = ToInsert->NextBro;
+		ToInsert->NextBro->PrevBro = ToInsert->PrevBro;
+
+		ToInsert->PrevBro = Before->PrevBro;
+		ToInsert->NextBro = Before;
+
+		ToInsert->NextBro->PrevBro = ToInsert;
+		ToInsert->PrevBro->NextBro = ToInsert;
+	}
+}
+
 #define DEBUG_NEW_BLOCK_TEMP_NAME_SZ 64
 inline void DEBUGParseNameFromUnique(char* UniqueName, char* Out, int Size) {
 	int CharIndex;
@@ -133,6 +159,9 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 #if 1
 		NewBlock->Name = PushString(&State->DebugMemory, NewName);
 		CopyStrings(NewBlock->Name, NewName);
+
+		NewBlock->UniqueName = PushString(&State->DebugMemory, UniqueName);
+		CopyStrings(NewBlock->UniqueName, UniqueName);
 		
 #else
 		NewBlock->Name = PushString(&State->DebugMemory, UniqueName);
@@ -203,7 +232,6 @@ inline debug_statistic* DEBUGInitDebugStatistic(
 
 		Statistic->Timing = {};
 	}
-
 
 	return(Statistic);
 }
@@ -344,7 +372,7 @@ void DEBUGProcessRecords(debug_state* State) {
 					State, 
 					Frame->TimingStatistics, 
 					Frame->TimingStatisticSentinel, 
-					Record->UniqueName);
+					CurrentBlock->UniqueName);
 
 				TimingStatistic->Type = DebugStatistic_Timing;
 				TimingStatistic->Timing.TotalClocks += TimingSnapshot->ClocksElapsed;
@@ -426,7 +454,7 @@ void DEBUGFramesSlider(debug_state* State) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		v4 OutlineColor = GUIGetColor(GUIState, GUIColorExt_gray60);
+		v4 OutlineColor = GUIGetColor(GUIState, GUIColorExt_gray70);
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
@@ -548,7 +576,23 @@ void DEBUGFramesGraph(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void DEBUGClocksList(debug_state* State) {
+inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
+	u64 Result = 0;
+
+	if (Type == DebugRecord_TopTotalClocks) {
+		Result = Stat->Timing.TotalClocks;
+	}
+	else if (Type == DebugRecord_TopExClocks) {
+		Result = Stat->Timing.TotalClocks - Stat->Timing.TotalClocksInChildren;
+	}
+	else {
+		Assert(!"Invalid type");
+	}
+
+	return(Result);
+}
+
+void DEBUGClocksList(debug_state* State, u32 Type) {
 	gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ClockList", 0, 1, 1);
@@ -582,6 +626,36 @@ void DEBUGClocksList(debug_state* State) {
 
 		float AtY = Layout->CurrentY;
 
+		BEGIN_TIMING("ClockListSorting");
+#if 1
+		//NOTE(dima): Selection sort implemented
+		debug_statistic* SortAt = Frame->TimingStatisticSentinel->NextBro;
+		for (SortAt;
+			SortAt != Frame->TimingStatisticSentinel->PrevBro;)
+		{
+			debug_statistic* Biggest = SortAt;
+
+			for (debug_statistic* ScanAt = SortAt->NextBro;
+				ScanAt != Frame->TimingStatisticSentinel;
+				ScanAt = ScanAt->NextBro)
+			{
+				if (DEBUGGetClocksFromTiming(ScanAt, Type) >
+					DEBUGGetClocksFromTiming(Biggest, Type)) 
+				{
+					Biggest = ScanAt;
+				}
+			}
+
+			if (Biggest != SortAt) {
+				DEBUGInsertStatisticBefore(SortAt, Biggest);
+			}
+			else {
+				SortAt = SortAt->NextBro;
+			}
+		}
+#endif
+		END_TIMING();
+
 		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextBro;
 		for (
 			Timing; 
@@ -591,14 +665,14 @@ void DEBUGClocksList(debug_state* State) {
 			if (AtY < GroundRc.Max.y - RowAdvance) {
 				char TextBuf[256];
 		
-				u64 ToViewClocks = Timing->Timing.TotalClocks;
+				u64 ToViewClocks = DEBUGGetClocksFromTiming(Timing, Type);
 		
 				stbsp_sprintf(TextBuf, "%11lluc %13.2fc/h %8u  %-30s",
-					Timing->Timing.TotalClocks,
+					ToViewClocks,
 					(float)ToViewClocks / (float)Timing->Timing.HitCount,
 					Timing->Timing.HitCount,
 					Timing->Name);
-		
+
 				v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
 				v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
@@ -628,6 +702,7 @@ void DEBUGClocksList(debug_state* State) {
 
 enum debug_profile_active_element {
 	DebugProfileActiveElement_TopClocks,
+	DebugProfileActiveElement_TopExClocks,
 	DebugProfileActiveElement_FrameGraph,
 };
 
@@ -651,15 +726,19 @@ void DEBUGOverlayToOutput(debug_state* State) {
 
 	u32 ActiveProfileElement = 0;
 
-	GUIBeginRadioGroup(State->GUIState, 0);
 	GUIBeginRow(State->GUIState);
-	GUIRadioButton(State->GUIState, "Top Clocks", DebugProfileActiveElement_TopClocks);
+	GUIBeginRadioGroup(State->GUIState, 0);
+	GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
+	GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
 	GUIRadioButton(State->GUIState, "Frame", DebugProfileActiveElement_FrameGraph);
-	GUIEndRow(State->GUIState);
 	GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
+	GUIEndRow(State->GUIState);
 
 	if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
-		DEBUGClocksList(State);
+		DEBUGClocksList(State, DebugRecord_TopTotalClocks);
+	}
+	else if (ActiveProfileElement == DebugProfileActiveElement_TopExClocks) {
+		DEBUGClocksList(State, DebugRecord_TopExClocks);
 	}
 	else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
 		DEBUGFramesGraph(State);

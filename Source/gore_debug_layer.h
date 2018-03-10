@@ -26,6 +26,8 @@ enum debug_record_type {
 
 	DebugRecord_FramesSlider,
 	DebugRecord_FramesGraph,
+	DebugRecord_TopTotalClocks,
+	DebugRecord_TopExClocks,
 };
 
 struct debug_record {

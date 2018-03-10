@@ -88,7 +88,7 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 		DEBUG:
 			VARARG macro functions
 			Sort clock list functions
-
+			Reorganize sections stuff
 
 		GUI:
 			Push text to list and render at the end of the frame... This should optimize OpenGL texture bindings
@@ -987,9 +987,9 @@ int main(int ArgsCount, char** Args) {
 			RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
 		}
 
-		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX1, 400), 300.0f);
-		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX2, 600), 300.0f);
-		RENDERPushBitmap(Stack, &AlphaImage, V2(AlphaImageX3, 200), 300.0f);
+		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX1, 400), 300.0f);
+		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX2, 600), 300.0f);
+		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX3, 200), 300.0f);
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 

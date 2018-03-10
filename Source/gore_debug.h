@@ -67,6 +67,7 @@ struct debug_tree_node {
 	u32 TreeNodeType;
 
 	char* Name;
+	char* UniqueName;
 	u32 ID;
 
 	debug_tree_node* Parent;

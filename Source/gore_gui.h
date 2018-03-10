@@ -1023,7 +1023,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.ButtonTextHighColor = GUIColor_White;
 	Result.ButtonOutlineColor = GUIColor_Black;
 
-	Result.AnchorColor = GUIColorExt_gray50;
+	Result.AnchorColor = GUIColorExt_OrangeRed1;
 
 #if 1
 	//Result.FirstColor = GUIColor_BloodOrange;

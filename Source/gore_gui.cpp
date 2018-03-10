@@ -2846,7 +2846,7 @@ void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex) {
 inline gui_element* GUIFindRadioGroupParent(gui_element* CurrentElement) {
 	gui_element* Result = 0;
 
-	gui_element* At = CurrentElement->Parent;
+	gui_element* At = CurrentElement;
 	while (At != 0) {
 		if (At->Type == GUIElement_RadioGroup) {
 			Result = At;
