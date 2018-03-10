@@ -961,6 +961,7 @@ inline b32 GUIWalkaroundIsHere(gui_state* State) {
 }
 
 void GUIEndFrame(gui_state* GUIState) {
+	FUNCTION_TIMING();
 
 	//NOTE(DIMA): Processing walkaround
 	if (ButtonWentDown(GUIState->Input, KeyType_Backquote)) {
@@ -1094,6 +1095,8 @@ inline void GUIFreeViewElement(gui_state* State, gui_layout* ToFree) {
 }
 
 void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType) {
+	FUNCTION_TIMING();
+
 	/*
 		NOTE(DIMA):
 			Here I make unique id for view and calculate
@@ -1306,6 +1309,8 @@ static gui_element* GUIRequestElement(
 	b32 InitExpandedState,
 	b32 IncrementDepth)
 {
+	FUNCTION_TIMING();
+
 	gui_element* Parent = GUIState->CurrentNode;
 
 	gui_element* Element = 0;
@@ -1393,7 +1398,8 @@ static gui_element* GUIRequestElement(
 		}
 #else
 		if ((ElementType == GUIElement_TreeNode) ||
-			(ElementType == GUIElement_CachedItem))
+			(ElementType == GUIElement_CachedItem) ||
+			(ElementType == GUIElement_RadioGroup))
 		{
 			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
@@ -1451,6 +1457,8 @@ gui_element* GUIBeginElement(
 	b32 InitExpandedState,
 	b32 IncrementDepth)
 {
+	FUNCTION_TIMING();
+
 	gui_element* Element = GUIRequestElement(State, ElementType, ElementName, ElementInteraction, InitExpandedState, IncrementDepth);
 
 	State->CurrentNode = Element;
@@ -1469,6 +1477,8 @@ gui_element* GUIBeginElement(
 }
 
 void GUIEndElement(gui_state* State, u32 ElementType) {
+	FUNCTION_TIMING();
+
 	gui_element* Element = State->CurrentNode;
 
 	Assert(ElementType == Element->Type);
@@ -1534,11 +1544,11 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 			BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
 			BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
 
-#if 0
-			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			PushBitmap(Stack, &Glyph->Bitmap, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
-#else
+#if 1
 			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+#else
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
 #endif
 
@@ -1565,37 +1575,12 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	return(TextRect);
 }
 
-void GUITextBase(
-	gui_state* GUIState, 
-	char* Text, 
-	v2 Pos, 
-	v4 TextColor, 
-	float FontScale,
-	v4 TextHighlightColor,
-	v4 BackgroundColor, 
-	u32 OutlineWidth,
-	v4 OutlineColor)
-{
-	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos.x, Pos.y, FontScale);
-
-	v4 CurTextColor = TextColor;
-	if (MouseInRect(GUIState->Input, TextRc)) {
-		CurTextColor = TextHighlightColor;
-	}
-
-	RENDERPushRect(GUIState->RenderStack, TextRc, BackgroundColor);
-
-	if (OutlineWidth > 0) {
-		RENDERPushRectOutline(GUIState->RenderStack, TextRc, OutlineWidth, OutlineColor);
-	}
-
-	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos.x, Pos.y, FontScale, CurTextColor);
-}
-
 void GUIPerformInteraction(
 	gui_state* GUIState, 
 	gui_interaction* Interaction) 
 {
+	FUNCTION_TIMING();
+
 	switch (Interaction->Type) {
 		case GUIInteraction_ResizeInteraction: {
 			v2 WorkRectP = Interaction->ResizeContext.Position;
@@ -1672,7 +1657,51 @@ void GUIPerformInteraction(
 		case GUIInteraction_MenuBarInteraction: {
 			Interaction->MenuMarInteraction.MenuElement->Expanded = !Interaction->MenuMarInteraction.MenuElement->Expanded;
 		}break;
+
+		case GUIInteraction_RadioButtonInteraction: {
+			gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
+
+			Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
+		}break;
+
+		case GUIInteraction_None: {
+
+		}break;
 	}
+}
+
+rect2 GUITextBase(
+	gui_state* GUIState,
+	char* Text,
+	v2 Pos,
+	v4 TextColor,
+	float FontScale,
+	gui_interaction* Interaction,
+	v4 TextHighlightColor,
+	v4 BackgroundColor,
+	u32 OutlineWidth,
+	v4 OutlineColor)
+{
+	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos.x, Pos.y, FontScale);
+
+	v4 CurTextColor = TextColor;
+	if (MouseInRect(GUIState->Input, TextRc)) {
+		CurTextColor = TextHighlightColor;
+
+		if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+			GUIPerformInteraction(GUIState, Interaction);
+		}
+	}
+
+	RENDERPushRect(GUIState->RenderStack, TextRc, BackgroundColor);
+
+	if (OutlineWidth > 0) {
+		RENDERPushRectOutline(GUIState->RenderStack, TextRc, OutlineWidth, OutlineColor);
+	}
+
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos.x, Pos.y, FontScale, CurTextColor);
+
+	return(TextRc);
 }
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
@@ -1684,9 +1713,16 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 
 	if (GUIElementShouldBeUpdated(Element)) {
 
+#if 0
+		//NOTE(dima): Not centered
 		rect2 WorkRect = Rect2MinDim(Pos, Dim);
+#else
+		//NOTE(dima) Centered
+		rect2 WorkRect = Rect2MinDim(Pos - Dim * 0.5, Dim);
+#endif
+
 #if 1
-		v4 WorkColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+		v4 WorkColor = GUIGetColor(GUIState, GUIState->ColorTheme.AnchorColor);
 #else
 		v4 WorkColor = GUIGetColor(GUIState, GUIColor_Red);
 #endif
@@ -2182,16 +2218,16 @@ void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interacti
 
 		float OutlineWidth = 1;
 		v4 ButRectHighlight = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
-		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
 		
 		if (MouseInRect(GUIState->Input, WorkRect)) {
-			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
 				GUIPerformInteraction(GUIState, Interaction);
 			}
 		}
 
-		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor));
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, OutlineWidth, ButRectHighlight);
 
 		if (GUIWalkaroundIsHere(GUIState)) {
@@ -2708,7 +2744,7 @@ void GUIChangeTreeNodeText(gui_state* GUIState, char* Text) {
 	}
 }
 
-void GUITreeBegin(gui_state* GUIState, char* NodeName) {
+void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, NodeName, 0, 0);
@@ -2716,11 +2752,12 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName) {
 
 	//gui_interaction ActionInteraction = GUIVariableInteraction(&State->CurrentNode->Expanded, GUIVarType_B32);
 	char TextBuf[128];
+	char *ToWriteName = (NameText == 0) ? Element->Name : NameText;
 	if (GUIState->PlusMinusSymbol) {
-		stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', Element->Name);
+		stbsp_sprintf(TextBuf, "%c %s", Element->Expanded ? '+' : '-', ToWriteName);
 	}
 	else {
-		stbsp_sprintf(TextBuf, "%s", Element->Name);
+		stbsp_sprintf(TextBuf, "%s", ToWriteName);
 	}
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2792,6 +2829,92 @@ void GUITreeEnd(gui_state* State) {
 	GUIEndElement(State, GUIElement_TreeNode);
 }
 
+void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex) {
+	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+	char NameBuf[16];
+	stbsp_sprintf(NameBuf, "Rad:%u", GUIState->CurrentNode->RadioGroupsCount);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_RadioGroup, NameBuf, 0, 1, 0);
+
+	if (!Element->Cache.IsInitialized) {
+		Element->Cache.RadioCache.ActiveIndex = DefaultSetIndex;
+
+		Element->Cache.IsInitialized = 1;
+	}
+}
+
+inline gui_element* GUIFindRadioGroupParent(gui_element* CurrentElement) {
+	gui_element* Result = 0;
+
+	gui_element* At = CurrentElement->Parent;
+	while (At != 0) {
+		if (At->Type == GUIElement_RadioGroup) {
+			Result = At;
+			break;
+		}
+
+		At = At->Parent;
+	}
+
+	return(Result);
+}
+
+void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex) {
+#if 1
+	gui_element* RadioGroup = GUIFindRadioGroupParent(GUIState->CurrentNode);
+#else
+	gui_element* RadioGroup = GUIState->CurrentNode;
+#endif
+
+	gui_interaction RadioButtonInteraction = GUIRadioButtonInteraction(RadioGroup, UniqueIndex);
+
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, &RadioButtonInteraction, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		if (!Element->Cache.IsInitialized) {
+
+			Element->Cache.RadioButton.IsActive = 0;
+
+			Element->Cache.IsInitialized = 1;
+		}
+
+		b32* IsActive = &Element->Cache.RadioButton.IsActive;
+
+		*IsActive = 0;
+		if (RadioGroup->Cache.RadioCache.ActiveIndex == UniqueIndex) {
+			*IsActive = 1;
+		}
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		GUIPreAdvanceCursor(GUIState);
+
+		v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
+		v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
+
+		rect2 Rc = GUITextBase(
+			GUIState, Name, V2(Layout->CurrentX, Layout->CurrentY),
+			*IsActive ? TextHighColor : TextColor,
+			GUIState->FontScale,
+			&RadioButtonInteraction,
+			TextHighColor,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+}
+
+void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement) {
+	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
+	*ActiveElement = CurrentElement->Cache.RadioCache.ActiveIndex;
+
+	GUIEndElement(GUIState, GUIElement_RadioGroup);
+}
 
 void GUIWindowBegin(gui_state* GUIState, char* Name) {
 

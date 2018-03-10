@@ -426,7 +426,7 @@ void DEBUGFramesSlider(debug_state* State) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+		v4 OutlineColor = GUIGetColor(GUIState, GUIColorExt_gray60);
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
@@ -453,7 +453,7 @@ void DEBUGFramesSlider(debug_state* State) {
 		//NOTE(dima): Collation frame column
 		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Green));
 
-		//NOTE(dima): Newst frame column
+		//NOTE(dima): Newest frame column
 		DEBUGPushFrameColumn(GUIState, State->NewestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Red));
 
 		v2 BarDim = V2(1.0f, GraphDim.y);
@@ -467,11 +467,10 @@ void DEBUGFramesSlider(debug_state* State) {
 
 			BarRect.Min.x += OneColumnWidth;
 			BarRect.Max.x += OneColumnWidth;
-
 		}
 
 		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
-		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 2, OutlineColor);
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIGetColor(GUIState, GUIColor_Black));
 
 		GUIDescribeElement(GUIState, GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
@@ -490,15 +489,23 @@ void DEBUGFramesGraph(debug_state* State) {
 
 		GUIPreAdvanceCursor(GUIState);
 
+		gui_element_cache* Cache = &Element->Cache;
+		if (!Cache->IsInitialized) {
+
+			Cache->Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15f);
+
+			Cache->IsInitialized = 1;
+		}
+
 		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15f);
+		v2* GraphDim = &Cache->Dimensional.Dimension;
 
-		float OneColumnWidth = GraphDim.x / (float)DEBUG_FRAMES_COUNT;
+		float OneColumnWidth = GraphDim->x / (float)DEBUG_FRAMES_COUNT;
 
-		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
+		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
 		for (int ColumnIndex = 0;
@@ -512,9 +519,9 @@ void DEBUGFramesGraph(debug_state* State) {
 			ColumnRect.Max.x += OneColumnWidth;
 		}
 
-		v2 BarDim = V2(1.0f, GraphDim.y);
+		v2 BarDim = V2(1.0f, GraphDim->y);
 
-		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim->y));
 		for (int BarIndex = 0;
 			BarIndex < DEBUG_FRAMES_COUNT - 1;
 			BarIndex++)
@@ -526,15 +533,15 @@ void DEBUGFramesGraph(debug_state* State) {
 
 		}
 
-		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
+		rect2 GraphRect = Rect2MinDim(GraphMin, *GraphDim);
 		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
 
-#if 0
+#if 1
 		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
-		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(10, 10), &ResizeInteraction);
 #endif
 
-		GUIDescribeElement(GUIState, GraphDim, GraphMin);
+		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
 	}
 
@@ -555,12 +562,19 @@ void DEBUGClocksList(debug_state* State) {
 		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
+		
+		gui_element_cache* Cache = &Element->Cache;
+		if (!Cache->IsInitialized) {
+
+			Cache->Dimensional.Dimension = V2(650, AscByScale * 20);
+
+			Cache->IsInitialized = 1;
+		}
 
 		v2 GroundMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2 GroundDim = V2(650
-			, AscByScale * 20);
+		v2* GroundDim = &Cache->Dimensional.Dimension;
 
-		rect2 GroundRc = Rect2MinDim(GroundMin, GroundDim);
+		rect2 GroundRc = Rect2MinDim(GroundMin, *GroundDim);
 		v4 GroundC = GUIGetColor(GUIState, GUIColor_Black);
 		GroundC = V4(GroundC.xyz, 0.7f);
 
@@ -569,33 +583,53 @@ void DEBUGClocksList(debug_state* State) {
 		float AtY = Layout->CurrentY;
 
 		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextBro;
-		for (Timing; Timing != Frame->TimingStatisticSentinel; Timing = Timing->NextBro) {
-			char TextBuf[256];
+		for (
+			Timing; 
+			Timing != Frame->TimingStatisticSentinel; 
+			Timing = Timing->NextBro) 
+		{
+			if (AtY < GroundRc.Max.y - RowAdvance) {
+				char TextBuf[256];
 		
-			u64 ToViewClocks = Timing->Timing.TotalClocks;
+				u64 ToViewClocks = Timing->Timing.TotalClocks;
 		
-			stbsp_sprintf(TextBuf, "%30s: %8uh %11lluc %13.2f c/h",
-				Timing->Name,
-				Timing->Timing.HitCount,
-				Timing->Timing.TotalClocks,
-				(float)ToViewClocks / (float)Timing->Timing.HitCount);
+				stbsp_sprintf(TextBuf, "%11lluc %13.2fc/h %8u  %-30s",
+					Timing->Timing.TotalClocks,
+					(float)ToViewClocks / (float)Timing->Timing.HitCount,
+					Timing->Timing.HitCount,
+					Timing->Name);
 		
-			v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
-			v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
-			GUITextBase(GUIState, TextBuf, V2(Layout->CurrentX, AtY), TextColor, 
-				GUIState->FontScale, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
+				v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+				v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+
+				gui_interaction NullInteraction = GUINullInteraction();
+
+				GUITextBase(GUIState, TextBuf, V2(Layout->CurrentX, AtY), TextColor, 
+					GUIState->FontScale, &NullInteraction, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
 		
-			AtY += RowAdvance;
+				AtY += RowAdvance;
+			}
+			else {
+				break;
+			}
 		}
 
 		RENDERPushRectOutline(GUIState->RenderStack, GroundRc, 3, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-		GUIDescribeElement(GUIState, GroundDim, GroundMin);
+		gui_interaction ResizeInteraction = GUIResizeInteraction(GroundMin, GroundDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", GroundRc.Max, V2(10, 10), &ResizeInteraction);
+
+		GUIDescribeElement(GUIState, *GroundDim, GroundMin);
 		GUIAdvanceCursor(GUIState, 0.5f * RowAdvance);
 	}
 
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
+
+enum debug_profile_active_element {
+	DebugProfileActiveElement_TopClocks,
+	DebugProfileActiveElement_FrameGraph,
+};
 
 void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
@@ -604,9 +638,32 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	GUITreeBegin(State->GUIState, "DEBUG");
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
+
 	DEBUGFramesSlider(State);
-	DEBUGClocksList(State);
-	DEBUGFramesGraph(State);
+#if 0
+	GUIBeginRow(State->GUIState);
+
+	GUIButton(State->GUIState, "Top Clocks", 0);
+	GUIButton(State->GUIState, "FrameGraph", 0);
+
+	GUIEndRow(State->GUIState);
+#endif
+
+	u32 ActiveProfileElement = 0;
+
+	GUIBeginRadioGroup(State->GUIState, 0);
+	GUIBeginRow(State->GUIState);
+	GUIRadioButton(State->GUIState, "Top Clocks", DebugProfileActiveElement_TopClocks);
+	GUIRadioButton(State->GUIState, "Frame", DebugProfileActiveElement_FrameGraph);
+	GUIEndRow(State->GUIState);
+	GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
+
+	if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
+		DEBUGClocksList(State);
+	}
+	else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
+		DEBUGFramesGraph(State);
+	}
 
 	GUITreeEnd(State->GUIState);
 	GUIEndLayout(State->GUIState, GUILayout_Tree);

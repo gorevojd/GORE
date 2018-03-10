@@ -85,11 +85,10 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 /*
 	TODO(Dima):
-		Profiler:
-			Some basic profile markers to measure perfomance
-
 		DEBUG:
-			Draw some profile overlays based on section blocks
+			VARARG macro functions
+			Sort clock list functions
+
 
 		GUI:
 			Push text to list and render at the end of the frame... This should optimize OpenGL texture bindings
@@ -930,7 +929,8 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
-	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 15);
+	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
 
 	geometrika_state GameState = {};
@@ -952,7 +952,6 @@ int main(int ArgsCount, char** Args) {
 		DEBUG_FRAME_BARRIER(LastMSPerFrame);
 
 		BEGIN_SECTION("LayerSDL");
-		BEGIN_SECTION("EventProcessing");
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -965,7 +964,6 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
-		END_SECTION();
 
 
 		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
@@ -1260,9 +1258,7 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
-		BEGIN_SECTION("DEBUG");
 		DEBUGUpdate(DEBUGState);
-		END_SECTION();
 
 		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 

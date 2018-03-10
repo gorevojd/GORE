@@ -6,6 +6,16 @@
 #include "gore_asset.h"
 #include "gore_input.h"
 
+/*
+	NOTE(dima): 
+		It's not guaranteed that the gui code is thread safe
+		so use it at your own risk in multithreaded code.
+
+		My advice to you is that if you are going to use this
+		code, make sure that you call all functions in one 
+		thread.
+*/
+
 #define GUI_VALUE_VIEW_MULTIPLIER 8
 #define GUI_VALUE_COLOR_VIEW_MULTIPLIER 5
 
@@ -86,6 +96,11 @@ struct gui_menu_bar_interaction_context {
 	gui_element* MenuElement;
 };
 
+struct gui_radio_button_interaction_context {
+	gui_element* RadioGroup;
+	u32 PressedIndex;
+};
+
 enum gui_interaction_type {
 	GUIInteraction_None,
 
@@ -95,6 +110,7 @@ enum gui_interaction_type {
 	GUIInteraction_TreeInteraction,
 	GUIInteraction_BoolInteraction,
 	GUIInteraction_MenuBarInteraction,
+	GUIInteraction_RadioButtonInteraction,
 };
 
 struct gui_interaction {
@@ -108,6 +124,7 @@ struct gui_interaction {
 		gui_tree_interaction_context TreeInteraction;
 		gui_bool_interaction_context BoolInteraction;
 		gui_menu_bar_interaction_context MenuMarInteraction;
+		gui_radio_button_interaction_context RadioButtonInteraction;
 	};
 };
 
@@ -199,6 +216,24 @@ inline gui_interaction GUIMenuBarInteraction(gui_element* MenuElement) {
 	return(Result);
 }
 
+inline gui_interaction GUIRadioButtonInteraction(gui_element* RadioGroup, u32 PressedIndex) {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_RadioButtonInteraction;
+	Result.RadioButtonInteraction.RadioGroup = RadioGroup;
+	Result.RadioButtonInteraction.PressedIndex = PressedIndex;
+
+	return(Result);
+}
+
+inline gui_interaction GUINullInteraction() {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_None;
+
+	return(Result);
+}
+
 enum gui_layout_type {
 	GUILayout_Simple,
 	GUILayout_Tree,
@@ -270,6 +305,7 @@ enum gui_element_type {
 	GUIElement_StaticItem,
 	GUIElement_Row,
 	GUIElement_Layout,
+	GUIElement_RadioGroup,
 
 	GUIElement_MenuBar,
 	GUIElement_MenuItem,
@@ -322,6 +358,11 @@ struct gui_layout_cache {
 	v2 Dimension;
 };
 
+struct gui_dimensional_cache {
+	v2 Position;
+	v2 Dimension;
+};
+
 struct gui_menu_node_cache{
 	float MaxWidth;
 	float MaxHeight;
@@ -331,6 +372,14 @@ struct gui_menu_node_cache{
 
 	u32 ChildrenCount;
 	u32 Type;
+};
+
+struct gui_radio_group_cache {
+	u32 ActiveIndex;
+};
+
+struct gui_radio_button_cache {
+	b32 IsActive;
 };
 
 struct gui_element_cache {
@@ -345,6 +394,9 @@ struct gui_element_cache {
 		gui_anchor_cache Anchor;
 		gui_layout_cache Layout;
 		gui_menu_node_cache MenuNode;
+		gui_dimensional_cache Dimensional;
+		gui_radio_group_cache RadioCache;
+		gui_radio_button_cache RadioButton;
 	};
 
 	b32 IsInitialized;
@@ -370,7 +422,8 @@ struct gui_element {
 	char Name[32];
 	char Text[32];
 
-	u32 RowCount;
+	u16 RowCount;
+	u16 RadioGroupsCount;
 
 	u32 Type;
 
@@ -940,6 +993,13 @@ struct gui_color_theme {
 	u32 WindowHelpColor;
 	u32 WindowKeywordColor;
 
+	u32 ButtonTextColor;
+	u32 ButtonBackColor;
+	u32 ButtonTextHighColor;
+	u32 ButtonOutlineColor;
+
+	u32 AnchorColor;
+
 	u32 WalkaroundHotColor;
 };
 
@@ -957,6 +1017,13 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.WindowTextColor = GUIColor_Burlywood;
 	Result.WindowHelpColor = GUIColor_White;
 	Result.WindowKeywordColor = GUIColor_DarkGoldenrod;
+
+	Result.ButtonTextColor = GUIColorExt_gray70;
+	Result.ButtonBackColor = GUIColor_PrettyBlue;
+	Result.ButtonTextHighColor = GUIColor_White;
+	Result.ButtonOutlineColor = GUIColor_Black;
+
+	Result.AnchorColor = GUIColorExt_gray50;
 
 #if 1
 	//Result.FirstColor = GUIColor_BloodOrange;
@@ -1053,6 +1120,8 @@ inline gui_element* GUIGetCurrentElement(gui_state* State) {
 }
 
 inline b32 GUIElementShouldBeUpdated(gui_element* Node) {
+	FUNCTION_TIMING();
+
 	b32 Result = 1;
 
 	gui_element* At = Node->Parent;
@@ -1200,6 +1269,8 @@ extern void GUIVector3View(gui_state* GUIState, v3 Value, char* Name);
 extern void GUIVector4View(gui_state* GUIState, v4 Value, char* Name);
 extern void GUIInt32View(gui_state* GUIState, i32 Int, char* Name);
 
+extern void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction);
+
 extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
 
 extern void GUIBeginMenuBar(gui_state* GUIState, char* MenuName);
@@ -1227,15 +1298,21 @@ extern void GUIPreAdvanceCursor(gui_state* State);
 extern void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP);
 extern void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing = 0.0f);
 
-extern void GUITreeBegin(gui_state* State, char* NodeText);
+extern void GUITreeBegin(gui_state* State, char* NodeText, char* NameText = 0);
 extern void GUITreeEnd(gui_state* State);
 
-void GUITextBase(
+
+void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex);
+void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex);
+void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement);
+
+rect2 GUITextBase(
 	gui_state* GUIState,
 	char* Text,
 	v2 Pos,
 	v4 TextColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
 	float FontScale = 1.0f,
+	gui_interaction* Interaction = 0,
 	v4 TextHighlightColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
 	v4 BackgroundColor = V4(0.0f, 0.5f, 1.0f, 1.0f),
 	u32 OutlineWidth = 0,
