@@ -36,11 +36,10 @@ struct debug_record {
 
 	u32 RecordType;
 
+	u64 Clocks;
+	u16 ThreadID;
 	union {
-		struct {
-			u64 Clocks;
-			u16 ThreadID;
-		};
+		float Value_F32;
 	};
 };
 
@@ -59,7 +58,8 @@ extern debug_record_table* GlobalRecordTable;
 #define DEBUG_UNIQUE_STRING_(id, func, line, counter) id "@" func "@" ## DEBUG_ID_TO_STRING(line) ## "@" ## DEBUG_ID_TO_STRING(counter)
 #define DEBUG_UNIQUE_STRING(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, __LINE__, __COUNTER__)
 
-inline void DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
+#if 1
+inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
 	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
 	Assert(Index < DEBUG_RECORD_MAX_COUNT);
 
@@ -72,7 +72,24 @@ inline void DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
 	//TODO(dima): think about perfomance of this
 	Record->ThreadID = SDL_ThreadID();
 	//Record->ThreadID = 0;
+
+	return(Record);
 }
+#else
+
+#define DEBUGAddRecord(Name, UniqueName, RecordType)	\
+	{																											\
+	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);										\
+	Assert(Index < DEBUG_RECORD_MAX_COUNT);																		\
+																												\
+	debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value] + Index;		\
+	*Record = {};																								\
+	Record->Name = Name;																						\
+	Record->UniqueName = UniqueName;																			\
+	Record->Clocks = __rdtsc();																					\
+	Record->RecordType = RecordType;																			\
+	Record->ThreadID = SDL_ThreadID();}																			
+#endif
 
 #define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
 
@@ -83,7 +100,7 @@ inline void DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
 #define BEGIN_SECTION(name) ADD_DEBUG_RECORD(name, DebugRecord_BeginSection)
 #define END_SECTION() ADD_DEBUG_RECORD("EndSection", DebugRecord_EndSection)
 
-#define DEBUG_FRAME_BARRIER() DEBUGAddRecord("FrameBarrier", DEBUG_UNIQUE_STRING("FrameBarrier"), DebugRecord_FrameBarrier)
+#define DEBUG_FRAME_BARRIER(delta) {debug_record* Rec = DEBUGAddRecord("FrameBarrier", DEBUG_UNIQUE_STRING("FrameBarrier"), DebugRecord_FrameBarrier); Rec->Value_F32 = delta;}
 
 struct debug_timing {
 	char* Name;

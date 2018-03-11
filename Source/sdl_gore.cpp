@@ -943,15 +943,15 @@ int main(int ArgsCount, char** Args) {
 	float TempFloatForVertSlider = 0.0f;
 	b32 TempBoolForSlider = false;
 
-	float LastMSPerFrame = 0.0f;
+	float DeltaTime = 0.0f;
 
 	GlobalRunning = true;
 	while (GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
 
-		DEBUG_FRAME_BARRIER(LastMSPerFrame);
+		DEBUG_FRAME_BARRIER(DeltaTime);
 
-		BEGIN_SECTION("LayerSDL");
+		BEGIN_SECTION("Platform");
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -964,7 +964,6 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
-
 
 		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
@@ -1004,8 +1003,8 @@ int main(int ArgsCount, char** Args) {
 		
 		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
-		float LastFrameFPS = 1000.0f / LastMSPerFrame;
-		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", LastMSPerFrame, LastFrameFPS);
+		float LastFrameFPS = 1.0f / DeltaTime;
+		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", DeltaTime * 1000.0f, LastFrameFPS);
 
 		GUIText(GUIState, DebugStr);
 #if 0
@@ -1267,9 +1266,8 @@ int main(int ArgsCount, char** Args) {
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLRenderStackToOutput(GLState, Stack);
-		
+
 		SDL_GL_SwapWindow(Window);
-	
 #else
 		BEGIN_SECTION("RENDERING");
 		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
@@ -1299,11 +1297,10 @@ int main(int ArgsCount, char** Args) {
 
 		END_SECTION();
 
-		float SPerFrame = SDLGetMSElapsed(FrameBeginClocks);
-		LastMSPerFrame = SPerFrame * 1000.0f;
-		GlobalInput.DeltaTime = SPerFrame;
+		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
+		GlobalInput.DeltaTime = DeltaTime;
 
-		GlobalTime += SPerFrame;
+		GlobalTime += DeltaTime;
 	}
 
 	SDL_GL_DeleteContext(SDLOpenGLRenderContext);

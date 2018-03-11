@@ -108,11 +108,11 @@ inline void DEBUGInsertStatisticBefore(debug_statistic* Before, debug_statistic*
 	}
 }
 
-#define DEBUG_NEW_BLOCK_TEMP_NAME_SZ 64
+#define DEBUG_NEW_BLOCK_TEMP_NAME_SZ 128
 inline void DEBUGParseNameFromUnique(char* UniqueName, char* Out, int Size) {
 	int CharIndex;
 	
-	for (CharIndex = 0; CharIndex < DEBUG_NEW_BLOCK_TEMP_NAME_SZ; CharIndex++) {
+	for (CharIndex = 0; CharIndex < Size; CharIndex++) {
 		char Ch = UniqueName[CharIndex];
 		if (Ch != '@' && Ch != 0) {
 			Out[CharIndex] = UniqueName[CharIndex];
@@ -156,17 +156,7 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 		char NewName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
 		DEBUGParseNameFromUnique(UniqueName, NewName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
 
-#if 1
-		NewBlock->Name = PushString(&State->DebugMemory, NewName);
-		CopyStrings(NewBlock->Name, NewName);
-
-		NewBlock->UniqueName = PushString(&State->DebugMemory, UniqueName);
 		CopyStrings(NewBlock->UniqueName, UniqueName);
-		
-#else
-		NewBlock->Name = PushString(&State->DebugMemory, UniqueName);
-		CopyStrings(NewBlock->Name, UniqueName);
-#endif
 
 		NewBlock->ID = StringHashFNV(UniqueName);
 
@@ -239,6 +229,8 @@ inline debug_statistic* DEBUGInitDebugStatistic(
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
 	FUNCTION_TIMING();
 
+	Frame->DeltaTime = 0.0f;
+
 	debug_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
 	while (TimingAt != Frame->TimingStatisticSentinel) {
 		debug_statistic* TempNext = TimingAt->NextBro;
@@ -278,10 +270,10 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 
 	DEBUGAllocateElementSentinelTreeNode(State, State->RootSection);
 
-	State->RootSection->Name = PushString(&State->DebugMemory, "Root");
-	CopyStrings(State->RootSection->Name, "Root");
-	State->RootSection->ID = StringHashFNV(State->RootSection->Name);
+	CopyStrings(State->RootSection->UniqueName, "ROOT");
+	State->RootSection->ID = StringHashFNV(State->RootSection->UniqueName);
 	State->RootSection->Parent = 0;
+	State->RootSection->TreeNodeType = DebugTreeNode_Section;
 	State->CurrentSection = State->RootSection;
 
 
@@ -305,6 +297,12 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 
 inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
 	debug_profiled_frame* Frame = &State->Frames[State->CollationFrameIndex];
+
+	return(Frame);
+}
+
+inline debug_profiled_frame* DEBUGGetFrameByIndex(debug_state* State, u32 Index) {
+	debug_profiled_frame* Frame = &State->Frames[Index % DEBUG_FRAMES_COUNT];
 
 	return(Frame);
 }
@@ -385,10 +383,13 @@ void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_BeginSection: {
 				debug_tree_node* CurrentSection = Frame->CurrentSection;
 
-				debug_tree_node* NewBlock = DEBUGInitLayerTreeNode(State, CurrentSection, Record->UniqueName, DebugTreeNode_Section);
+				debug_tree_node* NewSection = DEBUGInitLayerTreeNode(State, State->RootSection, Record->UniqueName, DebugTreeNode_Section);
+
+				//NOTE(dima): Remembering last section
+				NewSection->Parent = CurrentSection;
 
 				//NOTE(dima): Setting frame's current section to newly pushed block
-				Frame->CurrentSection = NewBlock;
+				Frame->CurrentSection = NewSection;
 			}break;
 
 			case DebugRecord_EndSection: {
@@ -401,11 +402,16 @@ void DEBUGProcessRecords(debug_state* State) {
 
 			case DebugRecord_FrameBarrier: {
 
+				float DeltaTime = Record->Value_F32;
+
+				debug_profiled_frame* CollationFrame = DEBUGGetCollationFrame(State);
+				CollationFrame->DeltaTime = DeltaTime;
+
 				//NOTE(dima): Incrementing frame indices;
 				DEBUGIncrementFrameIndices(State);
 
-				debug_profiled_frame* Frame = &State->Frames[State->CollationFrameIndex];
-				DEBUGFreeFrameInfo(State, Frame);
+				debug_profiled_frame* NewFrame = DEBUGGetCollationFrame(State);;
+				DEBUGFreeFrameInfo(State, NewFrame);
 
 				//NOTE(dima): Section pointer must be equal to initial
 				Assert(State->CurrentSection == State->RootSection);
@@ -426,7 +432,10 @@ inline void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 	for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
 		switch (At->TreeNodeType) {
 			case DebugTreeNode_Section: {
-				GUITreeBegin(State->GUIState, At->Name);
+				char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
+				DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
+
+				GUITreeBegin(State->GUIState, NodeName);
 				DEBUGOutputSectionChildrenToGUI(State, At);
 				GUITreeEnd(State->GUIState);
 			}break;
@@ -507,6 +516,13 @@ void DEBUGFramesSlider(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
+enum debug_frame_graph_type {
+	DEBUGFrameGraph_DeltaTime,
+	DEBUGFrameGraph_FPS,
+
+	DEBUGFrameGraph_Count,
+};
+
 void DEBUGFramesGraph(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
 
@@ -525,6 +541,7 @@ void DEBUGFramesGraph(debug_state* State) {
 			Cache->IsInitialized = 1;
 		}
 
+
 		v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
@@ -536,12 +553,28 @@ void DEBUGFramesGraph(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
+		float OneOverMaxMs = 30.0f;
 		for (int ColumnIndex = 0;
 			ColumnIndex < DEBUG_FRAMES_COUNT;
 			ColumnIndex++)
 		{
+			debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
 
-			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
+			if (ColumnIndex == State->CollationFrameIndex) {
+				RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_gray30));
+			}
+			else {
+				float FilledPercentage = Frame->DeltaTime * OneOverMaxMs;
+				if (FilledPercentage > 1.0f) {
+					FilledPercentage = 1.0f;
+				}
+
+				rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
+				rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+
+				RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Red));
+				RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_Green));
+			}
 
 			ColumnRect.Min.x += OneColumnWidth;
 			ColumnRect.Max.x += OneColumnWidth;
@@ -555,10 +588,10 @@ void DEBUGFramesGraph(debug_state* State) {
 			BarIndex++)
 		{
 			RENDERPushRect(GUIState->RenderStack, BarRect, OutlineColor);
-
+		
 			BarRect.Min.x += OneColumnWidth;
 			BarRect.Max.x += OneColumnWidth;
-
+		
 		}
 
 		rect2 GraphRect = Rect2MinDim(GraphMin, *GraphDim);
@@ -568,6 +601,17 @@ void DEBUGFramesGraph(debug_state* State) {
 		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(10, 10), &ResizeInteraction);
 #endif
+
+		v4 LabelTextColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
+		v4 LabelHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
+		gui_interaction NullInteraction = GUINullInteraction();
+		GUITextBase(GUIState, "delta time", V2(GraphMin.x, GraphMin.y + AscByScale),
+			LabelTextColor,
+			GUIState->FontScale,
+			&NullInteraction,
+			LabelHighColor,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1, OutlineColor);
 
 		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
@@ -620,7 +664,7 @@ void DEBUGClocksList(debug_state* State, u32 Type) {
 
 		rect2 GroundRc = Rect2MinDim(GroundMin, *GroundDim);
 		v4 GroundC = GUIGetColor(GUIState, GUIColor_Black);
-		GroundC = V4(GroundC.xyz, 0.7f);
+		GroundC = V4(GroundC.xyz, 0.8f);
 
 		RENDERPushRect(GUIState->RenderStack, GroundRc, GroundC);
 
@@ -662,7 +706,7 @@ void DEBUGClocksList(debug_state* State, u32 Type) {
 			Timing != Frame->TimingStatisticSentinel; 
 			Timing = Timing->NextBro) 
 		{
-			if (AtY < GroundRc.Max.y - RowAdvance) {
+			if (AtY < GroundRc.Max.y + GUIState->FontInfo->DescenderHeight * GUIState->FontScale) {
 				char TextBuf[256];
 		
 				u64 ToViewClocks = DEBUGGetClocksFromTiming(Timing, Type);
@@ -712,6 +756,7 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
 	GUITreeBegin(State->GUIState, "DEBUG");
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
+
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
 	DEBUGFramesSlider(State);
@@ -730,7 +775,7 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	GUIBeginRadioGroup(State->GUIState, 0);
 	GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
 	GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
-	GUIRadioButton(State->GUIState, "Frame", DebugProfileActiveElement_FrameGraph);
+	GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
 	GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
 	GUIEndRow(State->GUIState);
 

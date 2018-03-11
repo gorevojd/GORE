@@ -963,6 +963,8 @@ inline b32 GUIWalkaroundIsHere(gui_state* State) {
 void GUIEndFrame(gui_state* GUIState) {
 	FUNCTION_TIMING();
 
+	BEGIN_SECTION("GUI");
+
 	//NOTE(DIMA): Processing walkaround
 	if (ButtonWentDown(GUIState->Input, KeyType_Backquote)) {
 		GUIState->WalkaroundEnabled = !GUIState->WalkaroundEnabled;
@@ -1055,6 +1057,8 @@ void GUIEndFrame(gui_state* GUIState) {
 		GUIState->TextElemsCacheShouldBeReinitialized = true;
 	}
 	GUIState->LastFontScale = GUIState->FontScale;
+
+	END_SECTION();
 }
 
 inline gui_layout* GUIAllocateViewElement(gui_state* State) {

@@ -66,8 +66,8 @@ struct debug_id {
 struct debug_tree_node {
 	u32 TreeNodeType;
 
-	char* Name;
-	char* UniqueName;
+	//char* Name;
+	char UniqueName[128];
 	u32 ID;
 
 	debug_tree_node* Parent;
@@ -85,6 +85,8 @@ struct debug_tree_node {
 #define DEBUG_TIMING_STATISTICS_COUNT 64
 
 struct debug_profiled_frame {
+	float DeltaTime;
+
 	debug_tree_node* CurrentTiming;
 	debug_tree_node* TimingSentinel;
 
