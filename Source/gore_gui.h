@@ -101,6 +101,11 @@ struct gui_radio_button_interaction_context {
 	u32 PressedIndex;
 };
 
+struct gui_state_changer_group_interaction_context {
+	gui_element* StateChangerGroup;
+	u32 IncrementDirection;
+};
+
 enum gui_interaction_type {
 	GUIInteraction_None,
 
@@ -111,6 +116,7 @@ enum gui_interaction_type {
 	GUIInteraction_BoolInteraction,
 	GUIInteraction_MenuBarInteraction,
 	GUIInteraction_RadioButtonInteraction,
+	GUIInteraction_StateChangerGroupInteraction,
 };
 
 struct gui_interaction {
@@ -125,8 +131,40 @@ struct gui_interaction {
 		gui_bool_interaction_context BoolInteraction;
 		gui_menu_bar_interaction_context MenuMarInteraction;
 		gui_radio_button_interaction_context RadioButtonInteraction;
+		gui_state_changer_group_interaction_context StateChangerGroupInteraction;
 	};
 };
+
+enum gui_interaction_rule_type {
+	GUIInteractionRule_MouseClick,
+	GUIInteractionRule_MouseOver,
+	GUIInteractionRule_ButtonDown,
+	GUIInteractionRule_ButtonUp,
+};
+
+struct gui_interaction_rule_mouse_click_data {
+	u32 MouseButtonID;
+};
+
+struct gui_interaction_rule_button_data {
+	u32 KeyID;
+};
+
+struct gui_interaction_rule_mouse_over_data {
+	v2 MouseP;
+};
+
+struct gui_interaction_rule {
+	u32 InteractionRuleType;
+
+	union {
+		gui_interaction_rule_mouse_click_data MouseClickData;
+		gui_interaction_rule_mouse_over_data MouseOverData;
+		gui_interaction_rule_button_data ButtonData;
+	};
+};
+
+
 
 inline gui_variable_link GUIVariableLink(void* Variable, u32 Type) {
 	gui_variable_link Link;
@@ -226,6 +264,20 @@ inline gui_interaction GUIRadioButtonInteraction(gui_element* RadioGroup, u32 Pr
 	return(Result);
 }
 
+
+/*
+	IncrementDirection: 0 -> Forward; 1 -> Backward;
+*/
+inline gui_interaction GUIStateChangerGroupInteraction(gui_element* StateChangerGroup, u32 IncrementDirection) {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_StateChangerGroupInteraction;
+	Result.StateChangerGroupInteraction.StateChangerGroup = StateChangerGroup;
+	Result.StateChangerGroupInteraction.IncrementDirection = IncrementDirection;
+
+	return(Result);
+}
+
 inline gui_interaction GUINullInteraction() {
 	gui_interaction Result = {};
 
@@ -306,6 +358,7 @@ enum gui_element_type {
 	GUIElement_Row,
 	GUIElement_Layout,
 	GUIElement_RadioGroup,
+	GUIElement_StateChangerGroup,
 
 	GUIElement_MenuBar,
 	GUIElement_MenuItem,
@@ -382,6 +435,14 @@ struct gui_radio_button_cache {
 	b32 IsActive;
 };
 
+struct gui_state_changer_group_cache {
+	gui_element* ActiveElement;
+};
+
+struct gui_state_changer_cache {
+	u32 StateID;
+};
+
 struct gui_element_cache {
 	union {
 		gui_tree_node_cache TreeNode;
@@ -397,6 +458,8 @@ struct gui_element_cache {
 		gui_dimensional_cache Dimensional;
 		gui_radio_group_cache RadioCache;
 		gui_radio_button_cache RadioButton;
+		gui_state_changer_group_cache StateChangerGroupCache;
+		gui_state_changer_cache StateChangerCache;
 	};
 
 	b32 IsInitialized;
@@ -424,6 +487,7 @@ struct gui_element {
 
 	u16 RowCount;
 	u16 RadioGroupsCount;
+	u16 StateChangerGroupsCount;
 
 	u32 Type;
 
@@ -1302,11 +1366,15 @@ extern void GUITreeBegin(gui_state* State, char* NodeText, char* NameText = 0);
 extern void GUITreeEnd(gui_state* State);
 
 
-void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex);
-void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex);
-void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement);
+extern void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex);
+extern void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex);
+extern void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement);
 
-rect2 GUITextBase(
+void GUIBeginStateChangerGroup(gui_state* GUIState, u32 DefaultSetIndex);
+void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID);
+void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement);
+
+extern rect2 GUITextBase(
 	gui_state* GUIState,
 	char* Text,
 	v2 Pos,

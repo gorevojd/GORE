@@ -43,7 +43,7 @@ struct debug_record {
 	};
 };
 
-#define DEBUG_RECORD_MAX_COUNT 4096
+#define DEBUG_RECORD_MAX_COUNT 8192
 struct debug_record_table {
 	SDL_atomic_t CurrentRecordIndex;
 	SDL_atomic_t CurrentTableIndex;

@@ -780,6 +780,8 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 	u8* At = Stack->Data.BaseAddress;
 	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
 
+	font_info* CurrentFontInfo = 0;
+
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;
 
@@ -843,7 +845,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case RenderStackEntry_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
-				font_info* FontInfo = EntryGlyph->FontInfo;
+				font_info* FontInfo = CurrentFontInfo;
 
 #if !GORE_FAST_RENDERING
 				RenderBitmap(
@@ -867,13 +869,13 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 			case RenderStackEntry_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
-				//NOTE(dima): Nothing to do
+				CurrentFontInfo = EntryBeginText->FontInfo;
 			}break;
 
 			case RenderStackEntry_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 
-				//NOTE(dima): Nothing to do
+				CurrentFontInfo = 0;
 			}break;
 
 			default: {

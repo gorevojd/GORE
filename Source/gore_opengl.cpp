@@ -314,7 +314,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 	OpenGLSetScreenspace(Stack->RenderWidth, Stack->RenderHeight);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
@@ -322,6 +322,8 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
 
 	game_camera_setup* CameraSetup = 0;
+
+	font_info* CurrentFontInfo = 0;
 
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;
@@ -362,37 +364,39 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 			case RenderStackEntry_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
-				glyph_info* Glyph = &EntryGlyph->FontInfo->Glyphs[EntryGlyph->FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
+				if (CurrentFontInfo) {
+					glyph_info* Glyph = &CurrentFontInfo->Glyphs[CurrentFontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
 
-				v4 Color = EntryGlyph->ModulationColor;
-				rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
-				v2 MinUV = Glyph->AtlasMinUV;
-				v2 MaxUV = Glyph->AtlasMaxUV;
+					v4 Color = EntryGlyph->ModulationColor;
+					rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
+					v2 MinUV = Glyph->AtlasMinUV;
+					v2 MaxUV = Glyph->AtlasMaxUV;
 
-				glColor4f(Color.r, Color.g, Color.b, Color.a);
+					glColor4f(Color.r, Color.g, Color.b, Color.a);
 
-				float Depth = 1000.0f;
+					float Depth = 1000.0f;
 
-				glTexCoord2f(MinUV.x, MinUV.y);
-				glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
-				glTexCoord2f(MaxUV.x, MinUV.y);
-				glVertex3f(Rect.Max.x, Rect.Min.y, Depth);
-				glTexCoord2f(MaxUV.x, MaxUV.y);
-				glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
+					glTexCoord2f(MinUV.x, MinUV.y);
+					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+					glTexCoord2f(MaxUV.x, MinUV.y);
+					glVertex3f(Rect.Max.x, Rect.Min.y, Depth);
+					glTexCoord2f(MaxUV.x, MaxUV.y);
+					glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
 
-				glTexCoord2f(MinUV.x, MinUV.y);
-				glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
-				glTexCoord2f(MaxUV.x, MaxUV.y);
-				glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
-				glTexCoord2f(MinUV.x, MaxUV.y);
-				glVertex3f(Rect.Min.x, Rect.Max.y, Depth);
-
+					glTexCoord2f(MinUV.x, MinUV.y);
+					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+					glTexCoord2f(MaxUV.x, MaxUV.y);
+					glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
+					glTexCoord2f(MinUV.x, MaxUV.y);
+					glVertex3f(Rect.Min.x, Rect.Max.y, Depth);
+				}
 			}break;
 
 			case RenderStackEntry_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
-				rgba_buffer* Buffer = &EntryBeginText->FontInfo->FontAtlasImage;
+				CurrentFontInfo = EntryBeginText->FontInfo;
+				rgba_buffer* Buffer = &CurrentFontInfo->FontAtlasImage;
 
 				if (!Buffer->TextureHandle) {
 					OpenGLAllocateTexture(Buffer);
@@ -405,6 +409,8 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 			case RenderStackEntry_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
+				
+				CurrentFontInfo = 0;
 
 				glEnd();
 				glBindTexture(GL_TEXTURE_2D, 0);

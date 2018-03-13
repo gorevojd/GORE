@@ -87,19 +87,22 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 	TODO(Dima):
 		DEBUG:
 			VARARG macro functions
-			Sort clock list functions
-			Reorganize sections stuff
+
+			FPS frames graph
+			Frames graph based on sections
 
 		GUI:
+			Interaction rules list
+			Interaction rules list processing
+
 			Push text to list and render at the end of the frame... This should optimize OpenGL texture bindings
 			New named-color system. Think about how to retrieve and store. Get by name maybe
+
+			Finish menus
 
 			New Label system or depth
 			Overlapping interactions handling
 
-			Caching some elements calculations.
-
-			GUI radio buttons
 			GUI text windows
 			GUI input text maybe
 
@@ -846,7 +849,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(0);
+	SDL_GL_SetSwapInterval(1);
 
 	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
 	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
@@ -951,7 +954,10 @@ int main(int ArgsCount, char** Args) {
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
 
+		BEGIN_TIMING("Frame Update");
 		BEGIN_SECTION("Platform");
+
+		BEGIN_TIMING("Input Processing");
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -964,10 +970,12 @@ int main(int ArgsCount, char** Args) {
 		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
+		END_TIMING();
 
 		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
+#if 0
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
 		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
@@ -991,8 +999,10 @@ int main(int ArgsCount, char** Args) {
 		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX3, 200), 300.0f);
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
+#endif
 
-
+		GUIBeginFrame(GUIState, Stack);
+#if 0
 		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
 		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
 		gui_interaction VertSliderInteract = GUIVariableInteraction(&TempFloatForVertSlider, GUIVarType_F32);
@@ -1001,13 +1011,11 @@ int main(int ArgsCount, char** Args) {
 		gui_interaction PotImageInteraction = GUIVariableInteraction(&Image, GUIVarType_RGBABuffer);
 		gui_interaction LabirImageInteraction = GUIVariableInteraction(&CelluralBitmap, GUIVarType_RGBABuffer);
 		
-		GUIBeginFrame(GUIState, Stack);
 		char DebugStr[128];
 		float LastFrameFPS = 1.0f / DeltaTime;
 		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", DeltaTime * 1000.0f, LastFrameFPS);
 
 		GUIText(GUIState, DebugStr);
-#if 0
 
 		GUIBeginLayout(GUIState, "Root", GUILayout_Tree);
 
@@ -1257,19 +1265,22 @@ int main(int ArgsCount, char** Args) {
 		//GUIText(GUIState, DebugStr);
 #endif
 
+		BEGIN_TIMING("Debug Update");
 		DEBUGUpdate(DEBUGState);
+		END_TIMING();
 
 		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 
 #if 1
+		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLRenderStackToOutput(GLState, Stack);
+		END_TIMING();
 
 		SDL_GL_SwapWindow(Window);
 #else
-		BEGIN_SECTION("RENDERING");
 		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
@@ -1289,13 +1300,13 @@ int main(int ArgsCount, char** Args) {
 		
 		SDL_DestroyTexture(GlobalRenderTexture);
 		SDL_FreeSurface(Surf);
-		END_SECTION();
 #endif
 
 		GUIEndFrame(GUIState);
 		RENDEREndStack(Stack);
 
 		END_SECTION();
+		END_TIMING();
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;

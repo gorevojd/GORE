@@ -293,6 +293,8 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 
 		DEBUGFreeFrameInfo(State, Frame);
 	}
+
+	State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
 }
 
 inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
@@ -516,13 +518,6 @@ void DEBUGFramesSlider(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-enum debug_frame_graph_type {
-	DEBUGFrameGraph_DeltaTime,
-	DEBUGFrameGraph_FPS,
-
-	DEBUGFrameGraph_Count,
-};
-
 void DEBUGFramesGraph(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
 
@@ -553,31 +548,66 @@ void DEBUGFramesGraph(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
-		float OneOverMaxMs = 30.0f;
-		for (int ColumnIndex = 0;
-			ColumnIndex < DEBUG_FRAMES_COUNT;
-			ColumnIndex++)
-		{
-			debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
+		switch (State->FramesGraphType) {
 
-			if (ColumnIndex == State->CollationFrameIndex) {
-				RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_gray30));
-			}
-			else {
-				float FilledPercentage = Frame->DeltaTime * OneOverMaxMs;
-				if (FilledPercentage > 1.0f) {
-					FilledPercentage = 1.0f;
+			case DEBUGFrameGraph_DeltaTime: {
+				float OneOverMaxMs = 30.0f;
+				for (int ColumnIndex = 0;
+					ColumnIndex < DEBUG_FRAMES_COUNT;
+					ColumnIndex++)
+				{
+					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
+
+					if (ColumnIndex == State->CollationFrameIndex) {
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+					}
+					else {
+						float FilledPercentage = Frame->DeltaTime * OneOverMaxMs;
+						if (FilledPercentage > 1.0f) {
+							FilledPercentage = 1.0f;
+						}
+
+						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
+						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Purple));
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_gray80));
+					}
+
+					ColumnRect.Min.x += OneColumnWidth;
+					ColumnRect.Max.x += OneColumnWidth;
 				}
+			}break;
 
-				rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
-				rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+			case DEBUGFrameGraph_FPS: {
+				float OneOverMaxShowFPS = 1.0f / 300.0f;
+				for (int ColumnIndex = 0;
+					ColumnIndex < DEBUG_FRAMES_COUNT;
+					ColumnIndex++)
+				{
+					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
+					float CurrentFPS = 1.0f / Frame->DeltaTime;
 
-				RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Red));
-				RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_Green));
-			}
+					if (ColumnIndex == State->CollationFrameIndex) {
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+					}
+					else {
+						float FilledPercentage = CurrentFPS * OneOverMaxShowFPS;
+						if (FilledPercentage > 1.0f) {
+							FilledPercentage = 1.0f;
+						}
 
-			ColumnRect.Min.x += OneColumnWidth;
-			ColumnRect.Max.x += OneColumnWidth;
+						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
+						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Red));
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_blue4));
+					}
+
+					ColumnRect.Min.x += OneColumnWidth;
+					ColumnRect.Max.x += OneColumnWidth;
+				}
+			}break;
 		}
 
 		v2 BarDim = V2(1.0f, GraphDim->y);
@@ -602,6 +632,7 @@ void DEBUGFramesGraph(debug_state* State) {
 		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(10, 10), &ResizeInteraction);
 #endif
 
+#if 0
 		v4 LabelTextColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
 		v4 LabelHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
 		gui_interaction NullInteraction = GUINullInteraction();
@@ -612,6 +643,21 @@ void DEBUGFramesGraph(debug_state* State) {
 			LabelHighColor,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1, OutlineColor);
+#else
+		u32 ActiveElement = 0;
+
+		GUIBeginStateChangerGroup(GUIState, DEBUGFrameGraph_DeltaTime);
+		GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
+		GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
+		GUIEndStateChangerGroupAt(GUIState, V2(GraphMin.x, GraphMin.y + AscByScale), &ActiveElement);
+
+		if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
+			State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
+		}
+		else if (ActiveElement == DEBUGFrameGraph_FPS) {
+			State->FramesGraphType = DEBUGFrameGraph_FPS;
+		}
+#endif
 
 		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
@@ -753,8 +799,22 @@ enum debug_profile_active_element {
 void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
 
+	int LastFrameIndex;
+
+	LastFrameIndex = (int)State->CollationFrameIndex - 1;
+	if (LastFrameIndex < 0) {
+		LastFrameIndex += DEBUG_FRAMES_COUNT;
+	}
+
+	debug_profiled_frame* LastFrame = &State->Frames[LastFrameIndex];
+
+	char DebugStr[128];
+	float LastFrameFPS = 1.0f / LastFrame->DeltaTime;
+	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", LastFrame->DeltaTime * 1000.0f, LastFrameFPS);
+
+
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
-	GUITreeBegin(State->GUIState, "DEBUG");
+	GUITreeBegin(State->GUIState, "DEBUG", DebugStr);
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
@@ -796,7 +856,11 @@ void DEBUGOverlayToOutput(debug_state* State) {
 void DEBUGUpdate(debug_state* State) {
 	FUNCTION_TIMING();
 
+	BEGIN_SECTION("Profile");
+
 	DEBUGProcessRecords(State);
 
 	DEBUGOverlayToOutput(State);
+
+	END_SECTION();
 }

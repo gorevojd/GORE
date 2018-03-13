@@ -1354,6 +1354,8 @@ static gui_element* GUIRequestElement(
 		Element->Depth = Parent->Depth + 1;
 
 		Element->RowCount = 0;
+		Element->RadioGroupsCount = 0;
+		Element->StateChangerGroupsCount = 0;
 		Element->ID = 0;
 		Element->Cache = {};
 
@@ -1403,7 +1405,8 @@ static gui_element* GUIRequestElement(
 #else
 		if ((ElementType == GUIElement_TreeNode) ||
 			(ElementType == GUIElement_CachedItem) ||
-			(ElementType == GUIElement_RadioGroup))
+			(ElementType == GUIElement_RadioGroup) ||
+			(ElementType == GUIElement_StateChangerGroup))
 		{
 			GUIInitElementChildrenSentinel(GUIState, Element);
 		}
@@ -1521,6 +1524,7 @@ enum print_text_type {
 };
 
 static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+	FUNCTION_TIMING();
 
 	rect2 TextRect = {};
 
@@ -1528,7 +1532,6 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 	float CurrentY = Py;
 
 	char* At = Text;
-	int PushedEntriesCount = 0;
 
 	font_info* FontInfo = State->FontInfo;
 	render_stack* Stack = State->RenderStack;
@@ -1542,21 +1545,18 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 		float BitmapScale = Glyph->Height * Scale;
 
 		if (Type == PrintTextType_PrintText) {
-			float BitmapMinX;
-			float BitmapMinY;
+			float BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
+			float BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
 
-			BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
-			BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
+			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
 
 #if 1
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+			RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
 #else
 			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
 #endif
-
-			PushedEntriesCount += 2;
 		}
 
 		float Kerning = 0.0f;
@@ -1666,6 +1666,30 @@ void GUIPerformInteraction(
 			gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
 
 			Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
+		}break;
+
+		case GUIInteraction_StateChangerGroupInteraction: {
+			gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
+
+			gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
+		
+			while (1) {
+				gui_element* Next = 0;
+
+				if (Context->IncrementDirection) {
+					Next = CurrentElement->NextBro;
+				}
+				else {
+					Next = CurrentElement->PrevBro;
+				}
+
+				if (Next != CurrentElement->Parent->ChildrenSentinel) {
+					Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Next;
+					break;
+				}
+
+				CurrentElement = Next;
+			}
 		}break;
 
 		case GUIInteraction_None: {
@@ -2919,6 +2943,104 @@ void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement) {
 
 	GUIEndElement(GUIState, GUIElement_RadioGroup);
 }
+
+void GUIBeginStateChangerGroup(gui_state* GUIState, u32 DefaultSetIndex) {
+	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+	char NameBuf[16];
+	stbsp_sprintf(NameBuf, "StCh:%u", GUIState->CurrentNode->StateChangerGroupsCount);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StateChangerGroup, NameBuf, 0, 1, 0);
+
+	if (!Element->Cache.IsInitialized) {
+		Element->Cache.StateChangerGroupCache.ActiveElement = 0;
+
+		Element->Cache.IsInitialized = 1;
+	}
+}
+
+inline gui_element* GUIFindStateChangerGroupParent(gui_element* CurrentElement) {
+	gui_element* Result = 0;
+
+	gui_element* At = CurrentElement;
+	while (At != 0) {
+		if (At->Type == GUIElement_StateChangerGroup) {
+			Result = At;
+			break;
+		}
+
+		At = At->Parent;
+	}
+
+	return(Result);
+}
+
+void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID) {
+	gui_element* StateChangerGroup = GUIFindStateChangerGroupParent(GUIState->CurrentNode);
+	
+	gui_interaction NullInteraction = GUINullInteraction();
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, &NullInteraction, 1, 0);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		if (!Element->Cache.IsInitialized) {
+			Element->Cache.StateChangerCache.StateID = StateID;
+
+			Element->Cache.IsInitialized = 1;
+		}
+
+		if (StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement == 0) {
+			StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Element;
+		}
+	}
+
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+}
+
+void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement) {
+	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
+
+	if (GUIElementShouldBeUpdated(CurrentElement)) {
+		//GUIPreAdvanceCursor(GUIState);
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		gui_interaction Interaction = GUINullInteraction();
+
+		char* Text = "NULL";
+		if (CurrentElement->Cache.StateChangerGroupCache.ActiveElement) {
+			Text = CurrentElement->Cache.StateChangerGroupCache.ActiveElement->Name;
+			Interaction = GUIStateChangerGroupInteraction(CurrentElement, 0);
+		}
+
+		rect2 Rc = GUITextBase(GUIState, Text, Pos,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
+			GUIState->FontScale, &Interaction,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		/*
+		rect2 Rc = GUITextBase(GUIState, Text, V2(Layout->CurrentX, Layout->CurrentY),
+			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor),
+			GUIState->FontScale, &Interaction,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
+		GUIAdvanceCursor(GUIState);
+		*/
+	}
+
+	if (CurrentElement->Cache.StateChangerGroupCache.ActiveElement) {
+		*ActiveElement = CurrentElement->Cache.StateChangerGroupCache.ActiveElement->Cache.StateChangerCache.StateID;
+	}
+	else {
+		*ActiveElement = 0xFFFFFFFF;
+	}
+
+	GUIEndElement(GUIState, GUIElement_StateChangerGroup);
+}
+
 
 void GUIWindowBegin(gui_state* GUIState, char* Name) {
 

@@ -53,8 +53,6 @@ struct render_stack_entry_rectangle {
 struct render_stack_entry_glyph {
 	int Codepoint;
 
-	font_info* FontInfo;
-
 	v2 P;
 	v2 Dim;
 
@@ -86,7 +84,7 @@ extern void RENDERPushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidt
 extern void RENDERPushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth = 1, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f));
 extern void RENDERPushClear(render_stack* Stack, v3 Clear);
 extern void RENDERPushGradient(render_stack* Stack, v3 Color);
-extern void RENDERPushGlyph(render_stack* Stack, font_info* FontInfo, int Codepoint, v2 P, float Height, v4 ModulationColor = V4(0.0f, 0.0f, 0.0f, 1.0f));
+extern void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(0.0f, 0.0f, 0.0f, 1.0f));
 extern void RENDERPushBeginText(render_stack* Stack, font_info* FontInfo);
 extern void RENDERPushEndText(render_stack* Stack);
 extern void RENDERPushCameraSetup(render_stack* Stack, game_camera_setup Setup);

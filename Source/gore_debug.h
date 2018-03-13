@@ -111,11 +111,20 @@ struct debug_state {
 	u32 CollationFrameIndex;
 	u32 ViewFrameIndex;
 
-
 	stacked_memory DebugMemory;
+
+	u32 FramesGraphType;
 
 	gui_state* GUIState;
 };
+
+enum debug_frame_graph_type {
+	DEBUGFrameGraph_DeltaTime,
+	DEBUGFrameGraph_FPS,
+
+	DEBUGFrameGraph_Count,
+};
+
 
 extern void DEBUGFramesSlider(debug_state* State);
 extern void DEBUGFramesGraph(debug_state* State);

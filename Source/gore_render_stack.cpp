@@ -124,16 +124,15 @@ void RENDERPushEndText(render_stack* Stack) {
 
 }
 
-void RENDERPushGlyph(render_stack* Stack, font_info* FontInfo, int Codepoint, v2 P, float Height, v4 ModulationColor) {
-	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Glyph);
+void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor) {
+	FUNCTION_TIMING();
 
-	glyph_info* Glyph = &FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[Codepoint]];
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Glyph);
 
 	Entry->Codepoint = Codepoint;
 	Entry->P = P;
+	Entry->Dim = Dim;
 	Entry->ModulationColor = ModulationColor;
-	Entry->Dim = V2(Glyph->Bitmap.WidthOverHeight * Height, Height);
-	Entry->FontInfo = FontInfo;
 }
 
 void RENDERPushCameraSetup(render_stack* Stack, game_camera_setup Setup) {
