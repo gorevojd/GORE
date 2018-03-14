@@ -85,13 +85,15 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 /*
 	TODO(Dima):
+
 		DEBUG:
 			VARARG macro functions
 
-			FPS frames graph
 			Frames graph based on sections
 
 		GUI:
+			Build glyph chunks and render them instead individual bitmaps
+			
 			Interaction rules list
 			Interaction rules list processing
 
@@ -116,6 +118,7 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 			Model loading
 
 		Renderer:
+			Inline push render functions
 			Implement bitmap alignment
 			Optimize renderer with multithreading;
 			Implement Gaussian blur
@@ -801,6 +804,8 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 }
 
 int main(int ArgsCount, char** Args) {
+
+	DEBUGSetRecording(1);
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 

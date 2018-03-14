@@ -295,6 +295,8 @@ void DEBUGInit(debug_state* State, gui_state* GUIState) {
 	}
 
 	State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
+
+	State->IsRecording = 1;
 }
 
 inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
@@ -457,23 +459,34 @@ inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, 
 
 void DEBUGFramesSlider(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
+	
+	GUIBeginRow(GUIState);
+	GUIBoolButton2(GUIState, "Recording", &State->IsRecording);
+	GUIEndRow(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "FrameSlider", 0, 1, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
 		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		if (!Element->Cache.IsInitialized) {
+			Element->Cache.Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 3);
+
+			Element->Cache.IsInitialized = 1;
+		}
+
+		v2* GraphDim = &Element->Cache.Dimensional.Dimension;
+
 		GUIPreAdvanceCursor(GUIState);
 
 		v4 OutlineColor = GUIGetColor(GUIState, GUIColorExt_gray70);
 
-		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2 GraphDim = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 3);
 
-		float OneColumnWidth = GraphDim.x / (float)DEBUG_FRAMES_COUNT;
+		float OneColumnWidth = GraphDim->x / (float)DEBUG_FRAMES_COUNT;
 
-		v2 ColumnDim = V2(OneColumnWidth, GraphDim.y);
+		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
 #if 0
@@ -495,9 +508,9 @@ void DEBUGFramesSlider(debug_state* State) {
 		//NOTE(dima): Newest frame column
 		DEBUGPushFrameColumn(GUIState, State->NewestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Red));
 
-		v2 BarDim = V2(1.0f, GraphDim.y);
+		v2 BarDim = V2(1.0f, GraphDim->y);
 
-		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim.y));
+		rect2 BarRect = Rect2MinDim(GraphMin + V2(OneColumnWidth, 0.0f), V2(1.0f, GraphDim->y));
 		for (int BarIndex = 0;
 			BarIndex < DEBUG_FRAMES_COUNT - 1;
 			BarIndex++)
@@ -508,10 +521,15 @@ void DEBUGFramesSlider(debug_state* State) {
 			BarRect.Max.x += OneColumnWidth;
 		}
 
-		rect2 GraphRect = Rect2MinDim(GraphMin, GraphDim);
+		rect2 GraphRect = Rect2MinDim(GraphMin, *GraphDim);
 		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIGetColor(GUIState, GUIColor_Black));
 
-		GUIDescribeElement(GUIState, GraphDim, GraphMin);
+#if 1
+		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(10, 10), &ResizeInteraction);
+#endif
+
+		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
 		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
 	}
 
@@ -820,14 +838,6 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
 	DEBUGFramesSlider(State);
-#if 0
-	GUIBeginRow(State->GUIState);
-
-	GUIButton(State->GUIState, "Top Clocks", 0);
-	GUIButton(State->GUIState, "FrameGraph", 0);
-
-	GUIEndRow(State->GUIState);
-#endif
 
 	u32 ActiveProfileElement = 0;
 

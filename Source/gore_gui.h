@@ -86,10 +86,7 @@ struct gui_tree_interaction_context {
 };
 
 struct gui_bool_interaction_context {
-	//rect2 ElemRect;
-	//rect2 TextRect;
-	gui_variable_link BoolLink;
-	v4* TextHighlightColor;
+	b32* InteractBool;
 };
 
 struct gui_menu_bar_interaction_context {
@@ -235,12 +232,12 @@ inline gui_interaction GUITreeInteraction(struct gui_element* Elem, rect2 ElemRc
 	return(Result);
 }
 
-inline gui_interaction GUIBoolInteraction(gui_variable_link BoolLink, rect2 ElemRc, rect2 TextRc) {
+inline gui_interaction GUIBoolInteraction(b32* InteractBool) {
 	gui_interaction Result = {};
 
 	Result.Type = GUIInteraction_BoolInteraction;
 
-	Result.BoolInteraction.BoolLink = BoolLink;
+	Result.BoolInteraction.InteractBool = InteractBool;
 
 	return(Result);
 }
@@ -1060,6 +1057,7 @@ struct gui_color_theme {
 	u32 ButtonTextColor;
 	u32 ButtonBackColor;
 	u32 ButtonTextHighColor;
+	u32 ButtonTextHighColor2;
 	u32 ButtonOutlineColor;
 
 	u32 AnchorColor;
@@ -1086,6 +1084,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.ButtonBackColor = GUIColor_PrettyBlue;
 	Result.ButtonTextHighColor = GUIColor_White;
 	Result.ButtonOutlineColor = GUIColor_Black;
+	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
 
 	Result.AnchorColor = GUIColorExt_OrangeRed1;
 
@@ -1319,8 +1318,9 @@ extern void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack);
 extern void GUIEndTempRenderStack(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
-extern void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction);
+extern void GUIButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
+extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);

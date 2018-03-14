@@ -1652,7 +1652,7 @@ void GUIPerformInteraction(
 		} break;
 
 		case GUIInteraction_BoolInteraction: {
-			b32* WorkValue = Interaction->BoolInteraction.BoolLink.Value_B32;
+			b32* WorkValue = Interaction->BoolInteraction.InteractBool;
 			if (WorkValue) {
 				*WorkValue = !(*WorkValue);
 			}
@@ -2330,7 +2330,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		float OutlineWidth = 1;
 
 		gui_variable_link BoolLink = GUIVariableLink(Value, GUIVarType_B32);
-		gui_interaction BoolInteraction = GUIBoolInteraction(BoolLink, ButRc, NameRc);
+		gui_interaction BoolInteraction = GUIBoolInteraction(Value);
 
 		char TextToPrint[8];
 		if (Value) {
@@ -2378,6 +2378,33 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth), V2(View->CurrentX, ButRc.Min.y));
 
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+}
+
+void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		GUIPreAdvanceCursor(GUIState);
+
+		gui_interaction BoolInteraction = GUIBoolInteraction(Value);
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		v4 TextColor = *Value ? 
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) :
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
+
+		rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(Layout->CurrentX, Layout->CurrentY),
+			TextColor, GUIState->FontScale, &BoolInteraction,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor2), 
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		GUIDescribeElement(GUIState, GetRectDim(ButRc), ButRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 

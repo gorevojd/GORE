@@ -7,7 +7,6 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
-
 struct debug_timing_snapshot {
 	u64 BeginClock;
 	u64 ChildrenSumClocks;
@@ -114,6 +113,8 @@ struct debug_state {
 	stacked_memory DebugMemory;
 
 	u32 FramesGraphType;
+
+	b32 IsRecording;
 
 	gui_state* GUIState;
 };

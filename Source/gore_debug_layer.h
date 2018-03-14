@@ -48,6 +48,8 @@ struct debug_record_table {
 	SDL_atomic_t CurrentRecordIndex;
 	SDL_atomic_t CurrentTableIndex;
 
+	SDL_atomic_t Increment;
+
 	debug_record Records[2][DEBUG_RECORD_MAX_COUNT];
 };
 
@@ -60,7 +62,8 @@ extern debug_record_table* GlobalRecordTable;
 
 #if 1
 inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
-	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
+	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, GlobalRecordTable->Increment.value);
+	//int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
 	Assert(Index < DEBUG_RECORD_MAX_COUNT);
 
 	debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value] + Index;
@@ -90,6 +93,10 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 	Record->RecordType = RecordType;																			\
 	Record->ThreadID = SDL_ThreadID();}																			
 #endif
+
+inline void DEBUGSetRecording(b32 Recording) {
+	GlobalRecordTable->Increment.value = Recording;
+}
 
 #define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
 
