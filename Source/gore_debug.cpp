@@ -312,16 +312,25 @@ inline debug_profiled_frame* DEBUGGetFrameByIndex(debug_state* State, u32 Index)
 }
 
 inline u32 DEBUGIncrementFrameIndex(u32 Index) {
-	u32 Result = (Index + 1) % DEBUG_FRAMES_COUNT;
+	u32 Result = (Index + GlobalRecordTable->Increment.value) % DEBUG_FRAMES_COUNT;
 
 	return(Result);
 }
 
 inline void DEBUGIncrementFrameIndices(debug_state* State) {
 	State->NewestFrameIndex = State->CollationFrameIndex;
+	if (State->ViewFrameIndex != State->CollationFrameIndex) {
+		State->ViewFrameIndex = DEBUGIncrementFrameIndex(State->ViewFrameIndex);
+	}
 	State->CollationFrameIndex = DEBUGIncrementFrameIndex(State->CollationFrameIndex);
-	//State->ViewFrameIndex = DEBUGIncrementFrameIndex(State->ViewFrameIndex);
-	State->ViewFrameIndex = State->NewestFrameIndex;
+
+	if (State->CollationFrameIndex == State->OldestFrameIndex) {
+		State->OldeshShouldBeIncremented = 1;
+	}
+	
+	if (State->OldeshShouldBeIncremented) {
+		State->OldestFrameIndex = DEBUGIncrementFrameIndex(State->OldestFrameIndex);
+	}
 }
 
 void DEBUGProcessRecords(debug_state* State) {
@@ -405,7 +414,6 @@ void DEBUGProcessRecords(debug_state* State) {
 			}break;
 
 			case DebugRecord_FrameBarrier: {
-
 				float DeltaTime = Record->Value_F32;
 
 				debug_profiled_frame* CollationFrame = DEBUGGetCollationFrame(State);
@@ -419,9 +427,13 @@ void DEBUGProcessRecords(debug_state* State) {
 
 				//NOTE(dima): Section pointer must be equal to initial
 				Assert(State->CurrentSection == State->RootSection);
-
 			} break;
 		}
+	}
+
+	if (State->RecordingChanged) {
+		DEBUGSetRecording(State->IsRecording);
+		State->RecordingChanged = 0;
 	}
 
 	//TODO(dima): Think about when to do this
@@ -460,8 +472,18 @@ inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, 
 void DEBUGFramesSlider(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
 	
+	//NOTE(dima): This is jush for safe
+	b32 PrevRecording = State->IsRecording;
+
 	GUIBeginRow(GUIState);
 	GUIBoolButton2(GUIState, "Recording", &State->IsRecording);
+	if (GUIButton(GUIState, "Newest")) {
+		State->ViewFrameIndex = State->NewestFrameIndex;
+	}
+
+	if (GUIButton(GUIState, "Oldest")) {
+		State->ViewFrameIndex = State->CollationFrameIndex + 1;
+	}
 	GUIEndRow(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "FrameSlider", 0, 1, 1);
@@ -480,7 +502,7 @@ void DEBUGFramesSlider(debug_state* State) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		v4 OutlineColor = GUIGetColor(GUIState, GUIColorExt_gray70);
+		v4 OutlineColor = GUIGetColor(GUIState, GUIColor_Black);
 
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
 
@@ -489,24 +511,39 @@ void DEBUGFramesSlider(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
-#if 0
-		for (int ColumnIndex = 0;
-			ColumnIndex < DEBUG_FRAMES_COUNT;
-			ColumnIndex++)
-		{
-
-			RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, 123));
-
-			ColumnRect.Min.x += OneColumnWidth;
-			ColumnRect.Max.x += OneColumnWidth;
-		}
-#endif
+		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, GUIGetColor(GUIState, GUIColorExt_gray15));
 
 		//NOTE(dima): Collation frame column
 		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Green));
 
 		//NOTE(dima): Newest frame column
 		DEBUGPushFrameColumn(GUIState, State->NewestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Red));
+
+		//NOTE(dima): Oldest frame column
+		DEBUGPushFrameColumn(GUIState, State->OldestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Blue));
+
+		for (int ColumnIndex = 0;
+			ColumnIndex < DEBUG_FRAMES_COUNT;
+			ColumnIndex++)
+		{
+			if (MouseInRect(GUIState->Input, ColumnRect)) {
+				char LabelBuf[256];
+				stbsp_sprintf(LabelBuf, "Frame: %u", ColumnIndex);
+				GUILabel(GUIState, LabelBuf, GUIState->Input->MouseP);
+
+				if (MouseButtonIsDown(GUIState->Input, MouseButton_Left) &&
+					ColumnIndex != State->CollationFrameIndex) 
+				{
+					State->ViewFrameIndex = ColumnIndex;
+				}
+			}
+
+			ColumnRect.Min.x += OneColumnWidth;
+			ColumnRect.Max.x += OneColumnWidth;
+		}
+
+		//NOTE(dima): Viewing frame column
+		DEBUGPushFrameColumn(GUIState, State->ViewFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Yellow));
 
 		v2 BarDim = V2(1.0f, GraphDim->y);
 
@@ -530,10 +567,12 @@ void DEBUGFramesSlider(debug_state* State) {
 #endif
 
 		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
-		GUIAdvanceCursor(GUIState, AscByScale * 0.5f);
+		GUIAdvanceCursor(GUIState);
 	}
 
 	GUIEndElement(GUIState, GUIElement_CachedItem);
+
+	State->RecordingChanged = (PrevRecording == State->IsRecording);
 }
 
 void DEBUGFramesGraph(debug_state* State) {
@@ -588,8 +627,14 @@ void DEBUGFramesGraph(debug_state* State) {
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
 						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Purple));
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_gray80));
+						v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
+						
+						if (ColumnIndex == State->ViewFrameIndex) {
+							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
+						}
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Purple) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_gray80) * ColorMultiplier);
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;
@@ -618,8 +663,14 @@ void DEBUGFramesGraph(debug_state* State) {
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
 						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Red));
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_blue4));
+						v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+						if (ColumnIndex == State->ViewFrameIndex) {
+							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
+						}
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_FPSOrange) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_FPSBlue) * ColorMultiplier);
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;
@@ -682,6 +733,15 @@ void DEBUGFramesGraph(debug_state* State) {
 	}
 
 	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+void DEBUGViewingFrameInfo(debug_state* State) {
+	char Buf[256];
+
+	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
+
+	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime);
+	GUIText(State->GUIState, Buf);
 }
 
 inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
@@ -824,11 +884,11 @@ void DEBUGOverlayToOutput(debug_state* State) {
 		LastFrameIndex += DEBUG_FRAMES_COUNT;
 	}
 
-	debug_profiled_frame* LastFrame = &State->Frames[LastFrameIndex];
 
+	float TempDT = State->GUIState->Input->DeltaTime;
 	char DebugStr[128];
-	float LastFrameFPS = 1.0f / LastFrame->DeltaTime;
-	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", LastFrame->DeltaTime * 1000.0f, LastFrameFPS);
+	float LastFrameFPS = 1.0f / TempDT;
+	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", TempDT * 1000.0f, LastFrameFPS);
 
 
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
@@ -838,6 +898,8 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
 	DEBUGFramesSlider(State);
+
+	DEBUGViewingFrameInfo(State);
 
 	u32 ActiveProfileElement = 0;
 

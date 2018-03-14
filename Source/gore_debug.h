@@ -1,11 +1,23 @@
 #ifndef GORE_DEBUG_H_INCLUDED
 #define GORE_DEBUG_H_INCLUDED
 
+/*
+	NOTE(dima): Debug code and profiler idea were taken from
+		Casey's Muratory show Handmade Hero but were written 
+		from scratch. Now some basic frame collection code 
+		was written and some debug overlays like frame slider,
+		top clock list(both including and excluding children 
+		timings), frame graphs(fps, delta time). 
+
+		
+*/
+
 #include "gore_platform.h"
 #include "gore_gui.h"
 
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
+
 
 struct debug_timing_snapshot {
 	u64 BeginClock;
@@ -106,15 +118,17 @@ struct debug_state {
 
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
 	u32 NewestFrameIndex;
-	u32 OldestFrameIndex;
 	u32 CollationFrameIndex;
 	u32 ViewFrameIndex;
+	u32 OldestFrameIndex;
+	b32 OldeshShouldBeIncremented;
 
 	stacked_memory DebugMemory;
 
 	u32 FramesGraphType;
 
 	b32 IsRecording;
+	b32 RecordingChanged;
 
 	gui_state* GUIState;
 };

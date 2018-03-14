@@ -103,17 +103,32 @@ struct gui_state_changer_group_interaction_context {
 	u32 IncrementDirection;
 };
 
+enum gui_return_mouse_action_type {
+	GUIReturnMouseAction_WentDown,
+	GUIReturnMouseAction_WentUp,
+	GUIReturnMouseAction_IsDown,
+};
+
+struct gui_return_mouse_action_interaction_context {
+	b32* ActionHappened;
+
+	u32 ActionType;
+	u32 MouseButtonIndex;
+	input_system* Input;
+};
+
 enum gui_interaction_type {
 	GUIInteraction_None,
 
 	GUIInteraction_VariableLink,
-	GUIInteraction_ResizeInteraction,
-	GUIInteraction_MoveInteraction,
-	GUIInteraction_TreeInteraction,
-	GUIInteraction_BoolInteraction,
-	GUIInteraction_MenuBarInteraction,
-	GUIInteraction_RadioButtonInteraction,
-	GUIInteraction_StateChangerGroupInteraction,
+	GUIInteraction_Resize,
+	GUIInteraction_Move,
+	GUIInteraction_Tree,
+	GUIInteraction_Bool,
+	GUIInteraction_MenuBar,
+	GUIInteraction_RadioButton,
+	GUIInteraction_StateChangerGroup,
+	GUIInteraction_ReturnMouseAction,
 };
 
 struct gui_interaction {
@@ -129,9 +144,11 @@ struct gui_interaction {
 		gui_menu_bar_interaction_context MenuMarInteraction;
 		gui_radio_button_interaction_context RadioButtonInteraction;
 		gui_state_changer_group_interaction_context StateChangerGroupInteraction;
+		gui_return_mouse_action_interaction_context ReturnMouseActionInteraction;
 	};
 };
 
+#if 0
 enum gui_interaction_rule_type {
 	GUIInteractionRule_MouseClick,
 	GUIInteractionRule_MouseOver,
@@ -160,7 +177,7 @@ struct gui_interaction_rule {
 		gui_interaction_rule_button_data ButtonData;
 	};
 };
-
+#endif
 
 
 inline gui_variable_link GUIVariableLink(void* Variable, u32 Type) {
@@ -201,7 +218,7 @@ inline gui_interaction GUIVariableInteraction(void* Variable, u32 Type) {
 inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 Type) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_ResizeInteraction;
+	Result.Type = GUIInteraction_Resize;
 
 	Result.ResizeContext.DimensionPtr = DimensionPtr;
 	Result.ResizeContext.Position = Position;
@@ -214,7 +231,7 @@ inline gui_interaction GUIResizeInteraction(v2 Position, v2* DimensionPtr, u32 T
 inline gui_interaction GUIMoveInteraction(v2* MovePosition, u32 Type) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_MoveInteraction;
+	Result.Type = GUIInteraction_Move;
 
 	Result.MoveContext.MovePosition = MovePosition;
 	Result.MoveContext.Type = Type;
@@ -225,7 +242,7 @@ inline gui_interaction GUIMoveInteraction(v2* MovePosition, u32 Type) {
 inline gui_interaction GUITreeInteraction(struct gui_element* Elem, rect2 ElemRc) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_TreeInteraction;
+	Result.Type = GUIInteraction_Tree;
 
 	Result.TreeInteraction.Elem = Elem;
 
@@ -235,7 +252,7 @@ inline gui_interaction GUITreeInteraction(struct gui_element* Elem, rect2 ElemRc
 inline gui_interaction GUIBoolInteraction(b32* InteractBool) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_BoolInteraction;
+	Result.Type = GUIInteraction_Bool;
 
 	Result.BoolInteraction.InteractBool = InteractBool;
 
@@ -245,7 +262,7 @@ inline gui_interaction GUIBoolInteraction(b32* InteractBool) {
 inline gui_interaction GUIMenuBarInteraction(gui_element* MenuElement) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_MenuBarInteraction;
+	Result.Type = GUIInteraction_MenuBar;
 	Result.MenuMarInteraction.MenuElement = MenuElement;
 
 	return(Result);
@@ -254,7 +271,7 @@ inline gui_interaction GUIMenuBarInteraction(gui_element* MenuElement) {
 inline gui_interaction GUIRadioButtonInteraction(gui_element* RadioGroup, u32 PressedIndex) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_RadioButtonInteraction;
+	Result.Type = GUIInteraction_RadioButton;
 	Result.RadioButtonInteraction.RadioGroup = RadioGroup;
 	Result.RadioButtonInteraction.PressedIndex = PressedIndex;
 
@@ -268,9 +285,21 @@ inline gui_interaction GUIRadioButtonInteraction(gui_element* RadioGroup, u32 Pr
 inline gui_interaction GUIStateChangerGroupInteraction(gui_element* StateChangerGroup, u32 IncrementDirection) {
 	gui_interaction Result = {};
 
-	Result.Type = GUIInteraction_StateChangerGroupInteraction;
+	Result.Type = GUIInteraction_StateChangerGroup;
 	Result.StateChangerGroupInteraction.StateChangerGroup = StateChangerGroup;
 	Result.StateChangerGroupInteraction.IncrementDirection = IncrementDirection;
+
+	return(Result);
+}
+
+inline gui_interaction GUIReturnMouseActionInteraction(input_system* Input, b32* ActionHappened, u32 ActionType, u32 MouseButtonIndex) {
+	gui_interaction Result = {};
+
+	Result.Type = GUIInteraction_ReturnMouseAction;
+	Result.ReturnMouseActionInteraction.Input = Input;
+	Result.ReturnMouseActionInteraction.MouseButtonIndex = MouseButtonIndex;
+	Result.ReturnMouseActionInteraction.ActionType = ActionType;
+	Result.ReturnMouseActionInteraction.ActionHappened = ActionHappened;
 
 	return(Result);
 }
@@ -522,6 +551,9 @@ enum gui_color_table_type {
 	GUIColor_RoyalBlue,
 	GUIColor_PrettyPink,
 	GUIColor_BluishGray,
+
+	GUIColor_FPSBlue,
+	GUIColor_FPSOrange,
 
 	GUIColor_Burlywood,
 	GUIColor_DarkGoldenrod,
@@ -1318,7 +1350,7 @@ extern void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack);
 extern void GUIEndTempRenderStack(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
-extern void GUIButton(gui_state* GUIState, char* ButtonName, b32* Value);
+extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
 extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);

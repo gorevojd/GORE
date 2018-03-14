@@ -94,6 +94,8 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 		GUI:
 			Build glyph chunks and render them instead individual bitmaps
 			
+			Render labels at the end of the frame
+
 			Interaction rules list
 			Interaction rules list processing
 

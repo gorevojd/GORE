@@ -711,6 +711,9 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 
 	GUIState->ColorTable[GUIColor_BluishGray] = GUICreateColorSlot(GUIState, GUIColorHex("#778899"), "BluishGray");
 
+	GUIState->ColorTable[GUIColor_FPSBlue] = GUICreateColorSlot(GUIState, GUIColorHex("#0D56A6"), "FPSBlue");
+	GUIState->ColorTable[GUIColor_FPSOrange] = GUICreateColorSlot(GUIState, GUIColorHex("#FF9A00"), "FPSOrange");
+
 	GUIState->ColorTable[GUIColor_Burlywood] = GUICreateColorSlot(GUIState, GUIColorHex("#deb887"), "Burlywood");
 	GUIState->ColorTable[GUIColor_DarkGoldenrod] = GUICreateColorSlot(GUIState, GUIColorHex("#b8860b"), "DarkGoldenrod");
 	GUIState->ColorTable[GUIColor_OliveDrab] = GUICreateColorSlot(GUIState, GUIColorHex("#6b8e23"), "OliveDrab");
@@ -1586,12 +1589,12 @@ void GUIPerformInteraction(
 	FUNCTION_TIMING();
 
 	switch (Interaction->Type) {
-		case GUIInteraction_ResizeInteraction: {
+		case GUIInteraction_Resize: {
 			v2 WorkRectP = Interaction->ResizeContext.Position;
 			v2 MouseP = GUIState->Input->MouseP - Interaction->ResizeContext.OffsetInAnchor;
 
 			v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
-			if (Interaction->Type == GUIInteraction_ResizeInteraction) {
+			if (Interaction->Type == GUIInteraction_Resize) {
 
 				v2* WorkDim = Interaction->ResizeContext.DimensionPtr;
 				switch (Interaction->ResizeContext.Type) {
@@ -1633,7 +1636,7 @@ void GUIPerformInteraction(
 			}
 		}break;
 
-		case GUIInteraction_MoveInteraction: {
+		case GUIInteraction_Move: {
 			v2* WorkP = Interaction->MoveContext.MovePosition;
 			v2 MouseP = GUIState->Input->MouseP - Interaction->MoveContext.OffsetInAnchor;
 
@@ -1644,31 +1647,31 @@ void GUIPerformInteraction(
 			}
 		}break;
 
-		case GUIInteraction_TreeInteraction: {
+		case GUIInteraction_Tree: {
 			Interaction->TreeInteraction.Elem->Expanded = !Interaction->TreeInteraction.Elem->Expanded;
 			Interaction->TreeInteraction.Elem->Cache.TreeNode.ExitState = 0;
 			
 
 		} break;
 
-		case GUIInteraction_BoolInteraction: {
+		case GUIInteraction_Bool: {
 			b32* WorkValue = Interaction->BoolInteraction.InteractBool;
 			if (WorkValue) {
 				*WorkValue = !(*WorkValue);
 			}
 		}break;
 
-		case GUIInteraction_MenuBarInteraction: {
+		case GUIInteraction_MenuBar: {
 			Interaction->MenuMarInteraction.MenuElement->Expanded = !Interaction->MenuMarInteraction.MenuElement->Expanded;
 		}break;
 
-		case GUIInteraction_RadioButtonInteraction: {
+		case GUIInteraction_RadioButton: {
 			gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
 
 			Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
 		}break;
 
-		case GUIInteraction_StateChangerGroupInteraction: {
+		case GUIInteraction_StateChangerGroup: {
 			gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
 
 			gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
@@ -1689,6 +1692,26 @@ void GUIPerformInteraction(
 				}
 
 				CurrentElement = Next;
+			}
+		}break;
+
+		case GUIInteraction_ReturnMouseAction: {
+			gui_return_mouse_action_interaction_context* Context = &Interaction->ReturnMouseActionInteraction;
+
+			b32*  ActionHappened = Context->ActionHappened;
+
+			switch (Context->ActionType) {
+				case GUIReturnMouseAction_IsDown: {
+					*ActionHappened = MouseButtonIsDown(Context->Input, Context->MouseButtonIndex);
+				}break;
+
+				case GUIReturnMouseAction_WentDown: {
+					*ActionHappened = MouseButtonWentDown(Context->Input, Context->MouseButtonIndex);
+				}break;
+
+				case GUIReturnMouseAction_WentUp: {
+					*ActionHappened = MouseButtonWentUp(Context->Input, Context->MouseButtonIndex);
+				}break;
 			}
 		}break;
 
@@ -1788,14 +1811,14 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 
 			float MinDimLength = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 
-			Assert((Interaction->Type == GUIInteraction_MoveInteraction) ||
-				(Interaction->Type == GUIInteraction_ResizeInteraction));
+			Assert((Interaction->Type == GUIInteraction_Move) ||
+				(Interaction->Type == GUIInteraction_Resize));
 
-			if (Interaction->Type == GUIInteraction_ResizeInteraction) {
+			if (Interaction->Type == GUIInteraction_Resize) {
 				Interaction->ResizeContext.MinDim = V2(MinDimLength, MinDimLength);
 				Interaction->ResizeContext.OffsetInAnchor = *OffsetInAnchor;
 			}
-			else if (Interaction->Type == GUIInteraction_MoveInteraction) {
+			else if (Interaction->Type == GUIInteraction_Move) {
 				Interaction->MoveContext.OffsetInAnchor = *OffsetInAnchor;
 			}
 
@@ -2219,61 +2242,37 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIButton(gui_state* GUIState, char* ButtonName, gui_interaction* Interaction) {
+b32 GUIButton(gui_state* GUIState, char* ButtonName) {
+	b32 Result = 0;
+
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_layout* View = GUIGetCurrentLayout(GUIState);
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
-		if (!Element->Cache.IsInitialized || 
-			GUIState->TextElemsCacheShouldBeReinitialized) 
-		{
-			rect2 NameRc = PrintTextInternal(
-				GUIState,
-				PrintTextType_GetTextSize,
-				ButtonName,
-				View->CurrentX,
-				View->CurrentY,
-				GUIState->FontScale,
-				GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
-			Element->Cache.Button.ButtonRectDim = V2(NameRc.Max.x - NameRc.Min.x, NameRc.Max.y - NameRc.Min.y);
-			Element->Cache.IsInitialized = true;
-		}
-		
-		rect2 WorkRect = Rect2MinDim(V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight), Element->Cache.Button.ButtonRectDim);
+		gui_interaction MouseInteraction = GUIReturnMouseActionInteraction(
+			GUIState->Input, 
+			&Result, 
+			GUIReturnMouseAction_IsDown, 
+			MouseButton_Left);
 
-		float OutlineWidth = 1;
-		v4 ButRectHighlight = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
-		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
-		
-		if (MouseInRect(GUIState->Input, WorkRect)) {
-			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				GUIPerformInteraction(GUIState, Interaction);
-			}
-		}
+		rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(Layout->CurrentX, Layout->CurrentY),
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
+			GUIState->FontScale,
+			&MouseInteraction,
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
+			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
 
-		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor));
-		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, OutlineWidth, ButRectHighlight);
-
-		if (GUIWalkaroundIsHere(GUIState)) {
-			RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
-
-			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
-				GUIPerformInteraction(GUIState, Interaction);
-			}
-		}
-
-		PrintTextInternal(GUIState, PrintTextType_PrintText, ButtonName, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
-
-		//NOTE(Dima): Remember last element width for BeginRow/EndRow
-		GUIDescribeElement(GUIState, V2(WorkRect.Max.x - View->CurrentX, WorkRect.Max.y - WorkRect.Min.y), WorkRect.Min);
+		GUIDescribeElement(GUIState, GetRectDim(ButRc), ButRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+
+	return(Result);
 }
 
 void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
@@ -3068,7 +3067,7 @@ void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement) 
 	GUIEndElement(GUIState, GUIElement_StateChangerGroup);
 }
 
-
+#if 0
 void GUIWindowBegin(gui_state* GUIState, char* Name) {
 
 }
@@ -3291,6 +3290,7 @@ void GUIMenuBarItem(gui_state* GUIState, char* ItemName) {
 	GUIBeginMenuItemInternal(GUIState, ItemName, GUIMenuItem_MenuItem);
 	GUIEndMenuItemInternal(GUIState, GUIMenuItem_MenuItem);
 }
+#endif
 
 #if 0
 static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {
