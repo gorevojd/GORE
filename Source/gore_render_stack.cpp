@@ -1,11 +1,11 @@
 #include "gore_render_stack.h"
 
-render_stack RENDERBeginStack(u32 Size, int RenderWidth, int RenderHeight) {
+render_stack RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int RenderHeight) {
 	render_stack Result = {};
 
-	u32 MemoryToAlloc = Size;
+	Result.InitStack = RenderMemory;
+	Result.Data = BeginTempStackedMemory(RenderMemory, RenderMemory->MaxSize, MemAllocFlag_Align16);
 
-	Result.Data = AllocateStackedMemory(MemoryToAlloc);
 	Result.EntryCount = 0;
 	Result.RenderWidth = RenderWidth;
 	Result.RenderHeight = RenderHeight;
@@ -14,5 +14,5 @@ render_stack RENDERBeginStack(u32 Size, int RenderWidth, int RenderHeight) {
 }
 
 void RENDEREndStack(render_stack* Stack) {
-	DeallocateStackedMemory(&Stack->Data);
+	EndTempStackedMemory(Stack->InitStack, &Stack->Data);
 }

@@ -25,7 +25,7 @@ inline debug_tree_node* DEBUGAllocateTreeNode(debug_state* State) {
 		Result->NextBro->PrevBro = Result->PrevBro;
 	}
 	else {
-		Result = PushStruct(&State->DebugMemory, debug_tree_node);
+		Result = PushStruct(State->DebugMemory, debug_tree_node);
 	}
 
 	Result->PrevBro = Result;
@@ -60,7 +60,7 @@ inline debug_statistic* DEBUGAllocateStatistic(debug_state* State) {
 		Result->NextBro->PrevBro = Result->PrevBro;
 	}
 	else {
-		Result = PushStruct(&State->DebugMemory, debug_statistic);
+		Result = PushStruct(State->DebugMemory, debug_statistic);
 	}
 
 	Result->PrevBro = Result;
@@ -248,16 +248,16 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 	}
 }
 
-void DEBUGInit(debug_state* State, gui_state* GUIState) {
-	State->DebugMemory = AllocateStackedMemory(MEGABYTES(16));
+void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState) {
+	State->DebugMemory = DEBUGMemoryBlock;
 
 	State->GUIState = GUIState;
 	
-	State->FreeBlockSentinel = PushStruct(&State->DebugMemory, debug_tree_node);
+	State->FreeBlockSentinel = PushStruct(State->DebugMemory, debug_tree_node);
 	State->FreeBlockSentinel->NextBro = State->FreeBlockSentinel;
 	State->FreeBlockSentinel->PrevBro = State->FreeBlockSentinel;
 
-	State->FreeStatisticSentinel = PushStruct(&State->DebugMemory, debug_statistic);
+	State->FreeStatisticSentinel = PushStruct(State->DebugMemory, debug_statistic);
 	State->FreeStatisticSentinel->NextBro = State->FreeStatisticSentinel;
 	State->FreeStatisticSentinel->PrevBro = State->FreeStatisticSentinel;
 
@@ -431,6 +431,8 @@ void DEBUGProcessRecords(debug_state* State) {
 		}
 	}
 
+	//BUG(dima): This should happen in other place.
+	//NOTE(dima): If recording was set to 0, then we should stop new frame event recording
 	if (State->RecordingChanged) {
 		DEBUGSetRecording(State->IsRecording);
 		State->RecordingChanged = 0;
@@ -620,9 +622,7 @@ void DEBUGFramesGraph(debug_state* State) {
 					}
 					else {
 						float FilledPercentage = Frame->DeltaTime * OneOverMaxMs;
-						if (FilledPercentage > 1.0f) {
-							FilledPercentage = 1.0f;
-						}
+						FilledPercentage = Clamp01(FilledPercentage);
 
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
 						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
@@ -656,9 +656,40 @@ void DEBUGFramesGraph(debug_state* State) {
 					}
 					else {
 						float FilledPercentage = CurrentFPS * OneOverMaxShowFPS;
-						if (FilledPercentage > 1.0f) {
-							FilledPercentage = 1.0f;
+						FilledPercentage = Clamp01(FilledPercentage);
+
+						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
+						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+
+						v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+						if (ColumnIndex == State->ViewFrameIndex) {
+							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_FPSOrange) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_FPSBlue) * ColorMultiplier);
+					}
+
+					ColumnRect.Min.x += OneColumnWidth;
+					ColumnRect.Max.x += OneColumnWidth;
+				}
+			}break;
+
+			case DEBUGFrameGraph_FrameClocks: {
+				for (int ColumnIndex = 0;
+					ColumnIndex < DEBUG_FRAMES_COUNT;
+					ColumnIndex++)
+				{
+					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
+					float CurrentFPS = 1.0f / Frame->DeltaTime;
+
+					if (ColumnIndex == State->CollationFrameIndex) {
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+					}
+					else {
+						float FilledPercentage = 1.0f;
+						FilledPercentage = Clamp01(FilledPercentage);
 
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
 						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
@@ -718,6 +749,7 @@ void DEBUGFramesGraph(debug_state* State) {
 		GUIBeginStateChangerGroup(GUIState, DEBUGFrameGraph_DeltaTime);
 		GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
 		GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
+		GUIStateChanger(GUIState, "frame clocks", DEBUGFrameGraph_FrameClocks);
 		GUIEndStateChangerGroupAt(GUIState, V2(GraphMin.x, GraphMin.y + AscByScale), &ActiveElement);
 
 		if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
@@ -725,6 +757,9 @@ void DEBUGFramesGraph(debug_state* State) {
 		}
 		else if (ActiveElement == DEBUGFrameGraph_FPS) {
 			State->FramesGraphType = DEBUGFrameGraph_FPS;
+		}
+		else if (ActiveElement == DEBUGFrameGraph_FrameClocks) {
+			State->FramesGraphType = DEBUGFrameGraph_FrameClocks;
 		}
 #endif
 
@@ -877,6 +912,8 @@ enum debug_profile_active_element {
 void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
 
+	gui_state* GUIState = State->GUIState;
+
 	int LastFrameIndex;
 
 	LastFrameIndex = (int)State->CollationFrameIndex - 1;
@@ -920,6 +957,201 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
 		DEBUGFramesGraph(State);
 	}
+
+#if 1
+	GUITreeBegin(GUIState, "Test");
+	GUITreeBegin(GUIState, "Other");
+
+	GUIBeginRow(GUIState);
+	//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
+	GUIText(GUIState, "Hello");
+
+#if 1
+	GUIBeginLayout(GUIState, "InnerView", GUILayout_Tree);
+	GUIText(GUIState, "Nikita loh");
+	GUITreeBegin(GUIState, "InnerTree");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUIText(GUIState, "Nikita loh");
+	GUITreeEnd(GUIState);
+	GUITreeBegin(GUIState, "InnerTree1");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUIText(GUIState, "Ivan loh");
+	GUITreeEnd(GUIState);
+	GUIText(GUIState, "Dima pidor");
+	GUIEndLayout(GUIState, GUILayout_Tree);
+#endif
+	GUIEndRow(GUIState);
+	GUITreeEnd(GUIState);// Other...
+
+#if 0
+	GUITreeBegin(GUIState, "TestMenus");
+	GUIBeginMenuBar(GUIState, "Menu1");
+
+	GUIBeginMenuBarItem(GUIState, "Dima");
+	GUIMenuBarItem(GUIState, "Item_1_1");
+	GUIMenuBarItem(GUIState, "Item_1_2");
+	GUIMenuBarItem(GUIState, "Item_1_3");
+	GUIMenuBarItem(GUIState, "Item_1_1asdf");
+	GUIMenuBarItem(GUIState, "Item_1_2asdf");
+	GUIMenuBarItem(GUIState, "Item_1_3asdf");
+	GUIMenuBarItem(GUIState, "Item_1_1asdfasdf");
+	GUIMenuBarItem(GUIState, "Item_1_2asdfasdf");
+	GUIMenuBarItem(GUIState, "Item_1_3asdfasdf");
+	GUIEndMenuBarItem(GUIState);
+
+	GUIBeginMenuBarItem(GUIState, "Ivan");
+	GUIMenuBarItem(GUIState, "Item_2_1");
+	GUIMenuBarItem(GUIState, "Item_2_2");
+	GUIMenuBarItem(GUIState, "Item_2_3");
+	GUIMenuBarItem(GUIState, "Item_2_1asdf");
+	GUIMenuBarItem(GUIState, "Item_2_2asdf");
+	GUIMenuBarItem(GUIState, "Item_2_3asdf");
+	GUIMenuBarItem(GUIState, "Item_2_1asdfasdf");
+	GUIMenuBarItem(GUIState, "Item_2_2asdfasdf");
+	GUIMenuBarItem(GUIState, "Item_2_3asdfasdf");
+	GUIEndMenuBarItem(GUIState);
+
+	GUIBeginMenuBarItem(GUIState, "Vovan");
+	GUIMenuBarItem(GUIState, "Item_3_1");
+	GUIMenuBarItem(GUIState, "Item_3_2");
+	GUIMenuBarItem(GUIState, "Item_3_3");
+	GUIEndMenuBarItem(GUIState);
+	GUIEndMenuBar(GUIState);
+	GUITreeEnd(GUIState);
+#endif
+
+	GUITreeBegin(GUIState, "TestText");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
+	GUITreeEnd(GUIState);
+
+	GUITreeBegin(GUIState, "Colors");
+	for (int ColorIndex = 0;
+		ColorIndex < Min(30, GUIColor_Count);
+		ColorIndex++)
+	{
+		gui_color_slot* Slot = &GUIState->ColorTable[ColorIndex];
+
+		char ColorNameBuf[32];
+		stbsp_sprintf(ColorNameBuf, "%-15s", Slot->Name);
+
+		GUIColorView(GUIState, Slot->Color, ColorNameBuf);
+	}
+	GUITreeEnd(GUIState);
+
+	GUITreeEnd(GUIState); //Test
+
+	GUITreeBegin(GUIState, "Test2");
+	GUIImageView(GUIState, "CelluralImage", 0);
+	GUIImageView(GUIState, "AlphaImage", 0);
+	GUIStackedMemGraph(GUIState, "NULLMemGraph", 0);
+	GUIStackedMemGraph(GUIState, "NullImageTest", 0);
+	GUIImageView(GUIState, "PotImage", 0);
+	GUIImageView(GUIState, "FontAtlas", &GUIState->FontInfo->FontAtlasImage);
+	GUITreeEnd(GUIState);
+
+#if 0
+	GUITreeBegin(GUIState, "Test3");
+	GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+
+	GUIBeginRow(GUIState);
+	GUIText(GUIState, "Hello");
+	GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+
+	GUIBeginRow(GUIState);
+	GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+
+	GUIBeginRow(GUIState);
+	GUIText(GUIState, "Hello");
+	GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+
+	GUIBeginRow(GUIState);
+	GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+
+	GUIBeginRow(GUIState);
+	GUIText(GUIState, "Hello");
+	GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);		GUIBeginRow(GUIState);
+	GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+
+	GUIBeginRow(GUIState);
+	GUIText(GUIState, "Hello");
+	GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
+	GUIEndRow(GUIState);
+	GUITreeEnd(GUIState);
+#endif
+
+	GUITreeBegin(GUIState, "Audio");
+	GUIColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
+	GUIBeginRow(GUIState);
+	GUIVector2View(GUIState, V2(1.0f, 256.0f), "Vector2");
+	GUIText(GUIState, "Hello");
+	GUIVector3View(GUIState, V3(1.0f, 20.0f, 300.0f), "Vector3");
+	GUIEndRow(GUIState);
+	GUIVector4View(GUIState, V4(12345.0f, 1234.0f, 123456.0f, 5324123.0f), "Vector4");
+	GUIInt32View(GUIState, 12345, "TestInt");
+	GUITreeEnd(GUIState);
+
+	GUITreeBegin(GUIState, "PlatformMemoryBlocks");
+	GUIStackedMemGraph(GUIState, "GameModeMem", &PlatformApi.GameModeMemoryBlock);
+	GUIStackedMemGraph(GUIState, "GeneralMem", &PlatformApi.GeneralPurposeMemoryBlock);
+	GUIStackedMemGraph(GUIState, "DEBUGMem", &PlatformApi.DEBUGMemoryBlock);
+	GUITreeEnd(GUIState);
+#endif
+
 
 	GUITreeEnd(State->GUIState);
 	GUIEndLayout(State->GUIState, GUILayout_Tree);

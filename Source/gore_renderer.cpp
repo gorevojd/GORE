@@ -777,8 +777,8 @@ void RenderRectFast(
 void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
 	FUNCTION_TIMING();
 
-	u8* At = Stack->Data.BaseAddress;
-	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
+	u8* At = (u8*)Stack->Data.BaseAddress;
+	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
 
 	font_info* CurrentFontInfo = 0;
 

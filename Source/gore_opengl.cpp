@@ -318,8 +318,8 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
-	u8* At = Stack->Data.BaseAddress;
-	u8* StackEnd = Stack->Data.BaseAddress + Stack->Data.Used;
+	u8* At = (u8*)Stack->Data.BaseAddress;
+	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
 
 	game_camera_setup* CameraSetup = 0;
 

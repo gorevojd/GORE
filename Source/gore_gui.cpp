@@ -57,7 +57,7 @@ inline gui_color_slot GUICreateColorSlot(gui_state* GUIState, v4 Color, char* Na
 	gui_color_slot Res = {};
 
 	Res.Color = Color;
-	Res.Name = PushString(&GUIState->GUIMem, Name);
+	Res.Name = PushString(GUIState->GUIMem, Name);
 	CopyStrings(Res.Name, Name);
 
 	char* At = Res.Name;
@@ -583,7 +583,13 @@ static void GUIExtInitColors(gui_state* GUIState) {
 }
 #endif
 
-void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height) {
+void GUIInitState(
+	gui_state* GUIState, 
+	stacked_memory* GUIMemory,
+	font_info* FontInfo,
+	input_system* Input, 
+	i32 Width, i32 Height) 
+{
 	GUIState->RenderStack = 0;
 	GUIState->FontInfo = FontInfo;
 
@@ -598,7 +604,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 
 	GUIState->PlusMinusSymbol = 0;
 
-	GUIState->GUIMem = AllocateStackedMemory(KILOBYTES(100));
+	GUIState->GUIMem = GUIMemory;
 
 #if 0
 	GUIState->TempRect.Rect.Min = V2(400, 400);
@@ -608,7 +614,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 #endif
 
 	//NOTE(Dima): Initialization of the root node;
-	GUIState->RootNode = PushStruct(&GUIState->GUIMem, gui_element);
+	GUIState->RootNode = PushStruct(GUIState->GUIMem, gui_element);
 	gui_element* RootNode = GUIState->RootNode;
 
 	RootNode->PrevBro = RootNode;
@@ -625,7 +631,7 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	RootNode->Parent = 0;
 	RootNode->Type = GUIElement_None;
 
-	RootNode->ChildrenSentinel = PushStruct(&GUIState->GUIMem, gui_element);
+	RootNode->ChildrenSentinel = PushStruct(GUIState->GUIMem, gui_element);
 
 	RootNode->ChildrenSentinel->NextBro = RootNode->ChildrenSentinel;
 	RootNode->ChildrenSentinel->PrevBro = RootNode->ChildrenSentinel;
@@ -649,22 +655,22 @@ void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input,
 	Used for freeing and allocating static gui elements;
 	Static gui elements has no cache and can be freed every frame;
 	*/
-	GUIState->FreeElementsSentinel = PushStruct(&GUIState->GUIMem, gui_element);
+	GUIState->FreeElementsSentinel = PushStruct(GUIState->GUIMem, gui_element);
 	GUIState->FreeElementsSentinel->NextBro = GUIState->FreeElementsSentinel;
 	GUIState->FreeElementsSentinel->PrevBro = GUIState->FreeElementsSentinel;
 
 	//NOTE(Dima): Initialization of view sentinel
-	GUIState->LayoutSentinel = PushStruct(&GUIState->GUIMem, gui_layout);
+	GUIState->LayoutSentinel = PushStruct(GUIState->GUIMem, gui_layout);
 	GUIState->LayoutSentinel->NextBro = GUIState->LayoutSentinel;
 	GUIState->LayoutSentinel->PrevBro = GUIState->LayoutSentinel;
 
 	//NOTE(Dima): Initialization of view free list sentinel element
-	GUIState->FreeLayoutSentinel = PushStruct(&GUIState->GUIMem, gui_layout);
+	GUIState->FreeLayoutSentinel = PushStruct(GUIState->GUIMem, gui_layout);
 	GUIState->FreeLayoutSentinel->NextBro = GUIState->FreeLayoutSentinel;
 	GUIState->FreeLayoutSentinel->PrevBro = GUIState->FreeLayoutSentinel;
 
 	//NOTE(DIMA): Allocating and initializing default view
-	gui_layout* DefaultView = PushStruct(&GUIState->GUIMem, gui_layout);
+	gui_layout* DefaultView = PushStruct(GUIState->GUIMem, gui_layout);
 	*DefaultView = {};
 	DefaultView->NextBro = GUIState->LayoutSentinel->NextBro;
 	DefaultView->PrevBro = GUIState->LayoutSentinel;
@@ -1074,7 +1080,7 @@ inline gui_layout* GUIAllocateViewElement(gui_state* State) {
 		View->PrevBro->NextBro = View->NextBro;
 	}
 	else {
-		View = PushStruct(&State->GUIMem, gui_layout);
+		View = PushStruct(State->GUIMem, gui_layout);
 	}
 
 	*View = {};
@@ -1276,7 +1282,7 @@ inline gui_element* GUIAllocateListElement(gui_state* State) {
 		Element->PrevBro->NextBro = Element->NextBro;
 	}
 	else {
-		Element = PushStruct(&State->GUIMem, gui_element);
+		Element = PushStruct(State->GUIMem, gui_element);
 	}
 
 	return(Element);
@@ -1759,7 +1765,7 @@ void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 }
 
-void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction) {
+void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1769,7 +1775,16 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 		rect2 WorkRect = Rect2MinDim(Pos, Dim);
 #else
 		//NOTE(dima) Centered
-		rect2 WorkRect = Rect2MinDim(Pos - Dim * 0.5, Dim);
+		v2 MinP = {};
+		if (Centered) {
+			MinP = Pos - Dim * 0.5f;
+		}
+		else {
+			MinP = Pos;
+		}
+
+		rect2 WorkRect = Rect2MinDim(MinP, Dim);
+
 #endif
 
 #if 1
@@ -1866,8 +1881,8 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 			RENDERPushRectOutline(GUIState->RenderStack, ImageRect, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			gui_interaction ResizeInteraction = GUIResizeInteraction(ImageRect.Min, WorkDim, GUIResizeInteraction_Proportional);
-			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(5, 5), &ResizeInteraction);
-			GUIAnchor(GUIState, "Anchor1", ImageRect.Min + V2(0, ImageRect.Max.y - ImageRect.Min.y), V2(ImageRect.Max.x - ImageRect.Min.x, OutlineWidth), &ResizeInteraction);
+			GUIAnchor(GUIState, "Anchor0", ImageRect.Max, V2(10, 10), &ResizeInteraction);
+			GUIAnchor(GUIState, "Anchor1", ImageRect.Min + V2(0, WorkDim->y), V2(WorkDim->x, OutlineWidth), &ResizeInteraction, 0);
 
 			GUIDescribeElement(GUIState, GetRectDim(ImageRect), ImageRect.Min);
 			GUIAdvanceCursor(GUIState);
@@ -1882,9 +1897,6 @@ void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
 }
 
 void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack) {
-	GUITreeBegin(GUIState, Name);
-
-
 	if (MemoryStack) {
 		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
 		if (GUIElementShouldBeUpdated(Element)) {
@@ -1899,16 +1911,18 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 
 				Cache->StackedMem.Dimension =
 					V2(GUIState->FontInfo->AscenderHeight * 40.0f,
-						GUIState->FontInfo->AscenderHeight * 3.0f);
+						GUIState->FontInfo->AscenderHeight * 5.0f);
 
 				Cache->IsInitialized = true;
 			}
 
 			v2* WorkDim = &Cache->StackedMem.Dimension;
 
+			float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+
 			rect2 GraphRect;
 			GraphRect.Min.x = View->CurrentX;
-			GraphRect.Min.y = View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+			GraphRect.Min.y = View->CurrentY - AscByScale;
 			GraphRect.Max = GraphRect.Min + *WorkDim;
 
 			v2 GraphRectDim = GetRectDim(GraphRect);
@@ -1934,6 +1948,17 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 
 			RENDERPushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
+			v4 TextHighlighColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor);
+
+			gui_interaction NullInteraction = GUINullInteraction();
+			GUITextBase(GUIState, Name, V2(View->CurrentX, View->CurrentY),
+				TextHighlighColor,
+				GUIState->FontScale,
+				&NullInteraction,
+				TextHighlighColor,
+				GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+				2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
 			if (MouseInRect(GUIState->Input, GraphRect)) {
 				char InfoStr[128];
 				stbsp_sprintf(
@@ -1947,7 +1972,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 			}
 
 			gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
-			GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(5, 5), &ResizeInteraction);
+			GUIAnchor(GUIState, "Anchor0", GraphRect.Max, V2(10, 10), &ResizeInteraction);
 
 			GUIDescribeElement(
 				GUIState,
@@ -1962,8 +1987,6 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 	else {
 		GUIText(GUIState, "NULL");
 	}
-
-	GUITreeEnd(GUIState);
 }
 
 void GUIText(gui_state* GUIState, char* Text) {

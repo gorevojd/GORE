@@ -7,6 +7,7 @@
 
 struct render_stack {
 	stacked_memory Data;
+	stacked_memory* InitStack;
 
 	int RenderWidth;
 	int RenderHeight;
@@ -196,7 +197,7 @@ inline void RENDERPushCameraSetup(render_stack* Stack, game_camera_setup Setup) 
 	Entry->CameraSetup = Setup;
 }
 
-extern render_stack RENDERBeginStack(u32 Size, int WindowWidth, int WindowHeight);
+extern render_stack RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight);
 extern void RENDEREndStack(render_stack* Stack);
 
 #endif

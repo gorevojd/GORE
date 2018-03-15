@@ -18,7 +18,6 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
-
 struct debug_timing_snapshot {
 	u64 BeginClock;
 	u64 ChildrenSumClocks;
@@ -123,7 +122,7 @@ struct debug_state {
 	u32 OldestFrameIndex;
 	b32 OldeshShouldBeIncremented;
 
-	stacked_memory DebugMemory;
+	stacked_memory* DebugMemory;
 
 	u32 FramesGraphType;
 
@@ -136,6 +135,7 @@ struct debug_state {
 enum debug_frame_graph_type {
 	DEBUGFrameGraph_DeltaTime,
 	DEBUGFrameGraph_FPS,
+	DEBUGFrameGraph_FrameClocks,
 
 	DEBUGFrameGraph_Count,
 };
@@ -143,7 +143,7 @@ enum debug_frame_graph_type {
 
 extern void DEBUGFramesSlider(debug_state* State);
 extern void DEBUGFramesGraph(debug_state* State);
-extern void DEBUGInit(debug_state* State, gui_state* GUIState);
+extern void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState);
 extern void DEBUGProcessRecords(debug_state* State);
 extern void DEBUGUpdate(debug_state* State);
 

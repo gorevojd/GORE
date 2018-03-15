@@ -192,7 +192,7 @@
     <ClInclude Include="Source\gore_random.h" />
     <ClInclude Include="Source\gore_renderer.h" />
     <ClInclude Include="Source\gore_render_stack.h" />
-    <ClInclude Include="Source\gore_stacked_memory.h" />
+    <ClInclude Include="Source\gore_memory.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

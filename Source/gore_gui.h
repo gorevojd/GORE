@@ -1112,11 +1112,20 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.WindowHelpColor = GUIColor_White;
 	Result.WindowKeywordColor = GUIColor_DarkGoldenrod;
 
+#if 1
 	Result.ButtonTextColor = GUIColorExt_gray70;
 	Result.ButtonBackColor = GUIColor_PrettyBlue;
 	Result.ButtonTextHighColor = GUIColor_White;
 	Result.ButtonOutlineColor = GUIColor_Black;
 	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
+#else
+	Result.ButtonTextColor = GUIColor_PrettyBlue;
+	Result.ButtonBackColor = GUIColorExt_gray10;
+	Result.ButtonTextHighColor = GUIColor_White;
+	Result.ButtonOutlineColor = GUIColor_Black;
+	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
+#endif
+
 
 	Result.AnchorColor = GUIColorExt_OrangeRed1;
 
@@ -1176,7 +1185,7 @@ struct gui_state {
 	gui_layout* FreeLayoutSentinel;
 	gui_layout* DefaultLayout;
 
-	stacked_memory GUIMem;
+	stacked_memory* GUIMem;
 
 	b32 PlusMinusSymbol;
 
@@ -1342,7 +1351,7 @@ enum gui_menu_item_type {
 	GUIMenuItem_MenuItem,
 };
 
-extern void GUIInitState(gui_state* GUIState, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
+extern void GUIInitState(gui_state* GUIState, stacked_memory* GUIMemory, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
 extern void GUIEndFrame(gui_state* GUIState);
 
@@ -1365,7 +1374,7 @@ extern void GUIVector3View(gui_state* GUIState, v3 Value, char* Name);
 extern void GUIVector4View(gui_state* GUIState, v4 Value, char* Name);
 extern void GUIInt32View(gui_state* GUIState, i32 Int, char* Name);
 
-extern void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction);
+extern void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered = 1);
 
 extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
 

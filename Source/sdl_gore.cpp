@@ -758,6 +758,7 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 #endif
 }
 
+#if 0
 #define CELLURAL_CELL_WIDTH 4
 static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 	rgba_buffer Res = AllocateRGBABuffer(
@@ -804,6 +805,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 	return(Res);
 }
+#endif
 
 int main(int ArgsCount, char** Args) {
 
@@ -823,6 +825,25 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.WriteFile = SDLWriteEntireFile;
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
+
+	u32 GameModeMemorySize = MEGABYTES(256);
+	u32 GeneralPurposeMemorySize = MEGABYTES(256);
+	u32 DEBUGMemorySize = MEGABYTES(256);
+
+	u64 TotalMemoryBlockSize =
+		GameModeMemorySize +
+		GeneralPurposeMemorySize +
+		DEBUGMemorySize;
+
+	void* PlatformMemoryBlock = calloc(TotalMemoryBlockSize, 1);
+
+	void* GameModeMemPointer = PlatformMemoryBlock;
+	void* GeneralPurposeMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
+	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
+
+	PlatformApi.GameModeMemoryBlock = InitStackedMemory(PlatformMemoryBlock, GameModeMemorySize);
+	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
+	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -933,7 +954,7 @@ int main(int ArgsCount, char** Args) {
 	random_state CellRandom = InitRandomStateWithSeed(1234);
 	cellural_buffer Cellural = AllocateCelluralBuffer(64, 64);
 	CelluralGenerateCave(&Cellural, 55, &CellRandom);
-	rgba_buffer CelluralBitmap = CelluralBufferToRGBA(&Cellural);
+	//rgba_buffer CelluralBitmap = CelluralBufferToRGBA(&Cellural);
 
 	rgba_buffer Image = LoadIMG("../Data/Images/image.bmp");
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
@@ -945,9 +966,12 @@ int main(int ArgsCount, char** Args) {
 
 	geometrika_state GameState = {};
 
-	GUIInitState(GUIState, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
+	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
+	GUIInitState(GUIState, &GUIMemory, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+	
 	OpenGLInitState(GLState);
-	DEBUGInit(DEBUGState, GUIState);
+	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -979,7 +1003,7 @@ int main(int ArgsCount, char** Args) {
 		}
 		END_TIMING();
 
-		render_stack Stack_ = RENDERBeginStack(MEGABYTES(1), GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+		render_stack Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
 #if 0
@@ -1009,268 +1033,6 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		GUIBeginFrame(GUIState, Stack);
-#if 0
-		gui_interaction BoolInteract = GUIVariableInteraction(&TempBoolForSlider, GUIVarType_B32);
-		gui_interaction SliderInteract = GUIVariableInteraction(&TempFloatForSlider, GUIVarType_F32);
-		gui_interaction VertSliderInteract = GUIVariableInteraction(&TempFloatForVertSlider, GUIVarType_F32);
-
-		gui_interaction AlphaImageInteraction = GUIVariableInteraction(&AlphaImage, GUIVarType_RGBABuffer);
-		gui_interaction PotImageInteraction = GUIVariableInteraction(&Image, GUIVarType_RGBABuffer);
-		gui_interaction LabirImageInteraction = GUIVariableInteraction(&CelluralBitmap, GUIVarType_RGBABuffer);
-		
-		char DebugStr[128];
-		float LastFrameFPS = 1.0f / DeltaTime;
-		sprintf(DebugStr, "Hello world! %.2fmsp/f %.2fFPS", DeltaTime * 1000.0f, LastFrameFPS);
-
-		GUIText(GUIState, DebugStr);
-
-		GUIBeginLayout(GUIState, "Root", GUILayout_Tree);
-
-		GUITreeBegin(GUIState, "Root");
-		GUITreeBegin(GUIState, "Test");
-		GUITreeBegin(GUIState, "Other");
-		GUIBeginRow(GUIState);
-		GUIBoolButton(GUIState, "Button1", &TempBoolForSlider);
-
-		GUIWindow(
-			GUIState, 
-			"WindowName", 
-			GUIWindow_DefaultSize | 
-			GUIWindow_Resizable |
-			GUIWindow_TopBar,
-			0, 0);
-
-		GUIVerticalSlider(GUIState, "VertSlider1", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider2", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider3", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider4", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider5", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider6", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider7", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider8", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider9", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider10", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider11", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider12", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider13", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider14", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider15", -10.0f, 10.0f, &VertSliderInteract);
-		//GUIVerticalSlider(GUIState, "VertSlider16", -10.0f, 10.0f, &VertSliderInteract);
-		GUIVerticalSlider(GUIState, "VertSlider17", -10.0f, 10.0f, &VertSliderInteract);
-		GUIBoolButton(GUIState, "Button2", &TempBoolForSlider);
-		GUIActionText(GUIState, "ActionTextggg", &BoolInteract);
-		GUIEndRow(GUIState);
-
-		DEBUGFramesGraph(DEBUGState);
-		DEBUGFramesSlider(DEBUGState);
-
-		GUIBoolButton(GUIState, "Button3", &TempBoolForSlider);
-		GUIBoolButton(GUIState, "Button4", &TempBoolForSlider);
-
-		GUIBeginRow(GUIState);
-		GUIButton(GUIState, "MyButton1", &BoolInteract);
-		GUIButton(GUIState, "MyButton2", &BoolInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		//GUISlider(GUIState, "Slider1", 0.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
-		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
-
-#if 1
-		GUIBeginLayout(GUIState, "InnerView", GUILayout_Tree);
-		GUIText(GUIState, "Nikita loh");
-		GUITreeBegin(GUIState, "InnerTree");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUIText(GUIState, "Nikita loh");
-		GUITreeEnd(GUIState);
-		GUITreeBegin(GUIState, "InnerTree1");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUIText(GUIState, "Ivan loh");
-		GUITreeEnd(GUIState);
-		GUIText(GUIState, "Dima pidor");
-		GUIEndLayout(GUIState, GUILayout_Tree);
-#endif
-		GUIEndRow(GUIState);
-		GUITreeEnd(GUIState);// Other...
-
-#if 1
-		GUITreeBegin(GUIState, "TestMenus");
-		GUIBeginMenuBar(GUIState, "Menu1");
-
-		GUIBeginMenuBarItem(GUIState, "Dima");
-		GUIMenuBarItem(GUIState, "Item_1_1");
-		GUIMenuBarItem(GUIState, "Item_1_2");
-		GUIMenuBarItem(GUIState, "Item_1_3");
-		GUIMenuBarItem(GUIState, "Item_1_1asdf");
-		GUIMenuBarItem(GUIState, "Item_1_2asdf");
-		GUIMenuBarItem(GUIState, "Item_1_3asdf");
-		GUIMenuBarItem(GUIState, "Item_1_1asdfasdf");
-		GUIMenuBarItem(GUIState, "Item_1_2asdfasdf");
-		GUIMenuBarItem(GUIState, "Item_1_3asdfasdf");
-		GUIEndMenuBarItem(GUIState);
-
-		GUIBeginMenuBarItem(GUIState, "Ivan");
-		GUIMenuBarItem(GUIState, "Item_2_1");
-		GUIMenuBarItem(GUIState, "Item_2_2");
-		GUIMenuBarItem(GUIState, "Item_2_3");
-		GUIMenuBarItem(GUIState, "Item_2_1asdf");
-		GUIMenuBarItem(GUIState, "Item_2_2asdf");
-		GUIMenuBarItem(GUIState, "Item_2_3asdf");
-		GUIMenuBarItem(GUIState, "Item_2_1asdfasdf");
-		GUIMenuBarItem(GUIState, "Item_2_2asdfasdf");
-		GUIMenuBarItem(GUIState, "Item_2_3asdfasdf");
-		GUIEndMenuBarItem(GUIState);
-
-		GUIBeginMenuBarItem(GUIState, "Vovan");
-		GUIMenuBarItem(GUIState, "Item_3_1");
-		GUIMenuBarItem(GUIState, "Item_3_2");
-		GUIMenuBarItem(GUIState, "Item_3_3");
-		GUIEndMenuBarItem(GUIState);
-		GUIEndMenuBar(GUIState);
-		GUITreeEnd(GUIState);
-#endif
-
-		GUITreeBegin(GUIState, "TestText");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUIText(GUIState, "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZMNOPQRSTUVWXYZ");
-		GUITreeEnd(GUIState);
-
-		GUITreeBegin(GUIState, "Colors");
-		for (int ColorIndex = 0;
-			ColorIndex < Min(30, GUIColor_Count);
-			ColorIndex++)
-		{
-			gui_color_slot* Slot = &GUIState->ColorTable[ColorIndex];
-
-			char ColorNameBuf[32];
-			stbsp_sprintf(ColorNameBuf, "%-15s", Slot->Name);
-
-			GUIColorView(GUIState, Slot->Color, ColorNameBuf);
-		}
-		GUITreeEnd(GUIState);
-
-		GUITreeEnd(GUIState); //Test
-
-		GUITreeBegin(GUIState, "Test2");
-		GUIImageView(GUIState, "CelluralImage", &CelluralBitmap);
-		GUIImageView(GUIState, "AlphaImage", &AlphaImage);
-		GUIStackedMemGraph(GUIState, "NULLMemGraph", 0);
-		GUIStackedMemGraph(GUIState, "NullImageTest", 0);
-		GUIImageView(GUIState, "PotImage", &Image);
-		GUIImageView(GUIState, "FontAtlas", &FontInfo.FontAtlasImage);
-		GUITreeEnd(GUIState);
-
-		GUITreeBegin(GUIState, "Test3");
-		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-
-		GUIBeginRow(GUIState);
-		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);		GUIBeginRow(GUIState);
-		GUISlider(GUIState, "Slider0", -10.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-
-		GUIBeginRow(GUIState);
-		GUIText(GUIState, "Hello");
-		GUISlider(GUIState, "Slider3", 0.0f, 10.0f, &SliderInteract);
-		GUIEndRow(GUIState);
-		GUITreeEnd(GUIState);
-
-		GUITreeBegin(GUIState, "Audio");
-		GUIColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
-		GUIBeginRow(GUIState);
-		GUIVector2View(GUIState, V2(1.0f, 256.0f), "Vector2");
-		GUIText(GUIState, "Hello");
-		GUIVector3View(GUIState, V3(1.0f, 20.0f, 300.0f), "Vector3");
-		GUIEndRow(GUIState);
-		GUIVector4View(GUIState, V4(12345.0f, 1234.0f, 123456.0f, 5324123.0f), "Vector4");
-		GUIInt32View(GUIState, 12345, "TestInt");
-		GUITreeEnd(GUIState);
-
-		GUITreeBegin(GUIState, "RENDER");
-		GUIStackedMemGraph(GUIState, "RenderMemGraph", &Stack->Data);
-		GUIInt32View(GUIState, Stack->EntryCount, "RenderEntriesCount");
-		GUITreeEnd(GUIState);
-
-		GUITreeEnd(GUIState);
-
-		//GUILabel(GUIState, "Label", V2(GlobalInput.MouseX, GlobalInput.MouseY));
-		GUIEndLayout(GUIState, GUILayout_Tree);
-
-		//GUIText(GUIState, DebugStr);
-#endif
 
 		BEGIN_TIMING("Debug Update");
 		DEBUGUpdate(DEBUGState);

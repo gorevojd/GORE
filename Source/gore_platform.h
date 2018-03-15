@@ -4,7 +4,7 @@
 #include "gore_types.h"
 #include "gore_math.h"
 #include "gore_random.h"
-#include "gore_stacked_memory.h"
+#include "gore_memory.h"
 #include "gore_debug_layer.h"
 
 #include <intrin.h>
@@ -122,6 +122,10 @@ struct platform_api {
 	platform_thread_queue_finish_all* FinishAll;
 
 	thread_queue* RenderQueue;
+
+	stacked_memory GameModeMemoryBlock;
+	stacked_memory GeneralPurposeMemoryBlock;
+	stacked_memory DEBUGMemoryBlock;
 
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;
