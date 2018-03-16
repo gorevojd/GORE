@@ -97,6 +97,10 @@ struct debug_tree_node {
 struct debug_profiled_frame {
 	float DeltaTime;
 
+	u32 RecordCount;
+
+	stacked_memory FrameMemory;
+
 	debug_tree_node* CurrentTiming;
 	debug_tree_node* TimingSentinel;
 
@@ -126,6 +130,7 @@ struct debug_state {
 
 	u32 FramesGraphType;
 
+	u32 LastCollationFrameRecords;
 	b32 IsRecording;
 	b32 RecordingChanged;
 

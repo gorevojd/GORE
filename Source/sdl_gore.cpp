@@ -87,10 +87,14 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 	TODO(Dima):
 
 		DEBUG:
-			VARARG macro functions
-
 			Frames graph based on sections
+			Fix waiting frame big clock numbers
 
+			DEBUG console
+			DEBUG logger
+
+			VARARG macro functions
+			
 		GUI:
 			Build glyph chunks and render them instead individual bitmaps
 			
@@ -120,17 +124,12 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 			Model loading
 
 		Renderer:
-			Inline push render functions
-			Implement bitmap alignment
-			Optimize renderer with multithreading;
 			Implement Gaussian blur
 
 		Memory management:
-			Splitting stacked memory
 			Dynamically growing memory layout
 
 		Other:
-			Begin some debugging stuff
 			Split code to platform dependent and platform independent parts
 
 		Platform layer:

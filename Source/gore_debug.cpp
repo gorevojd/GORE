@@ -229,6 +229,8 @@ inline debug_statistic* DEBUGInitDebugStatistic(
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
 	FUNCTION_TIMING();
 
+	Frame->FrameMemory.Used = 0;
+
 	Frame->DeltaTime = 0.0f;
 
 	debug_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
@@ -276,6 +278,14 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	State->RootSection->TreeNodeType = DebugTreeNode_Section;
 	State->CurrentSection = State->RootSection;
 
+	for (int FrameIndex = 0;
+		FrameIndex < DEBUG_FRAMES_COUNT;
+		FrameIndex++)
+	{
+		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
+	
+		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(100));
+	}
 
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
@@ -296,6 +306,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 	State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
 
+	State->LastCollationFrameRecords = 0;
 	State->IsRecording = 1;
 }
 
@@ -338,7 +349,9 @@ void DEBUGProcessRecords(debug_state* State) {
 
 	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
 
-	for (u32 CollectedRecordIndex = 0;
+	u32 FrameBarrierIndex = 0;
+	u32 CollectedRecordIndex;
+	for (CollectedRecordIndex = 0;
 		CollectedRecordIndex < RecordCount;
 		CollectedRecordIndex++)
 	{
@@ -416,8 +429,11 @@ void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_FrameBarrier: {
 				float DeltaTime = Record->Value_F32;
 
+				FrameBarrierIndex = CollectedRecordIndex;
+
 				debug_profiled_frame* CollationFrame = DEBUGGetCollationFrame(State);
 				CollationFrame->DeltaTime = DeltaTime;
+				CollationFrame->RecordCount = State->LastCollationFrameRecords + FrameBarrierIndex;
 
 				//NOTE(dima): Incrementing frame indices;
 				DEBUGIncrementFrameIndices(State);
@@ -442,6 +458,8 @@ void DEBUGProcessRecords(debug_state* State) {
 	int NewTableIndex = !GlobalRecordTable->CurrentTableIndex.value;
 	SDL_AtomicSet(&GlobalRecordTable->CurrentTableIndex, NewTableIndex);
 	SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
+
+	State->LastCollationFrameRecords = CollectedRecordIndex - FrameBarrierIndex;
 }
 
 inline void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
@@ -667,7 +685,7 @@ void DEBUGFramesGraph(debug_state* State) {
 							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_FPSOrange) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColorExt_magenta2) * ColorMultiplier);
 						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_FPSBlue) * ColorMultiplier);
 					}
 
@@ -775,8 +793,9 @@ void DEBUGViewingFrameInfo(debug_state* State) {
 
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
-	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime);
+	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS %urs", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime, ViewingFrame->RecordCount);
 	GUIText(State->GUIState, Buf);
+	GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
 }
 
 inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
