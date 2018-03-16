@@ -1078,13 +1078,10 @@ struct gui_color_theme {
 
 	u32 OutlineColor;
 
-	u32 FirstColor;
-	u32 SecondaryColor;
-
-	u32 WindowBackgroundColor;
-	u32 WindowTextColor;
-	u32 WindowHelpColor;
-	u32 WindowKeywordColor;
+	u32 GraphColor1;
+	u32 GraphColor2;
+	u32 GraphColor3;
+	u32 GraphBackColor;
 
 	u32 ButtonTextColor;
 	u32 ButtonBackColor;
@@ -1100,53 +1097,28 @@ struct gui_color_theme {
 inline gui_color_theme GUIDefaultColorTheme() {
 	gui_color_theme Result;
 
-#if 1
 	Result.TextColor = GUIColor_White;
 	Result.TextHighlightColor = GUIColor_Yellow;
 
 	Result.OutlineColor = GUIColor_Black;
 
 	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
-	Result.WindowBackgroundColor = GUIColor_Black_x20;
-	Result.WindowTextColor = GUIColor_Burlywood;
-	Result.WindowHelpColor = GUIColor_White;
-	Result.WindowKeywordColor = GUIColor_DarkGoldenrod;
 
-#if 1
+	Result.GraphColor1 = GUIColorExt_green3;
+	Result.GraphColor2 = GUIColorExt_purple1;
+	Result.GraphColor3 = GUIColorExt_red3;
+	Result.GraphBackColor = GUIColorExt_gray10;
+
+	//Result.GraphColor1 = GUIColorExt_green3;
+	//Result.GraphBackColor = GUIColorExt_red4;
+
 	Result.ButtonTextColor = GUIColorExt_gray70;
 	Result.ButtonBackColor = GUIColor_PrettyBlue;
 	Result.ButtonTextHighColor = GUIColor_White;
 	Result.ButtonOutlineColor = GUIColor_Black;
 	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
-#else
-	Result.ButtonTextColor = GUIColor_PrettyBlue;
-	Result.ButtonBackColor = GUIColorExt_gray10;
-	Result.ButtonTextHighColor = GUIColor_White;
-	Result.ButtonOutlineColor = GUIColor_Black;
-	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
-#endif
-
 
 	Result.AnchorColor = GUIColorExt_OrangeRed1;
-
-#if 1
-	//Result.FirstColor = GUIColor_BloodOrange;
-	Result.FirstColor = GUIColor_Purple;
-	Result.SecondaryColor = GUIColor_BluishGray;
-#else
-	Result.FirstColor = GUIColor_OliveDrab;
-	Result.SecondaryColor = GUIColor_Orange;
-
-#endif
-#else
-	Result.TextColor = GUIColor_Red;
-	Result.TextHighlightColor = GUIColor_Blue;
-
-	Result.OutlineColor = GUIColor_Green;
-
-	Result.FirstColor = GUIColor_PrettyBlue;
-	Result.SecondaryColor = GUIColor_BluishGray;
-#endif
 
 	return(Result);
 }
@@ -1191,6 +1163,10 @@ struct gui_state {
 
 	//gui_interaction* HotInteraction;
 	u32 HotInteractionID;
+
+#define GUI_TOOLTIPS_MAX_COUNT 64
+	char Tooltips[GUI_TOOLTIPS_MAX_COUNT][256];
+	int TooltipCount;
 
 	gui_color_theme ColorTheme;
 	gui_color_slot ColorTable[GUIColor_Count];
@@ -1353,16 +1329,15 @@ enum gui_menu_item_type {
 
 extern void GUIInitState(gui_state* GUIState, stacked_memory* GUIMemory, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
 extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
+extern void GUIPrepareFrame(gui_state* GUIState);
 extern void GUIEndFrame(gui_state* GUIState);
-
-extern void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack);
-extern void GUIEndTempRenderStack(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
 extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
 extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
+extern void GUITooltip(gui_state* GUIState, char* TooltipText);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);

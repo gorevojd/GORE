@@ -531,7 +531,7 @@ void DEBUGFramesSlider(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
-		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, GUIGetColor(GUIState, GUIColorExt_gray15));
+		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
 
 		//NOTE(dima): Collation frame column
 		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Green));
@@ -549,7 +549,7 @@ void DEBUGFramesSlider(debug_state* State) {
 			if (MouseInRect(GUIState->Input, ColumnRect)) {
 				char LabelBuf[256];
 				stbsp_sprintf(LabelBuf, "Frame: %u", ColumnIndex);
-				GUILabel(GUIState, LabelBuf, GUIState->Input->MouseP);
+				GUITooltip(GUIState, LabelBuf);
 
 				if (MouseButtonIsDown(GUIState->Input, MouseButton_Left) &&
 					ColumnIndex != State->CollationFrameIndex) 
@@ -651,8 +651,17 @@ void DEBUGFramesGraph(debug_state* State) {
 							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_Purple) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColorExt_gray80) * ColorMultiplier);
+						//RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColorExt_green3) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor2) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+
+#if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
+						if (MouseInRect(GUIState->Input, ColumnRect)) {
+							char TooltipBuf[256];
+							stbsp_sprintf(TooltipBuf, "dt: %.2fms", 1000.0f * Frame->DeltaTime);
+							GUITooltip(GUIState, TooltipBuf);
+						}
+#endif
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;
@@ -685,8 +694,16 @@ void DEBUGFramesGraph(debug_state* State) {
 							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColorExt_magenta2) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_FPSBlue) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+
+#if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
+						if (MouseInRect(GUIState->Input, ColumnRect)) {
+							char TooltipBuf[256];
+							stbsp_sprintf(TooltipBuf, "FPS: %.2f", CurrentFPS);
+							GUITooltip(GUIState, TooltipBuf);
+						}
+#endif
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;
@@ -718,8 +735,50 @@ void DEBUGFramesGraph(debug_state* State) {
 							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColor_FPSOrange) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_FPSBlue) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+					}
+
+					ColumnRect.Min.x += OneColumnWidth;
+					ColumnRect.Max.x += OneColumnWidth;
+				}
+			}break;
+
+			case DEBUGFrameGraph_CollectedRecords: {
+				float OneOverMaxRecs = 1.0f / (float)DEBUG_RECORD_MAX_COUNT;
+
+				for (int ColumnIndex = 0;
+					ColumnIndex < DEBUG_FRAMES_COUNT;
+					ColumnIndex++)
+				{
+					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
+
+					if (ColumnIndex == State->CollationFrameIndex) {
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+					}
+					else {
+						float FilledPercentage = (float)Frame->RecordCount * (float)OneOverMaxRecs;
+						FilledPercentage = Clamp01(FilledPercentage);
+
+						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
+						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
+
+						v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+						if (ColumnIndex == State->ViewFrameIndex) {
+							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
+						}
+
+						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+
+#if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
+						if (MouseInRect(GUIState->Input, ColumnRect)) {
+							char TooltipBuf[256];
+							stbsp_sprintf(TooltipBuf, "Records: %u", Frame->RecordCount);
+							GUITooltip(GUIState, TooltipBuf);
+						}
+#endif
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;
@@ -767,6 +826,7 @@ void DEBUGFramesGraph(debug_state* State) {
 		GUIBeginStateChangerGroup(GUIState, DEBUGFrameGraph_DeltaTime);
 		GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
 		GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
+		GUIStateChanger(GUIState, "records", DEBUGFrameGraph_CollectedRecords);
 		GUIStateChanger(GUIState, "frame clocks", DEBUGFrameGraph_FrameClocks);
 		GUIEndStateChangerGroupAt(GUIState, V2(GraphMin.x, GraphMin.y + AscByScale), &ActiveElement);
 
@@ -778,6 +838,9 @@ void DEBUGFramesGraph(debug_state* State) {
 		}
 		else if (ActiveElement == DEBUGFrameGraph_FrameClocks) {
 			State->FramesGraphType = DEBUGFrameGraph_FrameClocks;
+		}
+		else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
+			State->FramesGraphType = DEBUGFrameGraph_CollectedRecords;
 		}
 #endif
 

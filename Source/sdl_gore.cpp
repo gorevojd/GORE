@@ -1039,6 +1039,7 @@ int main(int ArgsCount, char** Args) {
 
 		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
+		GUIPrepareFrame(GUIState);
 
 #if 1
 		BEGIN_TIMING("Rendering");

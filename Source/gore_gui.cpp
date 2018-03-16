@@ -613,6 +613,9 @@ void GUIInitState(
 	GUIState->TempRect.PosInteraction = {};
 #endif
 
+	//NOTE(dima): Initialization of tooltips
+	GUIState->TooltipCount = 0;
+
 	//NOTE(Dima): Initialization of the root node;
 	GUIState->RootNode = PushStruct(GUIState->GUIMem, gui_element);
 	gui_element* RootNode = GUIState->RootNode;
@@ -734,17 +737,71 @@ void GUIInitState(
 	GUIState->ColorTheme = GUIDefaultColorTheme();
 }
 
-void GUIBeginTempRenderStack(gui_state* GUIState, render_stack* Stack) {
-	GUIState->TempRenderStack = GUIState->RenderStack;
-	GUIState->RenderStack = Stack;
-}
+enum print_text_type {
+	PrintTextType_PrintText,
+	PrintTextType_GetTextSize,
+};
 
-void GUIEndTempRenderStack(gui_state* GUIState) {
-	GUIState->RenderStack = GUIState->TempRenderStack;
+static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+	FUNCTION_TIMING();
+
+	rect2 TextRect = {};
+
+	float CurrentX = Px;
+	float CurrentY = Py;
+
+	char* At = Text;
+
+	font_info* FontInfo = State->FontInfo;
+	render_stack* Stack = State->RenderStack;
+
+	RENDERPushBeginText(Stack, FontInfo);
+
+	while (*At) {
+		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
+		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
+
+		float BitmapScale = Glyph->Height * Scale;
+
+		if (Type == PrintTextType_PrintText) {
+			float BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
+			float BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
+
+			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
+
+#if 1
+			RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
+#else
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
+#endif
+		}
+
+		float Kerning = 0.0f;
+		if (*(At + 1)) {
+			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
+		}
+
+		CurrentX += (Glyph->Advance + Kerning) * Scale;
+
+		++At;
+	}
+
+	RENDERPushEndText(Stack);
+
+	TextRect.Min.x = Px;
+	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
+	TextRect.Max.x = CurrentX;
+	TextRect.Max.y = Py - FontInfo->DescenderHeight * Scale;
+
+	return(TextRect);
 }
 
 void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
 	GUIState->RenderStack = RenderStack;
+
+	GUIState->TooltipCount = 0;
 }
 
 inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
@@ -967,6 +1024,26 @@ inline b32 GUIWalkaroundIsHere(gui_state* State) {
 	b32 Result = GUIWalkaroundIsOnElement(State, State->CurrentNode);
 
 	return(Result);
+}
+
+void GUIPrepareFrame(gui_state* GUIState) {
+	//NOTE(dima): Tooltips processing
+	float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
+	v2 PrintP = GUIState->Input->MouseP;
+
+	for (int TooltipIndex = 0;
+		TooltipIndex < GUIState->TooltipCount;
+		TooltipIndex++)
+	{
+		PrintTextInternal(GUIState, PrintTextType_PrintText,
+			GUIState->Tooltips[TooltipIndex],
+			PrintP.x, PrintP.y, GUIState->FontScale,
+			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+
+		PrintP.y += RowAdvance;
+	}
+
+	GUIState->TooltipCount = 0;
 }
 
 void GUIEndFrame(gui_state* GUIState) {
@@ -1527,67 +1604,6 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 	State->CurrentNode = Element->Parent;
 }
 
-enum print_text_type {
-	PrintTextType_PrintText,
-	PrintTextType_GetTextSize,
-};
-
-static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	FUNCTION_TIMING();
-
-	rect2 TextRect = {};
-
-	float CurrentX = Px;
-	float CurrentY = Py;
-
-	char* At = Text;
-
-	font_info* FontInfo = State->FontInfo;
-	render_stack* Stack = State->RenderStack;
-
-	RENDERPushBeginText(Stack, FontInfo);
-
-	while (*At) {
-		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
-		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
-
-		float BitmapScale = Glyph->Height * Scale;
-
-		if (Type == PrintTextType_PrintText) {
-			float BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
-			float BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
-
-			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
-
-#if 1
-			RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
-#else
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
-#endif
-		}
-
-		float Kerning = 0.0f;
-		if (*(At + 1)) {
-			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
-		}
-
-		CurrentX += (Glyph->Advance + Kerning) * Scale;
-
-		++At;
-	}
-
-	RENDERPushEndText(Stack);
-
-	TextRect.Min.x = Px;
-	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
-	TextRect.Max.x = CurrentX;
-	TextRect.Max.y = Py - FontInfo->DescenderHeight * Scale;
-
-	return(TextRect);
-}
-
 void GUIPerformInteraction(
 	gui_state* GUIState, 
 	gui_interaction* Interaction) 
@@ -1762,7 +1778,16 @@ rect2 GUITextBase(
 }
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText, LabelText, At.x, At.y, 1.0f, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+	PrintTextInternal(GUIState, PrintTextType_PrintText, 
+		LabelText, At.x, At.y, 
+		GUIState->FontScale, 
+		GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+}
+
+void GUITooltip(gui_state* GUIState, char* TooltipText) {
+	if (GUIState->TooltipCount < GUI_TOOLTIPS_MAX_COUNT) {
+		CopyStrings(GUIState->Tooltips[GUIState->TooltipCount++], TooltipText);
+	}
 }
 
 void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered) {
@@ -1941,9 +1966,9 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 			float Inner = 2.0f;
 			float Outer = 3.0f;
 
-			RENDERPushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+			RENDERPushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3));
 			RENDERPushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-			RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
+			RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
 			RENDERPushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 			RENDERPushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
@@ -1968,7 +1993,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 					(float)OccupiedCount / (float)TotalCount * 100.0f,
 					TotalCount);
 
-				GUILabel(GUIState, InfoStr, GUIState->Input->MouseP);
+				GUITooltip(GUIState, InfoStr);
 			}
 
 			gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, WorkDim, GUIResizeInteraction_Default);
@@ -2075,7 +2100,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 
 		v2 WorkRectDim = GetRectDim(WorkRect);
 
-		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor));
+		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		PrintTextInternal(
@@ -2392,7 +2417,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 			}
 		}
 
-		RENDERPushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor));
+		RENDERPushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
 		RENDERPushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
@@ -2471,7 +2496,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		//NOTE(DIMA): Drawing vertical rectangle
 		i32 RectOutlineWidth = 1;
 
-		RENDERPushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.FirstColor));
+		RENDERPushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.GraphColor1));
 		RENDERPushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(State, State->ColorTheme.OutlineColor));
 
 		//NOTE(DIMA): Calculating Min text rectangle
@@ -2559,7 +2584,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 
 		//NOTE(DIMA): Processing interactions
-		v4 CursorColor = GUIGetColor(State, State->ColorTheme.SecondaryColor);
+		v4 CursorColor = GUIGetColor(State, State->ColorTheme.GraphColor1);
 		b32 IsHot = GUIInteractionIsHot(State, Interaction);
 		b32 MouseInWorkRect = MouseInRect(State->Input, WorkRect);
 		b32 MouseInCursRect = MouseInRect(State->Input, CursorRect);
@@ -2574,7 +2599,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			char ValStr[64];
 			stbsp_sprintf(ValStr, "%.3f", *Value);
 
-			GUILabel(State, ValStr, State->Input->MouseP);
+			GUITooltip(State, ValStr);
 		}
 
 		if (MouseButtonWentUp(State->Input, MouseButton_Left) && IsHot) {
@@ -2693,7 +2718,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 		v2 WorkRectDim = V2(NextRowAdvanceFull * 10, NextRowAdvanceFull);
 
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
-		v4 WorkRectColor = GUIGetColor(GUIState, GUIState->ColorTheme.FirstColor);
+		v4 WorkRectColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1);
 
 		float RectOutlineWidth = 1.0f;
 
@@ -2718,7 +2743,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		v2 CursorDim = V2(CursorWidth, CursorHeight);
 		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
-		v4 CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.SecondaryColor);
+		v4 CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor);
 
 		b32 IsHot = GUIInteractionIsHot(GUIState, Interaction);
 

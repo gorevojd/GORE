@@ -18,6 +18,8 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
+#define DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS 1
+
 struct debug_timing_snapshot {
 	u64 BeginClock;
 	u64 ChildrenSumClocks;
@@ -140,6 +142,7 @@ struct debug_state {
 enum debug_frame_graph_type {
 	DEBUGFrameGraph_DeltaTime,
 	DEBUGFrameGraph_FPS,
+	DEBUGFrameGraph_CollectedRecords,
 	DEBUGFrameGraph_FrameClocks,
 
 	DEBUGFrameGraph_Count,
