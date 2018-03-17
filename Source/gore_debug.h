@@ -104,7 +104,7 @@ struct debug_profiled_frame {
 	stacked_memory FrameMemory;
 
 	debug_tree_node* CurrentTiming;
-	debug_tree_node* TimingSentinel;
+	debug_tree_node* TimingRoot;
 
 	debug_tree_node* CurrentSection;
 	debug_tree_node* SectionSentinel;
@@ -116,7 +116,6 @@ struct debug_profiled_frame {
 #define DEBUG_FRAMES_COUNT 256
 struct debug_state {
 	debug_tree_node* FreeBlockSentinel;
-	debug_statistic* FreeStatisticSentinel;
 
 	debug_tree_node* RootSection;
 	debug_tree_node* CurrentSection;

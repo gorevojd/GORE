@@ -4,28 +4,36 @@
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
 
-inline void DEBUGDeallocateTreeNode(debug_state* State, debug_tree_node* Entry) {
+inline void DEBUGDeallocateTreeNode(debug_tree_node* FreeTreeNode, debug_tree_node* Entry) {
 	Entry->PrevBro->NextBro = Entry->NextBro;
 	Entry->NextBro->PrevBro = Entry->PrevBro;
 
-	Entry->NextBro = State->FreeBlockSentinel->NextBro;
-	Entry->PrevBro = State->FreeBlockSentinel;
+	Entry->NextBro = FreeTreeNode->NextBro;
+	Entry->PrevBro = FreeTreeNode;
 
 	Entry->NextBro->PrevBro = Entry;
 	Entry->PrevBro->NextBro = Entry;
 }
 
-inline debug_tree_node* DEBUGAllocateTreeNode(debug_state* State) {
+inline debug_tree_node* DEBUGAllocateTreeNode(
+	debug_tree_node* FreeSentinel, 
+	stacked_memory* Mem) 
+{
 	debug_tree_node* Result = 0;
 
-	if (State->FreeBlockSentinel->NextBro != State->FreeBlockSentinel) {
-		Result = State->FreeBlockSentinel->NextBro;
-
-		Result->PrevBro->NextBro = Result->NextBro;
-		Result->NextBro->PrevBro = Result->PrevBro;
+	if (FreeSentinel == 0) {
+		Result = PushStruct(Mem, debug_tree_node);
 	}
 	else {
-		Result = PushStruct(State->DebugMemory, debug_tree_node);
+		if (FreeSentinel->NextBro != FreeSentinel) {
+			Result = FreeSentinel->NextBro;
+
+			Result->PrevBro->NextBro = Result->NextBro;
+			Result->NextBro->PrevBro = Result->PrevBro;
+		}
+		else {
+			Result = PushStruct(Mem, debug_tree_node);
+		}
 	}
 
 	Result->PrevBro = Result;
@@ -42,26 +50,23 @@ inline void DEBUGInsertToList(debug_tree_node* Sentinel, debug_tree_node* Entry)
 	Entry->PrevBro->NextBro = Entry;
 }
 
-inline void DEBUGAllocateElementSentinelTreeNode(debug_state* State, debug_tree_node* Element) {
-	Element->ChildrenSentinel= DEBUGAllocateTreeNode(State);
+inline void DEBUGAllocateElementSentinelTreeNode(
+	debug_tree_node* FreeSentinel, 
+	stacked_memory* Mem,
+	debug_tree_node* Element) 
+{
+	Element->ChildrenSentinel= DEBUGAllocateTreeNode(FreeSentinel, Mem);
 
 	Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
 	Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
 	Element->ChildrenSentinel->Parent = Element;
+	CopyStrings(Element->ChildrenSentinel->UniqueName, "Sentinel");
 }
 
-inline debug_statistic* DEBUGAllocateStatistic(debug_state* State) {
+inline debug_statistic* DEBUGAllocateStatistic(stacked_memory* Mem) {
 	debug_statistic* Result = 0;
 
-	if (State->FreeStatisticSentinel->NextBro != State->FreeStatisticSentinel) {
-		Result = State->FreeStatisticSentinel->NextBro;
-		
-		Result->PrevBro->NextBro = Result->NextBro;
-		Result->NextBro->PrevBro = Result->PrevBro;
-	}
-	else {
-		Result = PushStruct(State->DebugMemory, debug_statistic);
-	}
+	Result = PushStruct(Mem, debug_statistic);
 
 	Result->PrevBro = Result;
 	Result->NextBro = Result;
@@ -69,6 +74,7 @@ inline debug_statistic* DEBUGAllocateStatistic(debug_state* State) {
 	return(Result);
 }
 
+#if 0
 inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statistic) {
 	Statistic->NextBro->PrevBro = Statistic->PrevBro;
 	Statistic->PrevBro->NextBro = Statistic->NextBro;
@@ -81,6 +87,7 @@ inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statis
 
 	Statistic->NextInHash = 0;
 }
+#endif
 
 inline void DEBUGInsertStatisticAfter(debug_statistic* After, debug_statistic* ToInsert) {
 	if (After != ToInsert) {
@@ -124,8 +131,9 @@ inline void DEBUGParseNameFromUnique(char* UniqueName, char* Out, int Size) {
 }
 
 inline debug_tree_node* DEBUGInitLayerTreeNode(
-	debug_state* State, 
 	debug_tree_node* CurrentBlock, 
+	debug_tree_node* FreeSentinel,
+	stacked_memory* Mem,
 	char* UniqueName, 
 	u32 Type) 
 {
@@ -147,7 +155,7 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 
 	if (NewBlock == 0) {
 		//NOTE(dima): Debug node not exist. Should be allocated.
-		NewBlock = DEBUGAllocateTreeNode(State);
+		NewBlock = DEBUGAllocateTreeNode(FreeSentinel, Mem);
 
 		*NewBlock = {};
 		NewBlock->TreeNodeType = Type;
@@ -163,7 +171,7 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 		if (Type == DebugTreeNode_Section ||
 			Type == DebugTreeNode_Timing) 
 		{
-			DEBUGAllocateElementSentinelTreeNode(State, NewBlock);
+			DEBUGAllocateElementSentinelTreeNode(FreeSentinel, Mem, NewBlock);
 		}
 
 		DEBUGInsertToList(CurrentBlock->ChildrenSentinel, NewBlock);
@@ -173,7 +181,7 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 }
 
 inline debug_statistic* DEBUGInitDebugStatistic(
-	debug_state* State, 
+	stacked_memory* Mem,
 	debug_statistic** StatisticArray,
 	debug_statistic* StatisticSentinel, 
 	char* UniqueName) 
@@ -198,7 +206,7 @@ inline debug_statistic* DEBUGInitDebugStatistic(
 
 	//NOTE(dima): If element was not found in hash table
 	if (Statistic == 0) {
-		Statistic = DEBUGAllocateStatistic(State);
+		Statistic = DEBUGAllocateStatistic(Mem);
 
 		Statistic->NextBro = StatisticSentinel->NextBro;
 		Statistic->PrevBro = StatisticSentinel;
@@ -226,6 +234,22 @@ inline debug_statistic* DEBUGInitDebugStatistic(
 	return(Statistic);
 }
 
+static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
+	FUNCTION_TIMING();
+
+	//NOTE(dima): Initialization of timing root
+	Frame->TimingRoot = DEBUGAllocateTreeNode(0, &Frame->FrameMemory);
+	DEBUGAllocateElementSentinelTreeNode(
+		0,
+		&Frame->FrameMemory,
+		Frame->TimingRoot);
+	Frame->CurrentTiming = Frame->TimingRoot;
+
+	Frame->TimingStatisticSentinel = DEBUGAllocateStatistic(&Frame->FrameMemory);
+
+	Frame->CurrentSection = State->RootSection;
+}
+
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
 	FUNCTION_TIMING();
 
@@ -233,6 +257,7 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 
 	Frame->DeltaTime = 0.0f;
 
+#if 0
 	debug_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
 	while (TimingAt != Frame->TimingStatisticSentinel) {
 		debug_statistic* TempNext = TimingAt->NextBro;
@@ -241,6 +266,7 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 
 		TimingAt = TempNext;
 	}
+#endif
 
 	for (int TimingStatisticIndex = 0;
 		TimingStatisticIndex < DEBUG_TIMING_STATISTICS_COUNT;
@@ -258,19 +284,16 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	State->FreeBlockSentinel = PushStruct(State->DebugMemory, debug_tree_node);
 	State->FreeBlockSentinel->NextBro = State->FreeBlockSentinel;
 	State->FreeBlockSentinel->PrevBro = State->FreeBlockSentinel;
-
-	State->FreeStatisticSentinel = PushStruct(State->DebugMemory, debug_statistic);
-	State->FreeStatisticSentinel->NextBro = State->FreeStatisticSentinel;
-	State->FreeStatisticSentinel->PrevBro = State->FreeStatisticSentinel;
+	CopyStrings(State->FreeBlockSentinel->UniqueName, "FreeBlockSentinel");
 
 	State->CollationFrameIndex = 0;
 	State->ViewFrameIndex = 0;
 	State->NewestFrameIndex = 0;
 	State->OldestFrameIndex = 0;
 
-	State->RootSection = DEBUGAllocateTreeNode(State);
+	State->RootSection = DEBUGAllocateTreeNode(State->FreeBlockSentinel, State->DebugMemory);
 
-	DEBUGAllocateElementSentinelTreeNode(State, State->RootSection);
+	DEBUGAllocateElementSentinelTreeNode(State->FreeBlockSentinel, State->DebugMemory, State->RootSection);
 
 	CopyStrings(State->RootSection->UniqueName, "ROOT");
 	State->RootSection->ID = StringHashFNV(State->RootSection->UniqueName);
@@ -293,15 +316,8 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	{
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 
-		Frame->TimingSentinel = DEBUGAllocateTreeNode(State);
-		DEBUGAllocateElementSentinelTreeNode(State, Frame->TimingSentinel);
-		Frame->CurrentTiming = Frame->TimingSentinel;
-
-		Frame->TimingStatisticSentinel = DEBUGAllocateStatistic(State);
-
-		Frame->CurrentSection = State->RootSection;
-
 		DEBUGFreeFrameInfo(State, Frame);
+		DEBUGInitFrameInfo(State, Frame);
 	}
 
 	State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
@@ -363,7 +379,12 @@ void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_BeginTiming: {
 				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
 
-				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(State, CurrentBlock, Record->UniqueName, DebugTreeNode_Timing);
+				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
+					CurrentBlock,
+					0,
+					&Frame->FrameMemory,
+					Record->UniqueName, 
+					DebugTreeNode_Timing);
 				debug_timing_snapshot* TimingSnapshot = &TimingNode->TimingSnapshot;
 
 				TimingSnapshot->BeginClock = Record->Clocks;
@@ -393,7 +414,7 @@ void DEBUGProcessRecords(debug_state* State) {
 
 				//NOTE(dima): Finding needed element in the hash table
 				debug_statistic* TimingStatistic = DEBUGInitDebugStatistic(
-					State, 
+					&Frame->FrameMemory, 
 					Frame->TimingStatistics, 
 					Frame->TimingStatisticSentinel, 
 					CurrentBlock->UniqueName);
@@ -409,7 +430,12 @@ void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_BeginSection: {
 				debug_tree_node* CurrentSection = Frame->CurrentSection;
 
-				debug_tree_node* NewSection = DEBUGInitLayerTreeNode(State, State->RootSection, Record->UniqueName, DebugTreeNode_Section);
+				debug_tree_node* NewSection = DEBUGInitLayerTreeNode(
+					State->RootSection, 
+					State->FreeBlockSentinel, 
+					State->DebugMemory, 
+					Record->UniqueName, 
+					DebugTreeNode_Section);
 
 				//NOTE(dima): Remembering last section
 				NewSection->Parent = CurrentSection;
@@ -438,8 +464,10 @@ void DEBUGProcessRecords(debug_state* State) {
 				//NOTE(dima): Incrementing frame indices;
 				DEBUGIncrementFrameIndices(State);
 
-				debug_profiled_frame* NewFrame = DEBUGGetCollationFrame(State);;
+				//NOTE(dima): Freeing the frame
+				debug_profiled_frame* NewFrame = DEBUGGetCollationFrame(State);
 				DEBUGFreeFrameInfo(State, NewFrame);
+				DEBUGInitFrameInfo(State, NewFrame);
 
 				//NOTE(dima): Section pointer must be equal to initial
 				Assert(State->CurrentSection == State->RootSection);
@@ -712,31 +740,83 @@ void DEBUGFramesGraph(debug_state* State) {
 			}break;
 
 			case DEBUGFrameGraph_FrameClocks: {
+				u32 GraphColors[8];
+				GraphColors[0] = GUIState->ColorTheme.GraphColor1;
+				GraphColors[1] = GUIState->ColorTheme.GraphColor2;
+				GraphColors[2] = GUIState->ColorTheme.GraphColor3;
+				GraphColors[3] = GUIState->ColorTheme.GraphColor4;
+				GraphColors[4] = GUIState->ColorTheme.GraphColor5;
+				GraphColors[5] = GUIState->ColorTheme.GraphColor6;
+				GraphColors[6] = GUIState->ColorTheme.GraphColor7;
+				GraphColors[7] = GUIState->ColorTheme.GraphColor8;
+
 				for (int ColumnIndex = 0;
 					ColumnIndex < DEBUG_FRAMES_COUNT;
 					ColumnIndex++)
 				{
 					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
-					float CurrentFPS = 1.0f / Frame->DeltaTime;
 
 					if (ColumnIndex == State->CollationFrameIndex) {
 						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
 					}
 					else {
-						float FilledPercentage = 1.0f;
-						FilledPercentage = Clamp01(FilledPercentage);
+						debug_tree_node* FrameUpdateNode = 0;
+						for (debug_tree_node* At = Frame->TimingRoot->ChildrenSentinel->NextBro;
+							At != Frame->TimingRoot->ChildrenSentinel;
+							At = At->NextBro)
+						{
+							char NodeName[256];
+							DEBUGParseNameFromUnique(At->UniqueName, NodeName, sizeof(NodeName));
 
-						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
-						rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, ColumnDim.y * (1.0f - FilledPercentage)));
-
-						v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
-
-						if (ColumnIndex == State->ViewFrameIndex) {
-							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
+							if (StringsAreEqual(NodeName, "Frame update")) {
+								FrameUpdateNode = At;
+								break;
+							}
 						}
+						
+						if (FrameUpdateNode) {
+							float FilledPercentage = 1.0f;
+							FilledPercentage = Clamp01(FilledPercentage);
 
-						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+							float OneOverFrameClocks = 1.0f / (float)FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+
+							v4 ColorMultiplier = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+							if (ColumnIndex == State->ViewFrameIndex) {
+								ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
+							}
+
+							float ColY = ColumnRect.Max.y;
+
+							int ColorIndex = 0;
+							for (debug_tree_node* ChildrenAt = FrameUpdateNode->ChildrenSentinel->PrevBro;
+								ChildrenAt != FrameUpdateNode->ChildrenSentinel;
+								ChildrenAt = ChildrenAt->PrevBro)
+							{
+								float CurrentPercentage = (float)ChildrenAt->TimingSnapshot.ClocksElapsed * OneOverFrameClocks;
+
+								float CurColY = ColumnDim.y * CurrentPercentage;
+								ColY -= CurColY;
+								
+								rect2 CurrentRect = Rect2MinDim(V2(ColumnRect.Min.x, ColY), V2(ColumnDim.x, CurColY));
+								v4 CurColColor = GUIGetColor(GUIState, GraphColors[ColorIndex++]);
+
+								RENDERPushRect(GUIState->RenderStack, CurrentRect, CurColColor * ColorMultiplier);
+
+								if (MouseInRect(GUIState->Input, CurrentRect)) {
+									GUITooltip(GUIState, ChildrenAt->UniqueName);
+								}
+							}
+
+							float FreePercentage = (ColY - ColumnRect.Min.y) / ColumnDim.y;;
+							rect2 FreeRect = Rect2MinDim(ColumnRect.Min, V2(ColumnDim.x, (ColY - ColumnRect.Min.y)));
+
+							if (MouseInRect(GUIState->Input, FreeRect)) {
+								GUITooltip(GUIState, "Waiting...");
+							}
+
+							RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_White) * ColorMultiplier);
+						}
 					}
 
 					ColumnRect.Min.x += OneColumnWidth;

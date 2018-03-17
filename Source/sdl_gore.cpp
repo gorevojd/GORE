@@ -984,10 +984,10 @@ int main(int ArgsCount, char** Args) {
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
 
-		BEGIN_TIMING("Frame Update");
+		BEGIN_TIMING("Frame update");
 		BEGIN_SECTION("Platform");
 
-		BEGIN_TIMING("Input Processing");
+		BEGIN_TIMING("Input processing");
 		ProcessEvents(Window, &GlobalInput);
 
 		ProcessInput(&GlobalInput);
@@ -1002,6 +1002,7 @@ int main(int ArgsCount, char** Args) {
 		}
 		END_TIMING();
 
+		BEGIN_REPEATED_TIMING("Other...");
 		render_stack Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
@@ -1032,14 +1033,17 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		GUIBeginFrame(GUIState, Stack);
+		END_TIMING();
 
-		BEGIN_TIMING("Debug Update");
+		BEGIN_TIMING("Debug update");
 		DEBUGUpdate(DEBUGState);
 		END_TIMING();
 
 		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
+		BEGIN_REPEATED_TIMING("Other...");
 		GUIPrepareFrame(GUIState);
+		END_TIMING();
 
 #if 1
 		BEGIN_TIMING("Rendering");
@@ -1048,7 +1052,9 @@ int main(int ArgsCount, char** Args) {
 		OpenGLRenderStackToOutput(GLState, Stack);
 		END_TIMING();
 
+		BEGIN_TIMING("Swapping");
 		SDL_GL_SwapWindow(Window);
+		END_TIMING();
 #else
 		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
@@ -1071,8 +1077,10 @@ int main(int ArgsCount, char** Args) {
 		SDL_FreeSurface(Surf);
 #endif
 
+		BEGIN_REPEATED_TIMING("Other...");
 		GUIEndFrame(GUIState);
 		RENDEREndStack(Stack);
+		END_TIMING();
 
 		END_SECTION();
 		END_TIMING();

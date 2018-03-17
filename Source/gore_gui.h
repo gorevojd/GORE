@@ -1081,6 +1081,11 @@ struct gui_color_theme {
 	u32 GraphColor1;
 	u32 GraphColor2;
 	u32 GraphColor3;
+	u32 GraphColor4;
+	u32 GraphColor5;
+	u32 GraphColor6;
+	u32 GraphColor7;
+	u32 GraphColor8;
 	u32 GraphBackColor;
 
 	u32 ButtonTextColor;
@@ -1107,6 +1112,12 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.GraphColor1 = GUIColorExt_green3;
 	Result.GraphColor2 = GUIColorExt_purple1;
 	Result.GraphColor3 = GUIColorExt_red3;
+	Result.GraphColor4 = GUIColorExt_blue1;
+	Result.GraphColor5 = GUIColorExt_orange2;
+	Result.GraphColor6 = GUIColorExt_magenta;
+	Result.GraphColor7 = GUIColorExt_DarkGoldenrod3;
+	Result.GraphColor8 = GUIColorExt_chartreuse3;
+
 	Result.GraphBackColor = GUIColorExt_gray10;
 
 	//Result.GraphColor1 = GUIColorExt_green3;

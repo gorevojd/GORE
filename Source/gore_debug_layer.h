@@ -59,6 +59,7 @@ extern debug_record_table* GlobalRecordTable;
 
 #define DEBUG_UNIQUE_STRING_(id, func, line, counter) id "@" func "@" ## DEBUG_ID_TO_STRING(line) ## "@" ## DEBUG_ID_TO_STRING(counter)
 #define DEBUG_UNIQUE_STRING(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, __LINE__, __COUNTER__)
+#define DEBUG_UNIQUE_STRING2(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, 123456, 123)
 
 #if 1
 inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
@@ -101,6 +102,7 @@ inline void DEBUGSetRecording(b32 Recording) {
 #define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
 
 #define BEGIN_TIMING(name) ADD_DEBUG_RECORD(name, DebugRecord_BeginTiming)
+#define BEGIN_REPEATED_TIMING(name)  DEBUGAddRecord(name, DEBUG_UNIQUE_STRING2(name), DebugRecord_BeginTiming)
 #define END_TIMING() ADD_DEBUG_RECORD("End", DebugRecord_EndTiming)
 #define FUNCTION_TIMING() debug_timing FunctionTiming_##__COUNTER__(__FUNCTION__, DEBUG_UNIQUE_STRING(__FUNCTION__))
 
