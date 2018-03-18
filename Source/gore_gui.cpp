@@ -1037,7 +1037,7 @@ void GUIPrepareFrame(gui_state* GUIState) {
 		PrintTextInternal(GUIState, PrintTextType_PrintText,
 			GUIState->Tooltips[TooltipIndex],
 			PrintP, GUIState->FontScale,
-			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+			GUIGetColor(GUIState, GUIState->ColorTheme.TooltipTextColor));
 
 		PrintP.y += RowAdvance;
 	}

@@ -876,7 +876,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(0);
+	SDL_GL_SetSwapInterval(1);
 
 	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
 	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
@@ -1006,6 +1006,8 @@ int main(int ArgsCount, char** Args) {
 		render_stack Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 		render_stack* Stack = &Stack_;
 
+		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
+
 #if 0
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
@@ -1036,6 +1038,12 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_TIMING("Debug update");
+		BEGIN_SECTION("Profiler");
+		DEBUG_VALUE(DebugValue_FramesSlider);
+		DEBUG_VALUE(DebugValue_ViewFrameInfo);
+		DEBUG_VALUE(DebugValue_ProfileOverlays);
+		END_SECTION();
+
 		DEBUGUpdate(DEBUGState);
 		END_TIMING();
 
@@ -1056,6 +1064,7 @@ int main(int ArgsCount, char** Args) {
 		SDL_GL_SwapWindow(Window);
 		END_TIMING();
 #else
+
 		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);

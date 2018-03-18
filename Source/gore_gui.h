@@ -1075,6 +1075,7 @@ enum gui_color_table_type {
 struct gui_color_theme {
 	u32 TextColor;
 	u32 TextHighlightColor;
+	u32 TooltipTextColor;
 
 	u32 OutlineColor;
 
@@ -1104,6 +1105,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.TextColor = GUIColorExt_burlywood;
 	Result.TextHighlightColor = GUIColor_Yellow;
+	Result.TooltipTextColor = GUIColor_White;
 
 	Result.OutlineColor = GUIColor_Black;
 

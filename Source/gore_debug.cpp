@@ -454,7 +454,7 @@ void DEBUGProcessRecords(debug_state* State) {
 			}break;
 
 			case DebugRecord_FrameBarrier: {
-				float DeltaTime = Record->Value_F32;
+				float DeltaTime = Record->Value_Value.Value_DebugValue_F32;
 
 				FrameBarrierIndex = CollectedRecordIndex;
 
@@ -473,6 +473,22 @@ void DEBUGProcessRecords(debug_state* State) {
 				//NOTE(dima): Section pointer must be equal to initial
 				Assert(State->CurrentSection == State->RootSection);
 			} break;
+
+			case DebugRecord_Value: {
+				debug_tree_node* CurrentSection = Frame->CurrentSection;
+
+				debug_tree_node* NewSection = DEBUGInitLayerTreeNode(
+					CurrentSection,
+					State->FreeBlockSentinel,
+					State->DebugMemory,
+					Record->UniqueName,
+					DebugTreeNode_Value);
+
+				NewSection->Value.ValueType = Record->Value_Value.ValueType;
+
+				//NOTE(dima): Remembering last section
+				NewSection->Parent = CurrentSection;
+			}break;
 		}
 	}
 
@@ -489,27 +505,6 @@ void DEBUGProcessRecords(debug_state* State) {
 	SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
 
 	State->LastCollationFrameRecords = CollectedRecordIndex - FrameBarrierIndex;
-}
-
-inline void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
-	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
-	
-	for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
-		switch (At->TreeNodeType) {
-			case DebugTreeNode_Section: {
-				char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
-				DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
-
-				GUITreeBegin(State->GUIState, NodeName);
-				DEBUGOutputSectionChildrenToGUI(State, At);
-				GUITreeEnd(State->GUIState);
-			}break;
-
-			case DebugTreeNode_Value: {
-
-			}break;
-		}
-	}
 }
 
 inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, v2 Dim, v4 Color) {
@@ -944,13 +939,18 @@ void DEBUGViewingFrameInfo(debug_state* State) {
 	GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
 }
 
+enum debug_clock_list_type {
+	DebugClockList_Total,
+	DebugClockList_Exclusive,
+};
+
 inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
 	u64 Result = 0;
 
-	if (Type == DebugRecord_TopTotalClocks) {
+	if (Type == DebugClockList_Total) {
 		Result = Stat->Timing.TotalClocks;
 	}
-	else if (Type == DebugRecord_TopExClocks) {
+	else if (Type == DebugClockList_Exclusive) {
 		Result = Stat->Timing.TotalClocks - Stat->Timing.TotalClocksInChildren;
 	}
 	else {
@@ -1074,6 +1074,57 @@ enum debug_profile_active_element {
 	DebugProfileActiveElement_FrameGraph,
 };
 
+static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
+	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
+
+	for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
+		switch (At->TreeNodeType) {
+			case DebugTreeNode_Section: {
+				char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
+				DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
+
+				GUITreeBegin(State->GUIState, NodeName);
+				DEBUGOutputSectionChildrenToGUI(State, At);
+				GUITreeEnd(State->GUIState);
+			}break;
+
+			case DebugTreeNode_Value: {
+				switch (At->Value.ValueType) {
+					case DebugValue_FramesSlider: {
+						DEBUGFramesSlider(State);
+					}break;
+
+					case DebugValue_ViewFrameInfo: {
+						DEBUGViewingFrameInfo(State);
+					}break;
+
+					case DebugValue_ProfileOverlays: {
+						u32 ActiveProfileElement = 0;
+
+						GUIBeginRow(State->GUIState);
+						GUIBeginRadioGroup(State->GUIState, 0);
+						GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
+						GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
+						GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
+						GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
+						GUIEndRow(State->GUIState);
+
+						if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
+							DEBUGClocksList(State, DebugClockList_Total);
+						}
+						else if (ActiveProfileElement == DebugProfileActiveElement_TopExClocks) {
+							DEBUGClocksList(State, DebugClockList_Exclusive);
+						}
+						else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
+							DEBUGFramesGraph(State);
+						}
+					}break;
+				}
+			}break;
+		}
+	}
+}
+
 void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
 
@@ -1099,31 +1150,8 @@ void DEBUGOverlayToOutput(debug_state* State) {
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
-	DEBUGFramesSlider(State);
 
-	DEBUGViewingFrameInfo(State);
-
-	u32 ActiveProfileElement = 0;
-
-	GUIBeginRow(State->GUIState);
-	GUIBeginRadioGroup(State->GUIState, 0);
-	GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
-	GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
-	GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
-	GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
-	GUIEndRow(State->GUIState);
-
-	if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
-		DEBUGClocksList(State, DebugRecord_TopTotalClocks);
-	}
-	else if (ActiveProfileElement == DebugProfileActiveElement_TopExClocks) {
-		DEBUGClocksList(State, DebugRecord_TopExClocks);
-	}
-	else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
-		DEBUGFramesGraph(State);
-	}
-
-#if 0
+#if 1
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
 
@@ -1325,11 +1353,7 @@ void DEBUGOverlayToOutput(debug_state* State) {
 void DEBUGUpdate(debug_state* State) {
 	FUNCTION_TIMING();
 
-	BEGIN_SECTION("Profile");
-
 	DEBUGProcessRecords(State);
 
 	DEBUGOverlayToOutput(State);
-
-	END_SECTION();
 }

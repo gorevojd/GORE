@@ -30,6 +30,10 @@ struct debug_timing_snapshot {
 	u32 HitCount;
 };
 
+struct debug_value_node {
+	u32 ValueType;
+};
+
 enum debug_statistic_type {
 	DebugTimingStatistic_None,
 
@@ -91,6 +95,7 @@ struct debug_tree_node {
 
 	union {
 		debug_timing_snapshot TimingSnapshot;
+		debug_value_node Value;
 	};
 };
 
