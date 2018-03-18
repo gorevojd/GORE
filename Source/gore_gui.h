@@ -1102,7 +1102,7 @@ struct gui_color_theme {
 inline gui_color_theme GUIDefaultColorTheme() {
 	gui_color_theme Result;
 
-	Result.TextColor = GUIColor_White;
+	Result.TextColor = GUIColorExt_burlywood;
 	Result.TextHighlightColor = GUIColor_Yellow;
 
 	Result.OutlineColor = GUIColor_Black;
@@ -1123,9 +1123,10 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	//Result.GraphColor1 = GUIColorExt_green3;
 	//Result.GraphBackColor = GUIColorExt_red4;
 
-	Result.ButtonTextColor = GUIColorExt_gray70;
-	Result.ButtonBackColor = GUIColor_PrettyBlue;
-	Result.ButtonTextHighColor = GUIColor_White;
+
+	Result.ButtonTextColor = GUIColorExt_burlywood;
+	Result.ButtonBackColor = GUIColorExt_gray10;
+	Result.ButtonTextHighColor = GUIColorExt_DarkGoldenrod1;
 	Result.ButtonOutlineColor = GUIColor_Black;
 	Result.ButtonTextHighColor2 = Result.TextHighlightColor;
 

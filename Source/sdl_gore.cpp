@@ -184,7 +184,7 @@ inline void ProcessButtonState(button_state* State, b32 IsDown, b32 TransitionHa
 	State->IsDoubleClick = IsDoubleClick;
 }
 
-static void ProcessEvents(SDL_Window* Window, input_system* Input) {
+static void SDLProcessEvents(SDL_Window* Window, input_system* Input) {
 	FUNCTION_TIMING();
 
 	SDL_Event CurrentEvent;
@@ -429,7 +429,7 @@ static void ProcessEvents(SDL_Window* Window, input_system* Input) {
 
 }
 
-static void ProcessInput(input_system* System) {
+static void SDLProcessInput(input_system* System) {
 	FUNCTION_TIMING();
 
 	int MouseX;
@@ -876,7 +876,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetSwapInterval(0);
 
 	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
 	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
@@ -988,9 +988,9 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_SECTION("Platform");
 
 		BEGIN_TIMING("Input processing");
-		ProcessEvents(Window, &GlobalInput);
+		SDLProcessEvents(Window, &GlobalInput);
 
-		ProcessInput(&GlobalInput);
+		SDLProcessInput(&GlobalInput);
 
 		if (ButtonWentDown(&GlobalInput, KeyType_Esc)) {
 			GlobalRunning = false;

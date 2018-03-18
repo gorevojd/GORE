@@ -742,13 +742,12 @@ enum print_text_type {
 	PrintTextType_GetTextSize,
 };
 
-static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px, float Py, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	FUNCTION_TIMING();
 
 	rect2 TextRect = {};
 
-	float CurrentX = Px;
-	float CurrentY = Py;
+	v2 CurrentP = P;
 
 	char* At = Text;
 
@@ -764,8 +763,8 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 		float BitmapScale = Glyph->Height * Scale;
 
 		if (Type == PrintTextType_PrintText) {
-			float BitmapMinY = CurrentY + (Glyph->YOffset - 1.0f) * Scale;
-			float BitmapMinX = CurrentX + (Glyph->XOffset - 1.0f) * Scale;
+			float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
+			float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
 
 			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
 
@@ -783,17 +782,17 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, float Px,
 			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
 		}
 
-		CurrentX += (Glyph->Advance + Kerning) * Scale;
+		CurrentP.x += (Glyph->Advance + Kerning) * Scale;
 
 		++At;
 	}
 
 	RENDERPushEndText(Stack);
 
-	TextRect.Min.x = Px;
-	TextRect.Min.y = Py - FontInfo->AscenderHeight * Scale;
-	TextRect.Max.x = CurrentX;
-	TextRect.Max.y = Py - FontInfo->DescenderHeight * Scale;
+	TextRect.Min.x = P.x;
+	TextRect.Min.y = P.y - FontInfo->AscenderHeight * Scale;
+	TextRect.Max.x = CurrentP.x;
+	TextRect.Max.y = P.y - FontInfo->DescenderHeight * Scale;
 
 	return(TextRect);
 }
@@ -1037,7 +1036,7 @@ void GUIPrepareFrame(gui_state* GUIState) {
 	{
 		PrintTextInternal(GUIState, PrintTextType_PrintText,
 			GUIState->Tooltips[TooltipIndex],
-			PrintP.x, PrintP.y, GUIState->FontScale,
+			PrintP, GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
 		PrintP.y += RowAdvance;
@@ -1755,7 +1754,7 @@ rect2 GUITextBase(
 	u32 OutlineWidth,
 	v4 OutlineColor)
 {
-	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos.x, Pos.y, FontScale);
+	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos, FontScale);
 
 	v4 CurTextColor = TextColor;
 	if (MouseInRect(GUIState->Input, TextRc)) {
@@ -1772,14 +1771,14 @@ rect2 GUITextBase(
 		RENDERPushRectOutline(GUIState->RenderStack, TextRc, OutlineWidth, OutlineColor);
 	}
 
-	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos.x, Pos.y, FontScale, CurTextColor);
+	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos, FontScale, CurTextColor);
 
 	return(TextRc);
 }
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, PrintTextType_PrintText, 
-		LabelText, At.x, At.y, 
+		LabelText, At, 
 		GUIState->FontScale, 
 		GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 }
@@ -2026,8 +2025,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 			GUIState,
 			PrintTextType_PrintText,
 			Text,
-			View->CurrentX,
-			View->CurrentY,
+			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
 		GUIDescribeElement(GUIState, GetRectDim(Rc), V2(View->CurrentX, View->CurrentY - GUIState->FontScale * GUIState->FontInfo->AscenderHeight));
@@ -2088,7 +2086,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 		}
 		v2* TxtDim = &Element->Cache.Button.ButtonRectDim;
 #else
-		rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, 0, 0, GUIState->FontScale);
+		rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, {}, GUIState->FontScale);
 		//NOTE(Dima): Using cache for button because of the same purpose
 		v2 TxtDim_ = GetRectDim(TxtSizeRc);
 		v2* TxtDim = &TxtDim_;
@@ -2107,8 +2105,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 			GUIState,
 			PrintTextType_PrintText,
 			Buf,
-			WorkRect.Min.x + WorkRectDim.x * 0.5f - TxtDim->x * 0.5f,
-			View->CurrentY,
+			V2(WorkRect.Min.x + WorkRectDim.x * 0.5f - TxtDim->x * 0.5f, View->CurrentY),
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
@@ -2259,7 +2256,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, View->CurrentX, View->CurrentY, GUIState->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
@@ -2279,7 +2276,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
@@ -2340,7 +2337,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 				GUIState,
 				PrintTextType_GetTextSize,
 				"false",
-				0, 0,
+				{},
 				GUIState->FontScale);
 			Element->Cache.BoolButton.ButtonRectDim = GetRectDim(ButRect);
 
@@ -2348,7 +2345,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 				GUIState, 
 				PrintTextType_GetTextSize, 
 				"true", 
-				0, 0, 
+				{},
 				GUIState->FontScale);
 			Element->Cache.BoolButton.ButtonTrueDim = GetRectDim(TrueRc);
 
@@ -2359,8 +2356,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 			GUIState,
 			PrintTextType_PrintText,
 			ButtonName,
-			View->CurrentX,
-			View->CurrentY,
+			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 		v2 NameDim = GetRectDim(NameRect);
@@ -2420,7 +2416,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		RENDERPushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
 		RENDERPushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, PrintButX, PrintButY, GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, V2(PrintButX, PrintButY), GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth), V2(View->CurrentX, ButRc.Min.y));
@@ -2485,7 +2481,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			State,
 			PrintTextType_GetTextSize,
 			MaxValueTxt,
-			0, 0,
+			{},
 			SmallTextScale);
 		v2 MaxValueRcDim = GetRectDim(MaxValueRcSize);
 
@@ -2508,7 +2504,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			State,
 			PrintTextType_GetTextSize,
 			MinValueTxt,
-			0, 0,
+			{},
 			SmallTextScale);
 		v2 MinValueRcDim = GetRectDim(MaxValueRcSize);
 
@@ -2517,8 +2513,8 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			State,
 			PrintTextType_PrintText,
 			MaxValueTxt,
-			MaxValueRcMin.x + 0.5f * (WorkRectDim.x - MaxValueRcDim.x),
-			MaxValueRcMin.y,
+			V2(MaxValueRcMin.x + 0.5f * (WorkRectDim.x - MaxValueRcDim.x),
+			MaxValueRcMin.y),
 			SmallTextScale,
 			GUIGetColor(State, State->ColorTheme.TextColor));
 
@@ -2527,8 +2523,8 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			State,
 			PrintTextType_PrintText,
 			MinValueTxt,
-			MinValueRcMin.x + 0.5f * (WorkRectDim.x - MinValueRcDim.x),
-			MinValueRcMin.y,
+			V2(MinValueRcMin.x + 0.5f * (WorkRectDim.x - MinValueRcDim.x),
+			MinValueRcMin.y),
 			SmallTextScale,
 			GUIGetColor(State, State->ColorTheme.TextColor));
 
@@ -2545,7 +2541,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 			SmallBufAt++;
 		}
-		rect2 SmallTextRect = PrintTextInternal(State, PrintTextType_GetTextSize, SmallTextToPrint, 0, 0, SmallTextScale);
+		rect2 SmallTextRect = PrintTextInternal(State, PrintTextType_GetTextSize, SmallTextToPrint, {}, SmallTextScale);
 		v2 SmallTextRcDim = GetRectDim(SmallTextRect);
 
 		float SmallTextX = WorkRect.Min.x + WorkRectDim.x * 0.5f - SmallTextRcDim.x * 0.5f;
@@ -2555,8 +2551,8 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			State,
 			PrintTextType_PrintText,
 			SmallTextToPrint,
-			SmallTextX,
-			SmallTextY,
+			V2(SmallTextX,
+			SmallTextY),
 			SmallTextScale,
 			GUIGetColor(State, State->ColorTheme.TextColor));
 
@@ -2700,15 +2696,14 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 			GUIState,
 			PrintTextType_PrintText,
 			Name,
-			View->CurrentX,
-			View->CurrentY,
+			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 		v2 NameTextDim = GetRectDim(NameTextSize);
 
 		char ValueBuf[32];
 		stbsp_sprintf(ValueBuf, "%.3f", *Value);
-		rect2 ValueTextSize = PrintTextInternal(GUIState, PrintTextType_GetTextSize, ValueBuf, 0, 0, GUIState->FontScale);
+		rect2 ValueTextSize = PrintTextInternal(GUIState, PrintTextType_GetTextSize, ValueBuf, {}, GUIState->FontScale);
 
 		//NOTE(Dima): Next element to the text is advanced by AscenderHeight
 		v2 WorkRectMin = V2(
@@ -2816,7 +2811,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float ValueTextX = WorkRectMin.x + WorkRectDim.x * 0.5f - (ValueTextSize.Max.x - ValueTextSize.Min.x) * 0.5f;
-		PrintTextInternal(GUIState, PrintTextType_PrintText, ValueBuf, ValueTextX, ValueTextY, GUIState->FontScale);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, ValueBuf, V2(ValueTextX, ValueTextY), GUIState->FontScale);
 
 #if 0
 		char TextBuf[64];
@@ -2865,7 +2860,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	if (GUIElementShouldBeUpdated(Element)) {
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, TextBuf, View->CurrentX, View->CurrentY, GUIState->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 
@@ -2890,7 +2885,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, View->CurrentX, View->CurrentY, GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
 
 		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
 		GUIAdvanceCursor(GUIState);

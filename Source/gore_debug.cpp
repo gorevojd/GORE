@@ -15,6 +15,7 @@ inline void DEBUGDeallocateTreeNode(debug_tree_node* FreeTreeNode, debug_tree_no
 	Entry->PrevBro->NextBro = Entry;
 }
 
+
 inline debug_tree_node* DEBUGAllocateTreeNode(
 	debug_tree_node* FreeSentinel, 
 	stacked_memory* Mem) 
@@ -624,6 +625,8 @@ void DEBUGFramesSlider(debug_state* State) {
 }
 
 void DEBUGFramesGraph(debug_state* State) {
+	FUNCTION_TIMING();
+
 	gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ProfileFrameGraph", 0, 1, 1);
@@ -1021,6 +1024,9 @@ void DEBUGClocksList(debug_state* State, u32 Type) {
 #endif
 		END_TIMING();
 
+		v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+		v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+
 		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextBro;
 		for (
 			Timing; 
@@ -1037,9 +1043,6 @@ void DEBUGClocksList(debug_state* State, u32 Type) {
 					(float)ToViewClocks / (float)Timing->Timing.HitCount,
 					Timing->Timing.HitCount,
 					Timing->Name);
-
-				v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
-				v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
 				gui_interaction NullInteraction = GUINullInteraction();
 
@@ -1120,7 +1123,7 @@ void DEBUGOverlayToOutput(debug_state* State) {
 		DEBUGFramesGraph(State);
 	}
 
-#if 1
+#if 0
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
 
