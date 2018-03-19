@@ -98,8 +98,6 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 		GUI:
 			Build glyph chunks and render them instead individual bitmaps
 			
-			Render labels at the end of the frame
-
 			Interaction rules list
 			Interaction rules list processing
 
@@ -108,7 +106,6 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 			Finish menus
 
-			New Label system or depth
 			Overlapping interactions handling
 
 			GUI text windows
@@ -961,7 +958,7 @@ int main(int ArgsCount, char** Args) {
 
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 20);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
 
 	geometrika_state GameState = {};
 
@@ -978,9 +975,19 @@ int main(int ArgsCount, char** Args) {
 
 	float DeltaTime = 0.0f;
 
+	DEBUG_LOG("Permanent log");
+	DEBUG_ERROR_LOG("Permanent log2");
+	DEBUG_WARN_LOG("Permanent log3");
+	DEBUG_OK_LOG("Permanent log4")
+
 	GlobalRunning = true;
 	while (GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
+
+		//DEBUG_LOG("Hello my friend");
+		//DEBUG_ERROR_LOG("Pasha biceps");
+		//DEBUG_OK_LOG("VIRTUS PRO");
+		//DEBUG_WARN_LOG("OOOOPS");
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
 
@@ -1096,6 +1103,11 @@ int main(int ArgsCount, char** Args) {
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;
+
+
+		char Buf[16];
+		stbsp_sprintf(Buf, "%.2f", 1.0f / DeltaTime);
+		DEBUG_LOG(Buf);
 
 		GlobalTime += DeltaTime;
 	}

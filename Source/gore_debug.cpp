@@ -131,7 +131,7 @@ inline void DEBUGParseNameFromUnique(char* UniqueName, char* Out, int Size) {
 	}
 }
 
-inline debug_tree_node* DEBUGInitLayerTreeNode(
+static debug_tree_node* DEBUGInitLayerTreeNode(
 	debug_tree_node* CurrentBlock, 
 	debug_tree_node* FreeSentinel,
 	stacked_memory* Mem,
@@ -181,7 +181,7 @@ inline debug_tree_node* DEBUGInitLayerTreeNode(
 	return(NewBlock);
 }
 
-inline debug_statistic* DEBUGInitDebugStatistic(
+static debug_statistic* DEBUGInitDebugStatistic(
 	stacked_memory* Mem,
 	debug_statistic** StatisticArray,
 	debug_statistic* StatisticSentinel, 
@@ -308,7 +308,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	{
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 	
-		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(100));
+		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(500));
 	}
 
 	for (int FrameIndex = 0;
@@ -325,6 +325,19 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 	State->LastCollationFrameRecords = 0;
 	State->IsRecording = 1;
+	
+	//NOTE(dima): Initialization of logs
+	State->DebugLogs = PushArray(State->DebugMemory, char*, DEBUG_LOGS_COUNT);
+	State->DebugLogsTypes = PushArray(State->DebugMemory, u32, DEBUG_LOGS_COUNT);
+	State->DebugLogsInited = PushArray(State->DebugMemory, b32, DEBUG_LOGS_COUNT);
+	for (int DebugLogIndex = 0;
+		DebugLogIndex < DEBUG_LOGS_COUNT;
+		DebugLogIndex++)
+	{
+		State->DebugLogs[DebugLogIndex] = (char*)PushSomeMemory(State->DebugMemory, DEBUG_LOG_SIZE);
+		State->DebugLogsTypes[DebugLogIndex] = 0;
+		State->DebugLogsInited[DebugLogIndex] = 0;
+	}
 }
 
 inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
@@ -361,7 +374,7 @@ inline void DEBUGIncrementFrameIndices(debug_state* State) {
 	}
 }
 
-void DEBUGProcessRecords(debug_state* State) {
+static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
 
 	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
@@ -489,6 +502,16 @@ void DEBUGProcessRecords(debug_state* State) {
 				//NOTE(dima): Remembering last section
 				NewSection->Parent = CurrentSection;
 			}break;
+
+			case DebugRecord_Log: {
+				u32 LogIndex = State->DebugWriteLogIndex;
+
+				stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "%s", Record->Value_Value.Value_DebugValue_Text);
+				State->DebugLogsTypes[LogIndex] = DEBUGGetLogTypeFromValueType(Record->Value_Value.ValueType);
+				State->DebugLogsInited[LogIndex] = 1;
+
+				State->DebugWriteLogIndex = (State->DebugWriteLogIndex + 1) % DEBUG_LOGS_COUNT;
+			}break;
 		}
 	}
 
@@ -513,7 +536,7 @@ inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, 
 	RENDERPushRect(GUIState->RenderStack, ColumnRect, Color);
 }
 
-void DEBUGFramesSlider(debug_state* State) {
+static void DEBUGFramesSlider(debug_state* State) {
 	gui_state* GUIState = State->GUIState;
 	
 	//NOTE(dima): This is jush for safe
@@ -619,7 +642,7 @@ void DEBUGFramesSlider(debug_state* State) {
 	State->RecordingChanged = (PrevRecording == State->IsRecording);
 }
 
-void DEBUGFramesGraph(debug_state* State) {
+static void DEBUGFramesGraph(debug_state* State) {
 	FUNCTION_TIMING();
 
 	gui_state* GUIState = State->GUIState;
@@ -914,11 +937,11 @@ void DEBUGFramesGraph(debug_state* State) {
 		else if (ActiveElement == DEBUGFrameGraph_FPS) {
 			State->FramesGraphType = DEBUGFrameGraph_FPS;
 		}
-		else if (ActiveElement == DEBUGFrameGraph_FrameClocks) {
-			State->FramesGraphType = DEBUGFrameGraph_FrameClocks;
-		}
 		else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
 			State->FramesGraphType = DEBUGFrameGraph_CollectedRecords;
+		}
+		else if (ActiveElement == DEBUGFrameGraph_FrameClocks) {
+			State->FramesGraphType = DEBUGFrameGraph_FrameClocks;
 		}
 #endif
 
@@ -929,7 +952,7 @@ void DEBUGFramesGraph(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void DEBUGViewingFrameInfo(debug_state* State) {
+static void DEBUGViewingFrameInfo(debug_state* State) {
 	char Buf[256];
 
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
@@ -960,7 +983,7 @@ inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
 	return(Result);
 }
 
-void DEBUGClocksList(debug_state* State, u32 Type) {
+static void DEBUGClocksList(debug_state* State, u32 Type) {
 	gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ClockList", 0, 1, 1);
@@ -1068,10 +1091,117 @@ void DEBUGClocksList(debug_state* State, u32 Type) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
+static void DEBUGDrawConsole(debug_state* State) {
+
+}
+
+static void DEBUGLogger(debug_state* State) {
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "Logr", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		GUIPreAdvanceCursor(GUIState);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
+		float DescPlusGap = RowAdvance - AscByScale;
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		gui_element_cache* Cache = &Element->Cache;
+		if (!Cache->IsInitialized) {
+
+			Cache->Dimensional.Dimension = V2(650, AscByScale * 20);
+
+			Cache->IsInitialized = 1;
+		}
+
+		v2* WorkDim = &Cache->Dimensional.Dimension;
+		v2 WorkP = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		rect2 WorkRect = Rect2MinDim(WorkP, *WorkDim);
+
+		v4 WindowColor = GUIGetColor(GUIState, GUIColor_Black);
+		WindowColor = V4(WindowColor.rgb, 0.90f);
+		v4 WindowOutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+
+		RENDERPushRect(GUIState->RenderStack, WorkRect, WindowColor);
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 3, WindowOutlineColor);
+
+		v4 LogCol = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
+		v4 WarnLogCol = GUIGetColor(GUIState, GUIState->ColorTheme.WarningLogColor);
+		v4 OkLogCol = GUIGetColor(GUIState, GUIState->ColorTheme.OkLogColor);
+		v4 ErrLogCol = GUIGetColor(GUIState, GUIState->ColorTheme.ErrLogColor);
+
+		float PrintY = WorkRect.Max.y - (RowAdvance - AscByScale) * GUIState->FontScale;
+		int CurrentLogQueueIndex = State->DebugWriteLogIndex - 1;
+		while (PrintY >= WorkRect.Min.y - DescPlusGap) {
+
+			b32 LogInited = State->DebugLogsInited[CurrentLogQueueIndex];
+
+			if (LogInited) {
+
+				v4 LogResColor = LogCol;
+				u32 LogType = State->DebugLogsTypes[CurrentLogQueueIndex];
+				if (LogType == DebugLog_ErrLog) {
+					LogResColor = ErrLogCol;
+				}
+				else if (LogType == DebugLog_Log) {
+					LogResColor = LogCol;
+				}
+				else if (LogType == DebugLog_WarnLog) {
+					LogResColor = WarnLogCol;
+				}
+				else if (LogType == DebugLog_OkLog) {
+					LogResColor = OkLogCol;
+				}
+
+				gui_interaction NullInteraction = GUINullInteraction();
+				GUITextBase(
+					GUIState,
+					State->DebugLogs[CurrentLogQueueIndex],
+					V2(Layout->CurrentX, PrintY),
+					LogResColor,
+					GUIState->FontScale,
+					&NullInteraction,
+					LogResColor,
+					V4(0.0f, 0.0f, 0.0f, 0.0f),
+					0);
+
+				PrintY -= RowAdvance;
+
+				CurrentLogQueueIndex = (CurrentLogQueueIndex - 1);
+				if (CurrentLogQueueIndex < 0) {
+					CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
+				}
+				
+				if (CurrentLogQueueIndex == State->DebugWriteLogIndex) {
+					break;
+				}
+			}
+			else {
+				break;
+			}
+		}
+
+		gui_interaction ResizeInteraction = GUIResizeInteraction(WorkP, WorkDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
+
+		GUIDescribeElement(GUIState, *WorkDim, WorkP);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
 enum debug_profile_active_element {
 	DebugProfileActiveElement_TopClocks,
 	DebugProfileActiveElement_TopExClocks,
+	DebugProfileActiveElement_Threads,
+
 	DebugProfileActiveElement_FrameGraph,
+
+	DebugProfileActiveElement_NodeClocks,
 };
 
 static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
@@ -1106,6 +1236,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 						GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
 						GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
 						GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
+						GUIRadioButton(State->GUIState, "Threads", DebugProfileActiveElement_Threads);
 						GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
 						GUIEndRow(State->GUIState);
 
@@ -1118,6 +1249,13 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 						else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
 							DEBUGFramesGraph(State);
 						}
+						else if (ActiveProfileElement == DebugProfileActiveElement_Threads) {
+							//DEBUGThreadsOverlay(State);
+						}
+					}break;
+
+					case DebugValue_Logger: {
+						DEBUGLogger(State);
 					}break;
 				}
 			}break;
@@ -1125,7 +1263,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 	}
 }
 
-void DEBUGOverlayToOutput(debug_state* State) {
+static void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
 
 	gui_state* GUIState = State->GUIState;
@@ -1149,7 +1287,6 @@ void DEBUGOverlayToOutput(debug_state* State) {
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
-
 
 #if 1
 	GUITreeBegin(GUIState, "Test");
@@ -1352,6 +1489,10 @@ void DEBUGOverlayToOutput(debug_state* State) {
 
 void DEBUGUpdate(debug_state* State) {
 	FUNCTION_TIMING();
+
+	BEGIN_SECTION("DEBUG");
+	DEBUG_VALUE(DebugValue_Logger);
+	END_SECTION();
 
 	DEBUGProcessRecords(State);
 

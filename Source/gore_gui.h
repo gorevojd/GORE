@@ -1089,6 +1089,11 @@ struct gui_color_theme {
 	u32 GraphColor8;
 	u32 GraphBackColor;
 
+	u32 LogColor;
+	u32 ErrLogColor;
+	u32 OkLogColor;
+	u32 WarningLogColor;
+
 	u32 ButtonTextColor;
 	u32 ButtonBackColor;
 	u32 ButtonTextHighColor;
@@ -1124,6 +1129,11 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	//Result.GraphColor1 = GUIColorExt_green3;
 	//Result.GraphBackColor = GUIColorExt_red4;
+
+	Result.LogColor = Result.TextColor;
+	Result.OkLogColor = GUIColorExt_OliveDrab;
+	Result.WarningLogColor = GUIColor_DarkGoldenrod;
+	Result.ErrLogColor = GUIColorExt_red3;
 
 
 	Result.ButtonTextColor = GUIColorExt_burlywood;

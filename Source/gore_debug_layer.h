@@ -16,6 +16,14 @@ enum debug_record_type {
 	DebugRecord_FrameBarrier,
 
 	DebugRecord_Value,
+	DebugRecord_Log,
+};
+
+enum debug_log_type {
+	DebugLog_Log,
+	DebugLog_ErrLog,
+	DebugLog_WarnLog,
+	DebugLog_OkLog,
 };
 
 enum debug_value_type {
@@ -32,10 +40,36 @@ enum debug_value_type {
 	DebugValue_ViewFrameInfo,
 	DebugValue_ProfileOverlays,
 
+	DebugValue_Logger,
+
+	DebugValue_Log,
+	DebugValue_ErrorLog,
+	DebugValue_WarnLog,
+	DebugValue_OkLog,
+
 	//DebugValue_FramesGraph,
 	//DebugValue_TopTotalClocks,
 	//DebugValue_TopExClocks,
 };
+
+inline u32 DEBUGGetLogTypeFromValueType(u32 ValueType) {
+	u32 Result = DebugLog_Log;
+
+	if (ValueType == DebugValue_Log) {
+		Result = DebugLog_Log;
+	}
+	else if (ValueType == DebugValue_ErrorLog) {
+		Result = DebugLog_ErrLog;
+	}
+	else if (ValueType == DebugValue_OkLog) {
+		Result = DebugLog_OkLog;
+	}
+	else if (ValueType == DebugValue_WarnLog) {
+		Result = DebugLog_WarnLog;
+	}
+
+	return(Result);
+}
 
 struct debug_record {
 	char* Name;
@@ -131,6 +165,11 @@ inline void DEBUGSetRecording(b32 Recording) {
 
 #define DEBUG_VALUE(value_type) {debug_record* Rec = ADD_DEBUG_RECORD("Value", DebugRecord_Value); Rec->Value_Value.ValueType = value_type;}
 #define DEBUG_VALUE_SET_VALUE(rec, value_type, value) rec->Value_Value.Value_##value_type = value
+
+#define DEBUG_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("Log", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_Log; Rec->Value_Value.Value_DebugValue_Text = log;}
+#define DEBUG_ERROR_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("ErrLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_ErrorLog; Rec->Value_Value.Value_DebugValue_Text = log;}
+#define DEBUG_OK_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("OkLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_OkLog; Rec->Value_Value.Value_DebugValue_Text = log;}
+#define DEBUG_WARN_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("WarnLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_WarnLog; Rec->Value_Value.Value_DebugValue_Text = log;}
 
 #define DEBUG_FRAME_BARRIER(delta) {debug_record* Rec = DEBUGAddRecord("FrameBarrier", DEBUG_UNIQUE_STRING("FrameBarrier"), DebugRecord_FrameBarrier); Rec->Value_Value.Value_DebugValue_F32 = delta;}
 

@@ -119,6 +119,8 @@ struct debug_profiled_frame {
 };
 
 #define DEBUG_FRAMES_COUNT 256
+#define DEBUG_LOGS_COUNT 1024
+#define DEBUG_LOG_SIZE 1024
 struct debug_state {
 	debug_tree_node* FreeBlockSentinel;
 
@@ -135,6 +137,11 @@ struct debug_state {
 	stacked_memory* DebugMemory;
 
 	u32 FramesGraphType;
+
+	char** DebugLogs;
+	u32* DebugLogsTypes;
+	b32* DebugLogsInited;
+	int DebugWriteLogIndex;
 
 	u32 LastCollationFrameRecords;
 	b32 IsRecording;
@@ -153,10 +160,7 @@ enum debug_frame_graph_type {
 };
 
 
-extern void DEBUGFramesSlider(debug_state* State);
-extern void DEBUGFramesGraph(debug_state* State);
 extern void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState);
-extern void DEBUGProcessRecords(debug_state* State);
 extern void DEBUGUpdate(debug_state* State);
 
 #endif
