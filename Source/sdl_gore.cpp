@@ -991,7 +991,7 @@ int main(int ArgsCount, char** Args) {
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
 
-		BEGIN_TIMING("Frame update");
+		BEGIN_TIMING(DEBUG_FRAME_UPDATE_NODE_NAME);
 		BEGIN_SECTION("Platform");
 
 		BEGIN_TIMING("Input processing");

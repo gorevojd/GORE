@@ -19,6 +19,7 @@
 #include <SDL_thread.h>
 
 #define DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS 1
+#define DEBUG_FRAME_UPDATE_NODE_NAME "Frame update"
 
 struct debug_timing_snapshot {
 	u64 BeginClock;
@@ -110,6 +111,7 @@ struct debug_profiled_frame {
 
 	debug_tree_node* CurrentTiming;
 	debug_tree_node* TimingRoot;
+	debug_tree_node* FrameUpdateNode;
 
 	debug_tree_node* CurrentSection;
 	debug_tree_node* SectionSentinel;

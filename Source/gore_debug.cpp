@@ -216,6 +216,7 @@ static debug_statistic* DEBUGInitDebugStatistic(
 		Statistic->PrevBro->NextBro = Statistic;
 		Statistic->NextInHash = 0;
 
+		//NOTE(dima): Inserting to hash table
 		if (PrevInHash) {
 			PrevInHash->NextInHash = Statistic;
 		}
@@ -245,6 +246,9 @@ static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 		&Frame->FrameMemory,
 		Frame->TimingRoot);
 	Frame->CurrentTiming = Frame->TimingRoot;
+
+	//NOTE(dima): Setting frame update node to zero
+	Frame->FrameUpdateNode = 0;
 
 	Frame->TimingStatisticSentinel = DEBUGAllocateStatistic(&Frame->FrameMemory);
 
@@ -419,6 +423,9 @@ static void DEBUGProcessRecords(debug_state* State) {
 				//NOTE(dima): difference between start and end clocks
 				TimingSnapshot->ClocksElapsed = Record->Clocks - TimingSnapshot->BeginClock;
 
+				//TODO(dima): think about not going through children.. Instead of it
+				//TODO(dima): I might just change parent childrenSumCLocks
+
 				//NOTE(dima): Going througn children and summing all their total clocks
 				TimingSnapshot->ChildrenSumClocks = 0;
 				debug_tree_node* At = CurrentBlock->ChildrenSentinel->NextBro;
@@ -475,6 +482,22 @@ static void DEBUGProcessRecords(debug_state* State) {
 				CollationFrame->DeltaTime = DeltaTime;
 				CollationFrame->RecordCount = State->LastCollationFrameRecords + FrameBarrierIndex;
 
+				//NOTE(dima): Setting frame update node if founded
+				debug_tree_node* FrameUpdateNode = 0;
+				for (debug_tree_node* At = Frame->TimingRoot->ChildrenSentinel->NextBro;
+					At != Frame->TimingRoot->ChildrenSentinel;
+					At = At->NextBro)
+				{
+					char NodeName[256];
+					DEBUGParseNameFromUnique(At->UniqueName, NodeName, sizeof(NodeName));
+
+					if (StringsAreEqual(NodeName, DEBUG_FRAME_UPDATE_NODE_NAME)) {
+						FrameUpdateNode = At;
+						break;
+					}
+				}
+				CollationFrame->FrameUpdateNode = FrameUpdateNode;
+
 				//NOTE(dima): Incrementing frame indices;
 				DEBUGIncrementFrameIndices(State);
 
@@ -506,7 +529,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_Log: {
 				u32 LogIndex = State->DebugWriteLogIndex;
 
-				stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "%s", Record->Value_Value.Value_DebugValue_Text);
+				stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "/> %s", Record->Value_Value.Value_DebugValue_Text);
 				State->DebugLogsTypes[LogIndex] = DEBUGGetLogTypeFromValueType(Record->Value_Value.ValueType);
 				State->DebugLogsInited[LogIndex] = 1;
 
@@ -781,19 +804,7 @@ static void DEBUGFramesGraph(debug_state* State) {
 						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
 					}
 					else {
-						debug_tree_node* FrameUpdateNode = 0;
-						for (debug_tree_node* At = Frame->TimingRoot->ChildrenSentinel->NextBro;
-							At != Frame->TimingRoot->ChildrenSentinel;
-							At = At->NextBro)
-						{
-							char NodeName[256];
-							DEBUGParseNameFromUnique(At->UniqueName, NodeName, sizeof(NodeName));
-
-							if (StringsAreEqual(NodeName, "Frame update")) {
-								FrameUpdateNode = At;
-								break;
-							}
-						}
+						debug_tree_node* FrameUpdateNode = Frame->FrameUpdateNode;
 						
 						if (FrameUpdateNode) {
 							float FilledPercentage = 1.0f;
@@ -1001,7 +1012,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
-			Cache->Dimensional.Dimension = V2(650, AscByScale * 20);
+			Cache->Dimensional.Dimension = V2(AscByScale * 60, AscByScale * 20);
 
 			Cache->IsInitialized = 1;
 		}
@@ -1050,6 +1061,8 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
 		v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
+		float OneOverFrameClocks = 100.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+
 		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextBro;
 		for (
 			Timing; 
@@ -1061,9 +1074,12 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		
 				u64 ToViewClocks = DEBUGGetClocksFromTiming(Timing, Type);
 		
-				stbsp_sprintf(TextBuf, "%11lluc %13.2fc/h %8u  %-30s",
+				float CoveragePercentage = (float)ToViewClocks * OneOverFrameClocks;
+
+				stbsp_sprintf(TextBuf, "%11lluc %13.2fc/h  %6.2f%% %8u  %-30s",
 					ToViewClocks,
 					(float)ToViewClocks / (float)Timing->Timing.HitCount,
+					CoveragePercentage,
 					Timing->Timing.HitCount,
 					Timing->Name);
 
