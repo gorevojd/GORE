@@ -19,7 +19,12 @@
 #include <SDL_thread.h>
 
 #define DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS 1
+#define DEBUG_NORMALIZE_FRAME_GRAPH 1
 #define DEBUG_FRAME_UPDATE_NODE_NAME "Frame update"
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+#define DEBUG_NORMALIZE_FRAME_FREQUENCY 256
+#endif
 
 struct debug_timing_snapshot {
 	u64 BeginClock;
@@ -132,6 +137,7 @@ struct debug_state {
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
 	u32 NewestFrameIndex;
 	u32 CollationFrameIndex;
+	u32 LastCollationFrameIndex = 0;
 	u32 ViewFrameIndex;
 	u32 OldestFrameIndex;
 	b32 OldeshShouldBeIncremented;
@@ -140,6 +146,19 @@ struct debug_state {
 
 	u32 FramesGraphBarType;
 	u32 RootNodeBarType;
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+	u32 SegmentFrameCount;
+	b32 NotFirstSegment;
+
+	u32 MaxSegmentCollectedRecords;
+	float MaxSegmentDT;
+	float MaxSegmentFPS;
+
+	u32 MaxLastSegmentCollectedRecords;
+	float MaxLastSegmentDT;
+	float MaxLastSegmentFPS;
+#endif
 
 	char** DebugLogs;
 	u32* DebugLogsTypes;

@@ -343,6 +343,15 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		State->DebugLogsTypes[DebugLogIndex] = 0;
 		State->DebugLogsInited[DebugLogIndex] = 0;
 	}
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+	State->SegmentFrameCount = 0;
+	State->NotFirstSegment = 0;
+
+	State->MaxSegmentCollectedRecords = 0;
+	State->MaxSegmentDT = 0.0f;
+	State->MaxSegmentFPS = 0.0f;
+#endif
 }
 
 inline debug_profiled_frame* DEBUGGetCollationFrame(debug_state* State) {
@@ -357,6 +366,20 @@ inline debug_profiled_frame* DEBUGGetFrameByIndex(debug_state* State, u32 Index)
 	return(Frame);
 }
 
+
+inline debug_profiled_frame* DEBUGGetNewestFrame(debug_state* State) {
+	debug_profiled_frame* Result = 0;
+
+	int TargetIndex = (int)State->CollationFrameIndex - 1;
+	if (TargetIndex < 0) {
+		TargetIndex += DEBUG_FRAMES_COUNT;
+	}
+
+	Result = &State->Frames[TargetIndex % DEBUG_FRAMES_COUNT];
+
+	return(Result);
+}
+
 inline u32 DEBUGIncrementFrameIndex(u32 Index) {
 	u32 Result = (Index + GlobalRecordTable->Increment.value) % DEBUG_FRAMES_COUNT;
 
@@ -368,6 +391,7 @@ inline void DEBUGIncrementFrameIndices(debug_state* State) {
 	if (State->ViewFrameIndex != State->CollationFrameIndex) {
 		State->ViewFrameIndex = DEBUGIncrementFrameIndex(State->ViewFrameIndex);
 	}
+	State->LastCollationFrameIndex = State->CollationFrameIndex;
 	State->CollationFrameIndex = DEBUGIncrementFrameIndex(State->CollationFrameIndex);
 
 	if (State->CollationFrameIndex == State->OldestFrameIndex) {
@@ -700,10 +724,44 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+		if (State->LastCollationFrameIndex != State->CollationFrameIndex) {
+			debug_profiled_frame* NewFrame = DEBUGGetNewestFrame(State);
+
+			float TempFPS = 1.0f / NewFrame->DeltaTime;
+			State->MaxSegmentFPS = Max(State->MaxSegmentFPS, TempFPS);
+			State->MaxSegmentDT = Max(State->MaxSegmentDT, NewFrame->DeltaTime);
+			State->MaxSegmentCollectedRecords = Max(State->MaxSegmentCollectedRecords, NewFrame->RecordCount);
+		}
+
+		State->SegmentFrameCount++;
+
+		if (State->SegmentFrameCount % DEBUG_NORMALIZE_FRAME_FREQUENCY == 0) {
+			State->SegmentFrameCount = 0;
+			State->NotFirstSegment = 1;
+
+			State->MaxLastSegmentCollectedRecords = State->MaxSegmentCollectedRecords;
+			State->MaxLastSegmentDT = State->MaxSegmentDT;
+			State->MaxLastSegmentFPS = State->MaxSegmentFPS;
+
+			State->MaxSegmentCollectedRecords = 0;
+			State->MaxSegmentDT = 0.0f;
+			State->MaxSegmentFPS = 0.0f;
+		}
+#endif
+
 		switch (Type) {
 
 			case DEBUGFrameGraph_DeltaTime: {
 				float OneOverMaxMs = 30.0f;
+				float NormalizeValue = OneOverMaxMs; 
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+				if (State->NotFirstSegment) {
+					NormalizeValue = 0.5f / State->MaxLastSegmentDT;
+				}
+#endif
+
 				for (int ColumnIndex = 0;
 					ColumnIndex < DEBUG_FRAMES_COUNT;
 					ColumnIndex++)
@@ -714,7 +772,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
 					}
 					else {
-						float FilledPercentage = Frame->DeltaTime * OneOverMaxMs;
+						float FilledPercentage = Frame->DeltaTime * NormalizeValue;
 						FilledPercentage = Clamp01(FilledPercentage);
 
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
@@ -746,6 +804,14 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 			case DEBUGFrameGraph_FPS: {
 				float OneOverMaxShowFPS = 1.0f / 300.0f;
+				float NormalizeValue = OneOverMaxShowFPS;
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+				if (State->NotFirstSegment) {
+					NormalizeValue = 0.5f / State->MaxLastSegmentFPS;
+				}
+#endif
+
 				for (int ColumnIndex = 0;
 					ColumnIndex < DEBUG_FRAMES_COUNT;
 					ColumnIndex++)
@@ -757,7 +823,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
 					}
 					else {
-						float FilledPercentage = CurrentFPS * OneOverMaxShowFPS;
+						float FilledPercentage = CurrentFPS * NormalizeValue;
 						FilledPercentage = Clamp01(FilledPercentage);
 
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
@@ -861,6 +927,13 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 			case DEBUGFrameGraph_CollectedRecords: {
 				float OneOverMaxRecs = 1.0f / (float)DEBUG_RECORD_MAX_COUNT;
+				float NormalizeValue = OneOverMaxRecs;
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+				if (State->NotFirstSegment) {
+					NormalizeValue = 0.5f / ((float)State->MaxLastSegmentCollectedRecords);
+				}
+#endif
 
 				for (int ColumnIndex = 0;
 					ColumnIndex < DEBUG_FRAMES_COUNT;
@@ -872,7 +945,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
 					}
 					else {
-						float FilledPercentage = (float)Frame->RecordCount * (float)OneOverMaxRecs;
+						float FilledPercentage = (float)Frame->RecordCount * (float)NormalizeValue;
 						FilledPercentage = Clamp01(FilledPercentage);
 
 						rect2 FilledRect = Rect2MinMax(V2(ColumnRect.Min.x, ColumnRect.Max.y - ColumnDim.y * FilledPercentage), ColumnRect.Max);
