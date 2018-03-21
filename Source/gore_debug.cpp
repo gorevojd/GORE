@@ -1150,7 +1150,12 @@ static void DEBUGLogger(debug_state* State) {
 		v4 ErrLogCol = GUIGetColor(GUIState, GUIState->ColorTheme.ErrLogColor);
 
 		float PrintY = WorkRect.Max.y - (RowAdvance - AscByScale) * GUIState->FontScale;
+
 		int CurrentLogQueueIndex = State->DebugWriteLogIndex - 1;
+		if (CurrentLogQueueIndex < 0) {
+			CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
+		}
+
 		while (PrintY >= WorkRect.Min.y - DescPlusGap) {
 
 			b32 LogInited = State->DebugLogsInited[CurrentLogQueueIndex];
@@ -1186,7 +1191,7 @@ static void DEBUGLogger(debug_state* State) {
 
 				PrintY -= RowAdvance;
 
-				CurrentLogQueueIndex = (CurrentLogQueueIndex - 1);
+				CurrentLogQueueIndex = CurrentLogQueueIndex - 1;
 				if (CurrentLogQueueIndex < 0) {
 					CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 				}

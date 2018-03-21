@@ -1106,8 +1106,11 @@ int main(int ArgsCount, char** Args) {
 
 
 		char Buf[16];
+		char TimeBuf[16];
 		stbsp_sprintf(Buf, "%.2f", 1.0f / DeltaTime);
+		stbsp_sprintf(TimeBuf, "%.2f", GlobalTime);
 		DEBUG_LOG(Buf);
+		DEBUG_OK_LOG(TimeBuf);
 
 		GlobalTime += DeltaTime;
 	}
