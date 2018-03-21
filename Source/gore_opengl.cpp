@@ -401,7 +401,6 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 				if (!Buffer->TextureHandle) {
 					OpenGLAllocateTexture(Buffer);
 				}
-
 				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
 				glBegin(GL_TRIANGLES);
 

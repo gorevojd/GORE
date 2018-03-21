@@ -62,8 +62,8 @@ struct debug_statistic {
 
 	debug_statistic* NextInHash;
 
-	debug_statistic* NextBro;
-	debug_statistic* PrevBro;
+	debug_statistic* NextAllocBro;
+	debug_statistic* PrevAllocBro;
 
 	union {
 		debug_statistic_timing Timing;
@@ -168,6 +168,7 @@ struct debug_state {
 	u32 LastCollationFrameRecords;
 	b32 IsRecording;
 	b32 RecordingChanged;
+	b32 RecordingChangedWasReenabled;
 
 	gui_state* GUIState;
 };

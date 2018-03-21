@@ -69,8 +69,8 @@ inline debug_statistic* DEBUGAllocateStatistic(stacked_memory* Mem) {
 
 	Result = PushStruct(Mem, debug_statistic);
 
-	Result->PrevBro = Result;
-	Result->NextBro = Result;
+	Result->PrevAllocBro = Result;
+	Result->NextAllocBro = Result;
 
 	return(Result);
 }
@@ -92,27 +92,27 @@ inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statis
 
 inline void DEBUGInsertStatisticAfter(debug_statistic* After, debug_statistic* ToInsert) {
 	if (After != ToInsert) {
-		ToInsert->PrevBro->NextBro = ToInsert->NextBro;
-		ToInsert->NextBro->PrevBro = ToInsert->PrevBro;
+		ToInsert->PrevAllocBro->NextAllocBro = ToInsert->NextAllocBro;
+		ToInsert->NextAllocBro->PrevAllocBro = ToInsert->PrevAllocBro;
 
-		ToInsert->PrevBro = After;
-		ToInsert->NextBro = After->NextBro;
+		ToInsert->PrevAllocBro = After;
+		ToInsert->NextAllocBro = After->NextAllocBro;
 
-		ToInsert->NextBro->PrevBro = ToInsert;
-		ToInsert->PrevBro->NextBro = ToInsert;
+		ToInsert->NextAllocBro->PrevAllocBro = ToInsert;
+		ToInsert->PrevAllocBro->NextAllocBro = ToInsert;
 	}
 }
 
 inline void DEBUGInsertStatisticBefore(debug_statistic* Before, debug_statistic* ToInsert) {
 	if (Before != ToInsert) {
-		ToInsert->PrevBro->NextBro = ToInsert->NextBro;
-		ToInsert->NextBro->PrevBro = ToInsert->PrevBro;
+		ToInsert->PrevAllocBro->NextAllocBro = ToInsert->NextAllocBro;
+		ToInsert->NextAllocBro->PrevAllocBro = ToInsert->PrevAllocBro;
 
-		ToInsert->PrevBro = Before->PrevBro;
-		ToInsert->NextBro = Before;
+		ToInsert->PrevAllocBro = Before->PrevAllocBro;
+		ToInsert->NextAllocBro = Before;
 
-		ToInsert->NextBro->PrevBro = ToInsert;
-		ToInsert->PrevBro->NextBro = ToInsert;
+		ToInsert->NextAllocBro->PrevAllocBro = ToInsert;
+		ToInsert->PrevAllocBro->NextAllocBro = ToInsert;
 	}
 }
 
@@ -209,11 +209,11 @@ static debug_statistic* DEBUGInitDebugStatistic(
 	if (Statistic == 0) {
 		Statistic = DEBUGAllocateStatistic(Mem);
 
-		Statistic->NextBro = StatisticSentinel->NextBro;
-		Statistic->PrevBro = StatisticSentinel;
+		Statistic->NextAllocBro = StatisticSentinel->NextAllocBro;
+		Statistic->PrevAllocBro = StatisticSentinel;
 
-		Statistic->NextBro->PrevBro = Statistic;
-		Statistic->PrevBro->NextBro = Statistic;
+		Statistic->NextAllocBro->PrevAllocBro = Statistic;
+		Statistic->PrevAllocBro->NextAllocBro = Statistic;
 		Statistic->NextInHash = 0;
 
 		//NOTE(dima): Inserting to hash table
@@ -330,6 +330,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 	State->LastCollationFrameRecords = 0;
 	State->IsRecording = 1;
+	State->RecordingChanged = 0;
 	
 	//NOTE(dima): Initialization of logs
 	State->DebugLogs = PushArray(State->DebugMemory, char*, DEBUG_LOGS_COUNT);
@@ -387,7 +388,9 @@ inline u32 DEBUGIncrementFrameIndex(u32 Index) {
 }
 
 inline void DEBUGIncrementFrameIndices(debug_state* State) {
-	State->NewestFrameIndex = State->CollationFrameIndex;
+	if (GlobalRecordTable->Increment.value) {
+		State->NewestFrameIndex = State->CollationFrameIndex;
+	}
 	if (State->ViewFrameIndex != State->CollationFrameIndex) {
 		State->ViewFrameIndex = DEBUGIncrementFrameIndex(State->ViewFrameIndex);
 	}
@@ -525,8 +528,36 @@ static void DEBUGProcessRecords(debug_state* State) {
 				}
 				CollationFrame->FrameUpdateNode = FrameUpdateNode;
 
-				//NOTE(dima): Incrementing frame indices;
-				DEBUGIncrementFrameIndices(State);
+				//NOTE(dima): If recording was set to 0, then we should stop new frame event recording
+				if (State->RecordingChanged && (State->IsRecording == 0)) {
+					DEBUGSetRecording(State->IsRecording);
+					State->RecordingChanged = 0;
+				}
+
+				b32 IndicesShouldBeIncremented = 1;
+				if (State->RecordingChangedWasReenabled) {
+					State->RecordingChanged = 0;
+
+					IndicesShouldBeIncremented = 0;
+				}
+
+				/*
+					NOTE(dima):
+						If we stopped recording and then again enabled it
+						this means that we will hit frame barrier twice. 
+						First - when recording just been set to 0, and 
+						then when we enable it again and it will hit
+						DEBUGSetRecording at the end of DEBUGProcessRecords
+						that will lead to hitting frame barrier second time.
+
+						So. That way we need to make sure if we are actually
+						need to increment our indices.
+				*/
+
+				if (IndicesShouldBeIncremented) {
+					//NOTE(dima): Incrementing frame indices;
+					DEBUGIncrementFrameIndices(State);
+				}
 
 				//NOTE(dima): Freeing the frame
 				debug_profiled_frame* NewFrame = DEBUGGetCollationFrame(State);
@@ -556,7 +587,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 			case DebugRecord_Log: {
 				u32 LogIndex = State->DebugWriteLogIndex;
 
-				stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "/> %s", Record->Value_Value.Value_DebugValue_Text);
+				stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "%s", Record->Value_Value.Value_DebugValue_Text);
 				State->DebugLogsTypes[LogIndex] = DEBUGGetLogTypeFromValueType(Record->Value_Value.ValueType);
 				State->DebugLogsInited[LogIndex] = 1;
 
@@ -566,10 +597,11 @@ static void DEBUGProcessRecords(debug_state* State) {
 	}
 
 	//BUG(dima): This should happen in other place.
-	//NOTE(dima): If recording was set to 0, then we should stop new frame event recording
-	if (State->RecordingChanged) {
+	State->RecordingChangedWasReenabled = 0;
+	if (State->RecordingChanged && State->IsRecording) {
 		DEBUGSetRecording(State->IsRecording);
-		State->RecordingChanged = 0;
+
+		State->RecordingChangedWasReenabled = 1;
 	}
 
 	//TODO(dima): Think about when to do this
@@ -599,7 +631,11 @@ static void DEBUGFramesSlider(debug_state* State) {
 	}
 
 	if (GUIButton(GUIState, "Oldest")) {
-		State->ViewFrameIndex = State->CollationFrameIndex + 1;
+		State->ViewFrameIndex = State->OldestFrameIndex;
+	}
+
+	if (GUIButton(GUIState, "Record next")) {
+
 	}
 	GUIEndRow(GUIState);
 
@@ -689,7 +725,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 
-	State->RecordingChanged = (PrevRecording == State->IsRecording);
+	State->RecordingChanged = (PrevRecording != State->IsRecording);
 }
 
 static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* ViewNode = 0) {
@@ -1043,7 +1079,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
-		
+
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
@@ -1066,18 +1102,18 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		BEGIN_TIMING("ClockListSorting");
 #if 1
 		//NOTE(dima): Selection sort implemented
-		debug_statistic* SortAt = Frame->TimingStatisticSentinel->NextBro;
+		debug_statistic* SortAt = Frame->TimingStatisticSentinel->NextAllocBro;
 		for (SortAt;
-			SortAt != Frame->TimingStatisticSentinel->PrevBro;)
+			SortAt != Frame->TimingStatisticSentinel->PrevAllocBro;)
 		{
 			debug_statistic* Biggest = SortAt;
 
-			for (debug_statistic* ScanAt = SortAt->NextBro;
+			for (debug_statistic* ScanAt = SortAt->NextAllocBro;
 				ScanAt != Frame->TimingStatisticSentinel;
-				ScanAt = ScanAt->NextBro)
+				ScanAt = ScanAt->NextAllocBro)
 			{
 				if (DEBUGGetClocksFromTiming(ScanAt, Type) >
-					DEBUGGetClocksFromTiming(Biggest, Type)) 
+					DEBUGGetClocksFromTiming(Biggest, Type))
 				{
 					Biggest = ScanAt;
 				}
@@ -1087,7 +1123,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 				DEBUGInsertStatisticBefore(SortAt, Biggest);
 			}
 			else {
-				SortAt = SortAt->NextBro;
+				SortAt = SortAt->NextAllocBro;
 			}
 		}
 #endif
@@ -1096,13 +1132,16 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		v4 TextColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
 		v4 TextHighColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 
-		float OneOverFrameClocks = 100.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+		float OneOverFrameClocks = 1.0f;
+		if (Frame->FrameUpdateNode) {
+			OneOverFrameClocks = 100.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+		}
 
-		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextBro;
+		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextAllocBro;
 		for (
 			Timing; 
 			Timing != Frame->TimingStatisticSentinel; 
-			Timing = Timing->NextBro) 
+			Timing = Timing->NextAllocBro) 
 		{
 			if (AtY < GroundRc.Max.y + GUIState->FontInfo->DescenderHeight * GUIState->FontScale) {
 				char TextBuf[256];
@@ -1221,10 +1260,22 @@ static void DEBUGLogger(debug_state* State) {
 				}
 
 				gui_interaction NullInteraction = GUINullInteraction();
+
+				rect2 PreRect = GUITextBase(
+					GUIState,
+					"/> ",
+					V2(Layout->CurrentX, PrintY),
+					LogCol,
+					GUIState->FontScale,
+					&NullInteraction,
+					LogCol,
+					V4(0.0f, 0.0f, 0.0f, 0.0f),
+					0);
+
 				GUITextBase(
 					GUIState,
 					State->DebugLogs[CurrentLogQueueIndex],
-					V2(Layout->CurrentX, PrintY),
+					V2(PreRect.Max.x, PrintY),
 					LogResColor,
 					GUIState->FontScale,
 					&NullInteraction,

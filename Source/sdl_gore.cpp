@@ -87,8 +87,6 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 	TODO(Dima):
 
 		DEBUG:
-			Fix waiting frame big clock numbers
-
 			DEBUG console
 			DEBUG logger
 
@@ -1014,7 +1012,7 @@ int main(int ArgsCount, char** Args) {
 
 		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
 
-#if 0
+#if 1
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
 		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
@@ -1029,9 +1027,9 @@ int main(int ArgsCount, char** Args) {
 		//RENDERPushBitmap(Stack, &Image, { 0, 0 }, 800);
 		//DrawCelluralBuffer(Stack, &Cellural);
 		//RENDERPushRect(Stack, Rect2MinDim(V2(0, 0), V2(300, 100)), V4(1.0f, 0.4f, 0.0f, 1.0f));
-		if (TempBoolForSlider) {
-			RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
-		}
+		//if (TempBoolForSlider) {
+		//	RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
+		//}
 
 		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX1, 400), 300.0f);
 		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX2, 600), 300.0f);
