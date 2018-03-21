@@ -325,7 +325,8 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		DEBUGInitFrameInfo(State, Frame);
 	}
 
-	State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
+	State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
+	State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
 
 	State->LastCollationFrameRecords = 0;
 	State->IsRecording = 1;
@@ -665,8 +666,10 @@ static void DEBUGFramesSlider(debug_state* State) {
 	State->RecordingChanged = (PrevRecording == State->IsRecording);
 }
 
-static void DEBUGFramesGraph(debug_state* State) {
+static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* ViewNode = 0) {
 	FUNCTION_TIMING();
+
+	rect2 Result = {};
 
 	gui_state* GUIState = State->GUIState;
 
@@ -697,7 +700,7 @@ static void DEBUGFramesGraph(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
-		switch (State->FramesGraphType) {
+		switch (Type) {
 
 			case DEBUGFrameGraph_DeltaTime: {
 				float OneOverMaxMs = 30.0f;
@@ -783,7 +786,7 @@ static void DEBUGFramesGraph(debug_state* State) {
 				}
 			}break;
 
-			case DEBUGFrameGraph_FrameClocks: {
+			case DEBUGFrameGraph_RootNodeBlocks: {
 				u32 GraphColors[8];
 				GraphColors[0] = GUIState->ColorTheme.GraphColor1;
 				GraphColors[1] = GUIState->ColorTheme.GraphColor2;
@@ -914,6 +917,7 @@ static void DEBUGFramesGraph(debug_state* State) {
 		}
 
 		rect2 GraphRect = Rect2MinDim(GraphMin, *GraphDim);
+		Result = GraphRect;
 		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, OutlineColor);
 
 #if 1
@@ -933,27 +937,7 @@ static void DEBUGFramesGraph(debug_state* State) {
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1, OutlineColor);
 #else
-		u32 ActiveElement = 0;
 
-		GUIBeginStateChangerGroup(GUIState, DEBUGFrameGraph_DeltaTime);
-		GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
-		GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
-		GUIStateChanger(GUIState, "records", DEBUGFrameGraph_CollectedRecords);
-		GUIStateChanger(GUIState, "frame clocks", DEBUGFrameGraph_FrameClocks);
-		GUIEndStateChangerGroupAt(GUIState, V2(GraphMin.x, GraphMin.y + AscByScale), &ActiveElement);
-
-		if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
-			State->FramesGraphType = DEBUGFrameGraph_DeltaTime;
-		}
-		else if (ActiveElement == DEBUGFrameGraph_FPS) {
-			State->FramesGraphType = DEBUGFrameGraph_FPS;
-		}
-		else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
-			State->FramesGraphType = DEBUGFrameGraph_CollectedRecords;
-		}
-		else if (ActiveElement == DEBUGFrameGraph_FrameClocks) {
-			State->FramesGraphType = DEBUGFrameGraph_FrameClocks;
-		}
 #endif
 
 		GUIDescribeElement(GUIState, *GraphDim, GraphMin);
@@ -961,6 +945,8 @@ static void DEBUGFramesGraph(debug_state* State) {
 	}
 
 	GUIEndElement(GUIState, GUIElement_CachedItem);
+
+	return(Result);
 }
 
 static void DEBUGViewingFrameInfo(debug_state* State) {
@@ -1076,12 +1062,20 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		
 				float CoveragePercentage = (float)ToViewClocks * OneOverFrameClocks;
 
+#if 0
 				stbsp_sprintf(TextBuf, "%11lluc %13.2fc/h  %6.2f%% %8u  %-30s",
 					ToViewClocks,
 					(float)ToViewClocks / (float)Timing->Timing.HitCount,
 					CoveragePercentage,
 					Timing->Timing.HitCount,
 					Timing->Name);
+#else
+				stbsp_sprintf(TextBuf, "%11lluc %8.2f%% %8u  %-30s",
+					ToViewClocks,
+					CoveragePercentage,
+					Timing->Timing.HitCount,
+					Timing->Name);
+#endif
 
 				gui_interaction NullInteraction = GUINullInteraction();
 
@@ -1219,10 +1213,8 @@ enum debug_profile_active_element {
 	DebugProfileActiveElement_TopClocks,
 	DebugProfileActiveElement_TopExClocks,
 	DebugProfileActiveElement_Threads,
-
+	DebugProfileActiveElement_RootNodeBlocks,
 	DebugProfileActiveElement_FrameGraph,
-
-	DebugProfileActiveElement_NodeClocks,
 };
 
 static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
@@ -1252,12 +1244,15 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 					case DebugValue_ProfileOverlays: {
 						u32 ActiveProfileElement = 0;
 
+						gui_state* GUIState = State->GUIState;
+
 						GUIBeginRow(State->GUIState);
-						GUIBeginRadioGroup(State->GUIState, 0);
+						GUIBeginRadioGroup(State->GUIState, "ProfileMenuRG", 0);
 						GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
 						GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
 						GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
 						GUIRadioButton(State->GUIState, "Threads", DebugProfileActiveElement_Threads);
+						GUIRadioButton(State->GUIState, "RootNode", DebugProfileActiveElement_RootNodeBlocks);
 						GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
 						GUIEndRow(State->GUIState);
 
@@ -1268,10 +1263,60 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 							DEBUGClocksList(State, DebugClockList_Exclusive);
 						}
 						else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
-							DEBUGFramesGraph(State);
+							u32 ActiveElement = 0;
+
+							rect2 GraphRect = DEBUGFramesGraph(State, State->FramesGraphBarType);
+
+							GUIBeginStateChangerGroup(GUIState, "FrameGraphRG", DEBUGFrameGraph_DeltaTime);
+							GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
+							GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
+							GUIStateChanger(GUIState, "records", DEBUGFrameGraph_CollectedRecords);
+							GUIEndStateChangerGroupAt(
+								GUIState, 
+								V2(GraphRect.Min.x, 
+									GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale), 
+								&ActiveElement);
+
+							if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
+								State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
+							}
+							else if (ActiveElement == DEBUGFrameGraph_FPS) {
+								State->FramesGraphBarType = DEBUGFrameGraph_FPS;
+							}
+							else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
+								State->FramesGraphBarType = DEBUGFrameGraph_CollectedRecords;
+							}
 						}
 						else if (ActiveProfileElement == DebugProfileActiveElement_Threads) {
 							//DEBUGThreadsOverlay(State);
+						}
+						else if (ActiveProfileElement == DebugProfileActiveElement_RootNodeBlocks) {
+							u32 ActiveElement = 0;
+
+							debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
+
+							u64 Clocks = 0;
+							if (Frame->FrameUpdateNode) {
+								Clocks = Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+							}
+
+							char InfoBuf[64];
+							stbsp_sprintf(InfoBuf, "Clocks - %llu", Clocks);
+							GUIText(GUIState, InfoBuf);
+
+							rect2 GraphRect = DEBUGFramesGraph(State, State->RootNodeBarType);
+
+							GUIBeginStateChangerGroup(GUIState, "RootNodeRG", DEBUGFrameGraph_RootNodeBlocks);
+							GUIStateChanger(GUIState, "Blocks", DEBUGFrameGraph_RootNodeBlocks);
+							GUIEndStateChangerGroupAt(
+								GUIState,
+								V2(GraphRect.Min.x,
+									GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale),
+								&ActiveElement);
+
+							if (ActiveElement == DEBUGFrameGraph_RootNodeBlocks) {
+								State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
+							}
 						}
 					}break;
 
@@ -1309,7 +1354,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
-#if 1
+#if 0
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
 

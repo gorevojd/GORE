@@ -1428,8 +1428,8 @@ static gui_element* GUIRequestElement(
 				Element = Node;
 				break;
 			}
-			}
 		}
+	}
 
 	if (ElementType == GUIElement_StaticItem) {
 		Element = GUIAllocateListElement(GUIState);
@@ -1439,8 +1439,6 @@ static gui_element* GUIRequestElement(
 		Element->Depth = Parent->Depth + 1;
 
 		Element->RowCount = 0;
-		Element->RadioGroupsCount = 0;
-		Element->StateChangerGroupsCount = 0;
 		Element->ID = 0;
 		Element->Cache = {};
 
@@ -1559,12 +1557,6 @@ gui_element* GUIBeginElement(
 		State->CurrentTreeParent = Element;
 	}
 
-	if (Element->Type == GUIElement_Row) {
-
-	}
-
-	//b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
-
 	return(Element);
 }
 
@@ -1592,13 +1584,12 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 	}
 
 	if (ElementType == GUIElement_Row) {
-
+		
 	}
 
 	if (ElementType == GUIElement_TreeNode) {
 		State->CurrentTreeParent = Element->TempParentTree;
 	}
-
 
 	State->CurrentNode = Element->Parent;
 }
@@ -2014,6 +2005,8 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 }
 
 void GUIText(gui_state* GUIState, char* Text) {
+	FUNCTION_TIMING();
+
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2037,6 +2030,8 @@ void GUIText(gui_state* GUIState, char* Text) {
 }
 
 static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Name, float ViewMultiplier) {
+	FUNCTION_TIMING();
+
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2079,7 +2074,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 		if (!Element->Cache.IsInitialized ||
 			GUIState->TextElemsCacheShouldBeReinitialized) 
 		{
-			rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, 0, 0, GUIState->FontScale);
+			rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, {}, GUIState->FontScale);
 			//NOTE(Dima): Using cache for button because of the same purpose
 			Element->Cache.Button.ButtonRectDim = GetRectDim(TxtSizeRc);
 			Element->Cache.IsInitialized = true;
@@ -2155,97 +2150,113 @@ void GUIInt32View(gui_state* GUIState, i32 Int, char* Name) {
 }
 
 void GUIColorView(gui_state* GUIState, v4 Color, char* Name) {
-	GUIBeginRow(GUIState);
+	FUNCTION_TIMING();
+	
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
-	if (Name) {
-		GUIText(GUIState, Name);
+	if (GUIElementShouldBeUpdated(Elem)) {
+		GUIBeginRow(GUIState);
+
+		if (Name) {
+			GUIText(GUIState, Name);
+		}
+
+		int ValR = (int)(Color.r * 255.0f);
+		int ValG = (int)(Color.g * 255.0f);
+		int ValB = (int)(Color.b * 255.0f);
+
+		char HexViewBuf[8];
+		stbsp_sprintf(HexViewBuf, "#%02.X%02.X%02.X", (u8)ValR, (u8)ValG, (u8)ValB);
+
+		gui_variable_link Link1 = GUIVariableLink(&ValR, GUIVarType_I32);
+		gui_variable_link Link2 = GUIVariableLink(&ValG, GUIVarType_I32);
+		gui_variable_link Link3 = GUIVariableLink(&ValB, GUIVarType_I32);
+		gui_variable_link Link4 = GUIVariableLink(HexViewBuf, GUIVarType_STR);
+
+		GUIValueView(GUIState, &Link1, "R", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link2, "G", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link3, "B", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link4, 0, GUI_VALUE_VIEW_MULTIPLIER);
+
+		GUIColorRectView(GUIState, Color);
+
+		GUIEndRow(GUIState);
 	}
 
-	int ValR = (int)(Color.r * 255.0f);
-	int ValG = (int)(Color.g * 255.0f);
-	int ValB = (int)(Color.b * 255.0f);
-
-	char HexViewBuf[8];
-	stbsp_sprintf(HexViewBuf, "#%02.X%02.X%02.X", (u8)ValR, (u8)ValG, (u8)ValB);
-
-	gui_variable_link Link1 = GUIVariableLink(&ValR, GUIVarType_I32);
-	gui_variable_link Link2 = GUIVariableLink(&ValG, GUIVarType_I32);
-	gui_variable_link Link3 = GUIVariableLink(&ValB, GUIVarType_I32);
-	gui_variable_link Link4 = GUIVariableLink(HexViewBuf, GUIVarType_STR);
-
-	GUIValueView(GUIState, &Link1, "R", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link2, "G", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link3, "B", GUI_VALUE_COLOR_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link4, 0, GUI_VALUE_VIEW_MULTIPLIER);
-
-	GUIColorRectView(GUIState, Color);
-
-	GUIEndRow(GUIState);
+	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
 void GUIVector2View(gui_state* GUIState, v2 Value, char* Name) {
-	GUIBeginRow(GUIState);
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
-	if (Name) {
-		GUIText(GUIState, Name);
+	if (GUIElementShouldBeUpdated(Elem)) {
+
+		GUIBeginRow(GUIState);
+
+		if (Name) {
+			GUIText(GUIState, Name);
+		}
+
+		gui_variable_link Link1 = GUIVariableLink(&Value.x, GUIVarType_F32);
+		gui_variable_link Link2 = GUIVariableLink(&Value.y, GUIVarType_F32);
+
+		GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
+
+		GUIEndRow(GUIState);
 	}
 
-	gui_variable_link Link1 = GUIVariableLink(&Value.x, GUIVarType_F32);
-	gui_variable_link Link2 = GUIVariableLink(&Value.y, GUIVarType_F32);
-
-	GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
-
-	GUIEndRow(GUIState);
+	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
 void GUIVector3View(gui_state* GUIState, v3 Value, char* Name) {
-	GUIBeginRow(GUIState);
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
-	if (Name) {
-		GUIText(GUIState, Name);
+	if (GUIElementShouldBeUpdated(Elem)) {
+		GUIBeginRow(GUIState);
+
+		if (Name) {
+			GUIText(GUIState, Name);
+		}
+
+		gui_variable_link Link1 = GUIVariableLink(&Value.x, GUIVarType_F32);
+		gui_variable_link Link2 = GUIVariableLink(&Value.y, GUIVarType_F32);
+		gui_variable_link Link3 = GUIVariableLink(&Value.z, GUIVarType_F32);
+
+		GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link3, 0, GUI_VALUE_VIEW_MULTIPLIER);
+
+		GUIEndRow(GUIState);
 	}
 
-	gui_variable_link Link1 = GUIVariableLink(&Value.x, GUIVarType_F32);
-	gui_variable_link Link2 = GUIVariableLink(&Value.y, GUIVarType_F32);
-	gui_variable_link Link3 = GUIVariableLink(&Value.z, GUIVarType_F32);
-
-	GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link3, 0, GUI_VALUE_VIEW_MULTIPLIER);
-
-	GUIEndRow(GUIState);
+	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
 void GUIVector4View(gui_state* GUIState, v4 Value, char* Name) {
-	GUIBeginRow(GUIState);
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
-	if (Name) {
-		GUIText(GUIState, Name);
-	}
+	if (GUIElementShouldBeUpdated(Elem)) {
+		GUIBeginRow(GUIState);
 
-	gui_variable_link Link1 = GUIVariableLink(&Value.r, GUIVarType_F32);
-	gui_variable_link Link2 = GUIVariableLink(&Value.g, GUIVarType_F32);
-	gui_variable_link Link3 = GUIVariableLink(&Value.b, GUIVarType_F32);
-	gui_variable_link Link4 = GUIVariableLink(&Value.a, GUIVarType_F32);
-
-	GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link3, 0, GUI_VALUE_VIEW_MULTIPLIER);
-	GUIValueView(GUIState, &Link4, 0, GUI_VALUE_VIEW_MULTIPLIER);
-
-	GUIEndRow(GUIState);
-}
-
-inline void GUIActionTextAction(gui_interaction* Interaction) {
-	if (Interaction) {
-		if (Interaction->Type == GUIInteraction_VariableLink) {
-			if (Interaction->VariableLink.Type = GUIVarType_B32)
-			{
-				*Interaction->VariableLink.Value_B32 = !(*Interaction->VariableLink.Value_B32);
-			}
+		if (Name) {
+			GUIText(GUIState, Name);
 		}
+
+		gui_variable_link Link1 = GUIVariableLink(&Value.r, GUIVarType_F32);
+		gui_variable_link Link2 = GUIVariableLink(&Value.g, GUIVarType_F32);
+		gui_variable_link Link3 = GUIVariableLink(&Value.b, GUIVarType_F32);
+		gui_variable_link Link4 = GUIVariableLink(&Value.a, GUIVarType_F32);
+
+		GUIValueView(GUIState, &Link1, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link2, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link3, 0, GUI_VALUE_VIEW_MULTIPLIER);
+		GUIValueView(GUIState, &Link4, 0, GUI_VALUE_VIEW_MULTIPLIER);
+
+		GUIEndRow(GUIState);
 	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
 void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction) {
@@ -2926,12 +2937,10 @@ void GUITreeEnd(gui_state* State) {
 	GUIEndElement(State, GUIElement_TreeNode);
 }
 
-void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex) {
+void GUIBeginRadioGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
 	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
-	char NameBuf[16];
-	stbsp_sprintf(NameBuf, "Rad:%u", GUIState->CurrentNode->RadioGroupsCount);
-	gui_element* Element = GUIBeginElement(GUIState, GUIElement_RadioGroup, NameBuf, 0, 1, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_RadioGroup, Name, 0, 1, 0);
 
 	if (!Element->Cache.IsInitialized) {
 		Element->Cache.RadioCache.ActiveIndex = DefaultSetIndex;
@@ -3013,12 +3022,10 @@ void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement) {
 	GUIEndElement(GUIState, GUIElement_RadioGroup);
 }
 
-void GUIBeginStateChangerGroup(gui_state* GUIState, u32 DefaultSetIndex) {
+void GUIBeginStateChangerGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
 	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
-	char NameBuf[16];
-	stbsp_sprintf(NameBuf, "StCh:%u", GUIState->CurrentNode->StateChangerGroupsCount);
-	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StateChangerGroup, NameBuf, 0, 1, 0);
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StateChangerGroup, Name, 0, 1, 0);
 
 	if (!Element->Cache.IsInitialized) {
 		Element->Cache.StateChangerGroupCache.ActiveElement = 0;

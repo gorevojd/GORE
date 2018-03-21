@@ -512,8 +512,6 @@ struct gui_element {
 	char Text[32];
 
 	u16 RowCount;
-	u16 RadioGroupsCount;
-	u16 StateChangerGroupsCount;
 
 	u32 Type;
 
@@ -1406,11 +1404,11 @@ extern void GUITreeBegin(gui_state* State, char* NodeText, char* NameText = 0);
 extern void GUITreeEnd(gui_state* State);
 
 
-extern void GUIBeginRadioGroup(gui_state* GUIState, u32 DefaultSetIndex);
+extern void GUIBeginRadioGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex);
 extern void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex);
 extern void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement);
 
-void GUIBeginStateChangerGroup(gui_state* GUIState, u32 DefaultSetIndex);
+void GUIBeginStateChangerGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex);
 void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID);
 void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement);
 

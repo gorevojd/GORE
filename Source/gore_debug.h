@@ -138,7 +138,8 @@ struct debug_state {
 
 	stacked_memory* DebugMemory;
 
-	u32 FramesGraphType;
+	u32 FramesGraphBarType;
+	u32 RootNodeBarType;
 
 	char** DebugLogs;
 	u32* DebugLogsTypes;
@@ -156,7 +157,9 @@ enum debug_frame_graph_type {
 	DEBUGFrameGraph_DeltaTime,
 	DEBUGFrameGraph_FPS,
 	DEBUGFrameGraph_CollectedRecords,
-	DEBUGFrameGraph_FrameClocks,
+	DEBUGFrameGraph_RootNodeBlocks,
+
+	DEBUGFrameGraph_NodeClocks,
 
 	DEBUGFrameGraph_Count,
 };
