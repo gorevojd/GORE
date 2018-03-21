@@ -406,6 +406,8 @@ inline void DEBUGIncrementFrameIndices(debug_state* State) {
 static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
 
+	State->LastCollationFrameIndex = State->CollationFrameIndex;
+
 	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
 
 	u32 FrameBarrierIndex = 0;
@@ -723,32 +725,6 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
-
-#if DEBUG_NORMALIZE_FRAME_GRAPH
-		if (State->LastCollationFrameIndex != State->CollationFrameIndex) {
-			debug_profiled_frame* NewFrame = DEBUGGetNewestFrame(State);
-
-			float TempFPS = 1.0f / NewFrame->DeltaTime;
-			State->MaxSegmentFPS = Max(State->MaxSegmentFPS, TempFPS);
-			State->MaxSegmentDT = Max(State->MaxSegmentDT, NewFrame->DeltaTime);
-			State->MaxSegmentCollectedRecords = Max(State->MaxSegmentCollectedRecords, NewFrame->RecordCount);
-		}
-
-		State->SegmentFrameCount++;
-
-		if (State->SegmentFrameCount % DEBUG_NORMALIZE_FRAME_FREQUENCY == 0) {
-			State->SegmentFrameCount = 0;
-			State->NotFirstSegment = 1;
-
-			State->MaxLastSegmentCollectedRecords = State->MaxSegmentCollectedRecords;
-			State->MaxLastSegmentDT = State->MaxSegmentDT;
-			State->MaxLastSegmentFPS = State->MaxSegmentFPS;
-
-			State->MaxSegmentCollectedRecords = 0;
-			State->MaxSegmentDT = 0.0f;
-			State->MaxSegmentFPS = 0.0f;
-		}
-#endif
 
 		switch (Type) {
 
@@ -1634,6 +1610,33 @@ void DEBUGUpdate(debug_state* State) {
 	END_SECTION();
 
 	DEBUGProcessRecords(State);
+
+#if DEBUG_NORMALIZE_FRAME_GRAPH
+	if (State->LastCollationFrameIndex != State->CollationFrameIndex) {
+		debug_profiled_frame* NewFrame = DEBUGGetNewestFrame(State);
+
+		float TempFPS = 1.0f / NewFrame->DeltaTime;
+		State->MaxSegmentFPS = Max(State->MaxSegmentFPS, TempFPS);
+		State->MaxSegmentDT = Max(State->MaxSegmentDT, NewFrame->DeltaTime);
+		State->MaxSegmentCollectedRecords = Max(State->MaxSegmentCollectedRecords, NewFrame->RecordCount);
+
+		State->SegmentFrameCount++;
+	}
+
+
+	if ((State->SegmentFrameCount % DEBUG_NORMALIZE_FRAME_FREQUENCY) == 0) {
+		State->SegmentFrameCount = 0;
+		State->NotFirstSegment = 1;
+
+		State->MaxLastSegmentCollectedRecords = State->MaxSegmentCollectedRecords;
+		State->MaxLastSegmentDT = State->MaxSegmentDT;
+		State->MaxLastSegmentFPS = State->MaxSegmentFPS;
+
+		State->MaxSegmentCollectedRecords = 0;
+		State->MaxSegmentDT = 0.0f;
+		State->MaxSegmentFPS = 0.0f;
+	}
+#endif
 
 	DEBUGOverlayToOutput(State);
 }

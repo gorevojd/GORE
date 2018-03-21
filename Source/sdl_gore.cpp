@@ -87,13 +87,12 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 	TODO(Dima):
 
 		DEBUG:
-			Frames graph based on sections
 			Fix waiting frame big clock numbers
 
 			DEBUG console
 			DEBUG logger
 
-			VARARG macro functions
+			VARARG macro functions for hitcount
 			
 		GUI:
 			Build glyph chunks and render them instead individual bitmaps
@@ -873,7 +872,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(0);
+	SDL_GL_SetSwapInterval(1);
 
 	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
 	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
