@@ -70,6 +70,8 @@ inline gui_color_slot GUICreateColorSlot(gui_state* GUIState, v4 Color, char* Na
 		At++;
 	}
 
+	Res.ColorU32 = PackRGBA(Res.Color);
+
 	return(Res);
 }
 
@@ -1978,10 +1980,11 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 				char InfoStr[128];
 				stbsp_sprintf(
 					InfoStr,
-					"Occupied: %llu(%.2f%%); Total: %llu",
+					"Occupied: %llu(%.2f%%); Total: %llu; Fragmentation: %.2f%%",
 					OccupiedCount,
 					(float)OccupiedCount / (float)TotalCount * 100.0f,
-					TotalCount);
+					TotalCount, 
+					(float)MemoryStack->FragmentationBytesCount / (float)TotalCount);
 
 				GUITooltip(GUIState, InfoStr);
 			}
@@ -2327,6 +2330,37 @@ b32 GUIButton(gui_state* GUIState, char* ButtonName) {
 	}
 
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+
+	return(Result);
+}
+
+b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect, v4* TextColor) {
+
+	b32 Result = 0;
+
+	v4 ButtonTextColor = GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
+
+	if (TextColor) {
+		ButtonTextColor = *TextColor;
+	}
+
+	gui_interaction Interaction = GUIReturnMouseActionInteraction(
+		GUIState->Input,
+		&Result,
+		GUIReturnMouseAction_IsDown,
+		MouseButton_Left);
+
+	rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(At.x, At.y),
+		ButtonTextColor,
+		GUIState->FontScale,
+		&Interaction,
+		GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
+		GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
+		2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+	if (ButtonRect) {
+		*ButtonRect = ButRc;
+	}
 
 	return(Result);
 }

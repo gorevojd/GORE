@@ -7,7 +7,7 @@
 		from scratch. Now some basic frame collection code 
 		was written and some debug overlays like frame slider,
 		top clock list(both including and excluding children 
-		timings), frame graphs(fps, delta time). 
+		timings), frame graphs(fps, delta time, collected record count). 
 
 		
 */
@@ -23,7 +23,7 @@
 #define DEBUG_FRAME_UPDATE_NODE_NAME "Frame update"
 
 #if DEBUG_NORMALIZE_FRAME_GRAPH
-#define DEBUG_NORMALIZE_FRAME_FREQUENCY 256
+#define DEBUG_NORMALIZE_FRAME_FREQUENCY 64
 #endif
 
 struct debug_timing_snapshot {
@@ -164,6 +164,9 @@ struct debug_state {
 	u32* DebugLogsTypes;
 	b32* DebugLogsInited;
 	int DebugWriteLogIndex;
+	b32 DebugLogStopped;
+	u32 DebugLoggerActionHappened;
+	u32 DebugLoggerFilterType;
 
 	u32 LastCollationFrameRecords;
 	b32 IsRecording;

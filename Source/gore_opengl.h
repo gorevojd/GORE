@@ -27,6 +27,19 @@ struct gl_state {
 	gl_wtf_shader WtfShader;
 };
 
+//#define GL_GUI_CHUNK_POLYS_COUNT 4096
+//struct gl_gui_polygons_chunk {
+//	float PosX[GL_GUI_CHUNK_POLYS_COUNT * 4];
+//	float PosY[GL_GUI_CHUNK_POLYS_COUNT * 4];
+//
+//	float TexU[GL_GUI_CHUNK_POLYS_COUNT * 4];
+//	float TexV[GL_GUI_CHUNK_POLYS_COUNT * 4];
+//
+//	u32 Indices[GL_GUI_CHUNK_POLYS_COUNT * 6];
+//
+//	
+//};
+
 extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
 extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;

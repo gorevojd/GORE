@@ -18,6 +18,8 @@ struct stacked_memory {
 	u32 Used;
 	u32 MaxSize;
 
+	u32 FragmentationBytesCount;
+
 	//NOTE(dima): Used for temp memory
 	u32 InitUsed;
 };
@@ -66,6 +68,7 @@ inline void AlignStackedMemory(stacked_memory* Stack, u32 Align) {
 
 	Assert(Stack->Used + AlignOffset <= Stack->MaxSize);
 	Stack->Used += AlignOffset;
+	Stack->FragmentationBytesCount += AlignOffset;
 }
 
 inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize, u32 AllocationFlag = 0) {
@@ -74,6 +77,7 @@ inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize, u32 Allocatio
 	Result.BaseAddress = Memory;
 	Result.Used = 0;
 	Result.MaxSize = MaxSize;
+	Result.FragmentationBytesCount = 0;
 
 	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
 	AlignStackedMemory(&Result, AlignValue);
@@ -91,6 +95,7 @@ inline stacked_memory BeginTempStackedMemory(stacked_memory* Stack, u32 Size, u3
 	Result.MaxSize = Size;
 	Result.Used = 0;
 	Result.InitUsed = Stack->Used;
+	Result.FragmentationBytesCount = 0;
 
 	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
 	AlignStackedMemory(&Result, AlignValue);
@@ -112,6 +117,7 @@ inline stacked_memory SplitStackedMemory(stacked_memory* Stack, u32 Size, u32 Al
 	Result.BaseAddress = (u8*)Stack->BaseAddress + Stack->Used;
 	Result.Used = 0;
 	Result.MaxSize = Size;
+	Result.FragmentationBytesCount = 0;
 
 	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
 	AlignStackedMemory(&Result, AlignValue);
@@ -129,6 +135,7 @@ inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 
 	u8* Result = (u8*)Mem->BaseAddress + Mem->Used + AlignOffset;
 	Mem->Used = Mem->Used + ByteSize + AlignOffset;
+	Mem->FragmentationBytesCount += AlignOffset;
 
 	return(Result);
 }

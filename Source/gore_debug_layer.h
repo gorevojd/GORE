@@ -39,6 +39,7 @@ enum debug_value_type {
 	DebugValue_FramesSlider,
 	DebugValue_ViewFrameInfo,
 	DebugValue_ProfileOverlays,
+	DebugValue_DebugStateInfo,
 
 	DebugValue_Logger,
 

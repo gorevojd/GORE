@@ -194,6 +194,10 @@
     <ClInclude Include="Source\gore_render_stack.h" />
     <ClInclude Include="Source\gore_memory.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\Shaders\gui_font_shader.frag" />
+    <None Include="Data\Shaders\gui_font_shader.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -87,9 +87,9 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 	TODO(Dima):
 
 		DEBUG:
+			Implement 'Record next' button on frames slider
+			Thread intervals graph
 			DEBUG console
-			DEBUG logger
-
 			VARARG macro functions for hitcount
 			
 		GUI:
@@ -223,7 +223,7 @@ static void SDLProcessEvents(SDL_Window* Window, input_system* Input) {
 				b32 TransitionHappened = (CurrentEvent.key.repeat == 0);
 
 				button_state* ProcessButton = 0;
-
+				
 				switch (KeyCode) {
 					case(SDLK_a): {
 						ProcessButton = &Input->Buttons[KeyType_A];

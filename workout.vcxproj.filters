@@ -111,4 +111,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Data\Shaders\gui_font_shader.frag" />
+    <None Include="Data\Shaders\gui_font_shader.vert" />
+  </ItemGroup>
 </Project>

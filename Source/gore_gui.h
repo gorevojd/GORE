@@ -1147,6 +1147,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 struct gui_color_slot {
 	v4 Color;
+	u32 ColorU32;
 	char* Name;
 };
 
@@ -1356,6 +1357,7 @@ extern void GUIEndFrame(gui_state* GUIState);
 
 extern void GUIText(gui_state* GUIState, char* Text);
 extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
+extern b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect = 0, v4* TextColor = 0);
 extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
