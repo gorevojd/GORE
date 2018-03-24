@@ -1,5 +1,6 @@
 #include "gore_debug.h"
 
+
 #define STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
@@ -335,18 +336,6 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	//NOTE(dima): Initialization of logs
 	State->DebugLoggerFilterType = 0;
 	State->DebugLoggerActionHappened = 0;
-	State->DebugLogStopped = 0;
-	State->DebugLogs = PushArray(State->DebugMemory, char*, DEBUG_LOGS_COUNT);
-	State->DebugLogsTypes = PushArray(State->DebugMemory, u32, DEBUG_LOGS_COUNT);
-	State->DebugLogsInited = PushArray(State->DebugMemory, b32, DEBUG_LOGS_COUNT);
-	for (int DebugLogIndex = 0;
-		DebugLogIndex < DEBUG_LOGS_COUNT;
-		DebugLogIndex++)
-	{
-		State->DebugLogs[DebugLogIndex] = (char*)PushSomeMemory(State->DebugMemory, DEBUG_LOG_SIZE);
-		State->DebugLogsTypes[DebugLogIndex] = 0;
-		State->DebugLogsInited[DebugLogIndex] = 0;
-	}
 
 #if DEBUG_NORMALIZE_FRAME_GRAPH
 	State->SegmentFrameCount = 0;
@@ -585,18 +574,6 @@ static void DEBUGProcessRecords(debug_state* State) {
 
 				//NOTE(dima): Remembering last section
 				NewSection->Parent = CurrentSection;
-			}break;
-
-			case DebugRecord_Log: {
-				if(!State->DebugLogStopped){
-					u32 LogIndex = State->DebugWriteLogIndex;
-
-					stbsp_snprintf(State->DebugLogs[LogIndex], DEBUG_LOG_SIZE, "%s", Record->Value_Value.Value_DebugValue_Text);
-					State->DebugLogsTypes[LogIndex] = DEBUGGetLogTypeFromValueType(Record->Value_Value.ValueType);
-					State->DebugLogsInited[LogIndex] = 1;
-
-					State->DebugWriteLogIndex = (State->DebugWriteLogIndex + 1) % DEBUG_LOGS_COUNT;
-				}
 			}break;
 		}
 	}
@@ -1258,7 +1235,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		float PrintY = WorkRect.Max.y - (RowAdvance - AscByScale) * GUIState->FontScale;
 
-		int CurrentLogQueueIndex = State->DebugWriteLogIndex - 1;
+		int CurrentLogQueueIndex = GlobalRecordTable->CurrentLogIndex.value - 1;
 		if (CurrentLogQueueIndex < 0) {
 			CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 		}
@@ -1289,12 +1266,12 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		while (PrintY >= WorkRect.Min.y + RowAdvance - DescPlusGap) {
 
-			b32 LogInited = State->DebugLogsInited[CurrentLogQueueIndex];
+			b32 LogInited = GlobalRecordTable->LogsInited[CurrentLogQueueIndex];
 
 			if (LogInited) {
 
 				v4 LogResColor = LogCol;
-				u32 LogType = State->DebugLogsTypes[CurrentLogQueueIndex];
+				u32 LogType = GlobalRecordTable->LogsTypes[CurrentLogQueueIndex];
 				if (LogType == DebugLog_ErrLog) {
 					LogResColor = ErrLogCol;
 				}
@@ -1343,9 +1320,29 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 						V4(0.0f, 0.0f, 0.0f, 0.0f),
 						0);
 
+#define DEBUG_LOG_TEXT_TEMP_SIZE 256
+					char LogText[DEBUG_LOG_TEXT_TEMP_SIZE];
+					char* LogData = GlobalRecordTable->Logs[CurrentLogQueueIndex];
+					for (int ScanIndex = 0;
+						ScanIndex < DEBUG_LOG_TEXT_TEMP_SIZE;
+						ScanIndex++)
+					{
+						char ScanChar = LogData[ScanIndex];
+						if (ScanChar != 0 &&
+							ScanChar != '\n' &&
+							ScanChar != '\r') 
+						{
+							LogText[ScanIndex] = LogData[ScanIndex];
+						}
+						else {
+							LogText[ScanIndex] = 0;
+							break;
+						}
+					}
+
 					GUITextBase(
 						GUIState,
-						State->DebugLogs[CurrentLogQueueIndex],
+						LogText,
 						V2(PreRect.Max.x, PrintY),
 						LogResColor,
 						GUIState->FontScale,
@@ -1363,7 +1360,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 					CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 				}
 
-				if (CurrentLogQueueIndex == State->DebugWriteLogIndex) {
+				if (CurrentLogQueueIndex == GlobalRecordTable->CurrentLogIndex.value) {
 					break;
 				}
 			}
@@ -1386,14 +1383,17 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		ClearActionHappened = GUIButtonAt(GUIState, "Clear", V2(ActualAt.x, ActualAt.y), &ClearButRc);
 
-		gui_interaction StopBoolInteraction = GUIBoolInteraction(&State->DebugLogStopped);
+		b32 LogIsPlaying = (GlobalRecordTable->LogIncrement.value == 1);
+		gui_interaction StopBoolInteraction = GUIBoolInteraction(&LogIsPlaying);
 		rect2 StopButRc = GUITextBase(GUIState, "Stop", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
-			State->DebugLogStopped ? GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) : GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
+			LogIsPlaying ? GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) : GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
 			GUIState->FontScale,
 			&StopBoolInteraction,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		SDL_AtomicSet(&GlobalRecordTable->LogIncrement, LogIsPlaying);
 
 		v4 ErrButCol = (State->DebugLoggerFilterType == DebugLoggerFilter_Errors) ?
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) :
@@ -1441,14 +1441,14 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		if (ClearActionHappened) {
 			for (int TempLogIndex = PrevToWriteIndex;
-				TempLogIndex != State->DebugWriteLogIndex;
+				TempLogIndex != GlobalRecordTable->CurrentLogIndex.value;
 				TempLogIndex--)
 			{
 				if (TempLogIndex < 0) {
 					TempLogIndex += DEBUG_LOGS_COUNT;
 				}
 
-				State->DebugLogsInited[TempLogIndex] = 0;
+				GlobalRecordTable->LogsInited[TempLogIndex] = 0;
 			}
 		}
 

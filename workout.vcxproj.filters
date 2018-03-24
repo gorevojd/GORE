@@ -45,6 +45,9 @@
     <ClCompile Include="Source\gore_debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\gore_debug_layer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\stb_truetype.h">

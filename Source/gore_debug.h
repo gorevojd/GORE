@@ -38,6 +38,8 @@ struct debug_timing_snapshot {
 
 struct debug_value_node {
 	u32 ValueType;
+
+
 };
 
 enum debug_statistic_type {
@@ -126,8 +128,6 @@ struct debug_profiled_frame {
 };
 
 #define DEBUG_FRAMES_COUNT 256
-#define DEBUG_LOGS_COUNT 1024
-#define DEBUG_LOG_SIZE 1024
 struct debug_state {
 	debug_tree_node* FreeBlockSentinel;
 
@@ -160,11 +160,13 @@ struct debug_state {
 	float MaxLastSegmentFPS;
 #endif
 
+#if 0
 	char** DebugLogs;
 	u32* DebugLogsTypes;
 	b32* DebugLogsInited;
 	int DebugWriteLogIndex;
 	b32 DebugLogStopped;
+#endif
 	u32 DebugLoggerActionHappened;
 	u32 DebugLoggerFilterType;
 

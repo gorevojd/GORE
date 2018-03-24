@@ -162,6 +162,7 @@
   <ItemGroup>
     <ClCompile Include="Source\geometrika.cpp" />
     <ClCompile Include="Source\gore_debug.cpp" />
+    <ClCompile Include="Source\gore_debug_layer.cpp" />
     <ClCompile Include="Source\gore_engine.cpp" />
     <ClCompile Include="Source\gore_game_common.cpp" />
     <ClCompile Include="Source\gore_opengl.cpp" />

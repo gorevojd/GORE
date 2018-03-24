@@ -2,6 +2,8 @@
 #define GORE_DEBUG_LAYER_H
 
 #include "gore_types.h"
+#include "gore_math.h"
+#include "gore_types.h"
 #include <SDL.h>
 
 enum debug_record_type {
@@ -16,7 +18,6 @@ enum debug_record_type {
 	DebugRecord_FrameBarrier,
 
 	DebugRecord_Value,
-	DebugRecord_Log,
 };
 
 enum debug_log_type {
@@ -35,6 +36,7 @@ enum debug_value_type {
 	DebugValue_Vector3,
 	DebugValue_Vector4,
 	DebugValue_Color,
+	DebugValue_StackedMemory,
 
 	DebugValue_FramesSlider,
 	DebugValue_ViewFrameInfo,
@@ -43,34 +45,10 @@ enum debug_value_type {
 
 	DebugValue_Logger,
 
-	DebugValue_Log,
-	DebugValue_ErrorLog,
-	DebugValue_WarnLog,
-	DebugValue_OkLog,
-
 	//DebugValue_FramesGraph,
 	//DebugValue_TopTotalClocks,
 	//DebugValue_TopExClocks,
 };
-
-inline u32 DEBUGGetLogTypeFromValueType(u32 ValueType) {
-	u32 Result = DebugLog_Log;
-
-	if (ValueType == DebugValue_Log) {
-		Result = DebugLog_Log;
-	}
-	else if (ValueType == DebugValue_ErrorLog) {
-		Result = DebugLog_ErrLog;
-	}
-	else if (ValueType == DebugValue_OkLog) {
-		Result = DebugLog_OkLog;
-	}
-	else if (ValueType == DebugValue_WarnLog) {
-		Result = DebugLog_WarnLog;
-	}
-
-	return(Result);
-}
 
 struct debug_record {
 	char* Name;
@@ -85,27 +63,34 @@ struct debug_record {
 		u32 ValueType;
 
 		union {
+			float Value_DebugValue_F32;
 			i32 Value_DebugValue_I32;
 			u32 Value_DebugValue_U32;
-			float Value_DebugValue_F32;
 			char* Value_DebugValue_Text;
-			v2 Value_DebugValue_Vector2;
-			v3 Value_DebugValue_Vector3;
-			v4 Value_DebugValue_Vector4;
-			v4 Value_DebugValue_Color;
+			v2* Value_DebugValue_Vector2;
+			v3* Value_DebugValue_Vector3;
+			v4* Value_DebugValue_Vector4;
+			v4* Value_DebugValue_Color;
 		};
 
 	} Value_Value;
 };
 
+#define DEBUG_LOGS_COUNT 1024
+#define DEBUG_LOG_SIZE 1024
 #define DEBUG_RECORD_MAX_COUNT 65536
 struct debug_record_table {
 	SDL_atomic_t CurrentRecordIndex;
 	SDL_atomic_t CurrentTableIndex;
 
+	debug_record Records[2][DEBUG_RECORD_MAX_COUNT];
 	SDL_atomic_t Increment;
 
-	debug_record Records[2][DEBUG_RECORD_MAX_COUNT];
+	char Logs[DEBUG_LOGS_COUNT][DEBUG_LOG_SIZE];
+	u32 LogsTypes[DEBUG_LOGS_COUNT];
+	b32 LogsInited[DEBUG_LOGS_COUNT];
+	SDL_atomic_t CurrentLogIndex;
+	SDL_atomic_t LogIncrement;
 };
 
 extern debug_record_table* GlobalRecordTable;
@@ -134,6 +119,9 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 
 	return(Record);
 }
+
+void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType);
+
 #else
 
 #define DEBUGAddRecord(Name, UniqueName, RecordType)	\
@@ -151,7 +139,11 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 #endif
 
 inline void DEBUGSetRecording(b32 Recording) {
-	GlobalRecordTable->Increment.value = Recording;
+	SDL_AtomicSet(&GlobalRecordTable->Increment, Recording);
+}
+
+inline void DEBUGSetLogRecording(b32 Recording) {
+	SDL_AtomicSet(&GlobalRecordTable->LogIncrement, Recording);
 }
 
 #define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
@@ -167,10 +159,10 @@ inline void DEBUGSetRecording(b32 Recording) {
 #define DEBUG_VALUE(value_type) {debug_record* Rec = ADD_DEBUG_RECORD("Value", DebugRecord_Value); Rec->Value_Value.ValueType = value_type;}
 #define DEBUG_VALUE_SET_VALUE(rec, value_type, value) rec->Value_Value.Value_##value_type = value
 
-#define DEBUG_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("Log", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_Log; Rec->Value_Value.Value_DebugValue_Text = log;}
-#define DEBUG_ERROR_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("ErrLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_ErrorLog; Rec->Value_Value.Value_DebugValue_Text = log;}
-#define DEBUG_OK_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("OkLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_OkLog; Rec->Value_Value.Value_DebugValue_Text = log;}
-#define DEBUG_WARN_LOG(log) {debug_record* Rec = ADD_DEBUG_RECORD("WarnLog", DebugRecord_Log); Rec->Value_Value.ValueType = DebugValue_WarnLog; Rec->Value_Value.Value_DebugValue_Text = log;}
+#define DEBUG_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_Log)
+#define DEBUG_ERROR_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_ErrLog)
+#define DEBUG_OK_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_OkLog)
+#define DEBUG_WARN_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_WarnLog)
 
 #define DEBUG_FRAME_BARRIER(delta) {debug_record* Rec = DEBUGAddRecord("FrameBarrier", DEBUG_UNIQUE_STRING("FrameBarrier"), DebugRecord_FrameBarrier); Rec->Value_Value.Value_DebugValue_F32 = delta;}
 

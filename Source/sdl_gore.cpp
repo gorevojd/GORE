@@ -816,15 +816,24 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 int main(int ArgsCount, char** Args) {
 
+	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
+	DEBUGSetLogRecording(1);
 
-	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+	for (int DebugLogIndex = 0;
+		DebugLogIndex < DEBUG_LOGS_COUNT;
+		DebugLogIndex++)
+	{
+		GlobalRecordTable->LogsInited[DebugLogIndex] = 0;
+		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
+	}
 
 #define SDL_RENDER_THREAD_ENTRIES 4
 	sdl_thread_entry RenderThreadEntries[SDL_RENDER_THREAD_ENTRIES];
 	thread_queue RenderThreadQueue;
 	SDLInitThreadQueue(&RenderThreadQueue, RenderThreadEntries, SDL_RENDER_THREAD_ENTRIES);
 
+	//NOTE(dima): Initializing of Platform API
 	PlatformApi.AddEntry = SDLAddEntry;
 	PlatformApi.FinishAll = SDLCompleteQueueWork;
 	PlatformApi.RenderQueue = &RenderThreadQueue;
@@ -853,16 +862,18 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
 	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
 
-	if (SdlInitCode < 0) {
-		printf("ERROR: SDL has been not initialized");
-	}
-
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
 
 	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
 	GlobalTime = 0.0f;
+
+	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+
+	if (SdlInitCode < 0) {
+		printf("ERROR: SDL has been not initialized");
+	}
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
@@ -993,6 +1004,7 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
+	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_8x16.png", 20, 8, 16);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
 	font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
@@ -1019,11 +1031,6 @@ int main(int ArgsCount, char** Args) {
 	GlobalRunning = true;
 	while (GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
-
-		//DEBUG_LOG("Hello my friend");
-		//DEBUG_ERROR_LOG("Pasha biceps");
-		//DEBUG_OK_LOG("VIRTUS PRO");
-		//DEBUG_WARN_LOG("OOOOPS");
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
 
@@ -1077,6 +1084,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
+		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);
 		END_TIMING();
@@ -1090,8 +1098,6 @@ int main(int ArgsCount, char** Args) {
 
 		DEBUGUpdate(DEBUGState);
 		END_TIMING();
-
-		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 		BEGIN_REPEATED_TIMING("Other...");
 		GUIPrepareFrame(GUIState);
@@ -1137,6 +1143,7 @@ int main(int ArgsCount, char** Args) {
 
 		END_SECTION();
 		END_TIMING();
+
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;

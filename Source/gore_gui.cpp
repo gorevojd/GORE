@@ -1042,7 +1042,7 @@ void GUIPrepareFrame(gui_state* GUIState) {
 	{
 		PrintTextInternal(GUIState, PrintTextType_PrintText,
 			GUIState->Tooltips[TooltipIndex],
-			PrintP, GUIState->FontScale,
+			PrintP, GUIState->FontScale * 0.7f,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TooltipTextColor));
 
 		PrintP.y += RowAdvance;
@@ -1774,9 +1774,9 @@ rect2 GUITextBase(
 }
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText, 
-		LabelText, At, 
-		GUIState->FontScale, 
+	PrintTextInternal(GUIState, PrintTextType_PrintText,
+		LabelText, At,
+		GUIState->FontScale * 0.7f,
 		GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 }
 
