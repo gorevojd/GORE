@@ -771,7 +771,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, flo
 			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
 
 #if 1
-			RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
 #else
 			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));

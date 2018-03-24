@@ -217,11 +217,11 @@ font_info LoadFontInfoFromImage(
 
 		glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[CodePoint]];
 
-		for (int y = 1; y < TargetCharHeight - 1; y++) {
+		for (int y = 1; y < TargetCharHeight + 1; y++) {
 			
 			int SrcY = (int)((float)(y - 1) * OneOverTargetHeight * (float)OneCharPixelHeight);
 			
-			for (int x = 1; x < TargetCharWidth - 1; x++) {
+			for (int x = 1; x < TargetCharWidth + 1; x++) {
 				int SrcX = (int)((float)(x - 1) * OneOverTargetWidth * (float)OneCharPixelWidth);
 
 				u32* SrcPixel = (u32*)FontImage.Pixels + SrcY * FontImage.Width + PixelAtX + SrcX;

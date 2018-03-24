@@ -518,7 +518,7 @@ PLATFORM_READ_FILE(SDLReadEntireFile) {
 		fseek(fp, 0, 0);
 
 		Result.Size = FileSize;
-		Result.Data = (u8*)calloc(FileSize, 1);
+		Result.Data = (u8*)calloc(FileSize + 1, 1);
 
 		fread(Result.Data, 1, FileSize, fp);
 
@@ -994,10 +994,10 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
+	font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/typoster.outline.otf", 20);
-	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
 

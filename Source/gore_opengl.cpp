@@ -314,8 +314,8 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 	OpenGLSetScreenspace(Stack->RenderWidth, Stack->RenderHeight);
 
-	glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
 	u8* At = (u8*)Stack->Data.BaseAddress;
@@ -431,11 +431,10 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 				}
 				glDisable(GL_DEPTH_TEST);
 #else
-				OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), RenderWidth, RenderHeight);
+				OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
 
 #endif
 #endif
-
 			}break;
 
 			default: {
