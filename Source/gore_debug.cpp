@@ -1044,7 +1044,7 @@ static void DEBUGViewingFrameInfo(debug_state* State) {
 
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
-	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS %urs", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime, ViewingFrame->RecordCount);
+	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS, %urs", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime, ViewingFrame->RecordCount);
 	GUIText(State->GUIState, Buf);
 	GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
 }
@@ -1215,30 +1215,33 @@ enum debug_logger_log_filter_type {
 	DebugLoggerFilter_Oks,
 };
 
-static void DEBUGLogger(debug_state* State) {
+static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForMoving) {
 	gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "Logr", 0, 1, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		GUIPreAdvanceCursor(GUIState);
-
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
 		float DescPlusGap = RowAdvance - AscByScale;
-
-		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
 			Cache->Dimensional.Dimension = V2(650, AscByScale * 20);
+			Cache->Dimensional.Position = At - V2(0, AscByScale);
 
 			Cache->IsInitialized = 1;
 		}
 
+		if (!ValidForMoving) {
+			Cache->Dimensional.Position = At - V2(0, AscByScale);
+		}
+
+		v2 ActualAt = Cache->Dimensional.Position + V2(0, AscByScale);
+
 		v2* WorkDim = &Cache->Dimensional.Dimension;
-		v2 WorkP = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		v2 WorkP = V2(ActualAt.x, ActualAt.y - AscByScale);
 		rect2 WorkRect = Rect2MinDim(WorkP, *WorkDim);
 
 		v4 WindowColor = GUIGetColor(GUIState, GUIColor_Black);
@@ -1262,33 +1265,33 @@ static void DEBUGLogger(debug_state* State) {
 
 		int PrevToWriteIndex = CurrentLogQueueIndex;
 
+		if (State->DebugLoggerActionHappened) {
+			switch (State->DebugLoggerActionHappened) {
+				case DebugLoggerActionHappened_ShowErrors: {
+					State->DebugLoggerFilterType = DebugLoggerFilter_Errors;
+				}break;
+
+				case DebugLoggerActionHappened_ShowOks: {
+					State->DebugLoggerFilterType = DebugLoggerFilter_Oks;
+				}break;
+
+				case DebugLoggerActionHappened_ShowWarnings: {
+					State->DebugLoggerFilterType = DebugLoggerFilter_Warnings;
+				}break;
+
+				case DebugLoggerActionHappened_Default: {
+					State->DebugLoggerFilterType = DebugLoggerFilter_AllAreValid;
+				}break;
+			}
+
+			State->DebugLoggerActionHappened = DebugLoggerActionHappened_None;
+		}
+
 		while (PrintY >= WorkRect.Min.y + RowAdvance - DescPlusGap) {
 
 			b32 LogInited = State->DebugLogsInited[CurrentLogQueueIndex];
 
 			if (LogInited) {
-				
-				if (State->DebugLoggerActionHappened) {
-					switch (State->DebugLoggerActionHappened) {
-						case DebugLoggerActionHappened_ShowErrors: {
-							State->DebugLoggerFilterType = DebugLoggerFilter_Errors;
-						}break;
-
-						case DebugLoggerActionHappened_ShowOks: {
-							State->DebugLoggerFilterType = DebugLoggerFilter_Oks;
-						}break;
-
-						case DebugLoggerActionHappened_ShowWarnings: {
-							State->DebugLoggerFilterType = DebugLoggerFilter_Warnings;
-						}break;
-
-						case DebugLoggerActionHappened_Default: {
-							State->DebugLoggerFilterType = DebugLoggerFilter_AllAreValid;
-						}break;
-					}
-
-					State->DebugLoggerActionHappened = DebugLoggerActionHappened_None;
-				}
 
 				v4 LogResColor = LogCol;
 				u32 LogType = State->DebugLogsTypes[CurrentLogQueueIndex];
@@ -1332,7 +1335,7 @@ static void DEBUGLogger(debug_state* State) {
 					rect2 PreRect = GUITextBase(
 						GUIState,
 						"/> ",
-						V2(Layout->CurrentX, PrintY),
+						V2(ActualAt.x, PrintY),
 						LogCol,
 						GUIState->FontScale,
 						&NullInteraction,
@@ -1350,7 +1353,7 @@ static void DEBUGLogger(debug_state* State) {
 						LogResColor,
 						V4(0.0f, 0.0f, 0.0f, 0.0f),
 						0);
-					
+
 					PrintY -= RowAdvance;
 				}
 
@@ -1359,7 +1362,7 @@ static void DEBUGLogger(debug_state* State) {
 				if (CurrentLogQueueIndex < 0) {
 					CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 				}
-				
+
 				if (CurrentLogQueueIndex == State->DebugWriteLogIndex) {
 					break;
 				}
@@ -1381,10 +1384,10 @@ static void DEBUGLogger(debug_state* State) {
 		rect2 OksButRc;
 		rect2 DefButRc;
 
-		ClearActionHappened = GUIButtonAt(GUIState, "Clear", V2(Layout->CurrentX, Layout->CurrentY), &ClearButRc);
+		ClearActionHappened = GUIButtonAt(GUIState, "Clear", V2(ActualAt.x, ActualAt.y), &ClearButRc);
 
 		gui_interaction StopBoolInteraction = GUIBoolInteraction(&State->DebugLogStopped);
-		rect2 StopButRc = GUITextBase(GUIState, "Stopped", V2(ClearButRc.Max.x + AscByScale, Layout->CurrentY),
+		rect2 StopButRc = GUITextBase(GUIState, "Stop", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
 			State->DebugLogStopped ? GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) : GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
 			GUIState->FontScale,
 			&StopBoolInteraction,
@@ -1409,30 +1412,30 @@ static void DEBUGLogger(debug_state* State) {
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
 
 		ShowErrsActionHappened = GUIButtonAt(
-			GUIState, 
-			"Errs", 
-			V2(StopButRc.Max.x + AscByScale, Layout->CurrentY), 
+			GUIState,
+			"Errs",
+			V2(StopButRc.Max.x + AscByScale, ActualAt.y),
 			&ErrsButRc,
 			&ErrButCol);
 
 		ShowWarnsActionHappened = GUIButtonAt(
-			GUIState, 
-			"Warns", 
-			V2(ErrsButRc.Max.x + AscByScale, Layout->CurrentY), 
+			GUIState,
+			"Warns",
+			V2(ErrsButRc.Max.x + AscByScale, ActualAt.y),
 			&WarnsButRc,
 			&WarButCol);
 
 		ShowOksActionHappened = GUIButtonAt(
-			GUIState, 
-			"OK's", 
-			V2(WarnsButRc.Max.x + AscByScale, Layout->CurrentY), 
+			GUIState,
+			"OK's",
+			V2(WarnsButRc.Max.x + AscByScale, ActualAt.y),
 			&OksButRc,
 			&OksButCol);
 
 		DefaultActionHappened = GUIButtonAt(
-			GUIState, 
-			"Default", 
-			V2(OksButRc.Max.x + AscByScale, Layout->CurrentY), 
+			GUIState,
+			"All",
+			V2(OksButRc.Max.x + AscByScale, ActualAt.y),
 			&DefButRc,
 			&DefButCol);
 
@@ -1468,7 +1471,34 @@ static void DEBUGLogger(debug_state* State) {
 		gui_interaction ResizeInteraction = GUIResizeInteraction(WorkP, WorkDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
 
-		GUIDescribeElement(GUIState, *WorkDim, WorkP);
+		if (ValidForMoving) {
+			gui_interaction MoveInteraction = GUIMoveInteraction(&Cache->Dimensional.Position, GUIMoveInteraction_Move);
+			GUIAnchor(GUIState, "MoveAnchor", WorkRect.Min, V2(10, 10), &MoveInteraction);
+		}
+
+		if (OutRc) {
+			*OutRc = WorkRect;
+		}
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+static void DEBUGLogger(debug_state* State) {
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "Logr", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		GUIPreAdvanceCursor(GUIState);
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		rect2 WorkRc;
+
+		DEBUGLoggerAt(State, V2(Layout->CurrentX, Layout->CurrentY), &WorkRc, 0);
+
+		GUIDescribeElement(GUIState, GetRectDim(WorkRc), WorkRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 

@@ -15,7 +15,9 @@ enum button_type {
 
 	KeyType_Space,
 	KeyType_LCtrl,
+	KeyType_RCtrl,
 	KeyType_LShift,
+	KeyType_RShift,
 	KeyType_Esc,
 	KeyType_Return,
 	KeyType_F1,

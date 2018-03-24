@@ -6,8 +6,6 @@
 #define STB_SPRINTF_IMPLEMENTATION
 #include "stb_sprintf.h"
 
-#include "gore_game_layer.h"
-
 #include "geometrika.h"
 
 #include "gore_render_stack.h"
@@ -95,6 +93,8 @@ MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 		GUI:
 			Build glyph chunks and render them instead individual bitmaps
 			
+			Message boxes
+
 			Interaction rules list
 			Interaction rules list processing
 
@@ -312,6 +312,19 @@ static void SDLProcessEvents(SDL_Window* Window, input_system* Input) {
 					case(SDLK_DOWN): {
 						ProcessButton = &Input->Buttons[KeyType_Down];
 					}break;
+					case(SDLK_LSHIFT): {
+						ProcessButton = &Input->Buttons[KeyType_LShift];
+					}break;
+					case(SDLK_RSHIFT): {
+						ProcessButton = &Input->Buttons[KeyType_RShift];
+					}break;
+					case(SDLK_LCTRL): {
+						ProcessButton = &Input->Buttons[KeyType_LCtrl];
+					}break;
+					case(SDLK_RCTRL): {
+						ProcessButton = &Input->Buttons[KeyType_RCtrl];
+					}break;
+
 					default: {
 
 					}break;
@@ -497,40 +510,37 @@ static void SDLSetWindowIcon(SDL_Window* Window) {
 PLATFORM_READ_FILE(SDLReadEntireFile) {
 	platform_read_file_result Result = {};
 
-	SDL_RWops* File = SDL_RWFromFile(FilePath, "rb");
+	FILE* fp = fopen(FilePath, "rb");
 
-	if (File != 0) {
-#if 0
-		Sint64 FileSize = SDL_RWsize(File);
-#else
-		Sint64 FileSize;
-		SDL_RWseek(File, 0, RW_SEEK_END);
-		FileSize = SDL_RWtell(File);
-		SDL_RWseek(File, 0, RW_SEEK_SET);
-#endif
+	if (fp) {
+		fseek(fp, 0, 2);
+		u64 FileSize = ftell(fp);
+		fseek(fp, 0, 0);
 
-		Result.Data = SDL_calloc(FileSize + 1, 1);
 		Result.Size = FileSize;
+		Result.Data = (u8*)calloc(FileSize, 1);
 
-		SDL_RWread(File, Result.Data, 1, FileSize);
+		fread(Result.Data, 1, FileSize, fp);
 
-		SDL_RWclose(File);
+		fclose(fp);
 	}
 
 	return(Result);
 }
 
 PLATFORM_WRITE_FILE(SDLWriteEntireFile) {
-	SDL_RWops* File = SDL_RWFromFile(FilePath, "wb");
+	FILE* File = (FILE*)fopen(FilePath, "wb");
 
-	SDL_RWwrite(File, Data, 1, Size);
+	if (File) {
+		fwrite(Data, 1, Size, File);
 
-	SDL_RWclose(File);
+		fclose(File);
+	}
 }
 
 PLATFORM_FREE_FILE_MEMORY(SDLFreeFileMemory) {
 	if (FileReadResult->Data) {
-		SDL_free(FileReadResult->Data);
+		free(FileReadResult->Data);
 	}
 }
 
@@ -545,6 +555,10 @@ PLATFORM_PLACE_CURSOR_AT_CENTER(SDLPlaceCursorAtCenter) {
 
 	SDL_WarpMouseInWindow(Window, GlobalInput.CenterP.x, GlobalInput.CenterP.y);
 #endif
+}
+
+PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
+	GlobalRunning = 0;
 }
 
 #if 1
@@ -818,6 +832,7 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.WriteFile = SDLWriteEntireFile;
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
+	PlatformApi.TerminateProgram = SDLTerminateProgram;
 
 	u32 GameModeMemorySize = MEGABYTES(256);
 	u32 GeneralPurposeMemorySize = MEGABYTES(256);
@@ -871,6 +886,30 @@ int main(int ArgsCount, char** Args) {
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
 	SDL_GL_SetSwapInterval(1);
+
+	int SetR, SetG, SetB, SetD;
+	SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &SetR);
+	SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &SetG);
+	SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &SetB);
+	SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &SetD);
+
+	char WindowBitsBuf[64];
+
+	stbsp_sprintf(WindowBitsBuf, "Window RED bits count: %d\n", SetR);
+	DEBUG_LOG(WindowBitsBuf);
+	printf(WindowBitsBuf);
+
+	stbsp_sprintf(WindowBitsBuf, "Window GREEN bits count: %d\n", SetG);
+	DEBUG_LOG(WindowBitsBuf);
+	printf(WindowBitsBuf);
+
+	stbsp_sprintf(WindowBitsBuf, "Window BLUE bits count: %d\n", SetB);
+	DEBUG_LOG(WindowBitsBuf);
+	printf(WindowBitsBuf);
+
+	stbsp_sprintf(WindowBitsBuf, "Window DEPTH bits count: %d\n", SetD);
+	DEBUG_LOG(WindowBitsBuf);
+	printf(WindowBitsBuf);
 
 	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)SDL_GL_GetProcAddress("glGenVertexArrays");
 	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)SDL_GL_GetProcAddress("glBindVertexArray");
@@ -935,6 +974,7 @@ int main(int ArgsCount, char** Args) {
 
 	if (!Window) {
 		printf("ERROR: Window is not created");
+		DEBUG_OK_LOG("Window successfully created");
 	}
 
 	SDLSetWindowIcon(Window);
@@ -953,6 +993,10 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
+	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
+	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/typoster.outline.otf", 20);
 	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
@@ -971,11 +1015,6 @@ int main(int ArgsCount, char** Args) {
 	b32 TempBoolForSlider = false;
 
 	float DeltaTime = 0.0f;
-
-	DEBUG_LOG("Permanent log");
-	DEBUG_ERROR_LOG("Permanent log2");
-	DEBUG_WARN_LOG("Permanent log3");
-	DEBUG_OK_LOG("Permanent log4")
 
 	GlobalRunning = true;
 	while (GlobalRunning) {
@@ -1011,8 +1050,9 @@ int main(int ArgsCount, char** Args) {
 		render_stack* Stack = &Stack_;
 
 		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
+		RENDERPushTest(Stack);
+#if 0
 
-#if 1
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
 		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
 		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
@@ -1042,7 +1082,7 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_TIMING("Debug update");
-		BEGIN_SECTION("Profiler");
+		BEGIN_SECTION("Profile");
 		DEBUG_VALUE(DebugValue_FramesSlider);
 		DEBUG_VALUE(DebugValue_ViewFrameInfo);
 		DEBUG_VALUE(DebugValue_ProfileOverlays);
@@ -1051,7 +1091,7 @@ int main(int ArgsCount, char** Args) {
 		DEBUGUpdate(DEBUGState);
 		END_TIMING();
 
-		//GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
 
 		BEGIN_REPEATED_TIMING("Other...");
 		GUIPrepareFrame(GUIState);
@@ -1100,14 +1140,6 @@ int main(int ArgsCount, char** Args) {
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;
-
-
-		char Buf[16];
-		char TimeBuf[16];
-		stbsp_sprintf(Buf, "%.2f", 1.0f / DeltaTime);
-		stbsp_sprintf(TimeBuf, "%.2f", GlobalTime);
-		DEBUG_LOG(Buf);
-		DEBUG_OK_LOG(TimeBuf);
 
 		GlobalTime += DeltaTime;
 	}

@@ -321,7 +321,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	u8* At = (u8*)Stack->Data.BaseAddress;
 	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
 
-	game_camera_setup* CameraSetup = 0;
+	game_camera_setup* CameraSetup = &Stack->CameraSetup;
 
 	font_info* CurrentFontInfo = 0;
 
@@ -374,7 +374,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 					glColor4f(Color.r, Color.g, Color.b, Color.a);
 
-					float Depth = 1000.0f;
+					float Depth = 10000.0f;
 
 					glTexCoord2f(MinUV.x, MinUV.y);
 					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
@@ -415,10 +415,27 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}break;
 
-			case RenderStackEntry_CameraSetup: {
-				render_stack_entry_camera_setup* EntryCameraSetup = (render_stack_entry_camera_setup*)At;
+			case RenderStackEntry_Test: {
+#if 1
+#if 1
+				glEnable(GL_DEPTH_TEST);
+				for (int i = -5; i < 5; i++) {
+					for (int j = -5; j < 5; j++) {
+						for (int k = -5; k < 5; k++) {
 
-				CameraSetup = &EntryCameraSetup->CameraSetup;
+							if (i != 0 && j != 0 && k != 0) {
+								OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
+							}
+						}
+					}
+				}
+				glDisable(GL_DEPTH_TEST);
+#else
+				OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), RenderWidth, RenderHeight);
+
+#endif
+#endif
+
 			}break;
 
 			default: {
@@ -428,26 +445,6 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 		At += Header->SizeOfEntryType;
 	}
-
-#if 0
-#if 1
-	//glEnable(GL_DEPTH_TEST);
-	for (int i = -5; i < 5; i++) {
-		for (int j = -5; j < 5; j++) {
-			for (int k = -5; k < 5; k++) {
-
-				if (i != 0 && j != 0 && k != 0) {
-					OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
-				}
-			}
-		}
-	}
-	glDisable(GL_DEPTH_TEST);
-#else
-	OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), RenderWidth, RenderHeight);
-
-#endif
-#endif
 }
 
 void OpenGLInitState(gl_state* State) {

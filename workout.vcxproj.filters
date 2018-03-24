@@ -21,9 +21,6 @@
     <ClCompile Include="Source\sdl_gore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Source\gore_game_layer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source\gore_gui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -60,9 +57,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\gore_asset.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\gore_game_layer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Source\gore_gui.h">

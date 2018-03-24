@@ -1,12 +1,292 @@
 #include "gore_asset.h"
 
+#include <stdio.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+struct data_buffer {
+	u8* Data;
+	u64 Size;
+};
+
+data_buffer ReadFileToDataBuffer(char* FileName) {
+	data_buffer Result = {};
+
+	FILE* fp = fopen(FileName, "rb");
+	if (fp) {
+		fseek(fp, 0, 2);
+		u64 FileSize = ftell(fp);
+		fseek(fp, 0, 0);
+
+		Result.Size = FileSize;
+		Result.Data = (u8*)calloc(FileSize, 1);
+
+		fread(Result.Data, 1, FileSize, fp);
+
+		fclose(fp);
+	}
+
+	return(Result);
+}
+
+void FreeDataBuffer(data_buffer* DataBuffer) {
+	if (DataBuffer->Data) {
+		free(DataBuffer->Data);
+	}
+}
+
+
+#ifndef GET_ALIGN_OFFSET
+#define GET_ALIGN_OFFSET(val, align) (((align) - ((size_t)val & ((align) - 1))) & (Align - 1))
+#endif
+
+rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
+	rgba_buffer Result = {};
+
+	Result.Width = Width;
+	Result.Height = Height;
+	Result.Pitch = 4 * Width;
+
+	Result.Align.x = 0.0f;
+	Result.Align.y = 0.0f;
+	Result.WidthOverHeight = (float)Width / (float)Height;
+
+	u32 MemoryForBufRequired = Width * Height * 4;
+	u32 AlignedMemoryBufSize = MemoryForBufRequired + Align;
+	Result.Pixels = (u8*)calloc(AlignedMemoryBufSize, 1);
+
+	u32 AlignOffset = GET_ALIGN_OFFSET(Result.Pixels, Align);
+	Result.Pixels += AlignOffset;
+
+	return(Result);
+}
+
+void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src) {
+	Assert(Dst->Width == Src->Width);
+	Assert(Dst->Height == Src->Height);
+
+	u32* DestOut = (u32*)Dst->Pixels;
+	u32* ScrPix = (u32*)Src->Pixels;
+	for (int j = 0; j < Src->Height; j++) {
+		for (int i = 0; i < Src->Width; i++) {
+			*DestOut++ = *ScrPix++;
+		}
+	}
+}
+
+void DeallocateRGBABuffer(rgba_buffer* Buffer) {
+	if (Buffer->Pixels) {
+		free(Buffer->Pixels);
+	}
+}
+
+rgba_buffer LoadIMG(char* Path) {
+	rgba_buffer Result = {};
+
+	int Width;
+	int Height;
+	int Channels;
+	u8* ImageMemory = stbi_load(Path, &Width, &Height, &Channels, 4);
+
+	Result.Width = Width;
+	Result.Height = Height;
+	Result.Pitch = 4 * Width;
+	Result.WidthOverHeight = (float)Width / (float)Height;
+
+	u32 RawImageSize = Width * Height * 4;
+	u32 PixelsCount = Width * Height;
+	Result.Pixels = (u8*)malloc(RawImageSize);
+
+	for (u32 PixelIndex = 0;
+		PixelIndex < PixelsCount;
+		PixelIndex++)
+	{
+		u32 Value = *((u32*)ImageMemory + PixelIndex);
+
+		u32 Color =
+			((Value >> 24) & 0x000000FF) |
+			((Value & 0xFF) << 24) |
+			((Value & 0xFF00) << 8) |
+			((Value & 0x00FF0000) >> 8);
+
+		v4 Col = UnpackRGBA(Color);
+		Col.r *= Col.a;
+		Col.g *= Col.a;
+		Col.b *= Col.a;
+		Color = PackRGBA(Col);
+
+		*((u32*)Result.Pixels + PixelIndex) = Color;
+	}
+#if 0
+	else if (Channels == 3) {
+		for (u32 PixelIndex = 0;
+			PixelIndex < PixelsCount;
+			PixelIndex++)
+		{
+			u8* Out = (u8*)((u32*)(Result.Pixels + PixelIndex));
+			u8* Src = ImageMemory + PixelIndex * 3;
+
+			for (int i = 0; i < 3; i++) {
+				Out[i] = Src[i];
+			}
+			Out[3] = 0xFF;
+		}
+	}
+#endif
+
+	stbi_image_free(ImageMemory);
+
+	return(Result);
+}
+
+font_info LoadFontInfoFromImage(
+	char* ImagePath, 
+	int Height,
+	int OneCharPixelWidth, 
+	int OneCharPixelHeight) 
+{
+	font_info Result = {};
+	
+	float Scale = (float)Height / (float)OneCharPixelHeight;
+
+	int TargetCharWidth = (int)((float)OneCharPixelWidth * Scale);
+	int TargetCharHeight = (int)Height;
+
+	float OneOverSrcWidth = 1.0f / (float)OneCharPixelWidth;
+	float OneOverSrcHeight = 1.0f / (float)OneCharPixelHeight;
+
+	float OneOverTargetWidth = 1.0f / (float)TargetCharWidth;
+	float OneOverTargetHeight = 1.0f / (float)TargetCharHeight;
+
+	u32 AtlasHeight = 0;
+	u32 AtlasWidth = 0;
+
+	//NOTE(dima): Loading font atlas image
+	rgba_buffer FontImage = LoadIMG(ImagePath);
+
+	Result.AscenderHeight = TargetCharHeight;
+	Result.DescenderHeight = 0;
+	Result.LineGap = 0;
+
+	//NOTE(dima): Initializing all codepoints
+	for (int i = ' '; i <= '~'; i++) {
+		Result.CodepointToGlyphMapping[i] = Result.GlyphsCount;
+		glyph_info* Glyph = &Result.Glyphs[Result.GlyphsCount++];
+
+		Glyph->Advance = TargetCharWidth;
+
+		Glyph->AtlasMinUV = V2(0.0f, 0.0f);
+		Glyph->AtlasMaxUV = V2(0.0f, 0.0f);
+		Glyph->LeftBearingX = 0;
+		Glyph->Codepoint = i;
+
+		Glyph->Width = TargetCharWidth + 2;
+		Glyph->Height = TargetCharHeight + 2;
+
+		Glyph->XOffset = 0.0f;
+		Glyph->YOffset = -TargetCharHeight;
+
+		Glyph->Bitmap = AllocateRGBABuffer(Glyph->Width, Glyph->Height);
+
+		//NOTE(dima): Initializing every single bitmap to empty
+		u32* DstPixel = (u32*)Glyph->Bitmap.Pixels;
+		for (int y = 0; y < Glyph->Height; y++) {
+			for (int x = 0; x < Glyph->Width; x++) {
+				DstPixel = 0;
+			}
+		}
+
+		//NOTE(dima): Increasing atlas size
+		AtlasWidth += Glyph->Width;
+		AtlasHeight = Max(AtlasHeight, Glyph->Height);
+	}
+
+	//NOTE(dima): Loading chars
+	int PixelAtX = 0;
+	int CodePoint = ' ';
+	int BigACodepointIndex = 0;
+	for (PixelAtX; PixelAtX + OneCharPixelWidth <= FontImage.Width; PixelAtX += OneCharPixelWidth, CodePoint++) {
+
+		if (CodePoint == 'A') {
+			BigACodepointIndex = CodePoint;
+		}
+
+		glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[CodePoint]];
+
+		for (int y = 1; y < TargetCharHeight - 1; y++) {
+			
+			int SrcY = (int)((float)(y - 1) * OneOverTargetHeight * (float)OneCharPixelHeight);
+			
+			for (int x = 1; x < TargetCharWidth - 1; x++) {
+				int SrcX = (int)((float)(x - 1) * OneOverTargetWidth * (float)OneCharPixelWidth);
+
+				u32* SrcPixel = (u32*)FontImage.Pixels + SrcY * FontImage.Width + PixelAtX + SrcX;
+				u32* TargetPixel = (u32*)Glyph->Bitmap.Pixels + y * Glyph->Width + x;
+
+				*TargetPixel = *SrcPixel;
+			}
+		}
+	}
+
+	//NOTE(dima): If lowercase letters wasn't loaded then init them with uppercase
+	if (CodePoint > 'Z') {
+		int TempCodepointIndex = 0;
+		for (TempCodepointIndex = 'a'; TempCodepointIndex < 'z'; TempCodepointIndex++) {
+			glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
+			glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
+			CopyRGBABuffer(&Glyph->Bitmap, &SrcGlyph->Bitmap);
+		}
+	}
+
+	//NOTE(dima): Processing kerning
+	u32 KerningOneRowSize = sizeof(int) * Result.GlyphsCount;
+	Result.KerningPairs = (int*)malloc(KerningOneRowSize * KerningOneRowSize);
+
+	for (int FirstGlyphIndex = 0; FirstGlyphIndex < Result.GlyphsCount; FirstGlyphIndex++) {
+		for (int SecondGlyphIndex = 0; SecondGlyphIndex < Result.GlyphsCount; SecondGlyphIndex++) {
+			u32 KerningIndex = SecondGlyphIndex * Result.GlyphsCount + FirstGlyphIndex;
+
+			Result.KerningPairs[KerningIndex] = 0;
+		}
+	}
+
+	//NOTE(dima): Building font atlas
+	Result.FontAtlasImage = AllocateRGBABuffer(AtlasWidth, AtlasHeight);
+
+	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
+	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
+
+	u32 AtWidth = 0;
+	for (int GlyphIndex = 0; GlyphIndex < Result.GlyphsCount; GlyphIndex++) {
+		glyph_info* Glyph = &Result.Glyphs[GlyphIndex];
+
+		for (int YIndex = 0; YIndex < Glyph->Height; YIndex++) {
+			u32* At = (u32*)Glyph->Bitmap.Pixels + YIndex * Glyph->Width;
+			u32* To = (u32*)Result.FontAtlasImage.Pixels + YIndex * AtlasWidth + AtWidth;
+			for (int XIndex = 0; XIndex < Glyph->Width; XIndex++) {
+				*To++ = *At++;
+			}
+		}
+
+		Glyph->AtlasMinUV = V2((float)AtWidth * OneOverAtlasWidth, 0.0f);
+		Glyph->AtlasMaxUV = V2((float)(AtWidth + Glyph->Width) * OneOverAtlasWidth, Glyph->Height * OneOverAtlasHeight);
+
+		AtWidth += Glyph->Width;
+	}
+
+	//NOTE(dima): Freing font image
+	DeallocateRGBABuffer(&FontImage);
+
+	return(Result);
+}
+
 font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 	font_info Result = {};
 	stbtt_fontinfo FontInfo;
-
-	float TempKerningPairs[MAX_FONT_INFO_GLYPH_COUNT * MAX_FONT_INFO_GLYPH_COUNT];
 
 	data_buffer FontFileBuffer = ReadFileToDataBuffer(FontName);
 
@@ -98,6 +378,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 					u8 Grayscale = *((u8*)Bitmap + CurrentY * CharWidth + CurrentX);
 					float GrayscaleFloat = (float)(Grayscale + 0.5f);
 					float Grayscale01 = GrayscaleFloat / 255.0f;
+
 					ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
 					CurrentX++;
 				}
@@ -161,69 +442,6 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 	}
 
 	FreeDataBuffer(&FontFileBuffer);
-
-	return(Result);
-}
-
-
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-rgba_buffer LoadIMG(char* Path) {
-	rgba_buffer Result = {};
-
-	int Width;
-	int Height;
-	int Channels;
-	u8* ImageMemory = stbi_load(Path, &Width, &Height, &Channels, 4);
-
-	Result.Width = Width;
-	Result.Height = Height;
-	Result.Pitch = 4 * Width;
-	Result.WidthOverHeight = (float)Width / (float)Height;
-
-	u32 RawImageSize = Width * Height * 4;
-	u32 PixelsCount = Width * Height;
-	Result.Pixels = (u8*)malloc(RawImageSize);
-
-	for (u32 PixelIndex = 0;
-		PixelIndex < PixelsCount;
-		PixelIndex++)
-	{
-		u32 Value = *((u32*)ImageMemory + PixelIndex);
-
-		u32 Color =
-			((Value >> 24) & 0x000000FF) |
-			((Value & 0xFF) << 24) |
-			((Value & 0xFF00) << 8) |
-			((Value & 0x00FF0000) >> 8);
-
-		v4 Col = UnpackRGBA(Color);
-		Col.r *= Col.a;
-		Col.g *= Col.a;
-		Col.b *= Col.a;
-		Color = PackRGBA(Col);
-
-		*((u32*)Result.Pixels + PixelIndex) = Color;
-	}
-#if 0
-	else if (Channels == 3) {
-		for (u32 PixelIndex = 0;
-			PixelIndex < PixelsCount;
-			PixelIndex++)
-		{
-			u8* Out = (u8*)((u32*)(Result.Pixels + PixelIndex));
-			u8* Src = ImageMemory + PixelIndex * 3;
-
-			for (int i = 0; i < 3; i++) {
-				Out[i] = Src[i];
-			}
-			Out[3] = 0xFF;
-		}
-	}
-#endif
-
-	stbi_image_free(ImageMemory);
 
 	return(Result);
 }

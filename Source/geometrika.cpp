@@ -34,9 +34,14 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_stack* RenderStack, i
 	if (ButtonIsDown(Input, KeyType_S)) {
 		MoveVector -= V3(0.0f, 0.0f, 1.0f);
 	}
+
+
 	MoveVector = NOZ(MoveVector);
 
 	float CameraSpeed = 10.0f;
+	if (ButtonIsDown(Input, KeyType_LShift)) {
+		CameraSpeed *= 10.0f;
+	}
 	MoveVector = MoveVector * CameraSpeed * Input->DeltaTime;
 	State->Camera.Position += State->Camera.Front * MoveVector.z;
 	State->Camera.Position -= State->Camera.Left * MoveVector.x;
@@ -52,5 +57,5 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_stack* RenderStack, i
 		RenderStack->RenderHeight,
 		CameraProjection_Perspective);
 
-	RENDERPushCameraSetup(RenderStack, CameraSetup);
+	RENDERSetCameraSetup(RenderStack, CameraSetup);
 }

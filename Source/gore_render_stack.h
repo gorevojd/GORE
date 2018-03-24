@@ -1,7 +1,6 @@
 #ifndef GORE_RENDER_STACK_H_INCLUDED
 #define GORE_RENDER_STACK_H_INCLUDED
 
-#include "gore_game_layer.h"
 #include "gore_asset.h"
 #include "gore_game_common.h"
 
@@ -13,6 +12,8 @@ struct render_stack {
 	int RenderHeight;
 
 	u32 EntryCount;
+
+	game_camera_setup CameraSetup;
 };
 
 enum render_stack_entry_type {
@@ -27,7 +28,7 @@ enum render_stack_entry_type {
 	RenderStackEntry_BeginText,
 	RenderStackEntry_EndText,
 
-	RenderStackEntry_CameraSetup,
+	RenderStackEntry_Test,
 };
 
 struct render_stack_entry_bitmap {
@@ -66,10 +67,6 @@ struct render_stack_entry_begin_text {
 
 struct render_stack_entry_end_text {
 
-};
-
-struct render_stack_entry_camera_setup {
-	game_camera_setup CameraSetup;
 };
 
 struct render_stack_entry_header {
@@ -191,10 +188,12 @@ inline void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4
 	Entry->ModulationColor = ModulationColor;
 }
 
-inline void RENDERPushCameraSetup(render_stack* Stack, game_camera_setup Setup) {
-	render_stack_entry_camera_setup* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_camera_setup, RenderStackEntry_CameraSetup);
+inline void RENDERSetCameraSetup(render_stack* Stack, game_camera_setup Setup) {
+	Stack->CameraSetup = Setup;
+}
 
-	Entry->CameraSetup = Setup;
+inline void RENDERPushTest(render_stack* Stack) {
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Test);
 }
 
 extern render_stack RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight);

@@ -813,11 +813,15 @@ inline b32 GUIElementIsValidForWalkaround(gui_element* Element) {
 
 		if (Parent) {
 			if (Parent->ChildrenSentinel != Element) {
+#if 1
 				Result =
 					(Element->Type != GUIElement_StaticItem) &&
 					(Element->Type != GUIElement_Row) &&
 					(Element->Type != GUIElement_Layout) &&
 					(Element->Type != GUIElement_None);
+#else
+				Result = Element->Type == GUIElement_TreeNode;
+#endif
 			}
 		}
 		else {

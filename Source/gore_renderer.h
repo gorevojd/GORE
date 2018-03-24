@@ -1,7 +1,6 @@
 #ifndef GORE_RENDERER_H
 #define GORE_RENDERER_H
 
-#include "gore_game_layer.h"
 #include "gore_render_stack.h"
 
 extern void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect);

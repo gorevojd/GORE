@@ -1,9 +1,23 @@
 #ifndef GORE_ASSET_H_INCLUDED
 #define GORE_ASSET_H_INCLUDED
 
-#include "gore_game_layer.h"
+#include "gore_platform.h"
 
 #define MAX_FONT_INFO_GLYPH_COUNT 256
+
+struct rgba_buffer {
+	u8* Pixels;
+
+	u32 Width;
+	u32 Height;
+	v2 Align;
+
+	u32 Pitch;
+
+	float WidthOverHeight;
+
+	void* TextureHandle;
+};
 
 struct glyph_info {
 	int Codepoint;
@@ -18,9 +32,6 @@ struct glyph_info {
 	float YOffset;
 	float Advance;
 	float LeftBearingX;
-
-	float AtlasU;
-	float AtlasV;
 
 	v2 AtlasMinUV;
 	v2 AtlasMaxUV;
@@ -41,6 +52,7 @@ struct font_info {
 };
 
 extern font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f);
+extern font_info LoadFontInfoFromImage(char* ImagePath, int Height, int OneCharPixelWidth, int OneCharPixelHeight);
 extern rgba_buffer LoadIMG(char* Path);
 
 inline float GetNextRowAdvance(font_info* Info, float SpacingMultiplier = 1.0f) {
@@ -59,4 +71,10 @@ inline float GetKerningForCharPair(font_info* FontInfo, int FirstCodepoint, int 
 
 	return(Result);
 }
+
+
+extern rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
+extern void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src);
+extern void DeallocateRGBABuffer(rgba_buffer* Buffer);
+
 #endif

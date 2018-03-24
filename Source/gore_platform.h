@@ -117,6 +117,9 @@ typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 #define PLATFORM_PLACE_CURSOR_AT_CENTER(name) void name()
 typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 
+#define PLATFORM_TERMINATE_PROGRAM(name) void name()
+typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
+
 struct platform_api {
 	platform_thread_queue_add_entry* AddEntry;
 	platform_thread_queue_finish_all* FinishAll;
@@ -132,6 +135,7 @@ struct platform_api {
 	platform_free_file_memory* FreeFileMemory;
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
+	platform_terminate_program* TerminateProgram;
 };
 
 extern platform_api PlatformApi;
