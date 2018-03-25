@@ -72,6 +72,7 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.PositionIndex = glGetAttribLocation(Result.Program.Handle, "Position");
 	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "Normal");
 	Result.UVIndex = glGetAttribLocation(Result.Program.Handle, "UV");
+	Result.ColorIndex = glGetAttribLocation(Result.Program.Handle, "Color");
 
 	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
 	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
@@ -194,35 +195,35 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 	GLfloat CubeVertices[] = {
 		/*P N UV*/
 		//NOTE(Dima): Front side
-		-0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-		0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 		//NOTE(Dima): Top side
-		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-		0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-		0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-		-0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 		//NOTE(Dima): Right side
-		0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-		0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		0.5f, 0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 		//NOTE(Dima): Left side
-		-0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-		-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, -0.5f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 		//NOTE(Dima): Back side
-		0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-		-0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+		0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 		//NOTE(Dima): Down side
-		-0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-		0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f
+		-0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, -0.5f, -0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, -0.5f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
 	};
 
 	GLuint CubeIndices[] = {
@@ -259,17 +260,22 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 
 	if (OpenGLArrayIsValid(Shader->PositionIndex)) {
 		glEnableVertexAttribArray(Shader->PositionIndex);
-		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)0);
+		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)0);
 	}
 
 	if (OpenGLArrayIsValid(Shader->UVIndex)) {
 		glEnableVertexAttribArray(Shader->UVIndex);
-		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
 	}
 
 	if (OpenGLArrayIsValid(Shader->NormalIndex)) {
 		glEnableVertexAttribArray(Shader->NormalIndex);
-		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 8 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+	}
+
+	if (OpenGLArrayIsValid(Shader->ColorIndex)) {
+		glEnableVertexAttribArray(Shader->ColorIndex);
+		glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -290,9 +296,86 @@ void OpenGLRenderCube(gl_wtf_shader* Shader, v3 Pos, u32 RenderWidth, u32 Render
 	glUniformMatrix4fv(Shader->ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
 
 	//NOTE(dima): Rendering
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+	//glDrawArrays(GL_TRIANGLES, 0, 36);
+
+	glBindVertexArray(0);
+	glUseProgram(0);
+
+	glDeleteBuffers(1, &VBO);
+	glDeleteBuffers(1, &EBO);
+	glDeleteVertexArrays(1, &VAO);
+}
+
+void OpenGLTempRenderPlane(gl_wtf_shader* Shader, u32 RenderWidth, u32 RenderHeight, game_camera_setup* CameraSetup) {
+
+	GLfloat PlaneVertices[] = {
+		//P N UV C
+		-0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 1.0f,		0.2f, 0.5f, 0.18f,
+		0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 1.0f,		0.2f, 0.5f, 0.18f,
+		0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 0.0f,		0.2f, 0.5f, 0.18f,
+		-0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 0.0f,		0.2f, 0.5f, 0.18f,
+	};
+
+	GLuint PlaneIndices[] = {
+		0, 1, 2,
+		0, 2, 3,
+	};
+
+	GLuint VAO, EBO, VBO;
+
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &EBO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(PlaneVertices), PlaneVertices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(PlaneIndices), PlaneIndices, GL_STATIC_DRAW);
+
+	if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+		glEnableVertexAttribArray(Shader->PositionIndex);
+		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)0);
+	}
+
+	if (OpenGLArrayIsValid(Shader->UVIndex)) {
+		glEnableVertexAttribArray(Shader->UVIndex);
+		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
+	}
+
+	if (OpenGLArrayIsValid(Shader->NormalIndex)) {
+		glEnableVertexAttribArray(Shader->NormalIndex);
+		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
+	}
+
+	if (OpenGLArrayIsValid(Shader->ColorIndex)) {
+		glEnableVertexAttribArray(Shader->ColorIndex);
+		glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	glUseProgram(Shader->Program.Handle);
+	glBindVertexArray(VAO);
+
+	v3 ViewPos = V3(0.0f, 0.0f, 10.0f);
+	v3 ViewDir = V3(0.0f, 0.0f, -1.0f);
+
+	mat4 ModelMatrix = Identity();
+	//ModelMatrix = Translate(ModelMatrix, V3(0.0f, 0.0f, -0.001f));
+	float ScaleValue = 100.0f;
+	ModelMatrix = ModelMatrix * ScalingMatrix(V3(ScaleValue, ScaleValue, ScaleValue));
+
+	glUniformMatrix4fv(Shader->ModelMatrixLocation, 1, GL_TRUE, ModelMatrix.E);
+	glUniformMatrix4fv(Shader->ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniformMatrix4fv(Shader->ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
+
+	//NOTE(dima): Rendering
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
 	//glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -310,6 +393,7 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
+	//glEnable(GL_CULL_FACE);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	OpenGLSetScreenspace(Stack->RenderWidth, Stack->RenderHeight);
@@ -429,6 +513,9 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 						}
 					}
 				}
+
+				OpenGLTempRenderPlane(&State->WtfShader, Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
+
 				glDisable(GL_DEPTH_TEST);
 #else
 				OpenGLRenderCube(&State->WtfShader, V3(0, 0, 0), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
