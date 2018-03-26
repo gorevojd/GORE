@@ -388,7 +388,7 @@ void OpenGLTempRenderPlane(gl_wtf_shader* Shader, u32 RenderWidth, u32 RenderHei
 	glDeleteVertexArrays(1, &VAO);
 }
 
-void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
+void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	FUNCTION_TIMING();
 
 	glEnable(GL_TEXTURE_2D);
@@ -396,16 +396,16 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 	//glEnable(GL_CULL_FACE);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-	OpenGLSetScreenspace(Stack->RenderWidth, Stack->RenderHeight);
+	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 
 	//glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
 	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
-	u8* At = (u8*)Stack->Data.BaseAddress;
-	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
+	u8* At = (u8*)RenderState->Data.BaseAddress;
+	u8* StackEnd = (u8*)RenderState->Data.BaseAddress + RenderState->Data.Used;
 
-	game_camera_setup* CameraSetup = &Stack->CameraSetup;
+	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
 
 	font_info* CurrentFontInfo = 0;
 
@@ -508,13 +508,18 @@ void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack) {
 						for (int k = -5; k < 5; k++) {
 
 							if (i != 0 && j != 0 && k != 0) {
-								OpenGLRenderCube(&State->WtfShader, V3(i * 10, j * 10, k * 10), Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
+								OpenGLRenderCube(
+									&GLState->WtfShader, 
+									V3(i * 10, j * 10, k * 10), 
+									RenderState->RenderWidth, 
+									RenderState->RenderHeight, 
+									CameraSetup);
 							}
 						}
 					}
 				}
 
-				OpenGLTempRenderPlane(&State->WtfShader, Stack->RenderWidth, Stack->RenderHeight, CameraSetup);
+				OpenGLTempRenderPlane(&GLState->WtfShader, RenderState->RenderWidth, RenderState->RenderHeight, CameraSetup);
 
 				glDisable(GL_DEPTH_TEST);
 #else

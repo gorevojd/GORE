@@ -1,7 +1,7 @@
 #ifndef GORE_OPENGL_H_INCLUDED
 
 #include "gore_platform.h"
-#include "gore_render_stack.h"
+#include "gore_render_state.h"
 
 #include <SDL_opengl.h>
 
@@ -104,7 +104,7 @@ extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
 extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
-extern void OpenGLRenderStackToOutput(gl_state* State, render_stack* Stack);
+extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
 
 extern void OpenGLInitState(gl_state* State);
 

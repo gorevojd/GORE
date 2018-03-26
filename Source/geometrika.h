@@ -4,7 +4,7 @@
 #include "gore_platform.h"
 #include "gore_game_common.h"
 #include "gore_input.h"
-#include "gore_render_stack.h"
+#include "gore_render_state.h"
 
 struct geometrika_state {
 	b32 IsInitialized;
@@ -16,7 +16,7 @@ struct geometrika_state {
 
 extern void GEOMKAUpdateAndRender(
 	geometrika_state* State, 
-	render_stack* RenderStack, 
+	render_state* RenderStack, 
 	input_system* Input);
 
 #endif

@@ -143,11 +143,14 @@ rgba_buffer LoadIMG(char* Path) {
 	return(Result);
 }
 
+
+
 font_info LoadFontInfoFromImage(
 	char* ImagePath, 
 	int Height,
 	int OneCharPixelWidth, 
-	int OneCharPixelHeight) 
+	int OneCharPixelHeight,
+	u32 Flags) 
 {
 	font_info Result = {};
 	
@@ -233,12 +236,14 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): If lowercase letters wasn't loaded then init them with uppercase
-	if (CodePoint > 'Z') {
-		int TempCodepointIndex = 0;
-		for (TempCodepointIndex = 'a'; TempCodepointIndex < 'z'; TempCodepointIndex++) {
-			glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
-			glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
-			CopyRGBABuffer(&Glyph->Bitmap, &SrcGlyph->Bitmap);
+	if (Flags & AssetLoadFontFromImage_InitLowercaseWithUppercase) {
+		if (CodePoint > 'Z') {
+			int TempCodepointIndex = 0;
+			for (TempCodepointIndex = 'a'; TempCodepointIndex < 'z'; TempCodepointIndex++) {
+				glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
+				glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
+				CopyRGBABuffer(&Glyph->Bitmap, &SrcGlyph->Bitmap);
+			}
 		}
 	}
 

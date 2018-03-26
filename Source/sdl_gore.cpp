@@ -8,7 +8,7 @@
 
 #include "geometrika.h"
 
-#include "gore_render_stack.h"
+#include "gore_render_state.h"
 #include "gore_renderer.h"
 #include "gore_engine.h"
 
@@ -1004,9 +1004,11 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
+	font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
+	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_copy.png", 15, 8, 8, AssetLoadFontFromImage_InitLowercaseWithUppercase);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_8x16.png", 20, 8, 16);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
-	font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
+	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/typoster.outline.otf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
@@ -1053,8 +1055,8 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_REPEATED_TIMING("Other...");
-		render_stack Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
-		render_stack* Stack = &Stack_;
+		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+		render_state* Stack = &Stack_;
 
 		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
 		RENDERPushTest(Stack);

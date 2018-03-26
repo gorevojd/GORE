@@ -1,7 +1,7 @@
 #ifndef GORE_GUI_H
 #define GORE_GUI_H
 
-#include "gore_render_stack.h"
+#include "gore_render_state.h"
 
 #include "gore_asset.h"
 #include "gore_input.h"
@@ -1154,8 +1154,8 @@ struct gui_color_slot {
 
 struct gui_state {
 	font_info* FontInfo;
-	render_stack* RenderStack;
-	render_stack* TempRenderStack;
+	render_state* RenderStack;
+	render_state* TempRenderStack;
 
 	float FontScale;
 	float LastFontScale;
@@ -1351,7 +1351,7 @@ enum gui_menu_item_type {
 };
 
 extern void GUIInitState(gui_state* GUIState, stacked_memory* GUIMemory, font_info* FontInfo, input_system* Input, i32 Width, i32 Height);
-extern void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack);
+extern void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack);
 extern void GUIPrepareFrame(gui_state* GUIState);
 extern void GUIEndFrame(gui_state* GUIState);
 

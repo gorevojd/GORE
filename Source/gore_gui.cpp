@@ -754,7 +754,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, flo
 	char* At = Text;
 
 	font_info* FontInfo = State->FontInfo;
-	render_stack* Stack = State->RenderStack;
+	render_state* Stack = State->RenderStack;
 
 	RENDERPushBeginText(Stack, FontInfo);
 
@@ -799,7 +799,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, flo
 	return(TextRect);
 }
 
-void GUIBeginFrame(gui_state* GUIState, render_stack* RenderStack) {
+void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack) {
 	GUIState->RenderStack = RenderStack;
 
 	GUIState->TooltipCount = 0;

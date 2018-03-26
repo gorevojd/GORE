@@ -774,7 +774,7 @@ void RenderRectFast(
 	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
 }
 
-void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
+void SoftwareRenderStackToOutput(render_state* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
 	FUNCTION_TIMING();
 
 	u8* At = (u8*)Stack->Data.BaseAddress;
@@ -888,7 +888,7 @@ void SoftwareRenderStackToOutput(render_stack* Stack, rgba_buffer* Buffer, rect2
 }
 
 struct render_queue_work {
-	render_stack* Stack;
+	render_state* Stack;
 	rgba_buffer* Buffer;
 	rect2 ClipRect;
 
@@ -901,7 +901,7 @@ PLATFORM_THREAD_QUEUE_CALLBACK(RenderQueueWork) {
 	SoftwareRenderStackToOutput(Work->Stack, Work->Buffer, Work->ClipRect);
 }
 
-void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
+void RenderDickInjection(render_state* Stack, rgba_buffer* Buffer) {
 	rect2 ClipRect;
 	ClipRect.Min = V2(0, 0);
 	ClipRect.Max = V2(Buffer->Width, Buffer->Height);
@@ -909,7 +909,7 @@ void RenderDickInjection(render_stack* Stack, rgba_buffer* Buffer) {
 	SoftwareRenderStackToOutput(Stack, Buffer, ClipRect);
 }
 
-void RenderMultithreaded(thread_queue* Queue, render_stack* Stack, rgba_buffer* Buffer) {
+void RenderMultithreaded(thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer) {
 	FUNCTION_TIMING();
 
 #if 0

@@ -170,7 +170,7 @@
     <ClCompile Include="Source\gore_asset.cpp" />
     <ClCompile Include="Source\gore_gui.cpp" />
     <ClCompile Include="Source\gore_renderer.cpp" />
-    <ClCompile Include="Source\gore_render_stack.cpp" />
+    <ClCompile Include="Source\gore_render_state.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\geometrika.h" />
@@ -190,7 +190,7 @@
     <ClInclude Include="Source\gore_platform.h" />
     <ClInclude Include="Source\gore_random.h" />
     <ClInclude Include="Source\gore_renderer.h" />
-    <ClInclude Include="Source\gore_render_stack.h" />
+    <ClInclude Include="Source\gore_render_state.h" />
     <ClInclude Include="Source\gore_memory.h" />
   </ItemGroup>
   <ItemGroup>

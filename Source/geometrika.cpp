@@ -1,6 +1,6 @@
 #include "geometrika.h"
 
-void GEOMKAUpdateAndRender(geometrika_state* State, render_stack* RenderStack, input_system* Input) {
+void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, input_system* Input) {
 	if (!State->IsInitialized) {
 
 		State->Camera = GAMECreateCamera();

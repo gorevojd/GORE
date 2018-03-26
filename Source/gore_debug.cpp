@@ -1653,6 +1653,8 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 
 
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
+	GUIText(State->GUIState, "Press ~ to open the debug overlay");
+	GUIText(State->GUIState, "{[||][||]^^__^^}``~~");
 	GUITreeBegin(State->GUIState, "DEBUG", DebugStr);
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
 
