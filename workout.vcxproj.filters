@@ -107,6 +107,9 @@
     <ClInclude Include="Source\gore_render_state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\gore_lighting.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\Shaders\gui_font_shader.frag" />

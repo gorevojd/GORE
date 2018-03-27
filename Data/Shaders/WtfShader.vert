@@ -9,14 +9,16 @@ uniform mat4 Projection;
 uniform mat4 View;
 uniform mat4 Model;
 
-out vec3 VertColor;
+out vec3 FragmentColor;
+out vec2 FragmentUV;
 out vec3 FragmentWorldP;
 out vec3 FragmentWorldN;
 
 void main(){
 	gl_Position = Projection * View * Model * vec4(Position.xyz, 1.0f);
-	VertColor = Color;
+	FragmentColor = Color;
 
 	FragmentWorldP = (Model * vec4(Position.xyz, 1.0f)).xyz;
 	FragmentWorldN = Normal;
+	FragmentUV = UV;
 }

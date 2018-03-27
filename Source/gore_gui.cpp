@@ -767,7 +767,12 @@ static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, fl
 	float CurGlyphAdvance = 0.0f;
 
 	while (*At) {
-		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
+		b32 CharIsValid = (*At >= ' ') && (*At <= '~');
+		int GlyphIndex = 0;
+		if (CharIsValid) {
+			GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
+		}
+
 		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
 		CurGlyphAdvance = Glyph->Advance;
 
@@ -789,7 +794,7 @@ static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, fl
 			}
 		}
 
-		if (IsPrint)
+		if (IsPrint && CharIsValid)
 		{
 			float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
 			float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
@@ -805,7 +810,8 @@ static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, fl
 		}
 
 		float Kerning = 0.0f;
-		if (*(At + 1)) {
+		char NextChar = *(At + 1);
+		if (NextChar >= ' ' && NextChar <= '~') {
 			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
 		}
 

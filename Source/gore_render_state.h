@@ -188,8 +188,8 @@ inline void RENDERPushGlyph(render_state* Stack, int Codepoint, v2 P, v2 Dim, v4
 	Entry->ModulationColor = ModulationColor;
 }
 
-inline void RENDERSetCameraSetup(render_state* Stack, game_camera_setup Setup) {
-	Stack->CameraSetup = Setup;
+inline void RENDERSetCameraSetup(render_state* State, game_camera_setup Setup) {
+	State->CameraSetup = Setup;
 }
 
 inline void RENDERPushTest(render_state* Stack) {

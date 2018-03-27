@@ -1683,7 +1683,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", TempDT * 1000.0f, LastFrameFPS);
 
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
-	GUIText(State->GUIState, "Press ~ to open the debug overlay");
+	GUIText(State->GUIState, "Press ~ to open devtools");
 	GUIText(State->GUIState, "{[||][||]^^__^^}``~~");
 	GUITreeBegin(State->GUIState, "DEBUG", DebugStr);
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
