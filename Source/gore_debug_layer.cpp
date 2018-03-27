@@ -10,7 +10,7 @@ void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType) {
 	int Index = SDL_AtomicSet(&GlobalRecordTable->CurrentLogIndex, NewLogIndex);
 
 	char* BufToFill = GlobalRecordTable->Logs[Index];
-	stbsp_sprintf(BufToFill, "%s\n%s\n%d", Text, File, Line);
+	stbsp_sprintf(BufToFill, "%s@%s@%d", Text, File, Line);
 	GlobalRecordTable->LogsInited[Index] = 1;
 	GlobalRecordTable->LogsTypes[Index] = LogType;
 }

@@ -336,6 +336,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	//NOTE(dima): Initialization of logs
 	State->DebugLoggerFilterType = 0;
 	State->DebugLoggerActionHappened = 0;
+	State->InLoggerFontScale = 1.0f;
 
 #if DEBUG_NORMALIZE_FRAME_GRAPH
 	State->SegmentFrameCount = 0;
@@ -1201,6 +1202,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
 		float DescPlusGap = RowAdvance - AscByScale;
+		float LoggerFontScale = GUIState->FontScale * State->InLoggerFontScale;
 
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
@@ -1309,6 +1311,26 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 				if (LogIsValid) {
 
+#define DEBUG_LOG_TEXT_TEMP_SIZE 256
+					char LogText[DEBUG_LOG_TEXT_TEMP_SIZE];
+					char* LogData = GlobalRecordTable->Logs[CurrentLogQueueIndex];
+					for (int ScanIndex = 0;
+						ScanIndex < DEBUG_LOG_TEXT_TEMP_SIZE;
+						ScanIndex++)
+					{
+						char ScanChar = LogData[ScanIndex];
+						if (ScanChar != 0 &&
+							ScanChar != '@')
+						{
+							LogText[ScanIndex] = LogData[ScanIndex];
+						}
+						else {
+							LogText[ScanIndex] = 0;
+							break;
+						}
+					}
+
+#if 0
 					rect2 PreRect = GUITextBase(
 						GUIState,
 						"/> ",
@@ -1320,26 +1342,6 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 						V4(0.0f, 0.0f, 0.0f, 0.0f),
 						0);
 
-#define DEBUG_LOG_TEXT_TEMP_SIZE 256
-					char LogText[DEBUG_LOG_TEXT_TEMP_SIZE];
-					char* LogData = GlobalRecordTable->Logs[CurrentLogQueueIndex];
-					for (int ScanIndex = 0;
-						ScanIndex < DEBUG_LOG_TEXT_TEMP_SIZE;
-						ScanIndex++)
-					{
-						char ScanChar = LogData[ScanIndex];
-						if (ScanChar != 0 &&
-							ScanChar != '\n' &&
-							ScanChar != '\r') 
-						{
-							LogText[ScanIndex] = LogData[ScanIndex];
-						}
-						else {
-							LogText[ScanIndex] = 0;
-							break;
-						}
-					}
-
 					GUITextBase(
 						GUIState,
 						LogText,
@@ -1350,8 +1352,32 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 						LogResColor,
 						V4(0.0f, 0.0f, 0.0f, 0.0f),
 						0);
+#else
+#if 1
+					v2 LogDim = GUIGetTextSizeMultiline(GUIState, LogText, LoggerFontScale);
 
-					PrintY -= RowAdvance;
+					rect2 PreRect = GUIPrintText(GUIState, "/> ", V2(ActualAt.x, PrintY - LogDim.y), LoggerFontScale, LogCol);
+					GUIPrintTextMultiline(
+						GUIState,
+						LogText,
+						V2(PreRect.Max.x, PrintY - LogDim.y),
+						LoggerFontScale,
+						LogResColor);
+#else
+					char* TempText = "Hello\nWorld\nMy\n\tName\n\tIs\nDima";
+					v2 LogDim = GUIGetTextSizeMultiline(GUIState, TempText, GUIState->FontScale);
+
+					rect2 PreRect = GUIPrintText(GUIState, "/> ", V2(ActualAt.x, PrintY - LogDim.y), GUIState->FontScale, LogCol);
+					GUIPrintTextMultiline(
+						GUIState,
+						TempText,
+						V2(PreRect.Max.x, PrintY - LogDim.y),
+						GUIState->FontScale,
+						LogResColor);
+#endif
+#endif
+
+					PrintY -= LogDim.y;
 				}
 
 
@@ -1385,8 +1411,8 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		b32 LogIsPlaying = (GlobalRecordTable->LogIncrement.value == 1);
 		gui_interaction StopBoolInteraction = GUIBoolInteraction(&LogIsPlaying);
-		rect2 StopButRc = GUITextBase(GUIState, "Stop", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
-			LogIsPlaying ? GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) : GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
+		rect2 StopButRc = GUITextBase(GUIState, "Rec", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
+			LogIsPlaying ? GUIGetColor(GUIState, GUIState->ColorTheme.PlayColor) : GUIGetColor(GUIState, GUIState->ColorTheme.PauseColor),
 			GUIState->FontScale,
 			&StopBoolInteraction,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
@@ -1617,6 +1643,11 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 					}break;
 
 					case DebugValue_Logger: {
+						GUISlider(State->GUIState, "LoggerFontScale",
+							0.5f,
+							1.5f,
+							&State->InLoggerFontScale);
+
 						DEBUGLogger(State);
 					}break;
 
@@ -1650,7 +1681,6 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 	char DebugStr[128];
 	float LastFrameFPS = 1.0f / TempDT;
 	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", TempDT * 1000.0f, LastFrameFPS);
-
 
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
 	GUIText(State->GUIState, "Press ~ to open the debug overlay");

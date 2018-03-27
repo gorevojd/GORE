@@ -906,19 +906,19 @@ int main(int ArgsCount, char** Args) {
 
 	char WindowBitsBuf[64];
 
-	stbsp_sprintf(WindowBitsBuf, "Window RED bits count: %d\n", SetR);
+	stbsp_sprintf(WindowBitsBuf, "Window RED bits count: %d", SetR);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window GREEN bits count: %d\n", SetG);
+	stbsp_sprintf(WindowBitsBuf, "Window GREEN bits count: %d", SetG);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window BLUE bits count: %d\n", SetB);
+	stbsp_sprintf(WindowBitsBuf, "Window BLUE bits count: %d", SetB);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window DEPTH bits count: %d\n", SetD);
+	stbsp_sprintf(WindowBitsBuf, "Window DEPTH bits count: %d", SetD);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
@@ -1005,13 +1005,14 @@ int main(int ArgsCount, char** Args) {
 	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
 
 	font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
+
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_copy.png", 15, 8, 8, AssetLoadFontFromImage_InitLowercaseWithUppercase);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_8x16.png", 20, 8, 16);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/typoster.outline.otf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
 
@@ -1146,9 +1147,10 @@ int main(int ArgsCount, char** Args) {
 		END_SECTION();
 		END_TIMING();
 
-
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;
+
+		DEBUG_LOG("Hello");
 
 		GlobalTime += DeltaTime;
 	}

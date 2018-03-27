@@ -879,7 +879,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, rgba_buffer* Buffer, rect2
 			}break;
 
 			default: {
-				Assert(!"Invalid entry type");
+				//Assert(!"Invalid entry type");
 			}break;
 		}
 

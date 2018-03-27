@@ -169,6 +169,7 @@ struct debug_state {
 #endif
 	u32 DebugLoggerActionHappened;
 	u32 DebugLoggerFilterType;
+	float InLoggerFontScale;
 
 	u32 LastCollationFrameRecords;
 	b32 IsRecording;

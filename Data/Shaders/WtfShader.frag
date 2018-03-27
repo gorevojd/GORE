@@ -31,7 +31,7 @@ vec3 CalculatePointLight(point_light Lit){
 
 	//NOTE(dima): Specular lighting
 
-
+	asdf
 
 	return(Result);
 }

@@ -739,15 +739,20 @@ void GUIInitState(
 	GUIState->ColorTheme = GUIDefaultColorTheme();
 }
 
-enum print_text_type {
-	PrintTextType_PrintText,
-	PrintTextType_GetTextSize,
+enum gui_print_text_flag {
+	GUIPrintText_GetSize = 1,
+	GUIPrintText_Print = 2,
+	GUIPrintText_Multiline = 4,
 };
 
-static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	FUNCTION_TIMING();
 
 	rect2 TextRect = {};
+
+	b32 IsMultiline = (Flags & GUIPrintText_Multiline);
+	b32 IsPrint = (Flags & GUIPrintText_Print);
+	b32 IsGetSize = (Flags & GUIPrintText_GetSize);
 
 	v2 CurrentP = P;
 
@@ -758,25 +763,45 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, flo
 
 	RENDERPushBeginText(Stack, FontInfo);
 
+	float MaxRowPX = 0.0f;
+	float CurGlyphAdvance = 0.0f;
+
 	while (*At) {
 		int GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
 		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
+		CurGlyphAdvance = Glyph->Advance;
 
 		float BitmapScale = Glyph->Height * Scale;
+		
+		if (IsMultiline) {
+			if (*At == '\n' ||
+				*At == '\r')
+			{
+				if (CurrentP.x > MaxRowPX) {
+					MaxRowPX = CurrentP.x;
+				}
 
-		if (Type == PrintTextType_PrintText) {
+				CurrentP.x = P.x;
+				CurrentP.y += GetNextRowAdvance(FontInfo) * Scale;
+
+				++At;
+				continue;
+			}
+		}
+
+		if (IsPrint)
+		{
 			float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
 			float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
 
-			v2 BitmapDim = V2(Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale);
+			v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 
-#if 1
-			//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2 }, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
+			//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2}, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
 			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
-#else
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX + 1, BitmapMinY + 1 }, BitmapScale, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(Stack, FontInfo, *At, { BitmapMinX, BitmapMinY }, BitmapScale, Color);
-#endif
+		}
+
+		if (*At == '\t') {
+			CurGlyphAdvance = Glyph->Advance * 2.0f;
 		}
 
 		float Kerning = 0.0f;
@@ -784,19 +809,49 @@ static rect2 PrintTextInternal(gui_state* State, u32 Type, char* Text, v2 P, flo
 			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
 		}
 
-		CurrentP.x += (Glyph->Advance + Kerning) * Scale;
+		CurrentP.x += (CurGlyphAdvance + Kerning) * Scale;
 
 		++At;
+	}
+
+	if (CurrentP.x > MaxRowPX) {
+		MaxRowPX = CurrentP.x;
 	}
 
 	RENDERPushEndText(Stack);
 
 	TextRect.Min.x = P.x;
 	TextRect.Min.y = P.y - FontInfo->AscenderHeight * Scale;
-	TextRect.Max.x = CurrentP.x;
-	TextRect.Max.y = P.y - FontInfo->DescenderHeight * Scale;
+	TextRect.Max.x = MaxRowPX;
+	TextRect.Max.y = CurrentP.y - FontInfo->DescenderHeight * Scale;
 
 	return(TextRect);
+}
+
+rect2 GUIPrintText(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
+	rect2 Result = PrintTextInternal(GUIState, GUIPrintText_Print, Text, P, Scale, Color);
+
+	return(Result);
+}
+
+rect2 GUIPrintTextMultiline(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
+	rect2 Result = PrintTextInternal(GUIState, GUIPrintText_Print | GUIPrintText_Multiline, Text, P, Scale, Color);
+
+	return(Result);
+}
+
+v2 GUIGetTextSize(gui_state* GUIState, char* Text, float Scale) {
+	rect2 TextRc = PrintTextInternal(GUIState, GUIPrintText_GetSize, Text, {}, Scale);
+
+	v2 Result = GetRectDim(TextRc);
+	return(Result);
+}
+
+v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale) {
+	rect2 TextRc = PrintTextInternal(GUIState, GUIPrintText_GetSize | GUIPrintText_Multiline, Text, {}, Scale);
+
+	v2 Result = GetRectDim(TextRc);
+	return(Result);
 }
 
 void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack) {
@@ -1040,7 +1095,7 @@ void GUIPrepareFrame(gui_state* GUIState) {
 		TooltipIndex < GUIState->TooltipCount;
 		TooltipIndex++)
 	{
-		PrintTextInternal(GUIState, PrintTextType_PrintText,
+		PrintTextInternal(GUIState, GUIPrintText_Print,
 			GUIState->Tooltips[TooltipIndex],
 			PrintP, GUIState->FontScale * 0.7f,
 			GUIGetColor(GUIState, GUIState->ColorTheme.TooltipTextColor));
@@ -1751,7 +1806,7 @@ rect2 GUITextBase(
 	u32 OutlineWidth,
 	v4 OutlineColor)
 {
-	rect2 TextRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, Pos, FontScale);
+	rect2 TextRc = PrintTextInternal(GUIState, GUIPrintText_GetSize, Text, Pos, FontScale);
 
 	v4 CurTextColor = TextColor;
 	if (MouseInRect(GUIState->Input, TextRc)) {
@@ -1768,13 +1823,13 @@ rect2 GUITextBase(
 		RENDERPushRectOutline(GUIState->RenderStack, TextRc, OutlineWidth, OutlineColor);
 	}
 
-	PrintTextInternal(GUIState, PrintTextType_PrintText, Text, Pos, FontScale, CurTextColor);
+	PrintTextInternal(GUIState, GUIPrintText_Print, Text, Pos, FontScale, CurTextColor);
 
 	return(TextRc);
 }
 
 void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
-	PrintTextInternal(GUIState, PrintTextType_PrintText,
+	PrintTextInternal(GUIState, GUIPrintText_Print,
 		LabelText, At,
 		GUIState->FontScale * 0.7f,
 		GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
@@ -2023,7 +2078,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 
 		rect2 Rc = PrintTextInternal(
 			GUIState,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			Text,
 			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
@@ -2088,9 +2143,8 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 		}
 		v2* TxtDim = &Element->Cache.Button.ButtonRectDim;
 #else
-		rect2 TxtSizeRc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Buf, {}, GUIState->FontScale);
 		//NOTE(Dima): Using cache for button because of the same purpose
-		v2 TxtDim_ = GetRectDim(TxtSizeRc);
+		v2 TxtDim_ = GUIGetTextSize(GUIState, Buf, GUIState->FontScale);
 		v2* TxtDim = &TxtDim_;
 #endif
 
@@ -2105,7 +2159,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 
 		PrintTextInternal(
 			GUIState,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			Buf,
 			V2(WorkRect.Min.x + WorkRectDim.x * 0.5f - TxtDim->x * 0.5f, View->CurrentY),
 			GUIState->FontScale,
@@ -2274,7 +2328,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, GUIPrintText_GetSize, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
@@ -2294,7 +2348,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, GUIPrintText_Print, Text, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
@@ -2384,7 +2438,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		{
 			rect2 ButRect = PrintTextInternal(
 				GUIState,
-				PrintTextType_GetTextSize,
+				GUIPrintText_GetSize,
 				"false",
 				{},
 				GUIState->FontScale);
@@ -2392,7 +2446,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 
 			rect2 TrueRc = PrintTextInternal(
 				GUIState, 
-				PrintTextType_GetTextSize, 
+				GUIPrintText_GetSize,
 				"true", 
 				{},
 				GUIState->FontScale);
@@ -2403,7 +2457,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 
 		rect2 NameRect = PrintTextInternal(
 			GUIState,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			ButtonName,
 			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale,
@@ -2465,7 +2519,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		RENDERPushRect(GUIState->RenderStack, ButRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
 		RENDERPushRectOutline(GUIState->RenderStack, ButRc, OutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, TextToPrint, V2(PrintButX, PrintButY), GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, GUIPrintText_Print, TextToPrint, V2(PrintButX, PrintButY), GUIState->FontScale, TextHighlightColor);
 
 		//NOTE(Dima): Remember last element width for BeginRow/EndRow
 		GUIDescribeElement(GUIState, V2(ButRc.Max.x - View->CurrentX, ButRc.Max.y - ButRc.Min.y + OutlineWidth), V2(View->CurrentX, ButRc.Min.y));
@@ -2528,7 +2582,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		v2 MaxValueRcMin = V2(View->CurrentX, View->CurrentY);
 		rect2 MaxValueRcSize = PrintTextInternal(
 			State,
-			PrintTextType_GetTextSize,
+			GUIPrintText_GetSize,
 			MaxValueTxt,
 			{},
 			SmallTextScale);
@@ -2551,7 +2605,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		v2 MinValueRcMin = V2(WorkRect.Min.x, WorkRect.Max.y + NextRowAdvanceSmall);
 		rect2 MinValueRcSize = PrintTextInternal(
 			State,
-			PrintTextType_GetTextSize,
+			GUIPrintText_GetSize,
 			MinValueTxt,
 			{},
 			SmallTextScale);
@@ -2560,7 +2614,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		//NOTE(DIMA): Drawing Max value text
 		rect2 MaxValueRc = PrintTextInternal(
 			State,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			MaxValueTxt,
 			V2(MaxValueRcMin.x + 0.5f * (WorkRectDim.x - MaxValueRcDim.x),
 			MaxValueRcMin.y),
@@ -2570,7 +2624,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 		//NOTE(DIMA): Printing Min value text
 		rect2 MinValueRc = PrintTextInternal(
 			State,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			MinValueTxt,
 			V2(MinValueRcMin.x + 0.5f * (WorkRectDim.x - MinValueRcDim.x),
 			MinValueRcMin.y),
@@ -2590,7 +2644,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 			SmallBufAt++;
 		}
-		rect2 SmallTextRect = PrintTextInternal(State, PrintTextType_GetTextSize, SmallTextToPrint, {}, SmallTextScale);
+		rect2 SmallTextRect = PrintTextInternal(State, GUIPrintText_GetSize, SmallTextToPrint, {}, SmallTextScale);
 		v2 SmallTextRcDim = GetRectDim(SmallTextRect);
 
 		float SmallTextX = WorkRect.Min.x + WorkRectDim.x * 0.5f - SmallTextRcDim.x * 0.5f;
@@ -2598,7 +2652,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 		rect2 SmallTextRc = PrintTextInternal(
 			State,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			SmallTextToPrint,
 			V2(SmallTextX,
 			SmallTextY),
@@ -2727,7 +2781,10 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 	GUIEndElement(State, GUIElement_InteractibleItem);
 }
 
-void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction) {
+void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue) {
+	gui_interaction Interaction_ = GUIVariableInteraction(InteractValue, GUIVarType_F32);
+	gui_interaction* Interaction = &Interaction_;
+
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2743,7 +2800,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		rect2 NameTextSize = PrintTextInternal(
 			GUIState,
-			PrintTextType_PrintText,
+			GUIPrintText_Print,
 			Name,
 			V2(View->CurrentX, View->CurrentY),
 			GUIState->FontScale,
@@ -2752,7 +2809,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		char ValueBuf[32];
 		stbsp_sprintf(ValueBuf, "%.3f", *Value);
-		rect2 ValueTextSize = PrintTextInternal(GUIState, PrintTextType_GetTextSize, ValueBuf, {}, GUIState->FontScale);
+		rect2 ValueTextSize = PrintTextInternal(GUIState, GUIPrintText_GetSize, ValueBuf, {}, GUIState->FontScale);
 
 		//NOTE(Dima): Next element to the text is advanced by AscenderHeight
 		v2 WorkRectMin = V2(
@@ -2860,7 +2917,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_intera
 
 		float ValueTextY = WorkRectMin.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float ValueTextX = WorkRectMin.x + WorkRectDim.x * 0.5f - (ValueTextSize.Max.x - ValueTextSize.Min.x) * 0.5f;
-		PrintTextInternal(GUIState, PrintTextType_PrintText, ValueBuf, V2(ValueTextX, ValueTextY), GUIState->FontScale);
+		PrintTextInternal(GUIState, GUIPrintText_Print, ValueBuf, V2(ValueTextX, ValueTextY), GUIState->FontScale);
 
 #if 0
 		char TextBuf[64];
@@ -2909,7 +2966,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	if (GUIElementShouldBeUpdated(Element)) {
 		GUIPreAdvanceCursor(GUIState);
 
-		rect2 Rc = PrintTextInternal(GUIState, PrintTextType_GetTextSize, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
+		rect2 Rc = PrintTextInternal(GUIState, GUIPrintText_GetSize, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
 
@@ -2934,7 +2991,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 			}
 		}
 
-		PrintTextInternal(GUIState, PrintTextType_PrintText, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
+		PrintTextInternal(GUIState, GUIPrintText_Print, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale, TextHighlightColor);
 
 		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
 		GUIAdvanceCursor(GUIState);

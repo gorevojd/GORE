@@ -1074,6 +1074,7 @@ struct gui_color_theme {
 	u32 TextColor;
 	u32 TextHighlightColor;
 	u32 TooltipTextColor;
+	u32 CommentColor;
 
 	u32 OutlineColor;
 
@@ -1092,6 +1093,9 @@ struct gui_color_theme {
 	u32 OkLogColor;
 	u32 WarningLogColor;
 
+	u32 PlayColor;
+	u32 PauseColor;
+
 	u32 ButtonTextColor;
 	u32 ButtonBackColor;
 	u32 ButtonTextHighColor;
@@ -1109,6 +1113,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.TextColor = GUIColorExt_burlywood;
 	Result.TextHighlightColor = GUIColor_Yellow;
 	Result.TooltipTextColor = GUIColor_White;
+	Result.CommentColor = GUIColorExt_gray50;
 
 	Result.OutlineColor = GUIColor_Black;
 
@@ -1130,9 +1135,11 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.LogColor = Result.TextColor;
 	Result.OkLogColor = GUIColorExt_OliveDrab;
-	Result.WarningLogColor = GUIColor_DarkGoldenrod;
+	Result.WarningLogColor = GUIColorExt_DarkGoldenrod1;
 	Result.ErrLogColor = GUIColorExt_red3;
 
+	Result.PlayColor = GUIColorExt_DarkGoldenrod1;
+	Result.PauseColor = Result.CommentColor;
 
 	Result.ButtonTextColor = GUIColorExt_burlywood;
 	Result.ButtonBackColor = GUIColorExt_gray10;
@@ -1355,6 +1362,12 @@ extern void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack);
 extern void GUIPrepareFrame(gui_state* GUIState);
 extern void GUIEndFrame(gui_state* GUIState);
 
+extern rect2 GUIPrintText(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
+extern rect2 GUIPrintTextMultiline(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
+extern v2 GUIGetTextSize(gui_state* GUIState, char* Text, float Scale);
+extern v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale);
+
+
 extern void GUIText(gui_state* GUIState, char* Text);
 extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
 extern b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect = 0, v4* TextColor = 0);
@@ -1363,7 +1376,7 @@ extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUITooltip(gui_state* GUIState, char* TooltipText);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
-extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, gui_interaction* Interaction);
+extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue);
 extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
 extern void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer);

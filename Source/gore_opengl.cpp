@@ -15,6 +15,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
 	if (!Success) {
 		glGetShaderInfoLog(VertexShader, sizeof(InfoLog), 0, InfoLog);
+		DEBUG_ERROR_LOG("Vert shader load error");
 		//TODO(dima): Logging
 	}
 
@@ -25,6 +26,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Success);
 	if (!Success) {
 		glGetShaderInfoLog(FragmentShader, sizeof(InfoLog), 0, InfoLog);
+		DEBUG_ERROR_LOG(InfoLog);
 		//TODO(dima): Logging
 	}
 
@@ -36,6 +38,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	glGetProgramiv(Program, GL_LINK_STATUS, &Success);
 	if (!Success) {
 		glGetProgramInfoLog(Program, sizeof(InfoLog), 0, InfoLog);
+		DEBUG_ERROR_LOG(InfoLog);
 		//TODO(dima): Logging
 	}
 
