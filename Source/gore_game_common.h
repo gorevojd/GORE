@@ -17,7 +17,7 @@ struct game_camera {
 };
 
 struct game_camera_setup {
-	game_camera* Camera;
+	game_camera Camera;
 
 	mat4 ProjectionMatrix;
 	mat4 ViewMatrix;
@@ -58,7 +58,7 @@ extern void GAMEUpdateCameraVectors(
 	v3 WorldUp = V3(0.0f, 1.0f, 0.0f));
 
 extern game_camera_setup GAMECameraSetup(
-	game_camera* Camera,
+	game_camera Camera,
 	u32 Width,
 	u32 Height,
 	u32 ProjectionType = CameraProjection_InfiniteOrthographic,

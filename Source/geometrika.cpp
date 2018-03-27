@@ -52,7 +52,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, i
 	}
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
-		&State->Camera,
+		State->Camera,
 		RenderStack->RenderWidth,
 		RenderStack->RenderHeight,
 		CameraProjection_Perspective);

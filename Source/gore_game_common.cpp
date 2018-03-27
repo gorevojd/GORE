@@ -25,7 +25,7 @@ void GAMEUpdateCameraVectors(
 }
 
 game_camera_setup GAMECameraSetup(
-	game_camera* Camera, 
+	game_camera Camera, 
 	u32 Width,
 	u32 Height, 
 	u32 ProjectionType,
@@ -56,7 +56,7 @@ game_camera_setup GAMECameraSetup(
 		}break;
 	}
 
-	Setup.ViewMatrix = GAMEGetCameraTransform(Camera);
+	Setup.ViewMatrix = GAMEGetCameraTransform(&Camera);
 	Setup.ProjectionViewMatrix = Multiply(Setup.ProjectionMatrix, Setup.ViewMatrix);
 
 	return(Setup);

@@ -280,9 +280,9 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	glUniformMatrix4fv(GLState->WtfShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
 	glUniformMatrix4fv(GLState->WtfShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
 	glUniform3f(GLState->WtfShader.CameraPLocation,
-		RenderState->CameraSetup.Camera->Position.x,
-		RenderState->CameraSetup.Camera->Position.y,
-		RenderState->CameraSetup.Camera->Position.z);
+		RenderState->CameraSetup.Camera.Position.x,
+		RenderState->CameraSetup.Camera.Position.y,
+		RenderState->CameraSetup.Camera.Position.z);
 	glUseProgram(0);
 
 	font_info* CurrentFontInfo = 0;
