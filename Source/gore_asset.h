@@ -54,11 +54,15 @@ struct font_info {
 enum asset_load_font_from_image_flag {
 	AssetLoadFontFromImage_None = 0,
 	AssetLoadFontFromImage_InitLowercaseWithUppercase = 1,
-
-
 };
 
-extern font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f);
+enum asset_load_font_flags {
+	AssetLoadFontFlag_None = 0,
+	AssetLoadFontFlag_BakeOffsetShadows = 1,
+};
+
+
+extern font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f, u32 Flags = 0);
 extern font_info LoadFontInfoFromImage(char* ImagePath, int Height, int OneCharPixelWidth, int OneCharPixelHeight, u32 Flags);
 extern rgba_buffer LoadIMG(char* Path);
 

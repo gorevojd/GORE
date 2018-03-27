@@ -289,7 +289,7 @@ font_info LoadFontInfoFromImage(
 	return(Result);
 }
 
-font_info LoadFontInfoWithSTB(char* FontName, float Height) {
+font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	font_info Result = {};
 	stbtt_fontinfo FontInfo;
 
@@ -349,8 +349,13 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 
 		stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Advance, &LeftBearingX);
 
-		Glyph->Width = CharWidth + 2;
-		Glyph->Height = CharHeight + 2;
+		int ShadowOffset = 0;
+		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
+			ShadowOffset = 2;
+		}
+
+		Glyph->Width = CharWidth + 2 + ShadowOffset;
+		Glyph->Height = CharHeight + 2 + ShadowOffset;
 		Glyph->Bitmap = AllocateRGBABuffer(Glyph->Width, Glyph->Height);
 		Glyph->Advance = Advance * Scale;
 		Glyph->LeftBearingX = LeftBearingX * Scale;
@@ -364,42 +369,83 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height) {
 		AtlasWidth += Glyph->Width;
 		AtlasHeight = Max(AtlasHeight, Glyph->Height);
 
-		u32 CurrentX = 0;
-		u32 CurrentY = 0;
+		//NOTE(dima): Clearing the image bytes
+		u32* Pixel = (u32*)Glyph->Bitmap.Pixels;
 		for (int Y = 0; Y < Glyph->Height; Y++) {
-			CurrentX = 0;
 			for (int X = 0; X < Glyph->Width; X++) {
+				*Pixel++ = 0;
+			}
+		}
+		
 
-				u32* Out = (u32*)(Glyph->Bitmap.Pixels + Y * Glyph->Bitmap.Pitch + X * 4);
+		u32 SrcX = 0;
+		u32 SrcY = 0;
 
-				v4 ResultColor;
+		//NOTE(dima): First - render shadow if needed
+		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
+			for (int Y = 1 + ShadowOffset; Y < Glyph->Height - 1; Y++) {
+				SrcX = 0;
+				u32* Pixel = (u32*)Glyph->Bitmap.Pixels + Glyph->Bitmap.Width * Y;
+				for (int X = 1 + ShadowOffset; X < Glyph->Width - 1; X++) {
+					u32* Out = (u32*)(Glyph->Bitmap.Pixels + Y * Glyph->Bitmap.Pitch + X * 4);
 
-				if (((Y == 0) || (Y == (Glyph->Height - 1))) ||
-					((X == 0) || (X == (Glyph->Width - 1))))
-				{
-					ResultColor = V4(1.0f, 1.0f, 1.0f, 0.0f);
-				}
-				else {
-					u8 Grayscale = *((u8*)Bitmap + CurrentY * CharWidth + CurrentX);
+					u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
 					float GrayscaleFloat = (float)(Grayscale + 0.5f);
 					float Grayscale01 = GrayscaleFloat / 255.0f;
 
-					ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
-					CurrentX++;
-				}
+					v4 ResultColor = V4(0.0f, 0.0f, 0.0f, Grayscale01);
 
-				/*Alpha premultiplication*/
+					/*Alpha premultiplication*/
+					ResultColor.r *= ResultColor.a;
+					ResultColor.g *= ResultColor.a;
+					ResultColor.b *= ResultColor.a;
+
+					u32 ColorValue = PackRGBA(ResultColor);
+					*Out = ColorValue;
+
+					SrcX++;
+				}
+				SrcY++;
+			}
+		}
+
+		SrcX = 0;
+		SrcY = 0;
+
+		//NOTE(dima): Then render actual glyph
+		for (int Y = 1; Y < Glyph->Height - 1 - ShadowOffset; Y++) {
+			SrcX = 0;
+			for (int X = 1; X < Glyph->Width - 1 - ShadowOffset; X++) {
+
+				u32* Out = (u32*)Glyph->Bitmap.Pixels + Y * Glyph->Width + X;
+				v4 DstInitColor = UnpackRGBA(*Out);
+
+				u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
+				float GrayscaleFloat = (float)(Grayscale + 0.5f);
+				float Grayscale01 = GrayscaleFloat / 255.0f;
+
+				v4 ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
+
+				//NOTE(dima): alpha premultiplication
 				ResultColor.r *= ResultColor.a;
 				ResultColor.g *= ResultColor.a;
 				ResultColor.b *= ResultColor.a;
 
+				//NOTE(dima): Calculating blend alpha value
+				float BlendAlpha = ResultColor.a;
+				
+				ResultColor.x = ResultColor.x + DstInitColor.x * (1.0f - BlendAlpha);
+				ResultColor.y = ResultColor.y + DstInitColor.y * (1.0f - BlendAlpha);
+				ResultColor.z = ResultColor.z + DstInitColor.z * (1.0f - BlendAlpha);
+				ResultColor.a = ResultColor.a + DstInitColor.a - ResultColor.a * DstInitColor.a;
+
 				u32 ColorValue = PackRGBA(ResultColor);
 				*Out = ColorValue;
+
+				SrcX++;
 			}
 
-			if ((Y != 0) && (Y != (Glyph->Height - 1))) {
-				CurrentY++;
-			}
+			SrcY++;
 		}
 
 		stbtt_FreeBitmap(Bitmap, 0); /*???*/
