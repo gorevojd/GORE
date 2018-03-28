@@ -9,32 +9,26 @@
 
 #include <intrin.h>
 
-#define PLATFORM_THREAD_QUEUE_CALLBACK(name) void name(void* Data)
-typedef PLATFORM_THREAD_QUEUE_CALLBACK(thread_queue_callback);
+#define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
+typedef PLATFORM_THREADWORK_CALLBACK(platform_threadwork_callback);
 
-struct thread_queue_entry {
-	thread_queue_callback* Callback;
+struct platform_threadwork {
+	platform_threadwork_callback* Callback;
 	void* Data;
 };
 
-#define THREAD_QUEUE_ENTRY_COUNT 512
-struct thread_queue {
-	thread_queue_entry Entries[THREAD_QUEUE_ENTRY_COUNT];
+//NOTE(dima): Platform thread queue structure defined in platform dependent code
+#define PLATFORM_THREAD_QUEUE_SIZE 512
+struct platform_thread_queue;
 
-	volatile int EntryCount;
-	volatile int FinishedEntries;
+#define PLATFORM_ADD_THREADWORK_ENTRY(name) void name(platform_thread_queue* Queue, void* Data, platform_threadwork_callback* Callback)
+typedef PLATFORM_ADD_THREADWORK_ENTRY(platform_add_threadwork_entry);
 
-	volatile int NextToRead;
-	volatile int NextToWrite;
+#define PLATFORM_COMPLETE_THREAD_WORKS(name) void name(platform_thread_queue* Queue)
+typedef PLATFORM_COMPLETE_THREAD_WORKS(platform_complete_thread_works);
 
-	void* Semaphore;
-};
-
-#define PLATFORM_THREAD_QUEUE_ADD_ENTRY(name) void name(thread_queue* Queue, thread_queue_callback* Callback, void* Data)
-typedef PLATFORM_THREAD_QUEUE_ADD_ENTRY(platform_thread_queue_add_entry);
-
-#define PLATFORM_THREAD_QUEUE_FINISH_ALL(name) void name(thread_queue* Queue)
-typedef PLATFORM_THREAD_QUEUE_FINISH_ALL(platform_thread_queue_finish_all);
+#define PLATFORM_GET_THREAD_NAME_BY_ID(name) char* name(u32 ThreadID)
+typedef PLATFORM_GET_THREAD_NAME_BY_ID(platform_get_thread_name_by_id);
 
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
@@ -121,10 +115,12 @@ typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 
 struct platform_api {
-	platform_thread_queue_add_entry* AddEntry;
-	platform_thread_queue_finish_all* FinishAll;
+	platform_add_threadwork_entry* AddThreadworkEntry;
+	platform_complete_thread_works* CompleteThreadWorks;
+	platform_get_thread_name_by_id* GetThreadNameByID;
 
-	thread_queue* RenderQueue;
+	platform_thread_queue* HighPriorityQueue;
+	platform_thread_queue* LowPriorityQueue;
 
 	stacked_memory GameModeMemoryBlock;
 	stacked_memory GeneralPurposeMemoryBlock;

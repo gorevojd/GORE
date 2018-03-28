@@ -1,80 +1,9 @@
-#include <SDL.h>
-
-#include <stdio.h>
-#include <thread>
+#include "sdl_gore.h"
 
 #define STB_SPRINTF_IMPLEMENTATION
 #include "stb_sprintf.h"
 
 #include "geometrika.h"
-
-#include "gore_render_state.h"
-#include "gore_renderer.h"
-#include "gore_engine.h"
-
-#include "gore_opengl.h"
-
-PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
-PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
-PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
-PFNGLGENBUFFERSPROC glGenBuffers;
-PFNGLBINDBUFFERPROC glBindBuffer;
-PFNGLBUFFERDATAPROC glBufferData;
-PFNGLBUFFERSUBDATAPROC glBufferSubData;
-PFNGLMAPBUFFERPROC glMapBuffer;
-PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-PFNGLUSEPROGRAMPROC glUseProgram;
-PFNGLCREATESHADERPROC glCreateShader;
-PFNGLSHADERSOURCEPROC glShaderSource;
-PFNGLCOMPILESHADERPROC glCompileShader;
-PFNGLGETSHADERIVPROC glGetShaderiv;
-PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
-PFNGLDELETESHADERPROC glDeleteShader;
-PFNGLCREATEPROGRAMPROC glCreateProgram;
-PFNGLATTACHSHADERPROC glAttachShader;
-PFNGLDETACHSHADERPROC glDetachShader;
-PFNGLLINKPROGRAMPROC glLinkProgram;
-PFNGLGETPROGRAMIVPROC glGetProgramiv;
-PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
-
-PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-PFNGLUNIFORM1FPROC glUniform1f;
-PFNGLUNIFORM2FPROC glUniform2f;
-PFNGLUNIFORM3FPROC glUniform3f;
-PFNGLUNIFORM4FPROC glUniform4f;
-PFNGLUNIFORM1IPROC glUniform1i;
-PFNGLUNIFORM2IPROC glUniform2i;
-PFNGLUNIFORM3IPROC glUniform3i;
-PFNGLUNIFORM4IPROC glUniform4i;
-PFNGLUNIFORM1UIPROC glUniform1ui;
-PFNGLUNIFORM2UIPROC glUniform2ui;
-PFNGLUNIFORM3UIPROC glUniform3ui;
-PFNGLUNIFORM4UIPROC glUniform4ui;
-PFNGLUNIFORM1FVPROC glUniform1fv;
-PFNGLUNIFORM2FVPROC glUniform2fv;
-PFNGLUNIFORM3FVPROC glUniform3fv;
-PFNGLUNIFORM4FVPROC glUniform4fv;
-PFNGLUNIFORM1IVPROC glUniform1iv;
-PFNGLUNIFORM2IVPROC glUniform2iv;
-PFNGLUNIFORM3IVPROC glUniform3iv;
-PFNGLUNIFORM4IVPROC glUniform4iv;
-PFNGLUNIFORM1UIVPROC glUniform1uiv;
-PFNGLUNIFORM2UIVPROC glUniform2uiv;
-PFNGLUNIFORM3UIVPROC glUniform3uiv;
-PFNGLUNIFORM4UIVPROC glUniform4uiv;
-PFNGLUNIFORMMATRIX2FVPROC glUniformMatrix2fv;
-PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
-PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-PFNGLUNIFORMMATRIX2X3FVPROC glUniformMatrix2x3fv;
-PFNGLUNIFORMMATRIX3X2FVPROC glUniformMatrix3x2fv;
-PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
-PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
-PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
-PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
-MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
 /*
 	NOTE(Dima):
@@ -561,93 +490,128 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
-#if 1
-struct sdl_thread_entry {
-	thread_queue* Queue;
-};
-
-void SDLAddEntry(thread_queue* Queue, thread_queue_callback* Callback, void* Data){
-	//Check the overlapping for total
-	int NewNextToWrite = (Queue->NextToWrite + 1) % ArrayCount(Queue->Entries);
-	/*Should not overlap*/
-	Assert(Queue->NextToWrite != NewNextToWrite);
-
-	thread_queue_entry* Entry = Queue->Entries + Queue->NextToWrite;
-	Entry->Callback = Callback;
-	Entry->Data = Data;
-	++Queue->EntryCount;
-
-	SDL_CompilerBarrier();
-	SDL_AtomicSet((SDL_atomic_t*)&Queue->NextToWrite, NewNextToWrite);
-
-	SDL_SemPost((SDL_sem*)Queue->Semaphore);
-}
-
-b32 SDLDoNextWork(thread_queue* Queue) {
-	b32 ShouldSleep = 0;
+b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
+	b32 NoWorkLeft = 0;
 
 	SDL_CompilerBarrier();
 
-	int NextToRead = Queue->NextToRead;
-	int NewNextToRead = (NextToRead + 1) % ArrayCount(Queue->Entries);
-	if (NextToRead != Queue->NextToWrite) {
-		if (SDL_AtomicCAS((SDL_atomic_t*)&Queue->NextToRead, NextToRead, NewNextToRead) == SDL_TRUE) {
-			thread_queue_entry* Entry = Queue->Entries + NextToRead;
-			Entry->Callback(Entry->Data);
-			SDL_AtomicAdd((SDL_atomic_t*)&Queue->FinishedEntries, 1);
-		}
+	if (Queue->AddIndex.value != Queue->DoIndex.value) {
+		int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+		int ToDoWorkIndex = SDL_AtomicSet(&Queue->DoIndex, NewToSet);
+
+		platform_threadwork* Work = Queue->Entries + ToDoWorkIndex;
+
+		Work->Callback(Work->Data);
+
+		/*
+			NOTE(dima): We need to make sure that the work has
+			been performed before we decrement queue started entries
+			count. Some optimizing compilers can move lines around,
+			for example SDL_AtomicAdd could be performed before
+			Work->Callback(Work->Data); So SDL_CompilerBarrier was
+			used here to prevent it;
+
+			Seems like I just wrote something the same as that I
+			wrote in SDLAddThreadEntry function. Sorry...
+		*/
+		SDL_CompilerBarrier();
+
+		SDL_AtomicAdd(&Queue->FinishedEntries, 1);
 	}
 	else {
-		ShouldSleep = 1;
+		NoWorkLeft = 1;
 	}
+	Assert(Queue->StartedEntries.value >= Queue->FinishedEntries.value);
 
-	return(ShouldSleep);
+	return(NoWorkLeft);
 }
 
-int SDLWorkerThread(void* Param){
-	sdl_thread_entry* Thread = (sdl_thread_entry*)Param;
-	thread_queue* Queue = Thread->Queue;
+PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 
-	for(;;){
-		if (SDLDoNextWork(Queue)) {
-			SDL_SemWait((SDL_sem*)Queue->Semaphore);
+	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+
+	/*
+		NOTE(dima): If NewToSet(new value for queue write index)
+		is equal to the queue read index than thead queue overlap
+		will happen. We can permanently assert it here because
+		we can't allow to override work that should be performed.
+	*/
+	Assert(NewToSet != Queue->DoIndex.value);
+
+	int ToWriteIndex = Queue->AddIndex.value;
+
+	platform_threadwork* Entry = &Queue->Entries[ToWriteIndex];
+	Entry->Callback = Callback;
+	Entry->Data = Data;
+
+	/*
+		NOTE(dima): We need to make sure that when we increment
+		started entries count, the current threadwork structure 
+		was properly set. Some optimizing compilers can move lines
+		around as they see fit. it can lead to phantome reads.
+		F.E if callback wasnt set, code can call it but the 
+		garbage will be in here. So SDL_CompilerBarrier was used
+		here to prevent it.
+	*/
+	SDL_AtomicAdd(&Queue->StartedEntries, 1);
+
+	SDL_CompilerBarrier();
+
+	SDL_AtomicSet(&Queue->AddIndex, NewToSet);
+
+	SDL_SemPost(Queue->Semaphore);
+}
+
+PLATFORM_COMPLETE_THREAD_WORKS(SDLCompleteThreadWorks) {
+	while (Queue->StartedEntries.value != Queue->FinishedEntries.value) {
+		//NOTE(dima): Main execution thread should also help to perform work!! xD
+		SDLPerformNextThreadwork(Queue);
+	}
+
+	Queue->StartedEntries.value = 0;
+	Queue->FinishedEntries.value = 0;
+
+	Assert(Queue->StartedEntries.value == 0);
+}
+
+static int SDLThreadWorkerWork(void* Data) {
+	platform_thread_queue* Queue = (platform_thread_queue*)Data;
+
+	for (;;) {
+		b32 NoWorkLeft = SDLPerformNextThreadwork(Queue);
+
+		if (NoWorkLeft){
+			SDL_SemWait(Queue->Semaphore);
 		}
 	}
+
+	return(0);
 }
 
-void SDLCompleteQueueWork(thread_queue* Queue){
-	while(Queue->FinishedEntries != Queue->EntryCount){
-		SDLDoNextWork(Queue);
-	}
-	Queue->FinishedEntries = 0;
-	Queue->EntryCount = 0;
-}
-
-void SDLInitThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int ThreadCount) {
-	Queue->EntryCount = 0;
-	Queue->FinishedEntries = 0;
-
-	Queue->NextToRead = 0;
-	Queue->NextToWrite = 0;
+void SDLInitThreadQueue(
+	platform_thread_queue* Queue, 
+	sdl_thread_worker* Workers, 
+	int ThreadWorkersCount,
+	char* ThreadQueueName)
+{
+	Queue->AddIndex.value = 0;
+	Queue->DoIndex.value = 0;
+	Queue->StartedEntries.value = 0;
+	Queue->FinishedEntries.value = 0;
 
 	Queue->Semaphore = SDL_CreateSemaphore(0);
 
-	for (int ThreadIndex = 0;
-		ThreadIndex < ThreadCount;
-		ThreadIndex++) 
-	{
-		sdl_thread_entry* Entry = Threads + ThreadIndex;
-		Entry->Queue = Queue;
+	for (int i = 0; i < ThreadWorkersCount; i++) {
+		sdl_thread_worker* ThreadWorker = &Workers[i];
 
-		SDL_Thread* Thread = SDL_CreateThread(SDLWorkerThread, 0, Entry);
+		char ThreadNameBuf[64];
+		stbsp_sprintf(ThreadNameBuf, "%s_%d", ThreadQueueName, i);
+
+		ThreadWorker->Queue = Queue;
+		ThreadWorker->ThreadHandle = SDL_CreateThread(SDLThreadWorkerWork, ThreadNameBuf, ThreadWorker->Queue);
+		ThreadWorker->ThreadID = SDL_GetThreadID(ThreadWorker->ThreadHandle);
 	}
 }
-
-void SDLDestroyThreadQueue(thread_queue* Queue, sdl_thread_entry* Threads, int ThreadCount) {
-
-}
-
-#endif
 
 struct cellural_buffer {
 	u8* Buf;
@@ -816,6 +780,8 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 int main(int ArgsCount, char** Args) {
 
+	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
 	DEBUGSetLogRecording(1);
@@ -828,15 +794,21 @@ int main(int ArgsCount, char** Args) {
 		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
 	}
 
-#define SDL_RENDER_THREAD_ENTRIES 4
-	sdl_thread_entry RenderThreadEntries[SDL_RENDER_THREAD_ENTRIES];
-	thread_queue RenderThreadQueue;
-	SDLInitThreadQueue(&RenderThreadQueue, RenderThreadEntries, SDL_RENDER_THREAD_ENTRIES);
+	//NOTE(dima): Initializing of threads
+	platform_thread_queue HighPriorityQueue;
+	sdl_thread_worker HighThreadWorkers[8];
+	SDLInitThreadQueue(&HighPriorityQueue, HighThreadWorkers, ArrayCount(HighThreadWorkers), "HighQueue");
+
+	platform_thread_queue LowPriorityQueue;
+	sdl_thread_worker LowThreadWorkers[4];
+	SDLInitThreadQueue(&LowPriorityQueue, LowThreadWorkers, ArrayCount(LowThreadWorkers), "LowQueue");
+
 
 	//NOTE(dima): Initializing of Platform API
-	PlatformApi.AddEntry = SDLAddEntry;
-	PlatformApi.FinishAll = SDLCompleteQueueWork;
-	PlatformApi.RenderQueue = &RenderThreadQueue;
+	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
+	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
+	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
+	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;
 	PlatformApi.WriteFile = SDLWriteEntireFile;
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
@@ -868,8 +840,6 @@ int main(int ArgsCount, char** Args) {
 	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
 	GlobalTime = 0.0f;
-
-	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -1106,7 +1076,7 @@ int main(int ArgsCount, char** Args) {
 		GUIPrepareFrame(GUIState);
 		END_TIMING();
 
-#if 1
+#if 0
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
@@ -1118,7 +1088,7 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 #else
 
-		RenderMultithreaded(&RenderThreadQueue, Stack, &GlobalBuffer);
+		RenderMultithreaded(&HighPriorityQueue, Stack, &GlobalBuffer);
 
 		SDL_Surface* Surf = SDLSurfaceFromBuffer(&GlobalBuffer);
 		SDL_Texture* GlobalRenderTexture = SDL_CreateTextureFromSurface(renderer, Surf);

@@ -895,7 +895,7 @@ struct render_queue_work {
 	int i, j;
 };
 
-PLATFORM_THREAD_QUEUE_CALLBACK(RenderQueueWork) {
+PLATFORM_THREADWORK_CALLBACK(RenderQueueWork) {
 	render_queue_work* Work = (render_queue_work*)Data;
 
 	SoftwareRenderStackToOutput(Work->Stack, Work->Buffer, Work->ClipRect);
@@ -909,7 +909,7 @@ void RenderDickInjection(render_state* Stack, rgba_buffer* Buffer) {
 	SoftwareRenderStackToOutput(Stack, Buffer, ClipRect);
 }
 
-void RenderMultithreaded(thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer) {
+void RenderMultithreaded(platform_thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer) {
 	FUNCTION_TIMING();
 
 #if 0
@@ -948,11 +948,11 @@ void RenderMultithreaded(thread_queue* Queue, render_state* Stack, rgba_buffer* 
 			Work->ClipRect = Rect;
 
 			//if ((j & 1) == (i & 1)) {
-			PlatformApi.AddEntry(Queue, RenderQueueWork, Work);
+			PlatformApi.AddThreadworkEntry(Queue, Work, RenderQueueWork);
 			//}
 		}
 	}
 
-	PlatformApi.FinishAll(Queue);
+	PlatformApi.CompleteThreadWorks(Queue);
 #endif
 }

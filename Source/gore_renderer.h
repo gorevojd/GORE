@@ -4,7 +4,7 @@
 #include "gore_render_state.h"
 
 extern void SoftwareRenderStackToOutput(render_state* Stack, rgba_buffer* Buffer, rect2 ClipRect);
-extern void RenderMultithreaded(thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer);
+extern void RenderMultithreaded(platform_thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer);
 extern void RenderDickInjection(render_state* Stack, rgba_buffer* Buffer);
 
 extern void RenderRectFast(

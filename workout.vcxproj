@@ -173,6 +173,7 @@
     <ClCompile Include="Source\gore_render_state.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\sdl_gore.h" />
     <ClInclude Include="Source\geometrika.h" />
     <ClInclude Include="Source\gore_debug.h" />
     <ClInclude Include="Source\gore_debug_layer.h" />
