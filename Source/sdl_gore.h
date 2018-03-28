@@ -82,6 +82,8 @@ struct platform_thread_queue {
 	SDL_atomic_t FinishedEntries;
 
 	SDL_sem* Semaphore;
+
+	char* QueueName;
 };
 
 struct sdl_thread_worker {

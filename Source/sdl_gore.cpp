@@ -490,44 +490,9 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
-b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
-	b32 NoWorkLeft = 0;
-
-	SDL_CompilerBarrier();
-
-	if (Queue->AddIndex.value != Queue->DoIndex.value) {
-		int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
-		int ToDoWorkIndex = SDL_AtomicSet(&Queue->DoIndex, NewToSet);
-
-		platform_threadwork* Work = Queue->Entries + ToDoWorkIndex;
-
-		Work->Callback(Work->Data);
-
-		/*
-			NOTE(dima): We need to make sure that the work has
-			been performed before we decrement queue started entries
-			count. Some optimizing compilers can move lines around,
-			for example SDL_AtomicAdd could be performed before
-			Work->Callback(Work->Data); So SDL_CompilerBarrier was
-			used here to prevent it;
-
-			Seems like I just wrote something the same as that I
-			wrote in SDLAddThreadEntry function. Sorry...
-		*/
-		SDL_CompilerBarrier();
-
-		SDL_AtomicAdd(&Queue->FinishedEntries, 1);
-	}
-	else {
-		NoWorkLeft = 1;
-	}
-	Assert(Queue->StartedEntries.value >= Queue->FinishedEntries.value);
-
-	return(NoWorkLeft);
-}
-
 PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 
+#if 1
 	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
 
 	/*
@@ -537,12 +502,12 @@ PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 		we can't allow to override work that should be performed.
 	*/
 	Assert(NewToSet != Queue->DoIndex.value);
-
-	int ToWriteIndex = Queue->AddIndex.value;
+	int ToWriteIndex = SDL_AtomicSet(&Queue->AddIndex, NewToSet);
 
 	platform_threadwork* Entry = &Queue->Entries[ToWriteIndex];
 	Entry->Callback = Callback;
 	Entry->Data = Data;
+	SDL_AtomicAdd(&Queue->StartedEntries, 1);
 
 	/*
 		NOTE(dima): We need to make sure that when we increment
@@ -553,34 +518,97 @@ PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 		garbage will be in here. So SDL_CompilerBarrier was used
 		here to prevent it.
 	*/
-	SDL_AtomicAdd(&Queue->StartedEntries, 1);
 
 	SDL_CompilerBarrier();
 
+	//NOTE(dima): launch working threads only when task has been pushed
+	SDL_SemPost(Queue->Semaphore);
+#else
+	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+
+	Assert(NewToSet != Queue->DoIndex.value);
+
+	platform_threadwork* Entry = &Queue->Entries[Queue->AddIndex.value];
+	Entry->Callback = Callback;
+	Entry->Data = Data;
+	SDL_AtomicAdd(&Queue->StartedEntries, 1);
+
 	SDL_AtomicSet(&Queue->AddIndex, NewToSet);
+	SDL_CompilerBarrier();
 
 	SDL_SemPost(Queue->Semaphore);
+#endif
 }
 
+b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
+	b32 NoWorkLeft = 0;
+
+#if 1
+	int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	int OldToDo = Queue->DoIndex.value;
+	if (Queue->DoIndex.value != Queue->AddIndex.value) {
+		int ToDoIndex = SDL_AtomicSet(&Queue->DoIndex, NewToSet);
+		if (ToDoIndex == OldToDo) {
+			platform_threadwork* Work = Queue->Entries + ToDoIndex;
+
+			Work->Callback(Work->Data);
+
+			/*
+				NOTE(dima): We need to make sure that the work has
+				been performed before we decrement queue started entries
+				count. Some optimizing compilers can move lines around,
+				for example SDL_AtomicAdd could be performed before
+				Work->Callback(Work->Data); So SDL_CompilerBarrier was
+				used here to prevent it;
+
+				Seems like I just wrote something the same as that I
+				wrote in SDLAddThreadEntry function. Sorry...
+			*/
+			SDL_CompilerBarrier();
+			SDL_AtomicAdd(&Queue->FinishedEntries, 1);
+		}
+	}
+#else
+	int OriginalToDoIndex = Queue->DoIndex.value;
+	int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	if (OriginalToDoIndex != Queue->AddIndex.value) {
+		if (SDL_AtomicCAS(&Queue->DoIndex, OriginalToDoIndex, NewToSet)) {
+			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
+
+			Work->Callback(Work->Data);
+
+			SDL_CompilerBarrier();
+			SDL_AtomicAdd(&Queue->FinishedEntries, 1);
+		}
+	}
+	else {
+		NoWorkLeft = 1;
+	}
+#endif
+
+	SDL_CompilerBarrier();
+
+	Assert(Queue->FinishedEntries.value <= Queue->StartedEntries.value);
+
+	return(NoWorkLeft);
+}
+
+
 PLATFORM_COMPLETE_THREAD_WORKS(SDLCompleteThreadWorks) {
-	while (Queue->StartedEntries.value != Queue->FinishedEntries.value) {
+	while (Queue->FinishedEntries.value != Queue->StartedEntries.value) {
 		//NOTE(dima): Main execution thread should also help to perform work!! xD
 		SDLPerformNextThreadwork(Queue);
 	}
 
 	Queue->StartedEntries.value = 0;
 	Queue->FinishedEntries.value = 0;
-
-	Assert(Queue->StartedEntries.value == 0);
 }
 
 static int SDLThreadWorkerWork(void* Data) {
 	platform_thread_queue* Queue = (platform_thread_queue*)Data;
 
 	for (;;) {
-		b32 NoWorkLeft = SDLPerformNextThreadwork(Queue);
-
-		if (NoWorkLeft){
+		if (SDLPerformNextThreadwork(Queue)){
 			SDL_SemWait(Queue->Semaphore);
 		}
 	}
@@ -601,6 +629,8 @@ void SDLInitThreadQueue(
 
 	Queue->Semaphore = SDL_CreateSemaphore(0);
 
+	Queue->QueueName = ThreadQueueName;
+
 	for (int i = 0; i < ThreadWorkersCount; i++) {
 		sdl_thread_worker* ThreadWorker = &Workers[i];
 
@@ -609,6 +639,7 @@ void SDLInitThreadQueue(
 
 		ThreadWorker->Queue = Queue;
 		ThreadWorker->ThreadHandle = SDL_CreateThread(SDLThreadWorkerWork, ThreadNameBuf, ThreadWorker->Queue);
+		SDL_DetachThread(ThreadWorker->ThreadHandle);
 		ThreadWorker->ThreadID = SDL_GetThreadID(ThreadWorker->ThreadHandle);
 	}
 }

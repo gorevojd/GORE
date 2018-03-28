@@ -12,6 +12,12 @@
 #define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
 typedef PLATFORM_THREADWORK_CALLBACK(platform_threadwork_callback);
 
+enum platform_threadwork_state {
+	PlatformThreadworkState_None,
+
+	PlatformThreadworkState_Initialized,
+};
+
 struct platform_threadwork {
 	platform_threadwork_callback* Callback;
 	void* Data;
