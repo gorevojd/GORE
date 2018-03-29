@@ -56,7 +56,6 @@
 			Split code to platform dependent and platform independent parts
 
 		Platform layer:
-			Thread pool
 			Correct aspect ratio handling
 */
 
@@ -579,6 +578,12 @@ void WindaInitThreadQueue(platform_thread_queue* Queue, winda_thread_worker* Wor
 	}
 }
 
+PLATFORM_GET_THREAD_ID(WindaGetThreadID) {
+	u32 Result = GetCurrentThreadId();
+
+	return(Result);
+}
+
 #else
 
 PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
@@ -698,6 +703,12 @@ void SDLInitThreadQueue(
 		SDL_DetachThread(ThreadWorker->ThreadHandle);
 		ThreadWorker->ThreadID = SDL_GetThreadID(ThreadWorker->ThreadHandle);
 	}
+}
+
+PLATFORM_GET_THREAD_ID(SDLGetThreadID) {
+	u32 Result = SDL_ThreadID();
+
+	return(Result);
 }
 #endif
 
@@ -904,9 +915,11 @@ int main(int ArgsCount, char** Args) {
 #if defined(PLATFORM_WINDA)
 	PlatformApi.AddThreadworkEntry = WindaAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = WindaCompleteThreadWorks;
+	PlatformApi.GetThreadID = WindaGetThreadID;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
-	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks
+	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
+	PlatformApi.GetThreadID = SDLGetThreadID;
 #endif
 
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;

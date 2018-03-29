@@ -27,12 +27,9 @@
 #endif
 
 struct debug_timing_snapshot {
-	u64 BeginClock;
-	u64 ChildrenSumClocks;
+	u64 BeginClocks;
 	u64 ClocksElapsed;
-
-	u32 ThreadID;
-
+	u64 ClocksElapsedInChildren;
 	u32 HitCount;
 };
 
@@ -42,34 +39,23 @@ struct debug_value_node {
 
 };
 
-enum debug_statistic_type {
+enum debug_timing_statistic_type {
 	DebugTimingStatistic_None,
 
-	DebugStatistic_Function,
 	DebugStatistic_Timing,
-	DebugStatistic_Thread,
 };
 
-struct debug_statistic_timing {
-	u64 TotalClocks;
-	u64 TotalClocksInChildren;
-	u32 HitCount;
-};
 
-struct debug_statistic {
-	u32 Type;
-
+struct debug_timing_statistic {
 	u32 ID;
 	char Name[64];
 
-	debug_statistic* NextInHash;
+	debug_timing_statistic* NextInHash;
 
-	debug_statistic* NextAllocBro;
-	debug_statistic* PrevAllocBro;
+	debug_timing_statistic* NextAllocBro;
+	debug_timing_statistic* PrevAllocBro;
 
-	union {
-		debug_statistic_timing Timing;
-	};
+	debug_timing_snapshot Timing;
 };
 
 enum debug_tree_node_type {
@@ -107,7 +93,40 @@ struct debug_tree_node {
 	};
 };
 
-#define DEBUG_TIMING_STATISTICS_COUNT 64
+#define DEBUG_TIMING_STATISTIC_TABLE_SIZE 64
+#define DEBUG_THREAD_TABLE_SIZE 16
+#define DEBUG_THREAD_FRAME_INFOS_POOL_SIZE 16
+#define DEBUG_FRAMES_COUNT 256
+
+struct debug_thread_frame_info{
+	b32 Initialized;
+
+	stacked_memory* MemoryAllocPointer;
+
+
+};
+
+struct debug_thread {
+	u32 ThreadID;
+
+	debug_thread* NextAlloc;
+	debug_thread* PrevAlloc;
+
+	debug_thread* NextInHash;
+
+	/* 
+		NOTE(dima): ThreadFrameInfos is the array of size
+		DEBUG_FRAMES_COUNT of structures debug_thread_frame_infos.
+		Actually if we need to allocate it in the middle 
+		of the code it means that we should clear it there
+		too. It can cost a much processor time. So the 
+		pattern here is to preallocate pool of arrays 
+		debug_thread_frame_info** and then just increment
+		int that array as we should allocate one.
+		
+	*/
+	debug_thread_frame_info** ThreadFrameInfos;
+};
 
 struct debug_profiled_frame {
 	float DeltaTime;
@@ -123,18 +142,24 @@ struct debug_profiled_frame {
 	debug_tree_node* CurrentSection;
 	debug_tree_node* SectionSentinel;
 
-	debug_statistic* TimingStatistics[DEBUG_TIMING_STATISTICS_COUNT];
-	debug_statistic* TimingStatisticSentinel;
+	debug_timing_statistic* TimingStatistics[DEBUG_TIMING_STATISTIC_TABLE_SIZE];
+	debug_timing_statistic* TimingStatisticSentinel;
 };
 
-#define DEBUG_FRAMES_COUNT 256
 struct debug_state {
 	debug_tree_node* FreeBlockSentinel;
 
 	debug_tree_node* RootSection;
 	debug_tree_node* CurrentSection;
 
+	debug_thread_frame_info* ThreadFrameInfosPool[DEBUG_THREAD_FRAME_INFOS_POOL_SIZE];
+	u32 ThreadFrameInfoPoolIndex;
+	debug_thread* Threads[DEBUG_THREAD_TABLE_SIZE];
+	debug_thread* ThreadSentinel;
+	debug_thread* MainThread;
+
 	debug_profiled_frame Frames[DEBUG_FRAMES_COUNT];
+
 	u32 NewestFrameIndex;
 	u32 CollationFrameIndex;
 	u32 LastCollationFrameIndex = 0;

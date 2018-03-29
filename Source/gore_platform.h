@@ -37,8 +37,8 @@ typedef PLATFORM_ADD_THREADWORK_ENTRY(platform_add_threadwork_entry);
 #define PLATFORM_COMPLETE_THREAD_WORKS(name) void name(platform_thread_queue* Queue)
 typedef PLATFORM_COMPLETE_THREAD_WORKS(platform_complete_thread_works);
 
-#define PLATFORM_GET_THREAD_NAME_BY_ID(name) char* name(u32 ThreadID)
-typedef PLATFORM_GET_THREAD_NAME_BY_ID(platform_get_thread_name_by_id);
+#define PLATFORM_GET_THREAD_ID(name) u32 name()
+typedef PLATFORM_GET_THREAD_ID(platform_get_thread_id);
 
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
@@ -127,7 +127,7 @@ typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 struct platform_api {
 	platform_add_threadwork_entry* AddThreadworkEntry;
 	platform_complete_thread_works* CompleteThreadWorks;
-	platform_get_thread_name_by_id* GetThreadNameByID;
+	platform_get_thread_id* GetThreadID;
 
 	platform_thread_queue* HighPriorityQueue;
 	platform_thread_queue* LowPriorityQueue;

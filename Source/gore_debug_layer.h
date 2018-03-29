@@ -101,7 +101,6 @@ extern debug_record_table* GlobalRecordTable;
 #define DEBUG_UNIQUE_STRING(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, __LINE__, __COUNTER__)
 #define DEBUG_UNIQUE_STRING2(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, 123456, 123)
 
-#if 1
 inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
 	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, GlobalRecordTable->Increment.value);
 	//int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
@@ -115,28 +114,11 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 	Record->RecordType = RecordType;
 	//TODO(dima): think about perfomance of this
 	Record->ThreadID = SDL_ThreadID();
-	//Record->ThreadID = 0;
 
 	return(Record);
 }
 
 void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType);
-
-#else
-
-#define DEBUGAddRecord(Name, UniqueName, RecordType)	\
-	{																											\
-	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);										\
-	Assert(Index < DEBUG_RECORD_MAX_COUNT);																		\
-																												\
-	debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value] + Index;		\
-	*Record = {};																								\
-	Record->Name = Name;																						\
-	Record->UniqueName = UniqueName;																			\
-	Record->Clocks = __rdtsc();																					\
-	Record->RecordType = RecordType;																			\
-	Record->ThreadID = SDL_ThreadID();}																			
-#endif
 
 inline void DEBUGSetRecording(b32 Recording) {
 	SDL_AtomicSet(&GlobalRecordTable->Increment, Recording);

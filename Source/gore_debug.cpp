@@ -65,10 +65,10 @@ inline void DEBUGAllocateElementSentinelTreeNode(
 	CopyStrings(Element->ChildrenSentinel->UniqueName, "Sentinel");
 }
 
-inline debug_statistic* DEBUGAllocateStatistic(stacked_memory* Mem) {
-	debug_statistic* Result = 0;
+inline debug_timing_statistic* DEBUGAllocateStatistic(stacked_memory* Mem) {
+	debug_timing_statistic* Result = 0;
 
-	Result = PushStruct(Mem, debug_statistic);
+	Result = PushStruct(Mem, debug_timing_statistic);
 
 	Result->PrevAllocBro = Result;
 	Result->NextAllocBro = Result;
@@ -77,7 +77,7 @@ inline debug_statistic* DEBUGAllocateStatistic(stacked_memory* Mem) {
 }
 
 #if 0
-inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statistic) {
+inline void DEBUGDeallocateStatistic(debug_state* State, debug_timing_statistic* Statistic) {
 	Statistic->NextBro->PrevBro = Statistic->PrevBro;
 	Statistic->PrevBro->NextBro = Statistic->NextBro;
 
@@ -91,7 +91,7 @@ inline void DEBUGDeallocateStatistic(debug_state* State, debug_statistic* Statis
 }
 #endif
 
-inline void DEBUGInsertStatisticAfter(debug_statistic* After, debug_statistic* ToInsert) {
+inline void DEBUGInsertStatisticAfter(debug_timing_statistic* After, debug_timing_statistic* ToInsert) {
 	if (After != ToInsert) {
 		ToInsert->PrevAllocBro->NextAllocBro = ToInsert->NextAllocBro;
 		ToInsert->NextAllocBro->PrevAllocBro = ToInsert->PrevAllocBro;
@@ -104,7 +104,7 @@ inline void DEBUGInsertStatisticAfter(debug_statistic* After, debug_statistic* T
 	}
 }
 
-inline void DEBUGInsertStatisticBefore(debug_statistic* Before, debug_statistic* ToInsert) {
+inline void DEBUGInsertStatisticBefore(debug_timing_statistic* Before, debug_timing_statistic* ToInsert) {
 	if (Before != ToInsert) {
 		ToInsert->PrevAllocBro->NextAllocBro = ToInsert->NextAllocBro;
 		ToInsert->NextAllocBro->PrevAllocBro = ToInsert->PrevAllocBro;
@@ -182,20 +182,20 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 	return(NewBlock);
 }
 
-static debug_statistic* DEBUGInitDebugStatistic(
+static debug_timing_statistic* DEBUGInitDebugStatistic(
 	stacked_memory* Mem,
-	debug_statistic** StatisticArray,
-	debug_statistic* StatisticSentinel, 
+	debug_timing_statistic** StatisticArray,
+	debug_timing_statistic* StatisticSentinel, 
 	char* UniqueName) 
 {
-	debug_statistic* Statistic = 0;
+	debug_timing_statistic* Statistic = 0;
 
 	//NOTE(dima): Finding needed element in the hash table
 	u32 RecordHash = StringHashFNV(UniqueName);
-	u32 StatisticIndex = RecordHash & (DEBUG_TIMING_STATISTICS_COUNT - 1);
+	u32 StatisticIndex = RecordHash % DEBUG_TIMING_STATISTIC_TABLE_SIZE;
 	Statistic = StatisticArray[StatisticIndex];
 
-	debug_statistic* PrevInHash = 0;
+	debug_timing_statistic* PrevInHash = 0;
 
 	while (Statistic) {
 		if (Statistic->ID == RecordHash) {
@@ -264,9 +264,9 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 	Frame->DeltaTime = 0.0f;
 
 #if 0
-	debug_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
+	debug_timing_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
 	while (TimingAt != Frame->TimingStatisticSentinel) {
-		debug_statistic* TempNext = TimingAt->NextBro;
+		debug_timing_statistic* TempNext = TimingAt->NextBro;
 		
 		DEBUGDeallocateStatistic(State, TimingAt);
 
@@ -275,11 +275,21 @@ static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 #endif
 
 	for (int TimingStatisticIndex = 0;
-		TimingStatisticIndex < DEBUG_TIMING_STATISTICS_COUNT;
+		TimingStatisticIndex < DEBUG_TIMING_STATISTIC_TABLE_SIZE;
 		TimingStatisticIndex++)
 	{
 		Frame->TimingStatistics[TimingStatisticIndex] = 0;
 	}
+}
+
+debug_thread_frame_info** DEBUGAllocateThreadFrameInfos(debug_state* State) {
+	debug_thread_frame_info** Result = 0;
+
+	Assert(State->ThreadFrameInfoPoolIndex < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE);
+
+	Result = State->ThreadFrameInfosPool + State->ThreadFrameInfoPoolIndex;
+
+	return(Result);
 }
 
 void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState) {
@@ -307,6 +317,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	State->RootSection->TreeNodeType = DebugTreeNode_Section;
 	State->CurrentSection = State->RootSection;
 
+	//NOTE(dima): Allocating per-frame memory stacks
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
 		FrameIndex++)
@@ -316,6 +327,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(500));
 	}
 
+	//NOTE(dima): Freing frame data
 	for (int FrameIndex = 0;
 		FrameIndex < DEBUG_FRAMES_COUNT;
 		FrameIndex++)
@@ -324,6 +336,41 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 		DEBUGFreeFrameInfo(State, Frame);
 		DEBUGInitFrameInfo(State, Frame);
+	}
+
+	//NOTE(dima): Allocating thread sentinel
+	State->ThreadSentinel = PushStruct(State->DebugMemory, debug_thread);
+	State->ThreadSentinel->NextAlloc = State->ThreadSentinel;
+	State->ThreadSentinel->PrevAlloc = State->ThreadSentinel;
+
+	State->MainThread = 0;
+
+	//NOTE(dima): Clearing thread table
+	for (int ThreadIndex = 0;
+		ThreadIndex < DEBUG_THREAD_TABLE_SIZE;
+		ThreadIndex++)
+	{
+		State->Threads[ThreadIndex] = 0;
+	}
+
+	//NOTE(dima): Initialization of thread frame infos pool
+	State->ThreadFrameInfoPoolIndex = 0;
+	for (u32 Index = 0;
+		Index < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE;
+		Index++)
+	{
+		debug_thread_frame_info** CurrentArray = &State->ThreadFrameInfosPool[Index];
+		*CurrentArray = PushArray(State->DebugMemory, debug_thread_frame_info, DEBUG_FRAMES_COUNT);
+
+		for (u32 InfosFrameIndex = 0;
+			InfosFrameIndex < DEBUG_FRAMES_COUNT;
+			InfosFrameIndex++)
+		{
+			debug_thread_frame_info* Info = &(*CurrentArray)[InfosFrameIndex];
+
+			Info->Initialized = 0;
+			Info->MemoryAllocPointer = &State->Frames[InfosFrameIndex].FrameMemory;
+		}
 	}
 
 	State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
@@ -399,6 +446,72 @@ inline void DEBUGIncrementFrameIndices(debug_state* State) {
 	}
 }
 
+//TODO(dima): Better hash function
+inline u32 DEBUGNumberHashFNV(u32 Num) {
+
+	u32 Result = Num * 16777619;
+	Result ^= Num;
+
+	return(Result);
+}
+
+enum debug_thread_request_type {
+	DebugRequestThread_Find,
+
+	DebugRequestThread_Allocate,
+};
+
+static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 RequestType) {
+	debug_thread* Result = 0;
+	debug_thread* PrevInHash = 0;
+
+	u32 IDHash = DEBUGNumberHashFNV(ThreadID);
+
+	u32 Index = IDHash % DEBUG_THREAD_TABLE_SIZE;
+
+	debug_thread* FirstFoundThread = State->Threads[Index];
+	
+	debug_thread* At = FirstFoundThread;
+	while (At) {
+
+		if (At->ThreadID == ThreadID) {
+			Result = At;
+			break;
+		}
+
+		PrevInHash = At;
+		At = At->NextInHash;
+	}
+
+	if (RequestType == DebugRequestThread_Allocate) {
+		if (At == 0) {
+
+			debug_thread* Thread = PushStruct(State->DebugMemory, debug_thread);
+			Thread->NextInHash = 0;
+			Thread->NextAlloc = State->ThreadSentinel->NextAlloc;
+			Thread->PrevAlloc = State->ThreadSentinel;
+
+			Thread->NextAlloc->PrevAlloc = Thread;
+			Thread->PrevAlloc->NextAlloc = Thread;
+
+			Thread->ThreadFrameInfos = DEBUGAllocateThreadFrameInfos(State);
+
+			Thread->ThreadID = ThreadID;
+
+			if (PrevInHash == 0) {
+				State->Threads[Index] = Thread;
+			}
+			else {
+				PrevInHash->NextInHash = Thread;
+			}
+
+			Result = Thread;
+		}
+	}
+
+	return(Result);
+}
+
 static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
 
@@ -418,8 +531,12 @@ static void DEBUGProcessRecords(debug_state* State) {
 
 		switch (Record->RecordType) {
 			case DebugRecord_BeginTiming: {
-				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
+				
+				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
 
+				//TODO(dima): Write current record to corresponding thread;
+
+				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
 				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
 					CurrentBlock,
 					0,
@@ -428,45 +545,46 @@ static void DEBUGProcessRecords(debug_state* State) {
 					DebugTreeNode_Timing);
 				debug_timing_snapshot* TimingSnapshot = &TimingNode->TimingSnapshot;
 
-				TimingSnapshot->BeginClock = Record->Clocks;
-				TimingSnapshot->ThreadID = Record->ThreadID;
-				TimingSnapshot->ChildrenSumClocks = 0;
+				TimingSnapshot->BeginClocks = Record->Clocks;
 				TimingSnapshot->HitCount = 0;
+				TimingSnapshot->ClocksElapsedInChildren = 0;
 				TimingSnapshot->ClocksElapsed = 0;
 
 				Frame->CurrentTiming = TimingNode;
 			}break;
 
 			case DebugRecord_EndTiming: {
+				//TODO(dima): get the timing from thread storage. Update it. And then update the statistic stored in debug_profiled_frame
+				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
+
 
 				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
 				Assert(CurrentBlock->TreeNodeType == DebugTreeNode_Timing);
 				debug_timing_snapshot* TimingSnapshot = &CurrentBlock->TimingSnapshot;
 
 				//NOTE(dima): difference between start and end clocks
-				TimingSnapshot->ClocksElapsed = Record->Clocks - TimingSnapshot->BeginClock;
+				TimingSnapshot->ClocksElapsed = Record->Clocks - TimingSnapshot->BeginClocks;
 
 				//TODO(dima): think about not going through children.. Instead of it
 				//TODO(dima): I might just change parent childrenSumCLocks
 
 				//NOTE(dima): Going througn children and summing all their total clocks
-				TimingSnapshot->ChildrenSumClocks = 0;
+				TimingSnapshot->ClocksElapsedInChildren = 0;
 				debug_tree_node* At = CurrentBlock->ChildrenSentinel->NextBro;
 				for (At; At != CurrentBlock->ChildrenSentinel; At = At->NextBro) {
-					TimingSnapshot->ChildrenSumClocks += At->TimingSnapshot.ClocksElapsed;
+					TimingSnapshot->ClocksElapsedInChildren += At->TimingSnapshot.ClocksElapsed;
 				}
 
 				//NOTE(dima): Finding needed element in the hash table
-				debug_statistic* TimingStatistic = DEBUGInitDebugStatistic(
+				debug_timing_statistic* TimingStatistic = DEBUGInitDebugStatistic(
 					&Frame->FrameMemory, 
 					Frame->TimingStatistics, 
 					Frame->TimingStatisticSentinel, 
 					CurrentBlock->UniqueName);
 
-				TimingStatistic->Type = DebugStatistic_Timing;
-				TimingStatistic->Timing.TotalClocks += TimingSnapshot->ClocksElapsed;
+				TimingStatistic->Timing.ClocksElapsed += TimingSnapshot->ClocksElapsed;
 				TimingStatistic->Timing.HitCount += 1;
-				TimingStatistic->Timing.TotalClocksInChildren = TimingSnapshot->ChildrenSumClocks;
+				TimingStatistic->Timing.ClocksElapsedInChildren = TimingSnapshot->ClocksElapsedInChildren;
 
 				Frame->CurrentTiming = CurrentBlock->Parent;
 			}break;
@@ -1032,14 +1150,14 @@ enum debug_clock_list_type {
 	DebugClockList_Exclusive,
 };
 
-inline u64 DEBUGGetClocksFromTiming(debug_statistic* Stat, u32 Type) {
+inline u64 DEBUGGetClocksFromTiming(debug_timing_statistic* Stat, u32 Type) {
 	u64 Result = 0;
 
 	if (Type == DebugClockList_Total) {
-		Result = Stat->Timing.TotalClocks;
+		Result = Stat->Timing.ClocksElapsed;
 	}
 	else if (Type == DebugClockList_Exclusive) {
-		Result = Stat->Timing.TotalClocks - Stat->Timing.TotalClocksInChildren;
+		Result = Stat->Timing.ClocksElapsed - Stat->Timing.ClocksElapsedInChildren;
 	}
 	else {
 		Assert(!"Invalid type");
@@ -1085,13 +1203,13 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		BEGIN_TIMING("ClockListSorting");
 #if 1
 		//NOTE(dima): Selection sort implemented
-		debug_statistic* SortAt = Frame->TimingStatisticSentinel->NextAllocBro;
+		debug_timing_statistic* SortAt = Frame->TimingStatisticSentinel->NextAllocBro;
 		for (SortAt;
 			SortAt != Frame->TimingStatisticSentinel->PrevAllocBro;)
 		{
-			debug_statistic* Biggest = SortAt;
+			debug_timing_statistic* Biggest = SortAt;
 
-			for (debug_statistic* ScanAt = SortAt->NextAllocBro;
+			for (debug_timing_statistic* ScanAt = SortAt->NextAllocBro;
 				ScanAt != Frame->TimingStatisticSentinel;
 				ScanAt = ScanAt->NextAllocBro)
 			{
@@ -1120,7 +1238,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 			OneOverFrameClocks = 100.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
 		}
 
-		debug_statistic* Timing = Frame->TimingStatisticSentinel->NextAllocBro;
+		debug_timing_statistic* Timing = Frame->TimingStatisticSentinel->NextAllocBro;
 		for (
 			Timing; 
 			Timing != Frame->TimingStatisticSentinel; 
