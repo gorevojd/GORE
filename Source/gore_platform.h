@@ -9,6 +9,10 @@
 
 #include <intrin.h>
 
+#if defined(WIN32) || defined(WIN64)
+#define PLATFORM_WINDA
+#endif
+
 #define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
 typedef PLATFORM_THREADWORK_CALLBACK(platform_threadwork_callback);
 

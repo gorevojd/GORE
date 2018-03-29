@@ -490,9 +490,99 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
+#if defined(PLATFORM_WINDA)
+PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
+	int EntryIndex = Queue->AddIndex;
+	int NewToSet = (EntryIndex + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	platform_threadwork* Entry = Queue->Entries + EntryIndex;
+
+	Entry->Callback = Callback;
+	Entry->Data = Data;
+
+	Queue->StartedEntries++;
+
+	_ReadWriteBarrier();
+
+	_InterlockedExchange((volatile unsigned int*)&Queue->AddIndex, NewToSet);
+	
+	ReleaseSemaphore(Queue->Semaphore, 1, 0);
+}
+
+b32 WindaDoNextThreadwork(platform_thread_queue* Queue) {
+	b32 NoWorkLeft = 0;
+
+	int OriginalToDoIndex = Queue->DoIndex;
+	int NewToSet = (OriginalToDoIndex + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+
+	if (Queue->DoIndex != Queue->AddIndex) {
+		if (InterlockedCompareExchange((volatile unsigned int*)&Queue->DoIndex, NewToSet, OriginalToDoIndex) == OriginalToDoIndex) {
+			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
+
+			Work->Callback(Work->Data);
+
+			_ReadWriteBarrier();
+
+			InterlockedIncrement((volatile unsigned int*)&Queue->FinishedEntries);
+		}
+	}
+	else {
+		NoWorkLeft = 1;
+	}
+
+	Assert(Queue->FinishedEntries <= Queue->StartedEntries);
+
+	return(NoWorkLeft);
+}
+
+DWORD WINAPI WindaThreadWorkerWork(void* Data) {
+	winda_thread_worker* Worker = (winda_thread_worker*)Data;
+	platform_thread_queue* Queue = Worker->Queue;
+
+	for (;;) {
+		if (WindaDoNextThreadwork(Queue)) {
+			WaitForSingleObject(Queue->Semaphore, INFINITE);
+		}
+	}
+
+	return(0);
+}
+
+PLATFORM_COMPLETE_THREAD_WORKS(WindaCompleteThreadWorks) {
+	while (Queue->FinishedEntries != Queue->StartedEntries) {
+		WindaDoNextThreadwork(Queue);
+	}
+
+	Queue->FinishedEntries = 0;
+	Queue->StartedEntries = 0;
+}
+
+void WindaInitThreadQueue(platform_thread_queue* Queue, winda_thread_worker* Workers, int WorkersCount, char* QueueName) {
+	Queue->AddIndex = 0;
+	Queue->DoIndex = 0;
+	Queue->FinishedEntries = 0;
+	Queue->StartedEntries = 0;
+
+	char SemaphoreNameBuf[256];
+	stbsp_sprintf(SemaphoreNameBuf, "%s_Sem", QueueName);
+
+	Queue->Semaphore = CreateSemaphoreExA(0, 0, WorkersCount, SemaphoreNameBuf, 0, SEMAPHORE_ALL_ACCESS);
+	Queue->QueueName = QueueName;
+	
+	for (int i = 0; i < WorkersCount; i++) {
+		winda_thread_worker* Worker = Workers + i;
+
+		Worker->Queue = Queue;
+		DWORD ThreadID;
+
+		Worker->ThreadHandle = CreateThread(0, 0, WindaThreadWorkerWork, Worker, 0, &ThreadID);
+		Worker->ThreadID = ThreadID;
+	}
+}
+
+#else
+
 PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 
-#if 1
 	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
 
 	/*
@@ -502,31 +592,6 @@ PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 		we can't allow to override work that should be performed.
 	*/
 	Assert(NewToSet != Queue->DoIndex.value);
-	int ToWriteIndex = SDL_AtomicSet(&Queue->AddIndex, NewToSet);
-
-	platform_threadwork* Entry = &Queue->Entries[ToWriteIndex];
-	Entry->Callback = Callback;
-	Entry->Data = Data;
-	SDL_AtomicAdd(&Queue->StartedEntries, 1);
-
-	/*
-		NOTE(dima): We need to make sure that when we increment
-		started entries count, the current threadwork structure 
-		was properly set. Some optimizing compilers can move lines
-		around as they see fit. it can lead to phantome reads.
-		F.E if callback wasnt set, code can call it but the 
-		garbage will be in here. So SDL_CompilerBarrier was used
-		here to prevent it.
-	*/
-
-	SDL_CompilerBarrier();
-
-	//NOTE(dima): launch working threads only when task has been pushed
-	SDL_SemPost(Queue->Semaphore);
-#else
-	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
-
-	Assert(NewToSet != Queue->DoIndex.value);
 
 	platform_threadwork* Entry = &Queue->Entries[Queue->AddIndex.value];
 	Entry->Callback = Callback;
@@ -534,22 +599,29 @@ PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 	SDL_AtomicAdd(&Queue->StartedEntries, 1);
 
 	SDL_AtomicSet(&Queue->AddIndex, NewToSet);
+
+	/*
+		NOTE(dima): We need to make sure that when we increment
+		started entries count, the current threadwork structure
+		was properly set. Some optimizing compilers can move lines
+		around as they see fit. it can lead to phantome reads.
+		F.E if callback wasnt set, code can call it but the
+		garbage will be in here. So SDL_CompilerBarrier was used
+		here to prevent it.
+	*/
 	SDL_CompilerBarrier();
 
 	SDL_SemPost(Queue->Semaphore);
-#endif
 }
 
 b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
 	b32 NoWorkLeft = 0;
 
-#if 1
+	int OriginalToDoIndex = Queue->DoIndex.value;
 	int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
-	int OldToDo = Queue->DoIndex.value;
-	if (Queue->DoIndex.value != Queue->AddIndex.value) {
-		int ToDoIndex = SDL_AtomicSet(&Queue->DoIndex, NewToSet);
-		if (ToDoIndex == OldToDo) {
-			platform_threadwork* Work = Queue->Entries + ToDoIndex;
+	if (OriginalToDoIndex != Queue->AddIndex.value) {
+		if (SDL_AtomicCAS(&Queue->DoIndex, OriginalToDoIndex, NewToSet)) {
+			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
 
 			Work->Callback(Work->Data);
 
@@ -568,27 +640,11 @@ b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
 			SDL_AtomicAdd(&Queue->FinishedEntries, 1);
 		}
 	}
-#else
-	int OriginalToDoIndex = Queue->DoIndex.value;
-	int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
-	if (OriginalToDoIndex != Queue->AddIndex.value) {
-		if (SDL_AtomicCAS(&Queue->DoIndex, OriginalToDoIndex, NewToSet)) {
-			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
-
-			Work->Callback(Work->Data);
-
-			SDL_CompilerBarrier();
-			SDL_AtomicAdd(&Queue->FinishedEntries, 1);
-		}
-	}
 	else {
 		NoWorkLeft = 1;
 	}
-#endif
 
 	SDL_CompilerBarrier();
-
-	Assert(Queue->FinishedEntries.value <= Queue->StartedEntries.value);
 
 	return(NoWorkLeft);
 }
@@ -643,6 +699,7 @@ void SDLInitThreadQueue(
 		ThreadWorker->ThreadID = SDL_GetThreadID(ThreadWorker->ThreadHandle);
 	}
 }
+#endif
 
 struct cellural_buffer {
 	u8* Buf;
@@ -827,17 +884,31 @@ int main(int ArgsCount, char** Args) {
 
 	//NOTE(dima): Initializing of threads
 	platform_thread_queue HighPriorityQueue;
+	platform_thread_queue LowPriorityQueue;
+
+#if defined(PLATFORM_WINDA)
+	winda_thread_worker HighThreadWorkers[8];
+	WindaInitThreadQueue(&HighPriorityQueue, HighThreadWorkers, ArrayCount(HighThreadWorkers), "HighQueue");
+
+	winda_thread_worker LowThreadWorkers[4];
+	WindaInitThreadQueue(&LowPriorityQueue, LowThreadWorkers, ArrayCount(LowThreadWorkers), "LowQueue");
+#else
 	sdl_thread_worker HighThreadWorkers[8];
 	SDLInitThreadQueue(&HighPriorityQueue, HighThreadWorkers, ArrayCount(HighThreadWorkers), "HighQueue");
 
-	platform_thread_queue LowPriorityQueue;
 	sdl_thread_worker LowThreadWorkers[4];
 	SDLInitThreadQueue(&LowPriorityQueue, LowThreadWorkers, ArrayCount(LowThreadWorkers), "LowQueue");
-
+#endif
 
 	//NOTE(dima): Initializing of Platform API
+#if defined(PLATFORM_WINDA)
+	PlatformApi.AddThreadworkEntry = WindaAddThreadworkEntry;
+	PlatformApi.CompleteThreadWorks = WindaCompleteThreadWorks;
+#else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
-	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
+	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks
+#endif
+
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
 	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;
@@ -1107,7 +1178,7 @@ int main(int ArgsCount, char** Args) {
 		GUIPrepareFrame(GUIState);
 		END_TIMING();
 
-#if 0
+#if 1
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 

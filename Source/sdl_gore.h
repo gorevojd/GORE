@@ -10,6 +10,10 @@
 
 #include "gore_opengl.h"
 
+#if defined(PLATFORM_WINDA)
+#include <Windows.h>
+#endif
+
 PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
 PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
@@ -72,6 +76,30 @@ PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
 PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 
+#if defined(PLATFORM_WINDA)
+
+struct platform_thread_queue {
+	platform_threadwork Entries[PLATFORM_THREAD_QUEUE_SIZE];
+
+	volatile unsigned int AddIndex;
+	volatile unsigned int DoIndex;
+
+	volatile unsigned int StartedEntries;
+	volatile unsigned int FinishedEntries;
+
+	HANDLE Semaphore;
+
+	char* QueueName;
+};
+
+struct winda_thread_worker {
+	platform_thread_queue* Queue;
+	HANDLE ThreadHandle;
+	u32 ThreadID;
+};
+
+#else
+
 struct platform_thread_queue {
 	platform_threadwork Entries[PLATFORM_THREAD_QUEUE_SIZE];
 
@@ -91,5 +119,7 @@ struct sdl_thread_worker {
 	SDL_Thread* ThreadHandle;
 	u32 ThreadID;
 };
+
+#endif
 
 #endif
