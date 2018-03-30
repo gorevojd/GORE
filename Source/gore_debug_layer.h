@@ -78,10 +78,12 @@ struct debug_record {
 
 #define DEBUG_LOGS_COUNT 1024
 #define DEBUG_LOG_SIZE 1024
-#define DEBUG_RECORD_MAX_COUNT 65536
+#define DEBUG_RECORD_MAX_COUNT 65536 * 16
 struct debug_record_table {
-	SDL_atomic_t CurrentRecordIndex;
-	SDL_atomic_t CurrentTableIndex;
+	//SDL_atomic_t CurrentRecordIndex;
+	//SDL_atomic_t CurrentTableIndex;
+
+	SDL_atomic_t Record_Table_Index;
 
 	debug_record Records[2][DEBUG_RECORD_MAX_COUNT];
 	SDL_atomic_t Increment;
@@ -101,12 +103,19 @@ extern debug_record_table* GlobalRecordTable;
 #define DEBUG_UNIQUE_STRING(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, __LINE__, __COUNTER__)
 #define DEBUG_UNIQUE_STRING2(id) DEBUG_UNIQUE_STRING_(id, __FUNCTION__, 123456, 123)
 
-inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
-	int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, GlobalRecordTable->Increment.value);
-	//int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
-	Assert(Index < DEBUG_RECORD_MAX_COUNT);
+#define DEBUG_LAYER_TABLE_BIT_OFFSET 30
+#define DEBUG_LAYER_TABLE_MASK 0x40000000
+#define DEBUG_LAYER_INDEX_MASK 0x3FFFFFFF
 
-	debug_record* Record = GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value] + Index;
+inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
+	int Index = SDL_AtomicAdd(&GlobalRecordTable->Record_Table_Index, GlobalRecordTable->Increment.value);
+	//int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
+
+	int TableIndex = ((Index & DEBUG_LAYER_TABLE_MASK) != 0);
+	int RecordIndex = (Index & DEBUG_LAYER_INDEX_MASK);
+	Assert(RecordIndex < DEBUG_RECORD_MAX_COUNT);
+
+	debug_record* Record = GlobalRecordTable->Records[TableIndex] + RecordIndex;
 
 	Record->Name = Name;
 	Record->UniqueName = UniqueName;

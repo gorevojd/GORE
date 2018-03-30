@@ -145,7 +145,7 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 
 	debug_tree_node* At = CurrentBlock->ChildrenSentinel->PrevBro;
 	for (At; At != CurrentBlock->ChildrenSentinel; At = At->PrevBro) {
-#if 1
+#if 0
 		if (StringsAreEqual(UniqueName, At->UniqueName)) {
 #else
 		if (BlockHashID == At->ID) {
@@ -299,7 +299,7 @@ debug_thread_frame_info** DEBUGAllocateThreadFrameInfos(debug_state* State) {
 
 	Assert(State->ThreadFrameInfoPoolIndex < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE);
 
-	Result = State->ThreadFrameInfosPool + State->ThreadFrameInfoPoolIndex;
+	Result = State->ThreadFrameInfosPool + State->ThreadFrameInfoPoolIndex++;
 
 	return(Result);
 }
@@ -488,8 +488,6 @@ enum debug_thread_request_type {
 };
 
 static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 RequestType) {
-	FUNCTION_TIMING();
-
 	debug_thread* Result = 0;
 	debug_thread* PrevInHash = 0;
 
@@ -549,10 +547,21 @@ static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 Re
 
 static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
-	
+
 	State->LastCollationFrameIndex = State->CollationFrameIndex;
 
-	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
+	//IMPORTANT(dima): This is potentially thread-unsafe code
+	int CurrentRecordTableValue = GlobalRecordTable->Record_Table_Index.value;
+	int TableIndex = (CurrentRecordTableValue & DEBUG_LAYER_TABLE_MASK) >> DEBUG_LAYER_TABLE_BIT_OFFSET;
+	int RecordCount = CurrentRecordTableValue & DEBUG_LAYER_INDEX_MASK;
+
+	int NewTableIndex = !TableIndex;
+
+	//NOTE(dima): Setting new record index to zero and table index to NewTableIndex
+	int NewRecordTableIndex = 0;
+	NewRecordTableIndex |= (TableIndex << DEBUG_LAYER_TABLE_BIT_OFFSET);
+
+	SDL_AtomicSet(&GlobalRecordTable->Record_Table_Index, NewRecordTableIndex);
 
 	u32 FrameBarrierIndex = 0;
 	u32 CollectedRecordIndex;
@@ -560,7 +569,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 		CollectedRecordIndex < RecordCount;
 		CollectedRecordIndex++)
 	{
-		debug_record* Record = &GlobalRecordTable->Records[GlobalRecordTable->CurrentTableIndex.value][CollectedRecordIndex];
+		debug_record* Record = &GlobalRecordTable->Records[TableIndex][CollectedRecordIndex];
 
 		debug_profiled_frame* Frame = DEBUGGetCollationFrame(State);
 
@@ -570,15 +579,6 @@ static void DEBUGProcessRecords(debug_state* State) {
 				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
 
 				debug_thread_frame_info* ThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, Thread);
-
-#if 1
-				char TmpBuf[128];
-				DEBUGParseNameFromUnique(Record->UniqueName, TmpBuf, 128);
-
-				if (StringsAreEqual(TmpBuf, "DEBUGRequestThread")) {
-					int a = 1;
-				}
-#endif
 
 				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
 				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
@@ -760,11 +760,6 @@ static void DEBUGProcessRecords(debug_state* State) {
 
 		State->RecordingChangedWasReenabled = 1;
 	}
-
-	//TODO(dima): Think about when to do this
-	int NewTableIndex = !GlobalRecordTable->CurrentTableIndex.value;
-	SDL_AtomicSet(&GlobalRecordTable->CurrentTableIndex, NewTableIndex);
-	SDL_AtomicSet(&GlobalRecordTable->CurrentRecordIndex, 0);
 
 	State->LastCollationFrameRecords = CollectedRecordIndex - FrameBarrierIndex;
 }
@@ -1772,11 +1767,11 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 			float AtY = RectMin.y;
 
-			ThreadAt = State->ThreadSentinel->NextAlloc;
-			for (ThreadAt; ThreadAt != State->ThreadSentinel; ThreadAt = ThreadAt->NextAlloc) {
+			ThreadAt = State->ThreadSentinel->PrevAlloc;
+			for (ThreadAt; ThreadAt != State->ThreadSentinel; ThreadAt = ThreadAt->PrevAlloc) {
 				debug_thread_frame_info* ViewInfo = DEBUGGetThreadFrameInfoByIndex(State, ThreadAt, State->ViewFrameIndex);
 
-				debug_tree_node* View = ViewInfo->TimingRoot->ChildrenSentinel->NextBro;
+				debug_tree_node* View = ViewInfo->TimingRoot;
 
 				debug_tree_node* AtChildren = View->ChildrenSentinel->NextBro;
 				for (AtChildren;
