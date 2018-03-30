@@ -145,8 +145,8 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 
 	debug_tree_node* At = CurrentBlock->ChildrenSentinel->PrevBro;
 	for (At; At != CurrentBlock->ChildrenSentinel; At = At->PrevBro) {
-#if 0
-		if (StringsAreEqual(Record->UniqueName, At->Name)) {
+#if 1
+		if (StringsAreEqual(UniqueName, At->UniqueName)) {
 #else
 		if (BlockHashID == At->ID) {
 #endif
@@ -240,6 +240,7 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
 	FUNCTION_TIMING();
 
+#if 0
 	//NOTE(dima): Initialization of timing root
 	Frame->TimingRoot = DEBUGAllocateTreeNode(0, &Frame->FrameMemory);
 	DEBUGAllocateElementSentinelTreeNode(
@@ -247,6 +248,7 @@ static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 		&Frame->FrameMemory,
 		Frame->TimingRoot);
 	Frame->CurrentTiming = Frame->TimingRoot;
+#endif
 
 	//NOTE(dima): Setting frame update node to zero
 	Frame->FrameUpdateNode = 0;
@@ -254,6 +256,16 @@ static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 	Frame->TimingStatisticSentinel = DEBUGAllocateStatistic(&Frame->FrameMemory);
 
 	Frame->CurrentSection = State->RootSection;
+}
+
+static void DEBUGInitThreadFrameInfo(debug_state* State, debug_thread_frame_info* ThreadFrameInfo) {
+	//NOTE(dima): Initialization of thread timing root
+	ThreadFrameInfo->TimingRoot = DEBUGAllocateTreeNode(0, ThreadFrameInfo->MemoryAllocPointer);
+	DEBUGAllocateElementSentinelTreeNode(
+		0,
+		ThreadFrameInfo->MemoryAllocPointer,
+		ThreadFrameInfo->TimingRoot);
+	ThreadFrameInfo->CurrentTiming = ThreadFrameInfo->TimingRoot;
 }
 
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
@@ -370,6 +382,8 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 			Info->Initialized = 0;
 			Info->MemoryAllocPointer = &State->Frames[InfosFrameIndex].FrameMemory;
+
+			DEBUGInitThreadFrameInfo(State, Info);
 		}
 	}
 
@@ -405,6 +419,18 @@ inline debug_profiled_frame* DEBUGGetFrameByIndex(debug_state* State, u32 Index)
 	debug_profiled_frame* Frame = &State->Frames[Index % DEBUG_FRAMES_COUNT];
 
 	return(Frame);
+}
+
+inline debug_thread_frame_info* DEBUGGetCollationThreadFrameInfo(debug_state* State, debug_thread* Thread) {
+	debug_thread_frame_info* Result = (*Thread->ThreadFrameInfos) + State->CollationFrameIndex;
+
+	return(Result);
+}
+
+inline debug_thread_frame_info* DEBUGGetThreadFrameInfoByIndex(debug_state* State, debug_thread* Thread, u32 Index) {
+	debug_thread_frame_info* Result = (*Thread->ThreadFrameInfos) + (Index % DEBUG_FRAMES_COUNT);
+
+	return(Result);
 }
 
 
@@ -462,10 +488,19 @@ enum debug_thread_request_type {
 };
 
 static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 RequestType) {
+	FUNCTION_TIMING();
+
 	debug_thread* Result = 0;
 	debug_thread* PrevInHash = 0;
 
-	u32 IDHash = DEBUGNumberHashFNV(ThreadID);
+	//u32 IDHash = DEBUGNumberHashFNV(ThreadID);
+#if 0
+	u32 IDHash = ThreadID;
+#else
+	char TempBuf[16];
+	stbsp_sprintf(TempBuf, "%u", ThreadID);
+	u32 IDHash = StringHashFNV(TempBuf);
+#endif
 
 	u32 Index = IDHash % DEBUG_THREAD_TABLE_SIZE;
 
@@ -514,7 +549,7 @@ static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 Re
 
 static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
-
+	
 	State->LastCollationFrameIndex = State->CollationFrameIndex;
 
 	u32 RecordCount = GlobalRecordTable->CurrentRecordIndex.value;
@@ -534,9 +569,18 @@ static void DEBUGProcessRecords(debug_state* State) {
 				
 				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
 
-				//TODO(dima): Write current record to corresponding thread;
+				debug_thread_frame_info* ThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, Thread);
 
-				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
+#if 1
+				char TmpBuf[128];
+				DEBUGParseNameFromUnique(Record->UniqueName, TmpBuf, 128);
+
+				if (StringsAreEqual(TmpBuf, "DEBUGRequestThread")) {
+					int a = 1;
+				}
+#endif
+
+				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
 				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
 					CurrentBlock,
 					0,
@@ -550,15 +594,16 @@ static void DEBUGProcessRecords(debug_state* State) {
 				TimingSnapshot->ClocksElapsedInChildren = 0;
 				TimingSnapshot->ClocksElapsed = 0;
 
-				Frame->CurrentTiming = TimingNode;
+				ThreadFrameInfo->CurrentTiming = TimingNode;
 			}break;
 
 			case DebugRecord_EndTiming: {
 				//TODO(dima): get the timing from thread storage. Update it. And then update the statistic stored in debug_profiled_frame
 				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
 
+				debug_thread_frame_info* ThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, Thread);
 
-				debug_tree_node* CurrentBlock = Frame->CurrentTiming;
+				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
 				Assert(CurrentBlock->TreeNodeType == DebugTreeNode_Timing);
 				debug_timing_snapshot* TimingSnapshot = &CurrentBlock->TimingSnapshot;
 
@@ -586,7 +631,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 				TimingStatistic->Timing.HitCount += 1;
 				TimingStatistic->Timing.ClocksElapsedInChildren = TimingSnapshot->ClocksElapsedInChildren;
 
-				Frame->CurrentTiming = CurrentBlock->Parent;
+				ThreadFrameInfo->CurrentTiming = CurrentBlock->Parent;
 			}break;
 
 			case DebugRecord_BeginSection: {
@@ -623,10 +668,13 @@ static void DEBUGProcessRecords(debug_state* State) {
 				CollationFrame->DeltaTime = DeltaTime;
 				CollationFrame->RecordCount = State->LastCollationFrameRecords + FrameBarrierIndex;
 
+				debug_thread* MainThread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
+				debug_thread_frame_info* MainThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, MainThread);
+
 				//NOTE(dima): Setting frame update node if founded
 				debug_tree_node* FrameUpdateNode = 0;
-				for (debug_tree_node* At = Frame->TimingRoot->ChildrenSentinel->NextBro;
-					At != Frame->TimingRoot->ChildrenSentinel;
+				for (debug_tree_node* At = MainThreadFrameInfo->TimingRoot->ChildrenSentinel->NextBro;
+					At != MainThreadFrameInfo->TimingRoot->ChildrenSentinel;
 					At = At->NextBro)
 				{
 					char NodeName[256];
@@ -675,6 +723,15 @@ static void DEBUGProcessRecords(debug_state* State) {
 				DEBUGFreeFrameInfo(State, NewFrame);
 				DEBUGInitFrameInfo(State, NewFrame);
 
+				debug_thread* ThreadAt = State->ThreadSentinel->NextAlloc;
+				for (ThreadAt;
+					ThreadAt != State->ThreadSentinel;
+					ThreadAt = ThreadAt->NextAlloc)
+				{
+					debug_thread_frame_info* ThreadFrmInfo = DEBUGGetCollationThreadFrameInfo(State, ThreadAt);
+					DEBUGInitThreadFrameInfo(State, ThreadFrmInfo);
+				}
+
 				//NOTE(dima): Section pointer must be equal to initial
 				Assert(State->CurrentSection == State->RootSection);
 			} break;
@@ -697,7 +754,6 @@ static void DEBUGProcessRecords(debug_state* State) {
 		}
 	}
 
-	//BUG(dima): This should happen in other place.
 	State->RecordingChangedWasReenabled = 0;
 	if (State->RecordingChanged && State->IsRecording) {
 		DEBUGSetRecording(State->IsRecording);
@@ -1657,6 +1713,104 @@ enum debug_profile_active_element {
 	DebugProfileActiveElement_FrameGraph,
 };
 
+static void DEBUGThreadsOverlay(debug_state* State) {
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, "ThreadsOverlay", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Elem)) {
+
+		GUIPreAdvanceCursor(GUIState);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		if (!Elem->Cache.IsInitialized) {
+
+			Elem->Cache.Dimensional.Dimension = V2(800, 400);
+
+			Elem->Cache.IsInitialized = 1;
+		}
+
+		v2* WorkDim = &Elem->Cache.Dimensional.Dimension;
+
+		v2 RectMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
+
+		//NOTE(dima): Graph background
+		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIColorExt_gray70));
+
+		u32 ThreadCount = 0;
+		debug_thread* ThreadAt = State->ThreadSentinel->NextAlloc;
+		for (ThreadAt; ThreadAt != State->ThreadSentinel; ThreadAt = ThreadAt->NextAlloc) {
+			ThreadCount++;
+		}
+
+		if (ThreadCount) {
+#define DEBUG_GRAPH_COLORS_TABLE_SIZE 8
+			u32 GraphColors[DEBUG_GRAPH_COLORS_TABLE_SIZE];
+			GraphColors[0] = GUIState->ColorTheme.GraphColor1;
+			GraphColors[1] = GUIState->ColorTheme.GraphColor2;
+			GraphColors[2] = GUIState->ColorTheme.GraphColor3;
+			GraphColors[3] = GUIState->ColorTheme.GraphColor4;
+			GraphColors[4] = GUIState->ColorTheme.GraphColor5;
+			GraphColors[5] = GUIState->ColorTheme.GraphColor6;
+			GraphColors[6] = GUIState->ColorTheme.GraphColor7;
+			GraphColors[7] = GUIState->ColorTheme.GraphColor8;
+
+			v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
+
+			float CurentThreadGraphYSpacing = WorkDim->y / (float)ThreadCount;
+
+			debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
+			u64 FrameStartTime = Frame->FrameUpdateNode->TimingSnapshot.BeginClocks;
+
+			//float WidthOverTotalClocks = (float)WorkDim->x / 
+			float OneOverTotalClocks = 1.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+
+			float AtY = RectMin.y;
+
+			ThreadAt = State->ThreadSentinel->NextAlloc;
+			for (ThreadAt; ThreadAt != State->ThreadSentinel; ThreadAt = ThreadAt->NextAlloc) {
+				debug_thread_frame_info* ViewInfo = DEBUGGetThreadFrameInfoByIndex(State, ThreadAt, State->ViewFrameIndex);
+
+				debug_tree_node* View = ViewInfo->TimingRoot->ChildrenSentinel->NextBro;
+
+				debug_tree_node* AtChildren = View->ChildrenSentinel->NextBro;
+				for (AtChildren;
+					AtChildren != View->ChildrenSentinel;
+					AtChildren = AtChildren->NextBro) 
+				{
+					float TargetX = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.BeginClocks - FrameStartTime) * OneOverTotalClocks);
+					float TargetFramePercentage = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks;
+					float TargetWidth = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks * WorkDim->x;
+
+					int ColorIndex = AtChildren->ID % DEBUG_GRAPH_COLORS_TABLE_SIZE;
+
+					rect2 LaneRect = Rect2MinDim(V2(TargetX, AtY), V2(TargetWidth, CurentThreadGraphYSpacing));
+
+					RENDERPushRect(GUIState->RenderStack, LaneRect, GUIGetColor(GUIState, ColorIndex));
+					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
+				}
+
+				AtY += CurentThreadGraphYSpacing;
+			}
+		}
+
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
+
+		GUIDescribeElement(GUIState, *WorkDim, RectMin);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
 static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
 	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
 
@@ -1728,7 +1882,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 							}
 						}
 						else if (ActiveProfileElement == DebugProfileActiveElement_Threads) {
-							//DEBUGThreadsOverlay(State);
+							DEBUGThreadsOverlay(State);
 						}
 						else if (ActiveProfileElement == DebugProfileActiveElement_RootNodeBlocks) {
 							u32 ActiveElement = 0;

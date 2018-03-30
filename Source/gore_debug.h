@@ -103,7 +103,8 @@ struct debug_thread_frame_info{
 
 	stacked_memory* MemoryAllocPointer;
 
-
+	debug_tree_node* CurrentTiming;
+	debug_tree_node* TimingRoot;
 };
 
 struct debug_thread {
@@ -135,12 +136,14 @@ struct debug_profiled_frame {
 
 	stacked_memory FrameMemory;
 
+#if 0
 	debug_tree_node* CurrentTiming;
 	debug_tree_node* TimingRoot;
+#endif
+
 	debug_tree_node* FrameUpdateNode;
 
 	debug_tree_node* CurrentSection;
-	debug_tree_node* SectionSentinel;
 
 	debug_timing_statistic* TimingStatistics[DEBUG_TIMING_STATISTIC_TABLE_SIZE];
 	debug_timing_statistic* TimingStatisticSentinel;
