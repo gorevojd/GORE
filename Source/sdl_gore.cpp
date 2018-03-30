@@ -1191,7 +1191,7 @@ int main(int ArgsCount, char** Args) {
 		GUIPrepareFrame(GUIState);
 		END_TIMING();
 
-#if 0
+#if 1
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 

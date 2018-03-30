@@ -387,6 +387,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		}
 	}
 
+
 	State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
 	State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
 
@@ -530,6 +531,11 @@ static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 Re
 			Thread->ThreadFrameInfos = DEBUGAllocateThreadFrameInfos(State);
 
 			Thread->ThreadID = ThreadID;
+
+			//NOTE(dima): Initializing thread overlay helper path
+			Thread->ThreadOverlayNodePathSentinel = DEBUGAllocateTreeNode(0, State->DebugMemory);
+			Thread->ThreadOverlayNodePathSentinel->NextBro = Thread->ThreadOverlayNodePathSentinel;
+			Thread->ThreadOverlayNodePathSentinel->PrevBro = Thread->ThreadOverlayNodePathSentinel;
 
 			if (PrevInHash == 0) {
 				State->Threads[Index] = Thread;
@@ -1743,8 +1749,12 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			ThreadCount++;
 		}
 
+		b32 HotOulineShouldBeDrawn = 0;
+		u32 HotOutlineColorIndex = 0;
+		rect2 HotOutlineRect;
+
 		if (ThreadCount) {
-#define DEBUG_GRAPH_COLORS_TABLE_SIZE 8
+#define DEBUG_GRAPH_COLORS_TABLE_SIZE 16
 			u32 GraphColors[DEBUG_GRAPH_COLORS_TABLE_SIZE];
 			GraphColors[0] = GUIState->ColorTheme.GraphColor1;
 			GraphColors[1] = GUIState->ColorTheme.GraphColor2;
@@ -1754,6 +1764,14 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			GraphColors[5] = GUIState->ColorTheme.GraphColor6;
 			GraphColors[6] = GUIState->ColorTheme.GraphColor7;
 			GraphColors[7] = GUIState->ColorTheme.GraphColor8;
+			GraphColors[8] = GUIColorExt_coral2;
+			GraphColors[9] = GUIColorExt_DarkOliveGreen1;
+			GraphColors[10] = GUIColorExt_burlywood;
+			GraphColors[11] = GUIColorExt_FloralWhite;
+			GraphColors[12] = GUIColorExt_gray51;
+			GraphColors[13] = GUIColorExt_SteelBlue1;
+			GraphColors[14] = GUIColorExt_yellow1;
+			GraphColors[15] = GUIColorExt_LightGoldenrod4;
 
 			v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
@@ -1762,7 +1780,6 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 			u64 FrameStartTime = Frame->FrameUpdateNode->TimingSnapshot.BeginClocks;
 
-			//float WidthOverTotalClocks = (float)WorkDim->x / 
 			float OneOverTotalClocks = 1.0f / (float)Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
 
 			float AtY = RectMin.y;
@@ -1771,7 +1788,43 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			for (ThreadAt; ThreadAt != State->ThreadSentinel; ThreadAt = ThreadAt->PrevAlloc) {
 				debug_thread_frame_info* ViewInfo = DEBUGGetThreadFrameInfoByIndex(State, ThreadAt, State->ViewFrameIndex);
 
+				//NOTE(dima): Finding element that we want to show
 				debug_tree_node* View = ViewInfo->TimingRoot;
+				if (ThreadAt->ThreadOverlayNodePathSentinel->NextBro != ThreadAt->ThreadOverlayNodePathSentinel) {
+
+					b32 RestPathShouldBeCleared = 0;
+
+					debug_tree_node* AtPath = ThreadAt->ThreadOverlayNodePathSentinel->NextBro;
+					for (AtPath; AtPath != ThreadAt->ThreadOverlayNodePathSentinel; AtPath = AtPath->NextBro) {
+						b32 HextTreeNodeWasFound = 0;
+						for (debug_tree_node* LayerAt = View->ChildrenSentinel->NextBro;
+							LayerAt != View->ChildrenSentinel;
+							LayerAt = LayerAt->NextBro)
+						{
+							if (LayerAt->ID == AtPath->ID) {
+								HextTreeNodeWasFound = true;
+								View = LayerAt;
+								break;
+							}
+						}
+
+						if (!HextTreeNodeWasFound) {
+							RestPathShouldBeCleared;
+							break;
+						}
+					}
+
+					if (RestPathShouldBeCleared) {
+						debug_tree_node* TmpAtt = AtPath;
+						while (TmpAtt != ThreadAt->ThreadOverlayNodePathSentinel) {
+							debug_tree_node* TmpNext = TmpAtt->NextBro;
+
+							DEBUGDeallocateTreeNode(State->FreeBlockSentinel, TmpAtt);
+
+							TmpAtt = TmpNext;
+						}
+					}
+				}
 
 				debug_tree_node* AtChildren = View->ChildrenSentinel->NextBro;
 				for (AtChildren;
@@ -1788,6 +1841,53 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 					RENDERPushRect(GUIState->RenderStack, LaneRect, GUIGetColor(GUIState, ColorIndex));
 					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
+
+
+					if (MouseInRect(GUIState->Input, LaneRect)) {
+						HotOulineShouldBeDrawn = 1;
+						HotOutlineRect = LaneRect;
+
+						GUITooltip(GUIState, AtChildren->UniqueName);
+
+						//NOTE(dima): going forward in the hierarchy
+						if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+							if (AtChildren->ChildrenSentinel->NextBro != AtChildren->ChildrenSentinel) {
+								//NOTE(dima): Adding to helper path
+								debug_tree_node* NewPathEntry = DEBUGAllocateTreeNode(State->FreeBlockSentinel, State->DebugMemory);
+
+								NewPathEntry->NextBro = ThreadAt->ThreadOverlayNodePathSentinel;
+								NewPathEntry->PrevBro = ThreadAt->ThreadOverlayNodePathSentinel->PrevBro;
+
+								NewPathEntry->PrevBro->NextBro = NewPathEntry;
+								NewPathEntry->NextBro->PrevBro = NewPathEntry;
+
+								NewPathEntry->ID = AtChildren->ID;
+								CopyStrings(NewPathEntry->UniqueName, AtChildren->UniqueName);
+							}
+						}
+					}
+
+				}
+
+				char ViewingTimingNodeName[128];
+				if (View != ViewInfo->TimingRoot) {
+					DEBUGParseNameFromUnique(View->UniqueName, ViewingTimingNodeName, 128);
+				}
+				else {
+					CopyStrings(ViewingTimingNodeName, "FrameRootNode");
+				}
+
+				v2 LabelTextSize = GUIGetTextSize(GUIState, ViewingTimingNodeName, GUIState->FontScale);
+				RENDERPushRect(GUIState->RenderStack, Rect2MinDim(V2(RectMin.x, AtY), LabelTextSize), GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor));
+				GUIPrintText(GUIState, ViewingTimingNodeName, V2(RectMin.x, AtY + AscByScale), GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+
+				//NOTE(dima): Going backwards in the hierarchy
+				if (MouseInRect(GUIState->Input, WorkRect)) {
+					if (MouseButtonWentDown(GUIState->Input, MouseButton_Right)) {
+						if (View != ViewInfo->TimingRoot) {
+							DEBUGDeallocateTreeNode(State->FreeBlockSentinel, ThreadAt->ThreadOverlayNodePathSentinel->PrevBro);
+						}
+					}
 				}
 
 				AtY += CurentThreadGraphYSpacing;
@@ -1795,6 +1895,11 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		}
 
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		if (HotOulineShouldBeDrawn) {
+			RENDERPushRectInnerOutline(GUIState->RenderStack, HotOutlineRect, 2, GUIGetColor(GUIState, GUIColor_Red));
+		}
+
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);

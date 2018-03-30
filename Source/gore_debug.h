@@ -61,6 +61,8 @@ struct debug_timing_statistic {
 enum debug_tree_node_type {
 	DebugTreeNode_None,
 
+	DebugTreeNode_DebugTreePath,
+
 	DebugTreeNode_Timing,
 	DebugTreeNode_Section,
 	DebugTreeNode_Value,
@@ -127,6 +129,16 @@ struct debug_thread {
 		
 	*/
 	debug_thread_frame_info** ThreadFrameInfos;
+
+
+	/*
+		NOTE(dima): ThreadOverlayNodePathSentinel is used 
+		in DEBUGThreadOverlay to remember where to show 
+		info in the thread timing hierarchy. If next element 
+		to sentinel is the sentinel than it means that 
+		path has not been initialized.
+	*/
+	debug_tree_node* ThreadOverlayNodePathSentinel;
 };
 
 struct debug_profiled_frame {
