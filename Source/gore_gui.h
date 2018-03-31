@@ -1071,6 +1071,7 @@ enum gui_color_table_type {
 };
 
 struct gui_color_theme {
+
 	u32 TextColor;
 	u32 TextHighlightColor;
 	u32 TooltipTextColor;
@@ -1078,6 +1079,7 @@ struct gui_color_theme {
 
 	u32 OutlineColor;
 
+	float GraphAlpha;
 	u32 GraphColor1;
 	u32 GraphColor2;
 	u32 GraphColor3;
@@ -1119,6 +1121,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
 
+	Result.GraphAlpha = 0.75f;
 	Result.GraphColor1 = GUIColorExt_green3;
 	Result.GraphColor2 = GUIColorExt_purple1;
 	Result.GraphColor3 = GUIColorExt_red3;
@@ -1128,7 +1131,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.GraphColor7 = GUIColorExt_DarkGoldenrod3;
 	Result.GraphColor8 = GUIColorExt_chartreuse3;
 
-	Result.GraphBackColor = GUIColorExt_gray10;
+	Result.GraphBackColor = GUIColor_Black;
 
 	//Result.GraphColor1 = GUIColorExt_green3;
 	//Result.GraphBackColor = GUIColorExt_red4;

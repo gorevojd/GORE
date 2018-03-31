@@ -1070,8 +1070,8 @@ int main(int ArgsCount, char** Args) {
 
 	if (!Window) {
 		printf("ERROR: Window is not created");
-		DEBUG_OK_LOG("Window successfully created");
 	}
+	DEBUG_OK_LOG("Window successfully created");
 
 	SDLSetWindowIcon(Window);
 

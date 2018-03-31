@@ -2025,8 +2025,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 
 			RENDERPushRect(GUIState->RenderStack, OccupiedRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3));
 			RENDERPushRectOutline(GUIState->RenderStack, OccupiedRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
-			RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
-			RENDERPushRectOutline(GUIState->RenderStack, FreeRect, Inner, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+			RENDERPushRect(GUIState->RenderStack, FreeRect, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, GUIState->ColorTheme.GraphAlpha));
 
 			RENDERPushRectOutline(GUIState->RenderStack, GraphRect, Outer, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 

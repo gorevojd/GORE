@@ -875,7 +875,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 		v2 ColumnDim = V2(OneColumnWidth, GraphDim->y);
 		rect2 ColumnRect = Rect2MinDim(GraphMin, ColumnDim);
 
-		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
+		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, 0.75f));
 
 		//NOTE(dima): Collation frame column
 		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Green));
@@ -1009,7 +1009,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 						//RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColorExt_green3) * ColorMultiplier);
 						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor2) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, GUIState->ColorTheme.GraphAlpha) * ColorMultiplier);
 
 #if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
 						if (MouseInRect(GUIState->Input, ColumnRect)) {
@@ -1059,7 +1059,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 						}
 
 						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, GUIState->ColorTheme.GraphAlpha) * ColorMultiplier);
 
 #if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
 						if (MouseInRect(GUIState->Input, ColumnRect)) {
@@ -1181,7 +1181,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 						}
 
 						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor3) * ColorMultiplier);
-						RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor) * ColorMultiplier);
+						RENDERPushRect(GUIState->RenderStack, FreeRect, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, GUIState->ColorTheme.GraphAlpha) * ColorMultiplier);
 
 #if DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS
 						if (MouseInRect(GUIState->Input, ColumnRect)) {
@@ -1250,9 +1250,18 @@ static void DEBUGViewingFrameInfo(debug_state* State) {
 
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
+
 	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS, %urs", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime, ViewingFrame->RecordCount);
-	GUIText(State->GUIState, Buf);
+	GUITreeBegin(State->GUIState, "ViewingFrameInfo", Buf);
+#if 0
+	char MemInfoBuf[256];
+	stbsp_sprintf(MemInfoBuf, "Frame memory left: %u; Occupied: %f;",
+		ViewingFrame->FrameMemory.MaxSize - ViewingFrame->FrameMemory.Used,
+		(float)ViewingFrame->FrameMemory.Used / (float)ViewingFrame->FrameMemory.MaxSize * 100.0f);
+#endif
+
 	GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
+	GUITreeEnd(State->GUIState);
 }
 
 enum debug_clock_list_type {
@@ -2010,7 +2019,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 						gui_state* GUIState = State->GUIState;
 
 						GUIBeginRow(State->GUIState);
-						GUIBeginRadioGroup(State->GUIState, "ProfileMenuRG", 0);
+						GUIBeginRadioGroup(State->GUIState, "ProfileMenuRG", DebugProfileActiveElement_TopExClocks);
 						GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
 						GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
 						GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
