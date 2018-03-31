@@ -20,6 +20,8 @@ struct stacked_memory {
 
 	u32 FragmentationBytesCount;
 
+	char* DEBUGName;
+
 	//NOTE(dima): Used for temp memory
 	u32 InitUsed;
 };

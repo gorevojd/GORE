@@ -528,7 +528,7 @@ b32 WindaDoNextThreadwork(platform_thread_queue* Queue) {
 		NoWorkLeft = 1;
 	}
 
-	Assert(Queue->FinishedEntries <= Queue->StartedEntries);
+	//Assert(Queue->FinishedEntries <= Queue->StartedEntries);
 
 	return(NoWorkLeft);
 }

@@ -238,7 +238,7 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 }
 
 static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
-	FUNCTION_TIMING();
+	//FUNCTION_TIMING();
 
 #if 0
 	//NOTE(dima): Initialization of timing root
@@ -258,7 +258,7 @@ static void DEBUGInitFrameInfo(debug_state* State, debug_profiled_frame* Frame) 
 	Frame->CurrentSection = State->RootSection;
 }
 
-static void DEBUGInitThreadFrameInfo(debug_state* State, debug_thread_frame_info* ThreadFrameInfo) {
+static void DEBUGInitThreadFrameInfo(debug_thread_frame_info* ThreadFrameInfo) {
 	//NOTE(dima): Initialization of thread timing root
 	ThreadFrameInfo->TimingRoot = DEBUGAllocateTreeNode(0, ThreadFrameInfo->MemoryAllocPointer);
 	DEBUGAllocateElementSentinelTreeNode(
@@ -269,7 +269,7 @@ static void DEBUGInitThreadFrameInfo(debug_state* State, debug_thread_frame_info
 }
 
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
-	FUNCTION_TIMING();
+	//FUNCTION_TIMING();
 
 	Frame->FrameMemory.Used = 0;
 
@@ -299,7 +299,74 @@ debug_thread_frame_info** DEBUGAllocateThreadFrameInfos(debug_state* State) {
 
 	Assert(State->ThreadFrameInfoPoolIndex < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE);
 
-	Result = State->ThreadFrameInfosPool + State->ThreadFrameInfoPoolIndex++;
+	Result = &State->ThreadFrameInfosPool[State->ThreadFrameInfoPoolIndex++];
+
+	return(Result);
+}
+
+static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, b32* HasBeenAllocated) {
+	debug_thread* Result = 0;
+	debug_thread* PrevInHash = 0;
+
+	//u32 IDHash = DEBUGNumberHashFNV(ThreadID);
+#if 0
+	u32 IDHash = ThreadID;
+#else
+	char TempBuf[16];
+	stbsp_sprintf(TempBuf, "%u", ThreadID);
+	u32 IDHash = StringHashFNV(TempBuf);
+#endif
+
+	u32 Index = IDHash % DEBUG_THREAD_TABLE_SIZE;
+
+	debug_thread* FirstFoundThread = State->Threads[Index];
+
+	debug_thread* At = FirstFoundThread;
+	while (At) {
+
+		if (At->ThreadID == ThreadID) {
+			Result = At;
+			break;
+		}
+
+		PrevInHash = At;
+		At = At->NextInHash;
+	}
+
+	b32 Allocated = 0;
+	if (At == 0) {
+
+		debug_thread* Thread = PushStruct(State->DebugMemory, debug_thread);
+		Thread->NextInHash = 0;
+		Thread->NextAlloc = State->ThreadSentinel->NextAlloc;
+		Thread->PrevAlloc = State->ThreadSentinel;
+
+		Thread->NextAlloc->PrevAlloc = Thread;
+		Thread->PrevAlloc->NextAlloc = Thread;
+
+		Thread->ThreadFrameInfos = DEBUGAllocateThreadFrameInfos(State);
+
+		Thread->ThreadID = ThreadID;
+
+		//NOTE(dima): Initializing thread overlay helper path
+		Thread->ThreadOverlayNodePathSentinel = DEBUGAllocateTreeNode(0, State->DebugMemory);
+		Thread->ThreadOverlayNodePathSentinel->NextBro = Thread->ThreadOverlayNodePathSentinel;
+		Thread->ThreadOverlayNodePathSentinel->PrevBro = Thread->ThreadOverlayNodePathSentinel;
+
+		if (PrevInHash == 0) {
+			State->Threads[Index] = Thread;
+		}
+		else {
+			PrevInHash->NextInHash = Thread;
+		}
+
+		Result = Thread;
+		Allocated = 1;
+	}
+
+	if (HasBeenAllocated) {
+		*HasBeenAllocated = Allocated;
+	}
 
 	return(Result);
 }
@@ -337,6 +404,11 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 	
 		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(500));
+
+		char TempBuf[256];
+		stbsp_sprintf(TempBuf, "FrameMem_%d", FrameIndex);
+		Frame->FrameMemory.DEBUGName = PushString(&Frame->FrameMemory, TempBuf);
+		CopyStrings(Frame->FrameMemory.DEBUGName, TempBuf);
 	}
 
 	//NOTE(dima): Freing frame data
@@ -355,8 +427,6 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	State->ThreadSentinel->NextAlloc = State->ThreadSentinel;
 	State->ThreadSentinel->PrevAlloc = State->ThreadSentinel;
 
-	State->MainThread = 0;
-
 	//NOTE(dima): Clearing thread table
 	for (int ThreadIndex = 0;
 		ThreadIndex < DEBUG_THREAD_TABLE_SIZE;
@@ -367,11 +437,11 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 
 	//NOTE(dima): Initialization of thread frame infos pool
 	State->ThreadFrameInfoPoolIndex = 0;
-	for (u32 Index = 0;
-		Index < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE;
-		Index++)
+	for (u32 PoolIndex = 0;
+		PoolIndex < DEBUG_THREAD_FRAME_INFOS_POOL_SIZE;
+		PoolIndex++)
 	{
-		debug_thread_frame_info** CurrentArray = &State->ThreadFrameInfosPool[Index];
+		debug_thread_frame_info** CurrentArray = &State->ThreadFrameInfosPool[PoolIndex];
 		*CurrentArray = PushArray(State->DebugMemory, debug_thread_frame_info, DEBUG_FRAMES_COUNT);
 
 		for (u32 InfosFrameIndex = 0;
@@ -380,13 +450,29 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 		{
 			debug_thread_frame_info* Info = &(*CurrentArray)[InfosFrameIndex];
 
-			Info->Initialized = 0;
+			Info->DEBUGArrayPoolIndex = PoolIndex;
+			Info->Initialized = 1;
 			Info->MemoryAllocPointer = &State->Frames[InfosFrameIndex].FrameMemory;
 
-			DEBUGInitThreadFrameInfo(State, Info);
+			DEBUGInitThreadFrameInfo(Info);
 		}
 	}
 
+	//NOTE(dima): Initialization of the main thread
+	u32 MainThreadID = PlatformApi.GetThreadID();
+	State->MainThread = DEBUGRequestThread(State, MainThreadID, 0);
+	for (u32 InfosFrameIndex = 0;
+		InfosFrameIndex < DEBUG_FRAMES_COUNT;
+		InfosFrameIndex++)
+	{
+		debug_thread_frame_info* Info = &(*State->MainThread->ThreadFrameInfos)[InfosFrameIndex];
+
+		Info->DEBUGArrayPoolIndex = 0;
+		Info->Initialized = 1;
+		Info->MemoryAllocPointer = &State->Frames[InfosFrameIndex].FrameMemory;
+
+		DEBUGInitThreadFrameInfo(Info);
+	}
 
 	State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
 	State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
@@ -473,84 +559,6 @@ inline void DEBUGIncrementFrameIndices(debug_state* State) {
 	}
 }
 
-//TODO(dima): Better hash function
-inline u32 DEBUGNumberHashFNV(u32 Num) {
-
-	u32 Result = Num * 16777619;
-	Result ^= Num;
-
-	return(Result);
-}
-
-enum debug_thread_request_type {
-	DebugRequestThread_Find,
-
-	DebugRequestThread_Allocate,
-};
-
-static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, u32 RequestType) {
-	debug_thread* Result = 0;
-	debug_thread* PrevInHash = 0;
-
-	//u32 IDHash = DEBUGNumberHashFNV(ThreadID);
-#if 0
-	u32 IDHash = ThreadID;
-#else
-	char TempBuf[16];
-	stbsp_sprintf(TempBuf, "%u", ThreadID);
-	u32 IDHash = StringHashFNV(TempBuf);
-#endif
-
-	u32 Index = IDHash % DEBUG_THREAD_TABLE_SIZE;
-
-	debug_thread* FirstFoundThread = State->Threads[Index];
-	
-	debug_thread* At = FirstFoundThread;
-	while (At) {
-
-		if (At->ThreadID == ThreadID) {
-			Result = At;
-			break;
-		}
-
-		PrevInHash = At;
-		At = At->NextInHash;
-	}
-
-	if (RequestType == DebugRequestThread_Allocate) {
-		if (At == 0) {
-
-			debug_thread* Thread = PushStruct(State->DebugMemory, debug_thread);
-			Thread->NextInHash = 0;
-			Thread->NextAlloc = State->ThreadSentinel->NextAlloc;
-			Thread->PrevAlloc = State->ThreadSentinel;
-
-			Thread->NextAlloc->PrevAlloc = Thread;
-			Thread->PrevAlloc->NextAlloc = Thread;
-
-			Thread->ThreadFrameInfos = DEBUGAllocateThreadFrameInfos(State);
-
-			Thread->ThreadID = ThreadID;
-
-			//NOTE(dima): Initializing thread overlay helper path
-			Thread->ThreadOverlayNodePathSentinel = DEBUGAllocateTreeNode(0, State->DebugMemory);
-			Thread->ThreadOverlayNodePathSentinel->NextBro = Thread->ThreadOverlayNodePathSentinel;
-			Thread->ThreadOverlayNodePathSentinel->PrevBro = Thread->ThreadOverlayNodePathSentinel;
-
-			if (PrevInHash == 0) {
-				State->Threads[Index] = Thread;
-			}
-			else {
-				PrevInHash->NextInHash = Thread;
-			}
-
-			Result = Thread;
-		}
-	}
-
-	return(Result);
-}
-
 static void DEBUGProcessRecords(debug_state* State) {
 	FUNCTION_TIMING();
 
@@ -582,9 +590,29 @@ static void DEBUGProcessRecords(debug_state* State) {
 		switch (Record->RecordType) {
 			case DebugRecord_BeginTiming: {
 				
-				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
+				/*
+					NOTE(dima): Concept
 
+					When we hit the frame barrier frame indices are
+					incremented and new collation frame is cleared.
+					Also we go through all threads currently allocated
+					and clear new frame thread info. But if the thread
+					has not been allocated it means that when we need 
+					allocate it in Begin or End Timing thread frame info
+					will not bee initialized. So we when we request 
+					our debug thread info we actually need to check 
+					if it has been allocated now or not. That way we
+					can initialize it's current collation frame index
+					frame info and be happy :D
+				*/
+
+				b32 HasBeenAllocated = 0;
+				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, &HasBeenAllocated);
 				debug_thread_frame_info* ThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, Thread);
+
+				if (HasBeenAllocated) {
+					DEBUGInitThreadFrameInfo(ThreadFrameInfo);
+				}
 
 				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
 				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
@@ -605,9 +633,27 @@ static void DEBUGProcessRecords(debug_state* State) {
 
 			case DebugRecord_EndTiming: {
 				//TODO(dima): get the timing from thread storage. Update it. And then update the statistic stored in debug_profiled_frame
-				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
+				/*
+					NOTE(dima): Concept
 
+					When we hit the frame barrier frame indices are
+					incremented and new collation frame is cleared.
+					Also we go through all threads currently allocated
+					and clear new frame thread info. But if the thread
+					has not been allocated it means that when we need
+					allocate it in Begin or End Timing thread frame info
+					will not bee initialized. So we when we request
+					our debug thread info we actually need to check
+					if it has been allocated now or not. That way we
+					can initialize it's current collation frame index
+					frame info and be happy :D
+				*/
+				b32 HasBeenAllocated = 0;
+				debug_thread* Thread = DEBUGRequestThread(State, Record->ThreadID, &HasBeenAllocated);
 				debug_thread_frame_info* ThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, Thread);
+				if (HasBeenAllocated) {
+					DEBUGInitThreadFrameInfo(ThreadFrameInfo);
+				}
 
 				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
 				Assert(CurrentBlock->TreeNodeType == DebugTreeNode_Timing);
@@ -674,8 +720,15 @@ static void DEBUGProcessRecords(debug_state* State) {
 				CollationFrame->DeltaTime = DeltaTime;
 				CollationFrame->RecordCount = State->LastCollationFrameRecords + FrameBarrierIndex;
 
-				debug_thread* MainThread = DEBUGRequestThread(State, Record->ThreadID, DebugRequestThread_Allocate);
+				//NOTE(dima): Initialization of the main thread
+				b32 MainThreadHasBeenAllcated = 0;
+				debug_thread* MainThread = DEBUGRequestThread(State, Record->ThreadID, &MainThreadHasBeenAllcated);
 				debug_thread_frame_info* MainThreadFrameInfo = DEBUGGetCollationThreadFrameInfo(State, MainThread);
+
+				//NOTE(dima): This is just in case
+				if (MainThreadHasBeenAllcated) {
+					DEBUGInitThreadFrameInfo(MainThreadFrameInfo);
+				}
 
 				//NOTE(dima): Setting frame update node if founded
 				debug_tree_node* FrameUpdateNode = 0;
@@ -735,7 +788,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 					ThreadAt = ThreadAt->NextAlloc)
 				{
 					debug_thread_frame_info* ThreadFrmInfo = DEBUGGetCollationThreadFrameInfo(State, ThreadAt);
-					DEBUGInitThreadFrameInfo(State, ThreadFrmInfo);
+					DEBUGInitThreadFrameInfo(ThreadFrmInfo);
 				}
 
 				//NOTE(dima): Section pointer must be equal to initial
@@ -1741,7 +1794,8 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
 
 		//NOTE(dima): Graph background
-		RENDERPushRect(GUIState->RenderStack, WorkRect, GUIGetColor(GUIState, GUIColorExt_gray70));
+		v4 GraphColor = GUIGetColor(GUIState, GUIColor_Black);
+		RENDERPushRect(GUIState->RenderStack, WorkRect, V4(GraphColor.rgb, 0.75f));
 
 		u32 ThreadCount = 0;
 		debug_thread* ThreadAt = State->ThreadSentinel->NextAlloc;
@@ -1750,8 +1804,10 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		}
 
 		b32 HotOulineShouldBeDrawn = 0;
+		b32 HotFullLaneShouldBeDrawn = 0;
 		u32 HotOutlineColorIndex = 0;
 		rect2 HotOutlineRect;
+		rect2 HotFullLaneRect;
 
 		if (ThreadCount) {
 #define DEBUG_GRAPH_COLORS_TABLE_SIZE 16
@@ -1877,16 +1933,26 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					CopyStrings(ViewingTimingNodeName, "FrameRootNode");
 				}
 
-				v2 LabelTextSize = GUIGetTextSize(GUIState, ViewingTimingNodeName, GUIState->FontScale);
-				RENDERPushRect(GUIState->RenderStack, Rect2MinDim(V2(RectMin.x, AtY), LabelTextSize), GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor));
-				GUIPrintText(GUIState, ViewingTimingNodeName, V2(RectMin.x, AtY + AscByScale), GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+				//v2 LabelTextSize = GUIGetTextSize(GUIState, ViewingTimingNodeName, GUIState->FontScale);
+				//RENDERPushRect(GUIState->RenderStack, Rect2MinDim(V2(RectMin.x, AtY), LabelTextSize), GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor));
+				//GUIPrintText(GUIState, ViewingTimingNodeName, V2(RectMin.x, AtY + AscByScale), GUIState->FontScale, GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
 				//NOTE(dima): Going backwards in the hierarchy
-				if (MouseInRect(GUIState->Input, WorkRect)) {
+				rect2 FullLaneRc = Rect2MinDim(V2(WorkRect.Min.x, AtY), V2(WorkDim->x, CurentThreadGraphYSpacing));
+				if (MouseInRect(GUIState->Input, FullLaneRc)) {
+					HotFullLaneShouldBeDrawn = 1;
+					HotFullLaneRect = FullLaneRc;
+
 					if (MouseButtonWentDown(GUIState->Input, MouseButton_Right)) {
 						if (View != ViewInfo->TimingRoot) {
 							DEBUGDeallocateTreeNode(State->FreeBlockSentinel, ThreadAt->ThreadOverlayNodePathSentinel->PrevBro);
 						}
+					}
+
+					if (ThreadAt->NextAlloc == State->ThreadSentinel &&
+						ThreadAt->PrevAlloc == State->ThreadSentinel)
+					{
+						HotFullLaneShouldBeDrawn = 0;
 					}
 				}
 
@@ -1900,6 +1966,9 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			RENDERPushRectInnerOutline(GUIState->RenderStack, HotOutlineRect, 2, GUIGetColor(GUIState, GUIColor_Red));
 		}
 
+		if (HotFullLaneShouldBeDrawn) {
+			RENDERPushRectOutline(GUIState->RenderStack, HotFullLaneRect, 1, GUIGetColor(GUIState, GUIColor_Blue));
+		}
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);

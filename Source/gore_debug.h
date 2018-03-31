@@ -102,6 +102,7 @@ struct debug_tree_node {
 
 struct debug_thread_frame_info{
 	b32 Initialized;
+	int DEBUGArrayPoolIndex;
 
 	stacked_memory* MemoryAllocPointer;
 
@@ -231,7 +232,13 @@ enum debug_frame_graph_type {
 };
 
 
+/*
+	NOTE(dima): Initialization of the debug state;
+	This function should be executed on the main thread
+*/
 extern void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState);
+
+
 extern void DEBUGUpdate(debug_state* State);
 
 #endif
