@@ -1,5 +1,10 @@
 Builds/**
-!Builds
+
+!Builds/Debug32
+!Builds/Debug64
+!Builds/Release32
+!Builds/Release64
+
 !Builds/Debug32/SDL2.dll
 !Builds/Debug64/SDL2.dll
 !Builds/Release32/SDL2.dll
