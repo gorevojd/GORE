@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{B7EE336F-730E-4124-9BE7-D8F64E3C56D2}</ProjectGuid>
+    <ProjectGuid>{DA9C5F1D-5EE8-4F1E-9B9D-69D0E28D3173}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>workout</RootNamespace>
+    <RootNamespace>GORE</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -71,27 +71,31 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>.\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
-    <LibraryPath>.\Include\SDL2-2.0.7\lib\x86;$(LibraryPath)</LibraryPath>
-    <OutDir>.\Build</OutDir>
-    <IntDir>.\Build</IntDir>
+    <IncludePath>$(SolutionDir)\Source;$(SolutionDir)\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)\Include\SDL2-2.0.7\lib\x86;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)\Builds\Debug32</OutDir>
+    <IntDir>$(SolutionDir)\Builds\Debug32\Temp</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>.\Build</OutDir>
-    <IntDir>.\Build</IntDir>
-    <IncludePath>.\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
-    <LibraryPath>.\Include\SDL2-2.0.7\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\Source;$(SolutionDir)\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)\Builds\Debug64</OutDir>
+    <IntDir>$(SolutionDir)\Builds\Debug64\Temp</IntDir>
+    <LibraryPath>$(SolutionDir)\Include\SDL2-2.0.7\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>.\Build</OutDir>
-    <IntDir>.\Build</IntDir>
-    <IncludePath>.\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
-    <LibraryPath>.\Include\SDL2-2.0.7\lib\x86;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\Source;$(SolutionDir)\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)\Builds\Release32</OutDir>
+    <IntDir>$(SolutionDir)\Builds\Release32\Temp</IntDir>
+    <LibraryPath>$(SolutionDir)\Include\SDL2-2.0.7\lib\x86;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(NETFXKitsDir)Lib\um\x86</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(SolutionDir)\Source;$(SolutionDir)\Include\SDL2-2.0.7\include;$(IncludePath)</IncludePath>
+    <OutDir>$(SolutionDir)\Builds\Release64</OutDir>
+    <IntDir>$(SolutionDir)\Builds\Release64\Temp</IntDir>
+    <LibraryPath>$(SolutionDir)\Include\SDL2-2.0.7\lib\x64;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -100,12 +104,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;SDL2main.lib;SDL2.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2main.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,7 +122,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;SDL2main.lib;SDL2.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2main.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -131,14 +134,13 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;SDL2main.lib;SDL2.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2main.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -156,49 +158,45 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;SDL2.lib;SDL2main.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source\geometrika.cpp" />
-    <ClCompile Include="Source\gore_debug.cpp" />
-    <ClCompile Include="Source\gore_debug_layer.cpp" />
-    <ClCompile Include="Source\gore_engine.cpp" />
-    <ClCompile Include="Source\gore_game_common.cpp" />
-    <ClCompile Include="Source\gore_opengl.cpp" />
-    <ClCompile Include="Source\sdl_gore.cpp" />
-    <ClCompile Include="Source\gore_asset.cpp" />
-    <ClCompile Include="Source\gore_gui.cpp" />
-    <ClCompile Include="Source\gore_renderer.cpp" />
-    <ClCompile Include="Source\gore_render_state.cpp" />
+    <ClCompile Include="..\Source\geometrika.cpp" />
+    <ClCompile Include="..\Source\gore_asset.cpp" />
+    <ClCompile Include="..\Source\gore_debug.cpp" />
+    <ClCompile Include="..\Source\gore_debug_layer.cpp" />
+    <ClCompile Include="..\Source\gore_engine.cpp" />
+    <ClCompile Include="..\Source\gore_game_common.cpp" />
+    <ClCompile Include="..\Source\gore_gui.cpp" />
+    <ClCompile Include="..\Source\gore_opengl.cpp" />
+    <ClCompile Include="..\Source\gore_renderer.cpp" />
+    <ClCompile Include="..\Source\gore_render_state.cpp" />
+    <ClCompile Include="..\Source\sdl_gore.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Source\gore_asset_common.h" />
-    <ClInclude Include="Source\sdl_gore.h" />
-    <ClInclude Include="Source\geometrika.h" />
-    <ClInclude Include="Source\gore_debug.h" />
-    <ClInclude Include="Source\gore_debug_layer.h" />
-    <ClInclude Include="Source\gore_engine.h" />
-    <ClInclude Include="Source\gore_game_common.h" />
-    <ClInclude Include="Source\gore_input.h" />
-    <ClInclude Include="Source\gore_lighting.h" />
-    <ClInclude Include="Source\gore_opengl.h" />
-    <ClInclude Include="Source\gore_types.h" />
-    <ClInclude Include="Source\stb_sprintf.h" />
-    <ClInclude Include="Source\gore_asset.h" />
-    <ClInclude Include="Source\stb_image.h" />
-    <ClInclude Include="Source\stb_truetype.h" />
-    <ClInclude Include="Source\gore_gui.h" />
-    <ClInclude Include="Source\gore_math.h" />
-    <ClInclude Include="Source\gore_platform.h" />
-    <ClInclude Include="Source\gore_random.h" />
-    <ClInclude Include="Source\gore_renderer.h" />
-    <ClInclude Include="Source\gore_render_state.h" />
-    <ClInclude Include="Source\gore_memory.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Data\Shaders\gui_font_shader.frag" />
-    <None Include="Data\Shaders\gui_font_shader.vert" />
+    <ClInclude Include="..\Source\geometrika.h" />
+    <ClInclude Include="..\Source\gore_asset.h" />
+    <ClInclude Include="..\Source\gore_asset_common.h" />
+    <ClInclude Include="..\Source\gore_debug.h" />
+    <ClInclude Include="..\Source\gore_debug_layer.h" />
+    <ClInclude Include="..\Source\gore_engine.h" />
+    <ClInclude Include="..\Source\gore_game_common.h" />
+    <ClInclude Include="..\Source\gore_gui.h" />
+    <ClInclude Include="..\Source\gore_input.h" />
+    <ClInclude Include="..\Source\gore_lighting.h" />
+    <ClInclude Include="..\Source\gore_math.h" />
+    <ClInclude Include="..\Source\gore_memory.h" />
+    <ClInclude Include="..\Source\gore_opengl.h" />
+    <ClInclude Include="..\Source\gore_platform.h" />
+    <ClInclude Include="..\Source\gore_random.h" />
+    <ClInclude Include="..\Source\gore_renderer.h" />
+    <ClInclude Include="..\Source\gore_render_state.h" />
+    <ClInclude Include="..\Source\gore_types.h" />
+    <ClInclude Include="..\Source\sdl_gore.h" />
+    <ClInclude Include="..\Source\stb_image.h" />
+    <ClInclude Include="..\Source\stb_sprintf.h" />
+    <ClInclude Include="..\Source\stb_truetype.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

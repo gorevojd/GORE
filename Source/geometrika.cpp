@@ -35,7 +35,6 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, i
 		MoveVector -= V3(0.0f, 0.0f, 1.0f);
 	}
 
-
 	MoveVector = NOZ(MoveVector);
 
 	float CameraSpeed = 10.0f;

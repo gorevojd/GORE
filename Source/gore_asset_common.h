@@ -55,12 +55,9 @@ enum asset_type {
 	AssetType_Bitmap,
 	AssetType_Sound,
 	AssetType_Font,
+	AssetType_Model,
 };
 
-struct asset_header {
-	u32 AssetType;
 
-
-};
 
 #endif

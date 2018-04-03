@@ -900,6 +900,10 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 int main(int ArgsCount, char** Args) {
 
+	char DirBuf[256];
+	GetCurrentDirectoryA(256, DirBuf);
+	printf("%s\n", DirBuf);
+
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
 	//NOTE(dima): Initializing of threads
