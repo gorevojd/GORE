@@ -15,9 +15,6 @@
 #include "gore_platform.h"
 #include "gore_gui.h"
 
-#include <SDL_atomic.h>
-#include <SDL_thread.h>
-
 #define DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS 1
 #define DEBUG_NORMALIZE_FRAME_GRAPH 1
 #define DEBUG_FRAME_UPDATE_NODE_NAME "Frame update"

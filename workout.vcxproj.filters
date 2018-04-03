@@ -113,6 +113,9 @@
     <ClInclude Include="Source\sdl_gore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Source\gore_asset_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Data\Shaders\gui_font_shader.frag" />

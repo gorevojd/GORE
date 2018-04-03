@@ -5,7 +5,6 @@
 #include "gore_math.h"
 #include "gore_random.h"
 #include "gore_memory.h"
-#include "gore_debug_layer.h"
 
 #include <intrin.h>
 
@@ -30,6 +29,55 @@ struct platform_threadwork {
 //NOTE(dima): Platform thread queue structure defined in platform dependent code
 #define PLATFORM_THREAD_QUEUE_SIZE 512
 struct platform_thread_queue;
+
+typedef volatile i32 platform_atomic_type_i32;
+typedef volatile u32 platform_atomic_type_u32;
+typedef volatile i64 platform_atomic_type_i64;
+typedef volatile u64 platform_atomic_type_u64;
+
+//NOTE(dima): Atomic CAS operations macros
+#define PLATFORM_ATOMIC_CAS_I32(name) i32 name(platform_atomic_type_i32* Value, i32 New, i32 Old)
+#define PLATFORM_ATOMIC_CAS_U32(name) u32 name(platform_atomic_type_u32* Value, u32 New, u32 Old)
+#define PLATFORM_ATOMIC_CAS_I64(name) i64 name(platform_atomic_type_i64* Value, i64 New, i64 Old)
+#define PLATFORM_ATOMIC_CAS_U64(name) u64 name(platform_atomic_type_u64* Value, u64 New, u64 Old)
+
+typedef PLATFORM_ATOMIC_CAS_I32(platform_atomic_cas_i32);
+typedef PLATFORM_ATOMIC_CAS_U32(platform_atomic_cas_u32);
+typedef PLATFORM_ATOMIC_CAS_I64(platform_atomic_cas_i64);
+typedef PLATFORM_ATOMIC_CAS_U64(platform_atomic_cas_u64);
+
+//NOTE(dima) Atomic increment operations macros
+#define PLATFORM_ATOMIC_INC_I32(name) i32 name(platform_atomic_type_i32* Value)
+#define PLATFORM_ATOMIC_INC_U32(name) u32 name(platform_atomic_type_u32* Value)
+#define PLATFORM_ATOMIC_INC_I64(name) i64 name(platform_atomic_type_i64* Value)
+#define PLATFORM_ATOMIC_INC_U64(name) u64 name(platform_atomic_type_u64* Value)
+
+typedef PLATFORM_ATOMIC_INC_I32(platform_atomic_inc_i32);
+typedef PLATFORM_ATOMIC_INC_U32(platform_atomic_inc_u32);
+typedef PLATFORM_ATOMIC_INC_I64(platform_atomic_inc_i64);
+typedef PLATFORM_ATOMIC_INC_U64(platform_atomic_inc_u64);
+
+//NOTE(dima): Atomic add operations macros
+#define PLATFORM_ATOMIC_ADD_I32(name) i32 name(platform_atomic_type_i32* Value, i32 Addend)
+#define PLATFORM_ATOMIC_ADD_U32(name) u32 name(platform_atomic_type_u32* Value, u32 Addend)
+#define PLATFORM_ATOMIC_ADD_I64(name) i64 name(platform_atomic_type_i64* Value, i64 Addend)
+#define PLATFORM_ATOMIC_ADD_U64(name) u64 name(platform_atomic_type_u64* Value, u64 Addend)
+
+typedef PLATFORM_ATOMIC_ADD_I32(platform_atomic_add_i32);
+typedef PLATFORM_ATOMIC_ADD_U32(platform_atomic_add_u32);
+typedef PLATFORM_ATOMIC_ADD_I64(platform_atomic_add_i64);
+typedef PLATFORM_ATOMIC_ADD_U64(platform_atomic_add_u64);
+
+//NOTE(dima): Atomic set operations macros
+#define PLATFORM_ATOMIC_SET_I32(name) i32 name(platform_atomic_type_i32* Value, i32 New)
+#define PLATFORM_ATOMIC_SET_U32(name) u32 name(platform_atomic_type_i32* Value, u32 New)
+#define PLATFORM_ATOMIC_SET_I64(name) i64 name(platform_atomic_type_i32* Value, i64 New)
+#define PLATFORM_ATOMIC_SET_U64(name) u64 name(platform_atomic_type_i32* Value, u64 New)
+
+typedef PLATFORM_ATOMIC_SET_I32(platform_atomic_set_i32);
+typedef PLATFORM_ATOMIC_SET_U32(platform_atomic_set_u32);
+typedef PLATFORM_ATOMIC_SET_I64(platform_atomic_set_i64);
+typedef PLATFORM_ATOMIC_SET_U64(platform_atomic_set_u64);
 
 #define PLATFORM_ADD_THREADWORK_ENTRY(name) void name(platform_thread_queue* Queue, void* Data, platform_threadwork_callback* Callback)
 typedef PLATFORM_ADD_THREADWORK_ENTRY(platform_add_threadwork_entry);
@@ -125,6 +173,26 @@ typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 
 struct platform_api {
+	platform_atomic_cas_i32* AtomicCAS_I32;
+	platform_atomic_cas_u32* AtomicCAS_U32;
+	platform_atomic_cas_i64* AtomicCAS_I64;
+	platform_atomic_cas_u64* AtomicCAS_U64;
+
+	platform_atomic_inc_i32* AtomicInc_I32;
+	platform_atomic_inc_u32* AtomicInc_U32;
+	platform_atomic_inc_i64* AtomicInc_I64;
+	platform_atomic_inc_u64* AtomicInc_U64;
+
+	platform_atomic_add_i32* AtomicAdd_I32;
+	platform_atomic_add_u32* AtomicAdd_U32;
+	platform_atomic_add_i64* AtomicAdd_I64;
+	platform_atomic_add_u64* AtomicAdd_U64;
+
+	platform_atomic_set_i32* AtomicSet_I32;
+	platform_atomic_set_u32* AtomicSet_U32;
+	platform_atomic_set_i64* AtomicSet_I64;
+	platform_atomic_set_u64* AtomicSet_U64;
+
 	platform_add_threadwork_entry* AddThreadworkEntry;
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
@@ -145,5 +213,7 @@ struct platform_api {
 };
 
 extern platform_api PlatformApi;
+
+#include "gore_debug_layer.h"
 
 #endif

@@ -535,13 +535,13 @@ inline debug_profiled_frame* DEBUGGetNewestFrame(debug_state* State) {
 }
 
 inline u32 DEBUGIncrementFrameIndex(u32 Index) {
-	u32 Result = (Index + GlobalRecordTable->Increment.value) % DEBUG_FRAMES_COUNT;
+	u32 Result = (Index + GlobalRecordTable->Increment) % DEBUG_FRAMES_COUNT;
 
 	return(Result);
 }
 
 inline void DEBUGIncrementFrameIndices(debug_state* State) {
-	if (GlobalRecordTable->Increment.value) {
+	if (GlobalRecordTable->Increment) {
 		State->NewestFrameIndex = State->CollationFrameIndex;
 	}
 	if (State->ViewFrameIndex != State->CollationFrameIndex) {
@@ -565,7 +565,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 	State->LastCollationFrameIndex = State->CollationFrameIndex;
 
 	//IMPORTANT(dima): This is potentially thread-unsafe code
-	int CurrentRecordTableValue = GlobalRecordTable->Record_Table_Index.value;
+	int CurrentRecordTableValue = GlobalRecordTable->Record_Table_Index;
 	int TableIndex = (CurrentRecordTableValue & DEBUG_LAYER_TABLE_MASK) >> DEBUG_LAYER_TABLE_BIT_OFFSET;
 	int RecordCount = CurrentRecordTableValue & DEBUG_LAYER_INDEX_MASK;
 
@@ -575,7 +575,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 	int NewRecordTableIndex = 0;
 	NewRecordTableIndex |= (TableIndex << DEBUG_LAYER_TABLE_BIT_OFFSET);
 
-	SDL_AtomicSet(&GlobalRecordTable->Record_Table_Index, NewRecordTableIndex);
+	PlatformApi.AtomicSet_I32(&GlobalRecordTable->Record_Table_Index, NewRecordTableIndex);
 
 	u32 FrameBarrierIndex = 0;
 	u32 CollectedRecordIndex;
@@ -845,7 +845,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 		State->ViewFrameIndex = State->OldestFrameIndex;
 	}
 
-	if (GUIButton(GUIState, "Record next")) {
+	if (GUIButton(GUIState, "TODO: Record next")) {
 
 	}
 	GUIEndRow(GUIState);
@@ -1474,7 +1474,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		float PrintY = WorkRect.Max.y - (RowAdvance - AscByScale) * GUIState->FontScale;
 
-		int CurrentLogQueueIndex = GlobalRecordTable->CurrentLogIndex.value - 1;
+		int CurrentLogQueueIndex = GlobalRecordTable->CurrentLogIndex - 1;
 		if (CurrentLogQueueIndex < 0) {
 			CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 		}
@@ -1623,7 +1623,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 					CurrentLogQueueIndex = DEBUG_LOGS_COUNT - 1;
 				}
 
-				if (CurrentLogQueueIndex == GlobalRecordTable->CurrentLogIndex.value) {
+				if (CurrentLogQueueIndex == GlobalRecordTable->CurrentLogIndex) {
 					break;
 				}
 			}
@@ -1646,7 +1646,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		ClearActionHappened = GUIButtonAt(GUIState, "Clear", V2(ActualAt.x, ActualAt.y), &ClearButRc);
 
-		b32 LogIsPlaying = (GlobalRecordTable->LogIncrement.value == 1);
+		b32 LogIsPlaying = (GlobalRecordTable->LogIncrement == 1);
 		gui_interaction StopBoolInteraction = GUIBoolInteraction(&LogIsPlaying);
 		rect2 StopButRc = GUITextBase(GUIState, "Rec", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
 			LogIsPlaying ? GUIGetColor(GUIState, GUIState->ColorTheme.PlayColor) : GUIGetColor(GUIState, GUIState->ColorTheme.PauseColor),
@@ -1656,7 +1656,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
 
-		SDL_AtomicSet(&GlobalRecordTable->LogIncrement, LogIsPlaying);
+		PlatformApi.AtomicSet_I32(&GlobalRecordTable->LogIncrement, LogIsPlaying);
 
 		v4 ErrButCol = (State->DebugLoggerFilterType == DebugLoggerFilter_Errors) ?
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor) :
@@ -1704,7 +1704,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 
 		if (ClearActionHappened) {
 			for (int TempLogIndex = PrevToWriteIndex;
-				TempLogIndex != GlobalRecordTable->CurrentLogIndex.value;
+				TempLogIndex != GlobalRecordTable->CurrentLogIndex;
 				TempLogIndex--)
 			{
 				if (TempLogIndex < 0) {

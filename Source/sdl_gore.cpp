@@ -13,9 +13,15 @@
 /*
 	TODO(Dima):
 
+		Assets:
+			Asset streaming
+			Implement asset packer
+			Model loading
+
 		DEBUG:
+			Thread intervals for non-one frame records 
+
 			Implement 'Record next' button on frames slider
-			Thread intervals graph
 			DEBUG console
 			VARARG macro functions for hitcount
 			
@@ -40,11 +46,6 @@
 		Sound:
 			Implement sound mixer
 			Optimize sound mixer with SSE
-
-		Assets:
-			Implement asset packer
-			Asset streaming
-			Model loading
 
 		Renderer:
 			Implement Gaussian blur
@@ -489,6 +490,26 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
+PLATFORM_ATOMIC_CAS_I32(SDLAtomicCAS_I32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_U32(SDLAtomicCAS_U32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_I64(SDLAtomicCAS_I64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_U64(SDLAtomicCAS_U64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+
+PLATFORM_ATOMIC_ADD_I32(SDLAtomicAdd_I32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_U32(SDLAtomicAdd_U32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_I64(SDLAtomicAdd_I64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_U64(SDLAtomicAdd_U64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+
+PLATFORM_ATOMIC_SET_I32(SDLAtomicSet_I32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_U32(SDLAtomicSet_U32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_I64(SDLAtomicSet_I64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_U64(SDLAtomicSet_U64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+
+PLATFORM_ATOMIC_INC_I32(SDLAtomicInc_I32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+
 #if defined(PLATFORM_WINDA)
 PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
 	int EntryIndex = Queue->AddIndex;
@@ -881,18 +902,6 @@ int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
-	//NOTE(dima): Initializing of debug layer global record table
-	DEBUGSetRecording(1);
-	DEBUGSetLogRecording(1);
-
-	for (int DebugLogIndex = 0;
-		DebugLogIndex < DEBUG_LOGS_COUNT;
-		DebugLogIndex++)
-	{
-		GlobalRecordTable->LogsInited[DebugLogIndex] = 0;
-		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
-	}
-
 	//NOTE(dima): Initializing of threads
 	platform_thread_queue HighPriorityQueue;
 	platform_thread_queue LowPriorityQueue;
@@ -922,6 +931,26 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.GetThreadID = SDLGetThreadID;
 #endif
 
+	PlatformApi.AtomicCAS_I32 = SDLAtomicCAS_I32;
+	PlatformApi.AtomicCAS_U32 = SDLAtomicCAS_U32;
+	PlatformApi.AtomicCAS_I64 = SDLAtomicCAS_I64;
+	PlatformApi.AtomicCAS_U64 = SDLAtomicCAS_U64;
+
+	PlatformApi.AtomicInc_I32 = SDLAtomicInc_I32;
+	PlatformApi.AtomicInc_U32 = SDLAtomicInc_U32;
+	PlatformApi.AtomicInc_I64 = SDLAtomicInc_I64;
+	PlatformApi.AtomicInc_U64 = SDLAtomicInc_U64;
+
+	PlatformApi.AtomicAdd_I32 = SDLAtomicAdd_I32;
+	PlatformApi.AtomicAdd_U32 = SDLAtomicAdd_U32;
+	PlatformApi.AtomicAdd_I64 = SDLAtomicAdd_I64;
+	PlatformApi.AtomicAdd_U64 = SDLAtomicAdd_U64;
+
+	PlatformApi.AtomicSet_I32 = SDLAtomicSet_I32;
+	PlatformApi.AtomicSet_U32 = SDLAtomicSet_U32;
+	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
+	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
+
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
 	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;
@@ -930,6 +959,19 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
 	PlatformApi.TerminateProgram = SDLTerminateProgram;
 
+	//NOTE(dima): Initializing of debug layer global record table
+	DEBUGSetRecording(1);
+	DEBUGSetLogRecording(1);
+
+	for (int DebugLogIndex = 0;
+		DebugLogIndex < DEBUG_LOGS_COUNT;
+		DebugLogIndex++)
+	{
+		GlobalRecordTable->LogsInited[DebugLogIndex] = 0;
+		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
+	}
+
+	//NOTE(dima): Initialization of the memory
 	u32 GameModeMemorySize = MEGABYTES(256);
 	u32 GeneralPurposeMemorySize = MEGABYTES(256);
 	u32 DEBUGMemorySize = MEGABYTES(256);

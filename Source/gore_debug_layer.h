@@ -4,7 +4,6 @@
 #include "gore_types.h"
 #include "gore_math.h"
 #include "gore_types.h"
-#include <SDL.h>
 
 enum debug_record_type {
 	DebugRecord_None,
@@ -80,19 +79,16 @@ struct debug_record {
 #define DEBUG_LOG_SIZE 1024
 #define DEBUG_RECORD_MAX_COUNT 65536 * 16
 struct debug_record_table {
-	//SDL_atomic_t CurrentRecordIndex;
-	//SDL_atomic_t CurrentTableIndex;
-
-	SDL_atomic_t Record_Table_Index;
+	platform_atomic_type_i32 Record_Table_Index;
 
 	debug_record Records[2][DEBUG_RECORD_MAX_COUNT];
-	SDL_atomic_t Increment;
+	platform_atomic_type_i32 Increment;
 
 	char Logs[DEBUG_LOGS_COUNT][DEBUG_LOG_SIZE];
 	u32 LogsTypes[DEBUG_LOGS_COUNT];
 	b32 LogsInited[DEBUG_LOGS_COUNT];
-	SDL_atomic_t CurrentLogIndex;
-	SDL_atomic_t LogIncrement;
+	platform_atomic_type_i32 CurrentLogIndex;
+	platform_atomic_type_i32 LogIncrement;
 };
 
 extern debug_record_table* GlobalRecordTable;
@@ -108,8 +104,8 @@ extern debug_record_table* GlobalRecordTable;
 #define DEBUG_LAYER_INDEX_MASK 0x3FFFFFFF
 
 inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType) {
-	int Index = SDL_AtomicAdd(&GlobalRecordTable->Record_Table_Index, GlobalRecordTable->Increment.value);
-	//int Index = SDL_AtomicAdd(&GlobalRecordTable->CurrentRecordIndex, 1);
+	int Index = PlatformApi.AtomicAdd_I32(&GlobalRecordTable->Record_Table_Index, GlobalRecordTable->Increment);
+
 
 	int TableIndex = ((Index & DEBUG_LAYER_TABLE_MASK) != 0);
 	int RecordIndex = (Index & DEBUG_LAYER_INDEX_MASK);
@@ -122,7 +118,7 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 	Record->Clocks = __rdtsc();
 	Record->RecordType = RecordType;
 	//TODO(dima): think about perfomance of this
-	Record->ThreadID = SDL_ThreadID();
+	Record->ThreadID = PlatformApi.GetThreadID();
 
 	return(Record);
 }
@@ -130,11 +126,11 @@ inline debug_record* DEBUGAddRecord(char* Name, char* UniqueName, u32 RecordType
 void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType);
 
 inline void DEBUGSetRecording(b32 Recording) {
-	SDL_AtomicSet(&GlobalRecordTable->Increment, Recording);
+	PlatformApi.AtomicSet_I32(&GlobalRecordTable->Increment, Recording);
 }
 
 inline void DEBUGSetLogRecording(b32 Recording) {
-	SDL_AtomicSet(&GlobalRecordTable->LogIncrement, Recording);
+	PlatformApi.AtomicSet_I32(&GlobalRecordTable->LogIncrement, Recording);
 }
 
 #define ADD_DEBUG_RECORD(name, type) DEBUGAddRecord(name, DEBUG_UNIQUE_STRING(name), type)
