@@ -58,6 +58,22 @@ enum asset_type {
 	AssetType_Model,
 };
 
+struct asset_bitmap_info {
+	v2 Dim;
+};
+
+struct asset_font_info_header {
+
+};
+
+struct asset_sound_info_header {
+
+};
+
+struct asset_model_info_header {
+
+};
+
 
 
 #endif

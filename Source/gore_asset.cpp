@@ -2,6 +2,76 @@
 
 #include <stdio.h>
 
+struct asset_load_font_asset_work {
+
+};
+
+PLATFORM_THREADWORK_CALLBACK(ASSETLoadFontAssetWork) {
+	asset_load_font_asset_work* Work = (asset_load_font_asset_work*)Data;
+
+	
+}
+
+void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = ASSETGetByID(System, Id);
+
+	if (PlatformApi.AtomicCAS_U32(
+		(platform_atomic_type_u32*)Asset->State, 
+		GameAssetState_InProgress, 
+		GameAssetState_Unloaded) == GameAssetState_Unloaded) 
+	{
+
+	}
+	else {
+
+	}
+}
+
+void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = ASSETGetByID(System, Id);
+
+	if (PlatformApi.AtomicCAS_U32(
+		(platform_atomic_type_u32*)Asset->State,
+		GameAssetState_InProgress,
+		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	{
+
+	}
+	else {
+
+	}
+}
+
+void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = ASSETGetByID(System, Id);
+
+	if (PlatformApi.AtomicCAS_U32(
+		(platform_atomic_type_u32*)Asset->State,
+		GameAssetState_InProgress,
+		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	{
+
+	}
+	else {
+
+	}
+}
+
+void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = ASSETGetByID(System, Id);
+
+	if (PlatformApi.AtomicCAS_U32(
+		(platform_atomic_type_u32*)Asset->State,
+		GameAssetState_InProgress,
+		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	{
+
+	}
+	else {
+
+	}
+}
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 

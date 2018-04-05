@@ -1,0 +1,6 @@
+#ifndef ASSET_BUILDER_TOOL_H_INCLUDED
+#define ASSET_BUILDER_TOOL_H_INCLUDED
+
+
+
+#endif

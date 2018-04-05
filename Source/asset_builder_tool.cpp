@@ -1,0 +1,1 @@
+#include "asset_builder_tool.h"

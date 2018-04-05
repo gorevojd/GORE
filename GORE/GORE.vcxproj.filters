@@ -48,6 +48,9 @@
     <ClCompile Include="..\Source\sdl_gore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\gore_threadwork_memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\geometrika.h">
@@ -114,6 +117,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Source\stb_truetype.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_threadwork_memory.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

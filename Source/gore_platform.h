@@ -8,8 +8,22 @@
 
 #include <intrin.h>
 
+#define PLATFORM_COMPILER_BARRIER()
+#define PLATFORM_COMPILER_READ_BARRIER()
+#define PLATFORM_COMPILER_WRITE_BARRIER()
+
 #if defined(WIN32) || defined(WIN64)
 #define PLATFORM_WINDA
+
+#undef PLATFORM_COMPILER_BARRIER
+#define PLATFORM_COMPILER_BARRIER() _ReadWriteBarrier()
+
+#undef PLATFORM_COMPILER_READ_BARRIER
+#define PLATFORM_COMPILER_READ_BARRIER() _ReadBarrier()
+
+#undef PLATFORM_COMPILER_WRITE_BARRIER
+#define PLATFORM_COMPILER_WRITE_BARRIER() _WriteBarrier()
+
 #endif
 
 #define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
@@ -70,9 +84,9 @@ typedef PLATFORM_ATOMIC_ADD_U64(platform_atomic_add_u64);
 
 //NOTE(dima): Atomic set operations macros
 #define PLATFORM_ATOMIC_SET_I32(name) i32 name(platform_atomic_type_i32* Value, i32 New)
-#define PLATFORM_ATOMIC_SET_U32(name) u32 name(platform_atomic_type_i32* Value, u32 New)
-#define PLATFORM_ATOMIC_SET_I64(name) i64 name(platform_atomic_type_i32* Value, i64 New)
-#define PLATFORM_ATOMIC_SET_U64(name) u64 name(platform_atomic_type_i32* Value, u64 New)
+#define PLATFORM_ATOMIC_SET_U32(name) u32 name(platform_atomic_type_u32* Value, u32 New)
+#define PLATFORM_ATOMIC_SET_I64(name) i64 name(platform_atomic_type_i64* Value, i64 New)
+#define PLATFORM_ATOMIC_SET_U64(name) u64 name(platform_atomic_type_u64* Value, u64 New)
 
 typedef PLATFORM_ATOMIC_SET_I32(platform_atomic_set_i32);
 typedef PLATFORM_ATOMIC_SET_U32(platform_atomic_set_u32);
