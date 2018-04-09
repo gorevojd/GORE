@@ -1929,14 +1929,14 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer) {
+void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer) {
 	GUITreeBegin(GUIState, Name);
 
 
 	if (Buffer) {
 		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
 		if (GUIElementShouldBeUpdated(Element)) {
-			//rgba_buffer* Buffer = Interaction->VariableLink.Value_RGBABuffer;
+			//bitmap_info* Buffer = Interaction->VariableLink.Value_RGBABuffer;
 
 
 			gui_element* ImageView = GUIGetCurrentElement(GUIState);

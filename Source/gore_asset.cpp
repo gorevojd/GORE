@@ -72,6 +72,212 @@ void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
 	}
 }
 
+
+
+
+inline game_asset* ASSETRequestFirstAsset(asset_system* System, u32 GroupID) {
+	u32 TargetAssetIndex = System->AssetGroups[GroupID].FirstAssetIndex;
+	game_asset* Result = &System->Assets[TargetAssetIndex];
+
+	return(Result);
+}
+
+bitmap_info* ASSETRequestFirstBitmap(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType_Bitmap);
+
+	bitmap_info* Result = FirstAsset->Bitmap;
+
+	return(Result);
+}
+
+sound_info* ASSETRequestFirstSound(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType_Sound);
+
+	sound_info* Result = FirstAsset->Sound;
+
+	return(Result);
+}
+
+font_info* ASSETRequestFirstFont(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType_Font);
+
+	font_info* Result = FirstAsset->Font;
+
+	return(Result);
+}
+
+model_info* ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType_Model);
+
+	model_info* Result = FirstAsset->Model;
+
+	return(Result);
+}
+
+struct added_asset {
+	game_asset* Asset;
+	game_asset_source* Source;
+};
+
+static added_asset AddAsset(asset_system* System, u32 AssetType) {
+	added_asset Result = {};
+
+	Assert(System->CurrentGroup != 0);
+	game_asset_group* Group = System->CurrentGroup;
+
+	Group->GroupAssetCount++;
+
+	u32 AssetIndex = System->AssetCount;
+	Result.Asset = System->Assets + AssetIndex;
+	Result.Asset->Type = AssetType;
+	Result.Source = System->AssetSources + AssetIndex;
+	System->AssetTypes[AssetIndex] = AssetType;
+
+	++System->AssetCount;
+
+	return(Result);
+}
+
+static void BeginAssetGroup(asset_system* System, u32 AssetID) {
+	System->CurrentGroup = System->AssetGroups + AssetID;
+
+	game_asset_group* Group = System->CurrentGroup;
+
+	Group->FirstAssetIndex = System->AssetCount;
+	Group->GroupAssetCount = 0;
+}
+
+static void EndAssetGroup(asset_system* System) {
+	Assert(System->CurrentGroup);
+	game_asset_group* Group = System->CurrentGroup;
+
+	System->CurrentGroup = 0;
+}
+
+static void AddBitmapAsset(asset_system* System, char* Path) {
+	added_asset Added = AddAsset(System, AssetType_Bitmap);
+
+	game_asset_source* Source = Added.Source;
+	Source->BitmapSource.Path = Path;
+}
+
+static void AddSoundAsset(asset_system* System, char* Path) {
+	added_asset Added = AddAsset(System, AssetType_Sound);
+
+	game_asset_source* Source = Added.Source;
+	Source->SoundSource.Path = Path;
+
+
+}
+
+static void AddModelAsset(asset_system* System, model_info* Model) {
+	added_asset Added = AddAsset(System, AssetType_Model);
+
+	game_asset_source* Source = Added.Source;
+	Source->ModelSource.ModelInfo = Model;
+}
+
+static void AddFontAsset(
+	asset_system* System, 
+	char* Path, 
+	int Height,
+	b32 LoadFromImage, 
+	int OneCharWidth, 
+	int OneCharHeight, 
+	u32 Flags) 
+{
+	added_asset Added = AddAsset(System, AssetType_Font);
+
+	game_asset_source* Source = Added.Source;
+	Source->FontSource.Path = Path;
+	Source->FontSource.Height = Height;
+	Source->FontSource.LoadFromImage = LoadFromImage;
+	Source->FontSource.OneCharWidth = OneCharWidth;
+	Source->FontSource.OneCharHeight = OneCharHeight;
+	Source->FontSource.Flags = Flags;
+}
+
+void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
+
+	//NOTE(dima): Clearing asset groups
+	for (int AssetGroupIndex = 0;
+		AssetGroupIndex < GameAsset_Count;
+		AssetGroupIndex++)
+	{
+		game_asset_group* Group = System->AssetGroups + AssetGroupIndex;
+
+		Group->FirstAssetIndex = 0;
+		Group->GroupAssetCount = 0;
+	}
+
+	//NOTE(dima): Fonts
+	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
+	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+
+	BeginAssetGroup(System, GameAsset_Font);
+	AddFontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
+	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
+	EndAssetGroup(System);
+
+	//NOTE(dima): Bitmaps
+	BeginAssetGroup(System, GameAsset_AlphaImage);
+	AddBitmapAsset(System, "../Data/Images/alpha.png");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_PotImage);
+	AddBitmapAsset(System, "../Data/Images/pot.png");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_OblivonMemeImage);
+	AddBitmapAsset(System, "../Data/Images/image.bmp");
+	EndAssetGroup(System);
+
+#if 1
+	for (int AssetIndex = 0;
+		AssetIndex < System->AssetCount;
+		AssetIndex++)
+	{
+		game_asset* Asset = System->Assets + AssetIndex;
+		game_asset_source* Source = System->AssetSources + AssetIndex;
+
+
+		switch (System->AssetTypes[AssetIndex]) {
+			case AssetType_Bitmap: {
+				Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
+				Asset->Bitmap = &Asset->Bitmap_;
+			}break;
+
+			case AssetType_Font: {
+				if (Source->FontSource.LoadFromImage) {
+					Asset->Font_ = LoadFontInfoFromImage(
+						Source->FontSource.Path,
+						Source->FontSource.Height,
+						Source->FontSource.OneCharWidth,
+						Source->FontSource.OneCharHeight,
+						Source->FontSource.Flags);
+				}
+				else {
+					Asset->Font_ = LoadFontInfoWithSTB(
+						Source->FontSource.Path,
+						Source->FontSource.Height,
+						Source->FontSource.Flags);
+				}
+
+				Asset->Font = &Asset->Font_;
+			}break;
+		}
+	}
+#endif
+}
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -114,8 +320,8 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 #define GET_ALIGN_OFFSET(val, align) (((align) - ((size_t)val & ((align) - 1))) & (Align - 1))
 #endif
 
-rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
-	rgba_buffer Result = {};
+bitmap_info AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
+	bitmap_info Result = {};
 
 	Result.Width = Width;
 	Result.Height = Height;
@@ -135,7 +341,7 @@ rgba_buffer AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
 	return(Result);
 }
 
-void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src) {
+void CopyRGBABuffer(bitmap_info* Dst, bitmap_info* Src) {
 	Assert(Dst->Width == Src->Width);
 	Assert(Dst->Height == Src->Height);
 
@@ -148,14 +354,14 @@ void CopyRGBABuffer(rgba_buffer* Dst, rgba_buffer* Src) {
 	}
 }
 
-void DeallocateRGBABuffer(rgba_buffer* Buffer) {
+void DeallocateRGBABuffer(bitmap_info* Buffer) {
 	if (Buffer->Pixels) {
 		free(Buffer->Pixels);
 	}
 }
 
-rgba_buffer LoadIMG(char* Path) {
-	rgba_buffer Result = {};
+bitmap_info LoadIMG(char* Path) {
+	bitmap_info Result = {};
 
 	int Width;
 	int Height;
@@ -239,7 +445,7 @@ font_info LoadFontInfoFromImage(
 	u32 AtlasWidth = 0;
 
 	//NOTE(dima): Loading font atlas image
-	rgba_buffer FontImage = LoadIMG(ImagePath);
+	bitmap_info FontImage = LoadIMG(ImagePath);
 
 	Result.AscenderHeight = TargetCharHeight;
 	Result.DescenderHeight = 0;

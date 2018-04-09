@@ -12,7 +12,7 @@
 #define MM_UNPACK_COLOR_CHANNEL0(texel) _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(texel, mmFF)), mmOneOver255)
 #define MM_LERP(a, b, t) _mm_add_ps(a, _mm_mul_ps(_mm_sub_ps(b, a), t))
 
-static void RenderClear(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
+static void RenderClear(bitmap_info* Buffer, v3 Color, rect2 ClipRect) {
 	v4 ResColor = V4(Color.x, Color.y, Color.z, 1.0f);
 	u32 OutColor = PackRGBA(ResColor);
 
@@ -35,7 +35,7 @@ static void RenderClear(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	}
 }
 
-static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
+static void RenderClearFast(bitmap_info* Buffer, v3 Color, rect2 ClipRect) {
 	v4 ResColor = V4(Color.x, Color.y, Color.z, 1.0f);
 	u32 OutColor = PackRGBA(ResColor);
 
@@ -103,7 +103,7 @@ static void RenderClearFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 	}
 }
 
-static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
+static void RenderGradient(bitmap_info* Buffer, v3 Color, rect2 ClipRect){
 	float DeltaU;
 	float DeltaV;
 
@@ -143,7 +143,7 @@ static void RenderGradient(rgba_buffer* Buffer, v3 Color, rect2 ClipRect){
 	}
 }
 
-static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
+static void RenderGradientFast(bitmap_info* Buffer, v3 Color, rect2 ClipRect) {
 	float DeltaU;
 	float DeltaV;
 
@@ -229,8 +229,8 @@ static void RenderGradientFast(rgba_buffer* Buffer, v3 Color, rect2 ClipRect) {
 
 
 static void RenderBitmapFast(
-	rgba_buffer* Buffer,
-	rgba_buffer* Bitmap,
+	bitmap_info* Buffer,
+	bitmap_info* Bitmap,
 	v2 P,
 	float TargetBitmapPixelHeight,
 	v4 ModulationColor01,
@@ -462,8 +462,8 @@ static void RenderBitmapFast(
 }
 
 static void RenderBitmap(
-	rgba_buffer* Buffer,
-	rgba_buffer* Bitmap,
+	bitmap_info* Buffer,
+	bitmap_info* Bitmap,
 	v2 P,
 	float TargetBitmapPixelHeight,
 	v4 ModulationColor01, 
@@ -593,7 +593,7 @@ static void RenderBitmap(
 }
 
 void RenderRect(
-	rgba_buffer* Buffer,
+	bitmap_info* Buffer,
 	v2 P,
 	v2 Dim,
 	v4 ModulationColor01, 
@@ -652,7 +652,7 @@ void RenderRect(
 }
 
 void RenderRectFast(
-	rgba_buffer* Buffer,
+	bitmap_info* Buffer,
 	v2 P,
 	v2 Dim,
 	v4 ModulationColor01,
@@ -774,7 +774,7 @@ void RenderRectFast(
 	u32 PixelFillCount = (MaxY - MinY) * (MaxX - MinX);
 }
 
-void SoftwareRenderStackToOutput(render_state* Stack, rgba_buffer* Buffer, rect2 ClipRect) {
+void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2 ClipRect) {
 	FUNCTION_TIMING();
 
 	u8* At = (u8*)Stack->Data.BaseAddress;
@@ -889,7 +889,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, rgba_buffer* Buffer, rect2
 
 struct render_queue_work {
 	render_state* Stack;
-	rgba_buffer* Buffer;
+	bitmap_info* Buffer;
 	rect2 ClipRect;
 
 	int i, j;
@@ -901,7 +901,7 @@ PLATFORM_THREADWORK_CALLBACK(RenderQueueWork) {
 	SoftwareRenderStackToOutput(Work->Stack, Work->Buffer, Work->ClipRect);
 }
 
-void RenderDickInjection(render_state* Stack, rgba_buffer* Buffer) {
+void RenderDickInjection(render_state* Stack, bitmap_info* Buffer) {
 	rect2 ClipRect;
 	ClipRect.Min = V2(0, 0);
 	ClipRect.Max = V2(Buffer->Width, Buffer->Height);
@@ -909,7 +909,7 @@ void RenderDickInjection(render_state* Stack, rgba_buffer* Buffer) {
 	SoftwareRenderStackToOutput(Stack, Buffer, ClipRect);
 }
 
-void RenderMultithreaded(platform_thread_queue* Queue, render_state* Stack, rgba_buffer* Buffer) {
+void RenderMultithreaded(platform_thread_queue* Queue, render_state* Stack, bitmap_info* Buffer) {
 	FUNCTION_TIMING();
 
 #if 0

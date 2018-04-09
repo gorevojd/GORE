@@ -61,8 +61,9 @@
 */
 
 GLOBAL_VARIABLE b32 GlobalRunning;
-GLOBAL_VARIABLE rgba_buffer GlobalBuffer;
+GLOBAL_VARIABLE bitmap_info GlobalBuffer;
 GLOBAL_VARIABLE input_system GlobalInput;
+GLOBAL_VARIABLE asset_system GlobalAssets;
 
 GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
@@ -410,7 +411,7 @@ static debug_state* DEBUGState = &DEBUGState_;
 static gl_state GLState_;
 static gl_state* GLState = &GLState_;
 
-inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
+inline SDL_Surface* SDLSurfaceFromBuffer(bitmap_info* Buffer) {
 	SDL_Surface* Result = SDL_CreateRGBSurfaceFrom(
 		Buffer->Pixels,
 		Buffer->Width,
@@ -427,7 +428,7 @@ inline SDL_Surface* SDLSurfaceFromBuffer(rgba_buffer* Buffer) {
 
 static void SDLSetWindowIcon(SDL_Window* Window) {
 	SDL_Surface *Surface;     // Declare an SDL_Surface to be filled in with pixel data from an image file
-	rgba_buffer Image = LoadIMG("../Data/Images/pot32.png");
+	bitmap_info Image = LoadIMG("../Data/Images/pot32.png");
 	Surface = SDLSurfaceFromBuffer(&Image);
 	// The icon is attached to the window pointer
 	SDL_SetWindowIcon(Window, Surface);
@@ -851,8 +852,8 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 
 #if 0
 #define CELLURAL_CELL_WIDTH 4
-static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
-	rgba_buffer Res = AllocateRGBABuffer(
+static bitmap_info CelluralBufferToRGBA(cellural_buffer* Buffer) {
+	bitmap_info Res = AllocateRGBABuffer(
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
 
@@ -875,7 +876,7 @@ static rgba_buffer CelluralBufferToRGBA(cellural_buffer* Buffer) {
 
 			/*
 			extern void RenderRectFast(
-				rgba_buffer* Buffer,
+				bitmap_info* Buffer,
 				v2 P,
 				v2 Dim,
 				v4 ModulationColor01,
@@ -1126,17 +1127,16 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Renderer is not created");
 	}
 
-	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(64, 64);
-	CelluralGenerateCave(&Cellural, 55, &CellRandom);
-	//rgba_buffer CelluralBitmap = CelluralBufferToRGBA(&Cellural);
+	//random_state CellRandom = InitRandomStateWithSeed(1234);
+	//cellural_buffer Cellural = AllocateCelluralBuffer(64, 64);
+	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 
-	rgba_buffer Image = LoadIMG("../Data/Images/image.bmp");
-	rgba_buffer AlphaImage = LoadIMG("../Data/Images/alpha.png");
-	rgba_buffer PotImage = LoadIMG("../Data/Images/pot.png");
+	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
+	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
+	//bitmap_info PotImage = LoadIMG("../Data/Images/pot.png");
 
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
-	font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_copy.png", 15, 8, 8, AssetLoadFontFromImage_InitLowercaseWithUppercase);
 	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_8x16.png", 20, 8, 16);
@@ -1149,9 +1149,13 @@ int main(int ArgsCount, char** Args) {
 
 	geometrika_state GameState = {};
 
+	ASSETSInit(&GlobalAssets, MEGABYTES(32));
+
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
-	GUIInitState(GUIState, &GUIMemory, &FontInfo, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+
+	font_info* GUIFont = ASSETRequestFirstFont(&GlobalAssets, GameAsset_Font);
+	GUIInitState(GUIState, &GUIMemory, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	
 	OpenGLInitState(GLState);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
@@ -1289,7 +1293,6 @@ int main(int ArgsCount, char** Args) {
 	SDL_DestroyWindow(Window);
 
 	DeallocateRGBABuffer(&GlobalBuffer);
-	DeallocateCelluralBuffer(&Cellural);
 
 	printf("Program has been succesfully ended\n");
 

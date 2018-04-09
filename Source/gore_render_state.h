@@ -32,7 +32,7 @@ enum render_stack_entry_type {
 };
 
 struct render_stack_entry_bitmap {
-	rgba_buffer* Bitmap;
+	bitmap_info* Bitmap;
 	v2 P;
 	v2 Dim;
 	v4 ModulationColor;
@@ -101,7 +101,7 @@ inline void* RENDERPushEntryToStack(render_state* Stack, u32 SizeOfType, u32 Typ
 }
 #define PUSH_RENDER_ENTRY(Stack, type, entry_type_enum)	(type *)(RENDERPushEntryToStack(Stack, sizeof(type), entry_type_enum))
 
-inline void RENDERPushBitmap(render_state* Stack, rgba_buffer* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushBitmap(render_state* Stack, bitmap_info* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_bitmap* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderStackEntry_Bitmap);
 
 	Entry->P = P;

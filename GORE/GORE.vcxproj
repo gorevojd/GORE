@@ -179,6 +179,8 @@
     <ClInclude Include="..\Source\geometrika.h" />
     <ClInclude Include="..\Source\gore_asset.h" />
     <ClInclude Include="..\Source\gore_asset_common.h" />
+    <ClInclude Include="..\Source\gore_asset_identifiers.h" />
+    <ClInclude Include="..\Source\gore_asset_types.h" />
     <ClInclude Include="..\Source\gore_debug.h" />
     <ClInclude Include="..\Source\gore_debug_layer.h" />
     <ClInclude Include="..\Source\gore_engine.h" />

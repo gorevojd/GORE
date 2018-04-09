@@ -105,7 +105,7 @@ inline void OpenGLUseProgramEnd(gl_program* Program) {
 	glUseProgram(0);
 }
 
-GLuint OpenGLAllocateTexture(rgba_buffer* Buffer) {
+GLuint OpenGLAllocateTexture(bitmap_info* Buffer) {
 	GLuint TextureHandle;
 	glGenTextures(1, &TextureHandle);
 
@@ -133,14 +133,14 @@ GLuint OpenGLAllocateTexture(rgba_buffer* Buffer) {
 	return(TextureHandle);
 }
 
-void OpenGLDeallocateTexture(rgba_buffer* Buffer) {
+void OpenGLDeallocateTexture(bitmap_info* Buffer) {
 	GLuint TextureHandle = (GLuint)Buffer->TextureHandle;
 
 	glDeleteTextures(1, &TextureHandle);
 	Buffer->TextureHandle = (void*)0;
 }
 
-void OpenGLRenderBitmap(rgba_buffer* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+void OpenGLRenderBitmap(bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 
 	rect2 Rect = Rect2MinDim(P, Dim);
 
@@ -358,7 +358,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
 				CurrentFontInfo = EntryBeginText->FontInfo;
-				rgba_buffer* Buffer = &CurrentFontInfo->FontAtlasImage;
+				bitmap_info* Buffer = &CurrentFontInfo->FontAtlasImage;
 
 				if (!Buffer->TextureHandle) {
 					OpenGLAllocateTexture(Buffer);

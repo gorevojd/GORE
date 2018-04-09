@@ -46,7 +46,7 @@ struct gui_variable_link {
 		b32* Value_B32;
 		char* Value_STR;
 		stacked_memory* Value_StackedMemory;
-		rgba_buffer* Value_RGBABuffer;
+		bitmap_info* Value_RGBABuffer;
 	};
 };
 
@@ -195,7 +195,7 @@ inline gui_variable_link GUIVariableLink(void* Variable, u32 Type) {
 			Link.Value_StackedMemory = (stacked_memory*)Variable;
 		}break;
 		case GUIVarType_RGBABuffer: {
-			Link.Value_RGBABuffer = (rgba_buffer*)Variable;
+			Link.Value_RGBABuffer = (bitmap_info*)Variable;
 		}break;
 	}
 
@@ -1382,7 +1382,7 @@ extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue);
 extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
 extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
-extern void GUIImageView(gui_state* GUIState, char* Name, rgba_buffer* Buffer);
+extern void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer);
 extern void GUIColorView(gui_state* GUIState, v4 Color, char* Name);
 extern void GUIVector2View(gui_state* GUIState, v2 Value, char* Name);
 extern void GUIVector3View(gui_state* GUIState, v3 Value, char* Name);

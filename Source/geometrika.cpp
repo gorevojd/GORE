@@ -50,6 +50,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, i
 		State->CapturingMouse = !State->CapturingMouse;
 	}
 
+	if (ButtonIsDown(Input, KeyType_LCtrl)) {
+		State->CapturingMouse = 0;
+	}
+	if (ButtonWentUp(Input, KeyType_LCtrl)) {
+		State->CapturingMouse = 1;
+	}
+
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,
 		RenderStack->RenderWidth,
