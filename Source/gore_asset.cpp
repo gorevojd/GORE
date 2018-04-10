@@ -73,8 +73,6 @@ void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
 }
 
 
-
-
 inline game_asset* ASSETRequestFirstAsset(asset_system* System, u32 GroupID) {
 	u32 TargetAssetIndex = System->AssetGroups[GroupID].FirstAssetIndex;
 	game_asset* Result = &System->Assets[TargetAssetIndex];
@@ -203,7 +201,19 @@ static void AddFontAsset(
 	Source->FontSource.OneCharWidth = OneCharWidth;
 	Source->FontSource.OneCharHeight = OneCharHeight;
 	Source->FontSource.Flags = Flags;
+	Source->FontSource.FontInfo = 0;
 }
+
+static void AddFontAssetManual(
+	asset_system* System, 
+	font_info* FontInfo) 
+{
+	added_asset Added = AddAsset(System, AssetType_Font);
+
+	game_asset_source* Source = Added.Source;
+	Source->FontSource.FontInfo = FontInfo;
+}
+
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
@@ -223,8 +233,13 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
+#if 0
 	AddFontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
 	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
+#else
+	AddFontAssetManual(System, &DebugFontInfo);
+	AddFontAssetManual(System, &GoldenFontInfo);
+#endif
 	EndAssetGroup(System);
 
 	//NOTE(dima): Bitmaps
@@ -256,19 +271,25 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 			}break;
 
 			case AssetType_Font: {
-				if (Source->FontSource.LoadFromImage) {
-					Asset->Font_ = LoadFontInfoFromImage(
-						Source->FontSource.Path,
-						Source->FontSource.Height,
-						Source->FontSource.OneCharWidth,
-						Source->FontSource.OneCharHeight,
-						Source->FontSource.Flags);
+
+				if (!Source->FontSource.FontInfo) {
+					if (Source->FontSource.LoadFromImage) {
+						Asset->Font_ = LoadFontInfoFromImage(
+							Source->FontSource.Path,
+							Source->FontSource.Height,
+							Source->FontSource.OneCharWidth,
+							Source->FontSource.OneCharHeight,
+							Source->FontSource.Flags);
+					}
+					else {
+						Asset->Font_ = LoadFontInfoWithSTB(
+							Source->FontSource.Path,
+							Source->FontSource.Height,
+							Source->FontSource.Flags);
+					}
 				}
 				else {
-					Asset->Font_ = LoadFontInfoWithSTB(
-						Source->FontSource.Path,
-						Source->FontSource.Height,
-						Source->FontSource.Flags);
+					Asset->Font_ = *Source->FontSource.FontInfo;
 				}
 
 				Asset->Font = &Asset->Font_;
@@ -277,6 +298,12 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	}
 #endif
 }
+
+/*	
+	NOTE(dima): Code below is temporary here.
+	It will be removed from here when i will 
+	create asset packer
+*/
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -769,6 +796,138 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	}
 
 	FreeDataBuffer(&FontFileBuffer);
+
+	return(Result);
+}
+
+enum load_mesh_vertex_layout {
+	MeshVertexLayout_PUV,
+	MeshVertexLayout_PUVN,
+	MeshVertexLayout_PNUV,
+	MeshVertexLayout_PUVNC,
+	MeshVertexLayout_PNUVC,
+};
+
+inline vertex_info LoadMeshVertex(float* Pos, float* Tex, float* Norm, float* Color) {
+	vertex_info Result = {};
+
+	if (Pos) {
+		Result.P.x = *Pos;
+		Result.P.y = *(Pos + 1);
+		Result.P.z = *(Pos + 2);
+	}
+
+	if (Tex) {
+		Result.UV.x = *Tex;
+		Result.UV.y = *(Tex + 1);
+	}
+
+	if (Norm) {
+		Result.N.x = *Norm;
+		Result.N.y = *(Norm + 1);
+		Result.N.z = *(Norm + 2);
+	}
+
+	if (Color) {
+		Result.C.x = *Color;
+		Result.C.y = *(Color + 1);
+		Result.C.z = *(Color + 2);
+	}
+
+	return(Result);
+}
+
+mesh_info LoadMeshFromVertices(
+	float* Verts, u32 VertsCount,
+	u32* Indices, u32 IndicesCount,
+	u32 VertexLayout,
+	b32 CalculateTangents) 
+{
+	mesh_info Result = {};
+
+	Result.IndicesCount = IndicesCount;
+	Result.Indices = (u32*)malloc(IndicesCount * sizeof(u32));
+	for (int IndexIndex = 0;
+		IndexIndex < IndicesCount;
+		IndexIndex++)
+	{
+		Result.Indices[IndexIndex] = Indices[IndexIndex];
+	}
+
+	Result.VerticesCount = VertsCount;
+	Result.Vertices = (vertex_info*)malloc(sizeof(vertex_info) * VertsCount);
+
+	float *VertexAt = Verts;
+	for (int VertexIndex = 0;
+		VertexIndex < VertsCount;
+		VertexIndex++)
+	{
+		u32 Increment = 0;
+		
+		vertex_info* ToLoad = Result.Vertices + VertexIndex;
+
+		switch (VertexLayout) {
+			case MeshVertexLayout_PUV: {
+				Increment = 5;
+
+				float* Positions = VertexAt;
+				float* TexCoords = VertexAt + 3;
+
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, 0, 0);
+				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+			}break;
+
+			case MeshVertexLayout_PUVN: {
+				Increment = 8;
+
+				float* Positions = VertexAt;
+				float* TexCoords = VertexAt + 3;
+				float* Normals = VertexAt + 5;
+
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, 0);
+				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+			}break;
+
+			case MeshVertexLayout_PNUV: {
+				Increment = 8;
+
+				float* Positions = VertexAt;
+				float* TexCoords = VertexAt + 6;
+				float* Normals = VertexAt + 3;
+
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, 0);
+				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+			}break;
+
+			case MeshVertexLayout_PUVNC: {
+				Increment = 11;
+
+				float* Positions = VertexAt;
+				float* TexCoords = VertexAt + 3;
+				float* Normals = VertexAt + 5;
+				float* Colors = VertexAt + 8;
+
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, Colors);
+			}break;
+
+			case MeshVertexLayout_PNUVC: {
+				Increment = 11;
+
+				float* Positions = VertexAt;
+				float* TexCoords = VertexAt + 6;
+				float* Normals = VertexAt + 3;
+				float* Colors = VertexAt + 8;
+
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, Colors);
+			}break;
+		}
+		
+		VertexAt += Increment;
+	}
+
+	if (CalculateTangents) {
+
+	}
 
 	return(Result);
 }

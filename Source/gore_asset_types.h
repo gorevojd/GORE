@@ -1,6 +1,37 @@
 #ifndef GORE_ASSET_TYPES_H_INCLUDED
 #define GORE_ASSET_TYPES_H_INCLUDED
 
+struct vertex_info {
+	v3 P;
+	v2 UV;
+	v3 N;
+	v3 T;
+	v3 C;
+};
+
+#define INFLUENCE_BONE_COUNT 4
+struct skinned_vertex_info {
+	v3 P;
+	v2 UV;
+	v3 N;
+	v3 T;
+	v3 C;
+
+	u32 Bones[INFLUENCE_BONE_COUNT];
+	float Weights[INFLUENCE_BONE_COUNT];
+};
+
+struct mesh_info {
+	union {
+		vertex_info* Vertices;
+		skinned_vertex_info* SkinnedVertices;
+	};
+	u32 VerticesCount;
+
+	u32* Indices;
+	u32 IndicesCount;
+};
+
 struct model_info {
 
 };

@@ -47,7 +47,7 @@ struct game_asset_source_font {
 
 	u32 Flags;
 
-	//font_info* FontInfo;
+	font_info* FontInfo;
 };
 
 struct game_asset_source {
