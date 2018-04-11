@@ -926,7 +926,43 @@ mesh_info LoadMeshFromVertices(
 	}
 
 	if (CalculateTangents) {
+		for (int Index = 0;
+			Index < Result.IndicesCount;
+			Index += 3)
+		{
+			int Index0 = Result.Indices[Index];
+			int Index1 = Result.Indices[Index + 1];
+			int Index2 = Result.Indices[Index + 2];
 
+			v3 P0 = Result.Vertices[Index0].P;
+			v3 P1 = Result.Vertices[Index1].P;
+			v3 P2 = Result.Vertices[Index2].P;
+
+			v2 Tex0 = Result.Vertices[Index0].UV;
+			v2 Tex1 = Result.Vertices[Index1].UV;
+			v2 Tex2 = Result.Vertices[Index2].UV;
+
+			v3 Edge1 = P1 - P0;
+			v3 Edge2 = P2 - P0;
+
+			v2 DeltaTex1 = Tex1 - Tex0;
+			v2 DeltaTex2 = Tex2 - Tex0;
+
+			float InvDet = 1.0f / (DeltaTex1.x * DeltaTex2.y - DeltaTex2.x * DeltaTex1.y);
+
+			v3 T = InvDet * (DeltaTex2.y * Edge1 - DeltaTex1.y * Edge2);
+			v3 B = InvDet * (DeltaTex1.x * Edge2 - DeltaTex2.x * Edge1);
+
+			T = NOZ(T);
+			/*
+				NOTE(dima): bitangent calculation is implemented
+				but not used...
+			*/
+			B = NOZ(T);
+
+			//NOTE(dima): Setting the calculating tangent to the vertex;
+			Result.Vertices[Index0].T = T;
+		}
 	}
 
 	return(Result);
