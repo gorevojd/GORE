@@ -338,7 +338,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					glColor4f(Color.r, Color.g, Color.b, Color.a);
 
 					float Depth = 10000.0f;
-					\
+					
 					glTexCoord2f(MinUV.x, MinUV.y);
 					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
 					glTexCoord2f(MaxUV.x, MinUV.y);
@@ -396,12 +396,14 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					u32 ComponentCount = sizeof(vertex_info) / 4;
 
 					glBindVertexArray(VAO);
+
 					glBindBuffer(GL_ARRAY_BUFFER, VBO);
 					glBufferData(
 						GL_ARRAY_BUFFER, 
 						MeshInfo->VerticesCount * OneVertexSize, 
 						MeshInfo->Vertices, 
 						GL_STATIC_DRAW);
+
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 					glBufferData(
 						GL_ELEMENT_ARRAY_BUFFER, 
@@ -411,27 +413,32 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
 						glEnableVertexAttribArray(Shader->PositionIndex);
-						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, P));
+						u32 POffset = offsetof(vertex_info, P);
+						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)POffset);
 					}
 
 					if (OpenGLArrayIsValid(Shader->NormalIndex)) {
 						glEnableVertexAttribArray(Shader->NormalIndex);
-						glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, N));
+						u32 NOffset = offsetof(vertex_info, N);
+						glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)NOffset);
 					}
 
 					if (OpenGLArrayIsValid(Shader->UVIndex)) {
 						glEnableVertexAttribArray(Shader->UVIndex);
-						glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, UV));
+						u32 UVOffset = offsetof(vertex_info, UV);
+						glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, OneVertexSize, (void*)UVOffset);
 					}
 
 					if (OpenGLArrayIsValid(Shader->ColorIndex)) {
 						glEnableVertexAttribArray(Shader->ColorIndex);
-						glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, C));
+						u32 COffset = offsetof(vertex_info, C);
+						glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)COffset);
 					}
 
 					if (OpenGLArrayIsValid(Shader->TangentIndex)) {
 						glEnableVertexAttribArray(Shader->TangentIndex);
-						glVertexAttribPointer(Shader->TangentIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, T));
+						u32 TOffset = offsetof(vertex_info, T);
+						glVertexAttribPointer(Shader->TangentIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)TOffset);
 					}
 
 					glBindBuffer(GL_ARRAY_BUFFER, 0);

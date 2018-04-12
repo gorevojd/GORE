@@ -64,7 +64,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 			for (int k = -5; k < 5; k++) {
 
 				if (i != 0 && j != 0 && k != 0) {
-					mat4 Transform = TranslationMatrix(V3(i, j, k));
+					mat4 Transform = TranslationMatrix(V3(i * 10, j * 10, k * 10));
 
 					RENDERPushMesh(RenderStack, CubeInfo, Transform);
 				}
