@@ -1218,7 +1218,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		GEOMKAUpdateAndRender(&GameState, Stack, &GlobalInput);
+		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);
 		END_TIMING();

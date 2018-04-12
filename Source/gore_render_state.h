@@ -16,19 +16,20 @@ struct render_state {
 	game_camera_setup CameraSetup;
 };
 
-enum render_stack_entry_type {
-	RenderStackEntry_None = 0,
+enum render_entry_type {
+	RenderEntry_None = 0,
 
-	RenderStackEntry_Bitmap,
-	RenderStackEntry_Clear,
-	RenderStackEntry_Gradient,
-	RenderStackEntry_Rectangle,
+	RenderEntry_Bitmap,
+	RenderEntry_Clear,
+	RenderEntry_Gradient,
+	RenderEntry_Rectangle,
+	RenderEntry_Mesh,
 
-	RenderStackEntry_Glyph,
-	RenderStackEntry_BeginText,
-	RenderStackEntry_EndText,
+	RenderEntry_Glyph,
+	RenderEntry_BeginText,
+	RenderEntry_EndText,
 
-	RenderStackEntry_Test,
+	RenderEntry_Test,
 };
 
 struct render_stack_entry_bitmap {
@@ -59,6 +60,12 @@ struct render_stack_entry_glyph {
 	v2 Dim;
 
 	v4 ModulationColor;
+};
+
+struct render_stack_entry_mesh {
+	mesh_info* MeshInfo;
+
+	mat4 TransformMatrix;
 };
 
 struct render_stack_entry_begin_text {
@@ -102,7 +109,7 @@ inline void* RENDERPushEntryToStack(render_state* Stack, u32 SizeOfType, u32 Typ
 #define PUSH_RENDER_ENTRY(Stack, type, entry_type_enum)	(type *)(RENDERPushEntryToStack(Stack, sizeof(type), entry_type_enum))
 
 inline void RENDERPushBitmap(render_state* Stack, bitmap_info* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	render_stack_entry_bitmap* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderStackEntry_Bitmap);
+	render_stack_entry_bitmap* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderEntry_Bitmap);
 
 	Entry->P = P;
 	Entry->Dim = V2(Bitmap->WidthOverHeight * Height, Height);
@@ -112,7 +119,7 @@ inline void RENDERPushBitmap(render_state* Stack, bitmap_info* Bitmap, v2 P, flo
 }
 
 inline void RENDERPushRect(render_state* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
+	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderEntry_Rectangle);
 
 	Entry->P = P;
 	Entry->Dim = Dim;
@@ -121,7 +128,7 @@ inline void RENDERPushRect(render_state* Stack, v2 P, v2 Dim, v4 ModulationColor
 
 
 inline void RENDERPushRect(render_state* Stack, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderStackEntry_Rectangle);
+	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderEntry_Rectangle);
 
 	Entry->P = Rect.Min;
 	Entry->Dim = Rect.Max - Rect.Min;
@@ -158,29 +165,36 @@ inline void RENDERPushRectInnerOutline(render_state* Stack, rect2 Rect, int Pixe
 }
 
 inline void RENDERPushClear(render_state* Stack, v3 Clear) {
-	render_stack_entry_clear* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderStackEntry_Clear);
+	render_stack_entry_clear* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderEntry_Clear);
 
 	Entry->Color = Clear;
 }
 
+inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix) {
+	render_stack_entry_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_mesh, RenderEntry_Mesh);
+
+	Entry->MeshInfo = Mesh;
+	Entry->TransformMatrix = TransformMatrix;
+}
+
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {
-	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderStackEntry_Gradient);
+	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderEntry_Gradient);
 
 	Entry->Color = Color;
 }
 
 inline void RENDERPushBeginText(render_state* Stack, font_info* FontInfo) {
-	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderStackEntry_BeginText);
+	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderEntry_BeginText);
 
 	Entry->FontInfo = FontInfo;
 }
 
 inline void RENDERPushEndText(render_state* Stack) {
-	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderStackEntry_EndText);
+	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderEntry_EndText);
 }
 
 inline void RENDERPushGlyph(render_state* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Glyph);
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Glyph);
 
 	Entry->Codepoint = Codepoint;
 	Entry->P = P;
@@ -193,7 +207,7 @@ inline void RENDERSetCameraSetup(render_state* State, game_camera_setup Setup) {
 }
 
 inline void RENDERPushTest(render_state* Stack) {
-	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderStackEntry_Test);
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Test);
 }
 
 extern render_state RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight);

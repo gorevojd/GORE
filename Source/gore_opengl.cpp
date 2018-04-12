@@ -76,6 +76,7 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "Normal");
 	Result.UVIndex = glGetAttribLocation(Result.Program.Handle, "UV");
 	Result.ColorIndex = glGetAttribLocation(Result.Program.Handle, "Color");
+	Result.TangentIndex = glGetAttribLocation(Result.Program.Handle, "Tangent");
 
 	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
 	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
@@ -294,13 +295,13 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 		At += sizeof(render_stack_entry_header);
 		switch (Header->Type) {
-			case(RenderStackEntry_Bitmap): {
+			case(RenderEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
 				OpenGLRenderBitmap(EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
 			}break;
 
-			case(RenderStackEntry_Clear): {
+			case(RenderEntry_Clear): {
 				render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
 
 				glClearColor(
@@ -311,19 +312,19 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}break;
 
-			case(RenderStackEntry_Gradient): {
+			case(RenderEntry_Gradient): {
 				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
 					
 				//TODO(DIMA): 
 			}break;
 
-			case(RenderStackEntry_Rectangle): {
+			case(RenderEntry_Rectangle): {
 				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
 
 				OpenGLRenderRectangle(Rect2MinDim(EntryRect->P, EntryRect->Dim), EntryRect->ModulationColor);
 			}break;
 
-			case RenderStackEntry_Glyph: {
+			case RenderEntry_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
 				if (CurrentFontInfo) {
@@ -354,7 +355,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				}
 			}break;
 
-			case RenderStackEntry_BeginText: {
+			case RenderEntry_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
 				CurrentFontInfo = EntryBeginText->FontInfo;
@@ -368,7 +369,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 			}break;
 
-			case RenderStackEntry_EndText: {
+			case RenderEntry_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 				
 				CurrentFontInfo = 0;
@@ -377,8 +378,82 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				glBindTexture(GL_TEXTURE_2D, 0);
 			}break;
 
-			case RenderStackEntry_Test: {
-#if 1
+			case RenderEntry_Mesh: {
+				render_stack_entry_mesh* EntryMesh = (render_stack_entry_mesh*)At;
+
+				mesh_info* MeshInfo = EntryMesh->MeshInfo;
+
+				gl_wtf_shader* Shader = &GLState->WtfShader;
+
+				if (!MeshInfo->Handle) {
+					GLuint EBO, VBO, VAO;
+
+					glGenVertexArrays(1, &VAO);
+					glGenBuffers(1, &VBO);
+					glGenBuffers(1, &EBO);
+
+					u32 OneVertexSize = sizeof(vertex_info);
+					u32 ComponentCount = sizeof(vertex_info) / 4;
+
+					glBindVertexArray(VAO);
+					glBindBuffer(GL_ARRAY_BUFFER, VBO);
+					glBufferData(
+						GL_ARRAY_BUFFER, 
+						MeshInfo->VerticesCount * OneVertexSize, 
+						MeshInfo->Vertices, 
+						GL_STATIC_DRAW);
+					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+					glBufferData(
+						GL_ELEMENT_ARRAY_BUFFER, 
+						MeshInfo->IndicesCount * sizeof(u32), 
+						MeshInfo->Indices, 
+						GL_STATIC_DRAW);
+
+					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+						glEnableVertexAttribArray(Shader->PositionIndex);
+						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, P));
+					}
+
+					if (OpenGLArrayIsValid(Shader->NormalIndex)) {
+						glEnableVertexAttribArray(Shader->NormalIndex);
+						glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, N));
+					}
+
+					if (OpenGLArrayIsValid(Shader->UVIndex)) {
+						glEnableVertexAttribArray(Shader->UVIndex);
+						glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, UV));
+					}
+
+					if (OpenGLArrayIsValid(Shader->ColorIndex)) {
+						glEnableVertexAttribArray(Shader->ColorIndex);
+						glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, C));
+					}
+
+					if (OpenGLArrayIsValid(Shader->TangentIndex)) {
+						glEnableVertexAttribArray(Shader->TangentIndex);
+						glVertexAttribPointer(Shader->TangentIndex, 3, GL_FLOAT, 0, ComponentCount, (void*)offsetof(vertex_info, T));
+					}
+
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray(0);
+
+					MeshInfo->Handle = (void*)VAO;
+				}
+
+				glUseProgram(GLState->WtfShader.Program.Handle);
+
+				glEnable(GL_DEPTH_TEST);
+				glBindVertexArray((GLuint)MeshInfo->Handle);
+				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
+				glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
+				glBindVertexArray(0);
+				glDisable(GL_DEPTH_TEST);
+
+				glUseProgram(0);
+			}break;
+
+			case RenderEntry_Test: {
+#if 0
 				glEnable(GL_DEPTH_TEST);
 				for (int i = -5; i < 5; i++) {
 					for (int j = -5; j < 5; j++) {
@@ -465,41 +540,41 @@ void OpenGLInitState(gl_state* State) {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
-	GLfloat CubeVertices[] = {
-		/*P N UV*/
+	float CubeVertices[] = {
+		/*P N UV C*/
 		//NOTE(Dima): Front side
-		-0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 		//NOTE(Dima): Top side
-		-0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 		//NOTE(Dima): Right side
-		0.5f, 0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 		//NOTE(Dima): Left side
-		-0.5f, 0.5f, -0.5f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, 0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, -0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, -0.5f, -0.5f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, 0.5f, -0.5f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 		//NOTE(Dima): Back side
-		0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, -0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 		//NOTE(Dima): Down side
-		-0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		0.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 1.0f,		0.0f, 0.3f, 0.65f,
-		0.5f, -0.5f, -0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 0.0f,		0.0f, 0.3f, 0.65f,
-		-0.5f, -0.5f, -0.5f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,		0.0f, 0.3f, 0.65f,
+		-0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
 	};
 
-	GLuint CubeIndices[] = {
+	u32 CubeIndices[] = {
 		0, 1, 2,
 		0, 2, 3,
 

@@ -1,24 +1,31 @@
 #ifndef GORE_ASSET_TYPES_H_INCLUDED
 #define GORE_ASSET_TYPES_H_INCLUDED
 
+//NOTE(dima): DO NOT CHANGE ORDER OF THEESE
 struct vertex_info {
 	v3 P;
-	v2 UV;
 	v3 N;
-	v3 T;
+	v2 UV;
 	v3 C;
+	v3 T;
 };
 
 #define INFLUENCE_BONE_COUNT 4
+//NOTE(dima): DO NOT CHANGE ORDER OF THEESE
 struct skinned_vertex_info {
 	v3 P;
-	v2 UV;
 	v3 N;
-	v3 T;
+	v2 UV;
 	v3 C;
+	v3 T;
 
 	u32 Bones[INFLUENCE_BONE_COUNT];
 	float Weights[INFLUENCE_BONE_COUNT];
+};
+
+enum mesh_type {
+	MeshType_Simple,
+	MeshType_Skinned,
 };
 
 struct mesh_info {
@@ -28,8 +35,12 @@ struct mesh_info {
 	};
 	u32 VerticesCount;
 
+	u32 MeshType;
+
 	u32* Indices;
 	u32 IndicesCount;
+
+	void* Handle;
 };
 
 struct model_info {
@@ -94,6 +105,7 @@ enum asset_type {
 	AssetType_Sound,
 	AssetType_Font,
 	AssetType_Model,
+	AssetType_Mesh,
 };
 
 

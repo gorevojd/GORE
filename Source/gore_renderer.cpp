@@ -789,7 +789,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 
 		At += sizeof(render_stack_entry_header);
 		switch (Header->Type) {
-			case(RenderStackEntry_Bitmap): {
+			case(RenderEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
 #if !GORE_FAST_RENDERING
@@ -811,7 +811,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case(RenderStackEntry_Clear): {
+			case(RenderEntry_Clear): {
 				render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
 
 #if !GORE_FAST_RENDERING
@@ -822,7 +822,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case(RenderStackEntry_Gradient): {
+			case(RenderEntry_Gradient): {
 				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
 
 #if !GORE_FAST_RENDERING
@@ -832,7 +832,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case(RenderStackEntry_Rectangle): {
+			case(RenderEntry_Rectangle): {
 				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
 
 #if !GORE_FAST_RENDERING
@@ -842,7 +842,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case RenderStackEntry_Glyph: {
+			case RenderEntry_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
 				font_info* FontInfo = CurrentFontInfo;
@@ -866,13 +866,13 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case RenderStackEntry_BeginText: {
+			case RenderEntry_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
 				CurrentFontInfo = EntryBeginText->FontInfo;
 			}break;
 
-			case RenderStackEntry_EndText: {
+			case RenderEntry_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 
 				CurrentFontInfo = 0;

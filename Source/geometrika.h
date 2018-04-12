@@ -16,7 +16,8 @@ struct geometrika_state {
 
 extern void GEOMKAUpdateAndRender(
 	geometrika_state* State, 
-	render_state* RenderStack, 
+	asset_system* AssetSystem,
+	render_state* RenderStack,
 	input_system* Input);
 
 #endif

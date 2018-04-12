@@ -15,6 +15,7 @@ struct gl_wtf_shader {
 	GLint UVIndex;
 	GLint NormalIndex;
 	GLint ColorIndex;
+	GLint TangentIndex;
 
 	GLint ModelMatrixLocation;
 	GLint ViewMatrixLocation;

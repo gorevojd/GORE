@@ -1,6 +1,6 @@
 #include "geometrika.h"
 
-void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, input_system* Input) {
+void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, render_state* RenderStack, input_system* Input) {
 	if (!State->IsInitialized) {
 
 		State->Camera = GAMECreateCamera();
@@ -56,6 +56,22 @@ void GEOMKAUpdateAndRender(geometrika_state* State, render_state* RenderStack, i
 	if (ButtonWentUp(Input, KeyType_LCtrl)) {
 		State->CapturingMouse = 1;
 	}
+
+	mesh_info* CubeInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
+
+	for (int i = -5; i < 5; i++) {
+		for (int j = -5; j < 5; j++) {
+			for (int k = -5; k < 5; k++) {
+
+				if (i != 0 && j != 0 && k != 0) {
+					mat4 Transform = TranslationMatrix(V3(i, j, k));
+
+					RENDERPushMesh(RenderStack, CubeInfo, Transform);
+				}
+			}
+		}
+	}
+
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,

@@ -57,6 +57,21 @@ void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
 	}
 }
 
+void ASSETLoadMeshAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = ASSETGetByID(System, Id);
+
+	if (PlatformApi.AtomicCAS_U32(
+		(platform_atomic_type_u32*)Asset->State,
+		GameAssetState_InProgress,
+		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	{
+
+	}
+	else {
+
+	}
+}
+
 void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSETGetByID(System, Id);
 
@@ -116,6 +131,16 @@ model_info* ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
 	Assert(FirstAsset->Type == AssetType_Model);
 
 	model_info* Result = FirstAsset->Model;
+
+	return(Result);
+}
+
+mesh_info* ASSETRequestFirstMesh(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType_Mesh);
+
+	mesh_info* Result = FirstAsset->Mesh;
 
 	return(Result);
 }
@@ -183,6 +208,13 @@ static void AddModelAsset(asset_system* System, model_info* Model) {
 	Source->ModelSource.ModelInfo = Model;
 }
 
+static void AddMeshAsset(asset_system* System, mesh_info* Mesh) {
+	added_asset Added = AddAsset(System, AssetType_Mesh);
+
+	game_asset_source* Source = Added.Source;
+	Source->MeshSource.MeshInfo = Mesh;
+}
+
 static void AddFontAsset(
 	asset_system* System, 
 	char* Path, 
@@ -212,91 +244,6 @@ static void AddFontAssetManual(
 
 	game_asset_source* Source = Added.Source;
 	Source->FontSource.FontInfo = FontInfo;
-}
-
-
-void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
-
-	//NOTE(dima): Clearing asset groups
-	for (int AssetGroupIndex = 0;
-		AssetGroupIndex < GameAsset_Count;
-		AssetGroupIndex++)
-	{
-		game_asset_group* Group = System->AssetGroups + AssetGroupIndex;
-
-		Group->FirstAssetIndex = 0;
-		Group->GroupAssetCount = 0;
-	}
-
-	//NOTE(dima): Fonts
-	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
-	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-
-	BeginAssetGroup(System, GameAsset_Font);
-#if 0
-	AddFontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
-	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
-#else
-	AddFontAssetManual(System, &DebugFontInfo);
-	AddFontAssetManual(System, &GoldenFontInfo);
-#endif
-	EndAssetGroup(System);
-
-	//NOTE(dima): Bitmaps
-	BeginAssetGroup(System, GameAsset_AlphaImage);
-	AddBitmapAsset(System, "../Data/Images/alpha.png");
-	EndAssetGroup(System);
-
-	BeginAssetGroup(System, GameAsset_PotImage);
-	AddBitmapAsset(System, "../Data/Images/pot.png");
-	EndAssetGroup(System);
-
-	BeginAssetGroup(System, GameAsset_OblivonMemeImage);
-	AddBitmapAsset(System, "../Data/Images/image.bmp");
-	EndAssetGroup(System);
-
-#if 1
-	for (int AssetIndex = 0;
-		AssetIndex < System->AssetCount;
-		AssetIndex++)
-	{
-		game_asset* Asset = System->Assets + AssetIndex;
-		game_asset_source* Source = System->AssetSources + AssetIndex;
-
-
-		switch (System->AssetTypes[AssetIndex]) {
-			case AssetType_Bitmap: {
-				Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
-				Asset->Bitmap = &Asset->Bitmap_;
-			}break;
-
-			case AssetType_Font: {
-
-				if (!Source->FontSource.FontInfo) {
-					if (Source->FontSource.LoadFromImage) {
-						Asset->Font_ = LoadFontInfoFromImage(
-							Source->FontSource.Path,
-							Source->FontSource.Height,
-							Source->FontSource.OneCharWidth,
-							Source->FontSource.OneCharHeight,
-							Source->FontSource.Flags);
-					}
-					else {
-						Asset->Font_ = LoadFontInfoWithSTB(
-							Source->FontSource.Path,
-							Source->FontSource.Height,
-							Source->FontSource.Flags);
-					}
-				}
-				else {
-					Asset->Font_ = *Source->FontSource.FontInfo;
-				}
-
-				Asset->Font = &Asset->Font_;
-			}break;
-		}
-	}
-#endif
 }
 
 /*	
@@ -841,11 +788,13 @@ mesh_info LoadMeshFromVertices(
 	float* Verts, u32 VertsCount,
 	u32* Indices, u32 IndicesCount,
 	u32 VertexLayout,
-	b32 CalculateNormals = 0,
-	b32 CalculateTangents = 0) 
+	b32 CalculateNormals,
+	b32 CalculateTangents) 
 {
 	mesh_info Result = {};
 
+	Result.MeshType = MeshType_Simple;
+	Result.Handle = 0;
 	Result.IndicesCount = IndicesCount;
 	Result.Indices = (u32*)malloc(IndicesCount * sizeof(u32));
 	for (int IndexIndex = 0;
@@ -853,6 +802,23 @@ mesh_info LoadMeshFromVertices(
 		IndexIndex++)
 	{
 		Result.Indices[IndexIndex] = Indices[IndexIndex];
+	}
+
+	u32 Increment = 0;
+	switch (VertexLayout) {
+		case MeshVertexLayout_PUV: {
+			Increment = 5;
+		}break;
+
+		case MeshVertexLayout_PNUV:
+		case MeshVertexLayout_PUVN: {
+			Increment = 8;
+		}break;
+
+		case MeshVertexLayout_PUVNC:
+		case MeshVertexLayout_PNUVC: {
+			Increment = 11;
+		}break;
 	}
 
 	Result.VerticesCount = VertsCount;
@@ -863,14 +829,11 @@ mesh_info LoadMeshFromVertices(
 		VertexIndex < VertsCount;
 		VertexIndex++)
 	{
-		u32 Increment = 0;
 		
 		vertex_info* ToLoad = Result.Vertices + VertexIndex;
 
 		switch (VertexLayout) {
 			case MeshVertexLayout_PUV: {
-				Increment = 5;
-
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 3;
 
@@ -879,8 +842,6 @@ mesh_info LoadMeshFromVertices(
 			}break;
 
 			case MeshVertexLayout_PUVN: {
-				Increment = 8;
-
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 3;
 				float* Normals = VertexAt + 5;
@@ -890,8 +851,6 @@ mesh_info LoadMeshFromVertices(
 			}break;
 
 			case MeshVertexLayout_PNUV: {
-				Increment = 8;
-
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 6;
 				float* Normals = VertexAt + 3;
@@ -901,8 +860,6 @@ mesh_info LoadMeshFromVertices(
 			}break;
 
 			case MeshVertexLayout_PUVNC: {
-				Increment = 11;
-
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 3;
 				float* Normals = VertexAt + 5;
@@ -912,8 +869,6 @@ mesh_info LoadMeshFromVertices(
 			}break;
 
 			case MeshVertexLayout_PNUVC: {
-				Increment = 11;
-
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 6;
 				float* Normals = VertexAt + 3;
@@ -980,4 +935,155 @@ mesh_info LoadMeshFromVertices(
 	}
 
 	return(Result);
+}
+
+
+void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
+
+	//NOTE(dima): Clearing asset groups
+	for (int AssetGroupIndex = 0;
+		AssetGroupIndex < GameAsset_Count;
+		AssetGroupIndex++)
+	{
+		game_asset_group* Group = System->AssetGroups + AssetGroupIndex;
+
+		Group->FirstAssetIndex = 0;
+		Group->GroupAssetCount = 0;
+	}
+
+	//NOTE(dima): Fonts
+	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
+	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+
+	BeginAssetGroup(System, GameAsset_Font);
+#if 0
+	AddFontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
+	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
+#else
+	AddFontAssetManual(System, &DebugFontInfo);
+	AddFontAssetManual(System, &GoldenFontInfo);
+#endif
+	EndAssetGroup(System);
+
+	//NOTE(dima): Bitmaps
+	BeginAssetGroup(System, GameAsset_AlphaImage);
+	AddBitmapAsset(System, "../Data/Images/alpha.png");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_PotImage);
+	AddBitmapAsset(System, "../Data/Images/pot.png");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_OblivonMemeImage);
+	AddBitmapAsset(System, "../Data/Images/image.bmp");
+	EndAssetGroup(System);
+
+	float CubeVertices[] = {
+		/*P N UV C*/
+		//NOTE(Dima): Front side
+		-0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		//NOTE(Dima): Top side
+		-0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		//NOTE(Dima): Right side
+		0.5f, 0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		//NOTE(Dima): Left side
+		-0.5f, 0.5f, -0.5f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		//NOTE(Dima): Back side
+		0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		//NOTE(Dima): Down side
+		-0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+	};
+
+	u32 CubeIndices[] = {
+		0, 1, 2,
+		0, 2, 3,
+
+		4, 5, 6,
+		4, 6, 7,
+
+		8, 9, 10,
+		8, 10, 11,
+
+		12, 13, 14,
+		12, 14, 15,
+
+		16, 17, 18,
+		16, 18, 19,
+
+		20, 21, 22,
+		20, 22, 23
+	};
+
+	mesh_info CubeMesh = LoadMeshFromVertices(CubeVertices, 24, CubeIndices, 36, MeshVertexLayout_PNUVC, 0, 1);
+
+	BeginAssetGroup(System, GameAsset_Cube);
+	AddMeshAsset(System, &CubeMesh);
+	EndAssetGroup(System);
+
+#if 1
+	for (int AssetIndex = 0;
+		AssetIndex < System->AssetCount;
+		AssetIndex++)
+	{
+		game_asset* Asset = System->Assets + AssetIndex;
+		game_asset_source* Source = System->AssetSources + AssetIndex;
+
+
+		switch (System->AssetTypes[AssetIndex]) {
+			case AssetType_Bitmap: {
+				Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
+				Asset->Bitmap = &Asset->Bitmap_;
+			}break;
+
+			case AssetType_Font: {
+
+				if (!Source->FontSource.FontInfo) {
+					if (Source->FontSource.LoadFromImage) {
+						Asset->Font_ = LoadFontInfoFromImage(
+							Source->FontSource.Path,
+							Source->FontSource.Height,
+							Source->FontSource.OneCharWidth,
+							Source->FontSource.OneCharHeight,
+							Source->FontSource.Flags);
+					}
+					else {
+						Asset->Font_ = LoadFontInfoWithSTB(
+							Source->FontSource.Path,
+							Source->FontSource.Height,
+							Source->FontSource.Flags);
+					}
+				}
+				else {
+					Asset->Font_ = *Source->FontSource.FontInfo;
+				}
+
+				Asset->Font = &Asset->Font_;
+			}break;
+
+			case AssetType_Mesh: {
+				Asset->Mesh_ = *Source->MeshSource.MeshInfo;
+
+				Asset->Mesh = &Asset->Mesh_;
+			}break;
+		}
+	}
+#endif
 }
