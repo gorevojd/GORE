@@ -841,7 +841,8 @@ mesh_info LoadMeshFromVertices(
 	float* Verts, u32 VertsCount,
 	u32* Indices, u32 IndicesCount,
 	u32 VertexLayout,
-	b32 CalculateTangents) 
+	b32 CalculateNormals = 0,
+	b32 CalculateTangents = 0) 
 {
 	mesh_info Result = {};
 
@@ -925,7 +926,7 @@ mesh_info LoadMeshFromVertices(
 		VertexAt += Increment;
 	}
 
-	if (CalculateTangents) {
+	if (CalculateTangents || CalculateNormals) {
 		for (int Index = 0;
 			Index < Result.IndicesCount;
 			Index += 3)
@@ -945,23 +946,36 @@ mesh_info LoadMeshFromVertices(
 			v3 Edge1 = P1 - P0;
 			v3 Edge2 = P2 - P0;
 
-			v2 DeltaTex1 = Tex1 - Tex0;
-			v2 DeltaTex2 = Tex2 - Tex0;
+			if (CalculateTangents) {
+				v2 DeltaTex1 = Tex1 - Tex0;
+				v2 DeltaTex2 = Tex2 - Tex0;
 
-			float InvDet = 1.0f / (DeltaTex1.x * DeltaTex2.y - DeltaTex2.x * DeltaTex1.y);
+				float InvDet = 1.0f / (DeltaTex1.x * DeltaTex2.y - DeltaTex2.x * DeltaTex1.y);
 
-			v3 T = InvDet * (DeltaTex2.y * Edge1 - DeltaTex1.y * Edge2);
-			v3 B = InvDet * (DeltaTex1.x * Edge2 - DeltaTex2.x * Edge1);
+				v3 T = InvDet * (DeltaTex2.y * Edge1 - DeltaTex1.y * Edge2);
+				v3 B = InvDet * (DeltaTex1.x * Edge2 - DeltaTex2.x * Edge1);
 
-			T = NOZ(T);
-			/*
-				NOTE(dima): bitangent calculation is implemented
-				but not used...
-			*/
-			B = NOZ(T);
+				T = NOZ(T);
+				/*
+					NOTE(dima): bitangent calculation is implemented
+					but not used...
+				*/
+				B = NOZ(T);
 
-			//NOTE(dima): Setting the calculating tangent to the vertex;
-			Result.Vertices[Index0].T = T;
+				//NOTE(dima): Setting the calculating tangent to the vertex;
+				Result.Vertices[Index0].T = T;
+				Result.Vertices[Index1].T = T;
+				Result.Vertices[Index2].T = T;
+			}
+
+			//NOTE(dima): Normals calculation and setting
+			if (CalculateNormals) {
+				v3 TriNormal = NOZ(Cross(Edge2, Edge1));
+
+				Result.Vertices[Index0].N = TriNormal;
+				Result.Vertices[Index1].N = TriNormal;
+				Result.Vertices[Index2].N = TriNormal;
+			}
 		}
 	}
 
