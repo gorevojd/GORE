@@ -793,7 +793,6 @@ mesh_info LoadMeshFromVertices(
 {
 	mesh_info Result = {};
 
-	Result.MeshType = MeshType_Simple;
 	Result.Handle = 0;
 	Result.IndicesCount = IndicesCount;
 	Result.Indices = (u32*)malloc(IndicesCount * sizeof(u32));
@@ -808,16 +807,19 @@ mesh_info LoadMeshFromVertices(
 	switch (VertexLayout) {
 		case MeshVertexLayout_PUV: {
 			Increment = 5;
+			Result.MeshType = MeshType_Simple;
 		}break;
 
 		case MeshVertexLayout_PNUV:
 		case MeshVertexLayout_PUVN: {
 			Increment = 8;
+			Result.MeshType = MeshType_Simple;
 		}break;
 
 		case MeshVertexLayout_PUVNC:
 		case MeshVertexLayout_PNUVC: {
 			Increment = 11;
+			Result.MeshType = MeshType_Simple;
 		}break;
 	}
 
