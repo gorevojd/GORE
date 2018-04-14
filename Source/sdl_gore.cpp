@@ -1024,7 +1024,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetSwapInterval(0);
 
 	int SetR, SetG, SetB, SetD;
 	SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &SetR);

@@ -1071,6 +1071,179 @@ mesh_info ASSETGenerateSphere(int Segments, int Rings) {
 	return(Result);
 }
 
+mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
+	mesh_info Result = {};
+
+	SidesCount = Max(3, SidesCount);
+
+	int VerticesCount = SidesCount * 4 + SidesCount * 2 * 3;
+	int IndicesCount = SidesCount * 6 + SidesCount * 2 * 3;
+
+	float Angle = GORE_TWO_PI / (float)SidesCount;
+
+	int IndexAt = 0;
+	int VertexAt = 0;
+
+	//NOTE(dima): 5 floats per vertex
+	float* Vertices = (float*)malloc(sizeof(float) * 5 * VerticesCount);
+	u32* Indices = (u32*)malloc(sizeof(u32) * IndicesCount);
+
+	//NOTE(dima): Building top triangle fans
+	float TopY = Height * 0.5f;
+	for (int Index = 1;
+		Index <= SidesCount;
+		Index++)
+	{
+		float CurrAngle = (float)Index * Angle;
+		float PrevAngle = (float)(Index - 1) * Angle;
+
+		float TopY = Height * 0.5f;
+
+		v3 CurrP;
+		v3 PrevP;
+		v3 Center = V3(0.0f, 0.0f, 0.0f);
+
+		CurrP.x = Cos(CurrAngle) * Radius;
+		CurrP.y = TopY;
+		CurrP.z = Sin(CurrAngle) * Radius;
+
+		PrevP.x = Cos(PrevAngle) * Radius;
+		PrevP.y = TopY;
+		PrevP.z = Sin(PrevAngle) * Radius;
+
+		v2 CurrUV = V2(0.0f, 0.0f);
+		v2 PrevUV = V2(0.0f, 0.0f);
+		v2 CentUV = V2(0.0f, 0.0f);
+
+		float* V0 = Vertices + VertexAt * 5;
+		float* V1 = Vertices + (VertexAt + 1) * 5;
+		float* V2 = Vertices + (VertexAt + 2) * 5;
+
+		Center.y = TopY;
+		ASSETGenerateSphere_WriteVertex(V0, PrevP, PrevUV);
+		ASSETGenerateSphere_WriteVertex(V1, CurrP, CurrUV);
+		ASSETGenerateSphere_WriteVertex(V2, Center, CentUV);
+
+		u32* Ind = Indices + IndexAt;
+		Ind[0] = VertexAt;
+		Ind[1] = VertexAt + 1;
+		Ind[2] = VertexAt + 2;
+
+		VertexAt += 3;
+		IndexAt += 3;
+	}
+
+	//NOTE(dima): Building bottom triangle fans
+	for (int Index = 1;
+		Index <= SidesCount;
+		Index++)
+	{
+		float CurrAngle = (float)Index * Angle;
+		float PrevAngle = (float)(Index - 1) * Angle;
+
+		float BotY = -Height * 0.5f;
+
+		v3 CurrP;
+		v3 PrevP;
+		v3 Center = V3(0.0f, 0.0f, 0.0f);
+
+		CurrP.x = Cos(CurrAngle) * Radius;
+		CurrP.y = BotY;
+		CurrP.z = Sin(CurrAngle) * Radius;
+
+		PrevP.x = Cos(PrevAngle) * Radius;
+		PrevP.y = BotY;
+		PrevP.z = Sin(PrevAngle) * Radius;
+
+		v2 CurrUV = V2(0.0f, 0.0f);
+		v2 PrevUV = V2(0.0f, 0.0f);
+		v2 CentUV = V2(0.0f, 0.0f);
+
+		float* V0 = Vertices + VertexAt * 5;
+		float* V1 = Vertices + (VertexAt + 1) * 5;
+		float* V2 = Vertices + (VertexAt + 2) * 5;
+
+		Center.y = BotY;
+		ASSETGenerateSphere_WriteVertex(V0, CurrP, CurrUV);
+		ASSETGenerateSphere_WriteVertex(V1, PrevP, PrevUV);
+		ASSETGenerateSphere_WriteVertex(V2, Center, CentUV);
+
+		u32* Ind = Indices + IndexAt;
+		Ind[0] = VertexAt;
+		Ind[1] = VertexAt + 1;
+		Ind[2] = VertexAt + 2;
+
+		VertexAt += 3;
+		IndexAt += 3;
+	}
+
+	//NOTE(dima): Building sides
+	for (int Index = 1;
+		Index <= SidesCount;
+		Index++)
+	{
+		float CurrAngle = (float)Index * Angle;
+		float PrevAngle = (float)(Index - 1) * Angle;
+
+		v3 CurrP;
+		v3 PrevP;
+
+		CurrP.x = Cos(CurrAngle) * Radius;
+		CurrP.y = 0.0f;
+		CurrP.z = Sin(CurrAngle) * Radius;
+
+		PrevP.x = Cos(PrevAngle) * Radius;
+		PrevP.y = 0.0f;
+		PrevP.z = Sin(PrevAngle) * Radius;
+
+		v3 TopC, TopP;
+		v3 BotC, BotP;
+
+		v2 TopCuv = V2(0.0f, 0.0f);
+		v2 TopPuv = V2(0.0f, 0.0f);
+		v2 BotCuv = V2(0.0f, 0.0f);
+		v2 BotPuv = V2(0.0f, 0.0f);
+
+		TopC = CurrP; 
+		BotC = CurrP;
+		TopP = PrevP; 
+		BotP = PrevP;
+
+		TopC.y = Height * 0.5f;
+		TopP.y = Height * 0.5f;
+		BotC.y = -Height * 0.5f;
+		BotP.y = -Height * 0.5f;
+
+		float* V0 = Vertices + VertexAt * 5;
+		float* V1 = Vertices + (VertexAt + 1) * 5;
+		float* V2 = Vertices + (VertexAt + 2) * 5;
+		float* V3 = Vertices + (VertexAt + 3) * 5;
+
+		ASSETGenerateSphere_WriteVertex(V0, TopC, TopCuv);
+		ASSETGenerateSphere_WriteVertex(V1, TopP, TopPuv);
+		ASSETGenerateSphere_WriteVertex(V2, BotP, BotPuv);
+		ASSETGenerateSphere_WriteVertex(V3, BotC, BotCuv);
+
+		u32* Ind = Indices + IndexAt;
+		Ind[0] = VertexAt;
+		Ind[1] = VertexAt + 1;
+		Ind[2] = VertexAt + 2;
+		Ind[3] = VertexAt;
+		Ind[4] = VertexAt + 2;
+		Ind[5] = VertexAt + 3;
+
+		VertexAt += 4;
+		IndexAt += 6;
+	}
+
+	Result = LoadMeshFromVertices(Vertices, VerticesCount, Indices, IndicesCount, MeshVertexLayout_PUV, 1, 1);
+
+	free(Vertices);
+	free(Indices);
+
+	return(Result);
+}
+
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	//NOTE(dima): Clearing asset groups
@@ -1178,9 +1351,14 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 		20, 22, 23
 	};
 
+	mesh_info CylMeshLow = ASSETGenerateCylynder(1.0f, 0.5f, 12);
+	mesh_info CylMeshAvg = ASSETGenerateCylynder(1.0f, 0.5f, 24);
+	mesh_info CylMeshHig = ASSETGenerateCylynder(1.0f, 0.5f, 48);
+
 	mesh_info SphereMeshHig = ASSETGenerateSphere(80, 40);
 	mesh_info SphereMeshAvg = ASSETGenerateSphere(40, 20);
 	mesh_info SphereMeshLow = ASSETGenerateSphere(20, 10);
+
 	mesh_info CubeMesh = LoadMeshFromVertices(CubeVertices, 24, CubeIndices, 36, MeshVertexLayout_PNUVC, 0, 1);
 	mesh_info PlaneMesh = LoadMeshFromVertices(PlaneVertices, 4, PlaneIndices, 6, MeshVertexLayout_PNUVC, 0, 1);
 
@@ -1196,6 +1374,12 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	AddMeshAsset(System, &SphereMeshAvg);
 	AddMeshAsset(System, &SphereMeshHig);
 	AddMeshAsset(System, &SphereMeshLow);
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_Cylynder);
+	AddMeshAsset(System, &CylMeshHig);
+	AddMeshAsset(System, &CylMeshAvg);
+	AddMeshAsset(System, &CylMeshLow);
 	EndAssetGroup(System);
 
 #if 1

@@ -16,6 +16,7 @@ enum game_asset_group_id {
 	GameAsset_Cube,
 	GameAsset_Plane,
 	GameAsset_Sphere,
+	GameAsset_Cylynder,
 
 	GameAsset_Font,
 

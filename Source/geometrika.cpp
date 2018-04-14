@@ -63,6 +63,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	mesh_info* CubeInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
 	mesh_info* PlaneInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
 	mesh_info* SphereMesh = ASSETRequestFirstMesh(AssetSystem, GameAsset_Sphere);
+	mesh_info* CylMesh = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cylynder);
 
 #if 1
 	for (int i = -5; i < 5; i++) {
@@ -84,8 +85,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	v3 SpherePos2 = V3(5.0f * Sin(Input->Time * 0.5f), 3.0f, 5.0f * Cos(Input->Time * 0.5f));
 	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
 
+	v3 CylPos1 = V3(1.0f, Sin(Input->Time) * 10.0f, 4.0f);
+	mat4 CylMat1 = TranslationMatrix(CylPos1) * ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
+
 	RENDERPushMesh(RenderStack, SphereMesh, SphereMat1, &State->CubeMat);
 	RENDERPushMesh(RenderStack, SphereMesh, SphereMat2, &State->CubeMat);
+
+	RENDERPushMesh(RenderStack, CylMesh, CylMat1, &State->CubeMat);
 
 	RENDERPushMesh(RenderStack, PlaneInfo, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
 #endif
