@@ -417,9 +417,9 @@ inline v2 Normalize(v2 v) { return(Mul(v, RSqrt(Dot(v, v)))); }
 inline v3 Normalize(v3 v) { return(Mul(v, RSqrt(Dot(v, v)))); }
 inline v4 Normalize(v4 v) { return(Mul(v, RSqrt(Dot(v, v)))); }
 
-inline v2 NOZ(v2 v) { float sqmag = Dot(v, v); return((sqmag) < 0.00001f ? V2(0.0f, 0.0f) : v * RSqrt(sqmag)); }
-inline v3 NOZ(v3 v) { float sqmag = Dot(v, v); return((sqmag) < 0.00001f ? V3(0.0f, 0.0f, 0.0f) : v * RSqrt(sqmag)); }
-inline v4 NOZ(v4 v) { float sqmag = Dot(v, v); return((sqmag) < 0.00001f ? V4(0.0f, 0.0f, 0.0f, 0.0f) : v * RSqrt(sqmag)); }
+inline v2 NOZ(v2 v) { float sqmag = Dot(v, v); return((sqmag) < 0.0000001f ? V2(0.0f, 0.0f) : v * RSqrt(sqmag)); }
+inline v3 NOZ(v3 v) { float sqmag = Dot(v, v); return((sqmag) < 0.0000001f ? V3(0.0f, 0.0f, 0.0f) : v * RSqrt(sqmag)); }
+inline v4 NOZ(v4 v) { float sqmag = Dot(v, v); return((sqmag) < 0.0000001f ? V4(0.0f, 0.0f, 0.0f, 0.0f) : v * RSqrt(sqmag)); }
 
 /*Vector LERPS*/
 #if 0

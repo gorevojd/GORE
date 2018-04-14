@@ -62,6 +62,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 	mesh_info* CubeInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
 	mesh_info* PlaneInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
+	mesh_info* SphereMesh = ASSETRequestFirstMesh(AssetSystem, GameAsset_Sphere);
 
 #if 1
 	for (int i = -5; i < 5; i++) {
@@ -76,6 +77,15 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 			}
 		}
 	}
+	
+	v3 SpherePos1 = V3(10.0f * Sin(Input->Time), 15.0f, 5.0f * Cos(Input->Time));
+	mat4 SphereMat1 = TranslationMatrix(SpherePos1) * ScalingMatrix(V3(5.0f, 5.0f, 5.0f));
+
+	v3 SpherePos2 = V3(5.0f * Sin(Input->Time * 0.5f), 3.0f, 5.0f * Cos(Input->Time * 0.5f));
+	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
+
+	RENDERPushMesh(RenderStack, SphereMesh, SphereMat1, &State->CubeMat);
+	RENDERPushMesh(RenderStack, SphereMesh, SphereMat2, &State->CubeMat);
 
 	RENDERPushMesh(RenderStack, PlaneInfo, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
 #endif

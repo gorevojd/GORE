@@ -912,12 +912,12 @@ mesh_info LoadMeshFromVertices(
 				v3 T = InvDet * (DeltaTex2.y * Edge1 - DeltaTex1.y * Edge2);
 				v3 B = InvDet * (DeltaTex1.x * Edge2 - DeltaTex2.x * Edge1);
 
-				T = NOZ(T);
+				T = Normalize(T);
 				/*
 					NOTE(dima): bitangent calculation is implemented
 					but not used...
 				*/
-				B = NOZ(T);
+				B = Normalize(B);
 
 				//NOTE(dima): Setting the calculating tangent to the vertex;
 				Result.Vertices[Index0].T = T;
@@ -927,7 +927,7 @@ mesh_info LoadMeshFromVertices(
 
 			//NOTE(dima): Normals calculation and setting
 			if (CalculateNormals) {
-				v3 TriNormal = NOZ(Cross(Edge2, Edge1));
+				v3 TriNormal = Normalize(Cross(Edge2, Edge1));
 
 				Result.Vertices[Index0].N = TriNormal;
 				Result.Vertices[Index1].N = TriNormal;
@@ -1017,16 +1017,49 @@ mesh_info ASSETGenerateSphere(int Segments, int Rings) {
 			float* V2 = Vertices + (VertexAt + 2) * 5;
 			float* V3 = Vertices + (VertexAt + 3) * 5;
 
-			ASSETGenerateSphere_WriteVertex(V0, P0, P0uv);
-			ASSETGenerateSphere_WriteVertex(V1, P1, P1uv);
-			ASSETGenerateSphere_WriteVertex(V3, C1, C1uv);
-			ASSETGenerateSphere_WriteVertex(V2, C0, C0uv);
+			if (VertAt == 1) {
+				ASSETGenerateSphere_WriteVertex(V0, P0, P0uv);
+				ASSETGenerateSphere_WriteVertex(V1, C0, C0uv);
+				ASSETGenerateSphere_WriteVertex(V2, C1, C1uv);
 
-			//float
+				u32* Ind = Indices + IndexAt;
+				Ind[0] = VertexAt;
+				Ind[1] = VertexAt + 1;
+				Ind[2] = VertexAt + 2;
 
-			IndexAt += 6;
+				IndexAt += 3;
+				VertexAt += 3;
+			}
+			else if (VertAt == Rings) {
+				ASSETGenerateSphere_WriteVertex(V0, P1, P1uv);
+				ASSETGenerateSphere_WriteVertex(V1, P0, P0uv);
+				ASSETGenerateSphere_WriteVertex(V2, C1, C1uv);
 
-			VertexAt += 4;
+				u32* Ind = Indices + IndexAt;
+				Ind[0] = VertexAt;
+				Ind[1] = VertexAt + 1;
+				Ind[2] = VertexAt + 2;
+
+				IndexAt += 3;
+				VertexAt += 3;
+			}
+			else {
+				ASSETGenerateSphere_WriteVertex(V0, P1, P1uv);
+				ASSETGenerateSphere_WriteVertex(V1, P0, P0uv);
+				ASSETGenerateSphere_WriteVertex(V2, C0, C0uv);
+				ASSETGenerateSphere_WriteVertex(V3, C1, C1uv);
+
+				u32* Ind = Indices + IndexAt;
+				Ind[0] = VertexAt;
+				Ind[1] = VertexAt + 1;
+				Ind[2] = VertexAt + 2;
+				Ind[3] = VertexAt;
+				Ind[4] = VertexAt + 2;
+				Ind[5] = VertexAt + 3;
+
+				IndexAt += 6;
+				VertexAt += 4;
+			}
 		}
 	}
 
@@ -1145,6 +1178,9 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 		20, 22, 23
 	};
 
+	mesh_info SphereMeshHig = ASSETGenerateSphere(80, 40);
+	mesh_info SphereMeshAvg = ASSETGenerateSphere(40, 20);
+	mesh_info SphereMeshLow = ASSETGenerateSphere(20, 10);
 	mesh_info CubeMesh = LoadMeshFromVertices(CubeVertices, 24, CubeIndices, 36, MeshVertexLayout_PNUVC, 0, 1);
 	mesh_info PlaneMesh = LoadMeshFromVertices(PlaneVertices, 4, PlaneIndices, 6, MeshVertexLayout_PNUVC, 0, 1);
 
@@ -1154,6 +1190,12 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	BeginAssetGroup(System, GameAsset_Plane);
 	AddMeshAsset(System, &PlaneMesh);
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_Sphere);
+	AddMeshAsset(System, &SphereMeshAvg);
+	AddMeshAsset(System, &SphereMeshHig);
+	AddMeshAsset(System, &SphereMeshLow);
 	EndAssetGroup(System);
 
 #if 1

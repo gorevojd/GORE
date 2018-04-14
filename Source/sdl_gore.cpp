@@ -1280,6 +1280,7 @@ int main(int ArgsCount, char** Args) {
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
 		GlobalInput.DeltaTime = DeltaTime;
+		GlobalInput.Time = GlobalTime;
 
 		GlobalTime += DeltaTime;
 	}

@@ -74,6 +74,7 @@ typedef struct input_system {
 	v2 LastGlobalMouseP;
 
 	float DeltaTime;
+	float Time;
 }input_system;
 
 inline b32 ButtonIsDown(input_system* Input, u32 KeyType) {
