@@ -3,6 +3,7 @@
 
 #include "gore_asset.h"
 #include "gore_game_common.h"
+#include "gore_lighting.h"
 
 struct render_state {
 	stacked_memory Data;
@@ -66,6 +67,7 @@ struct render_stack_entry_mesh {
 	mesh_info* MeshInfo;
 
 	mat4 TransformMatrix;
+	surface_material* Material;
 };
 
 struct render_stack_entry_begin_text {
@@ -170,11 +172,12 @@ inline void RENDERPushClear(render_state* Stack, v3 Clear) {
 	Entry->Color = Clear;
 }
 
-inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix) {
+inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material* Material) {
 	render_stack_entry_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_mesh, RenderEntry_Mesh);
 
 	Entry->MeshInfo = Mesh;
 	Entry->TransformMatrix = TransformMatrix;
+	Entry->Material = Material;
 }
 
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {

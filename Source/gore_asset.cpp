@@ -980,6 +980,19 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	AddBitmapAsset(System, "../Data/Images/image.bmp");
 	EndAssetGroup(System);
 
+	float PlaneVertices[] = {
+		//P N UV C
+		-0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
+		0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+		-0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
+	};
+
+	u32 PlaneIndices[] = {
+		0, 1, 2,
+		0, 2, 3,
+	};
+
 	float CubeVertices[] = {
 		/*P N UV C*/
 		//NOTE(Dima): Front side
@@ -1035,9 +1048,14 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	};
 
 	mesh_info CubeMesh = LoadMeshFromVertices(CubeVertices, 24, CubeIndices, 36, MeshVertexLayout_PNUVC, 0, 1);
+	mesh_info PlaneMesh = LoadMeshFromVertices(PlaneVertices, 4, PlaneIndices, 6, MeshVertexLayout_PNUVC, 0, 1);
 
 	BeginAssetGroup(System, GameAsset_Cube);
 	AddMeshAsset(System, &CubeMesh);
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_Plane);
+	AddMeshAsset(System, &PlaneMesh);
 	EndAssetGroup(System);
 
 #if 1

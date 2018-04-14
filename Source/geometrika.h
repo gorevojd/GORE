@@ -12,6 +12,9 @@ struct geometrika_state {
 	b32 CapturingMouse;
 
 	game_camera Camera;
+
+	surface_material CubeMat;
+	surface_material PlaneMat;
 };
 
 extern void GEOMKAUpdateAndRender(

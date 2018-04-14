@@ -91,8 +91,8 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	return(Result);
 }
 
-void OpenGLUniformSurfaceMaterial(gl_wtf_shader* Shader, surface_material Mat) {
-	glUniform1f(Shader->SurfMatShineLocation, Mat.Shine);
+void OpenGLUniformSurfaceMaterial(gl_wtf_shader* Shader, surface_material* Mat) {
+	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
 	glUniform1i(Shader->SurfMatDiffLocation, 0);
 	glUniform1i(Shader->SurfMatSpecLocation, 0);
 	glUniform1i(Shader->SurfMatEmisLocation, 0);
@@ -205,58 +205,6 @@ void OpenGLSetScreenspace(int Width, int Height) {
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadMatrixf(ProjMatrix);
-}
-
-void OpenGLRenderCube(gl_state* GLState, gl_wtf_shader* Shader, v3 Pos) {
-
-	surface_material TempSurfMat = LITCreateSurfaceMaterial(32.0f);
-
-	glUseProgram(Shader->Program.Handle);
-	glBindVertexArray(GLState->CubeVAO);
-
-	OpenGLUniformSurfaceMaterial(Shader, TempSurfMat);
-
-	v3 ViewPos = V3(0.0f, 0.0f, 10.0f);
-	v3 ViewDir = V3(0.0f, 0.0f, -1.0f);
-
-	mat4 ModelMatrix = Identity();
-	ModelMatrix = Translate(ModelMatrix, Pos);
-	//ModelMatrix = Translate(ModelMatrix, V3(0.0f, 0.0f, -0.001f));
-	glUniformMatrix4fv(Shader->ModelMatrixLocation, 1, GL_TRUE, ModelMatrix.E);
-
-	//NOTE(dima): Rendering
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-
-	//glDrawArrays(GL_TRIANGLES, 0, 36);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
-}
-
-void OpenGLTempRenderPlane(gl_state* GLState, gl_wtf_shader* Shader) {
-	
-	glUseProgram(Shader->Program.Handle);
-	glBindVertexArray(GLState->PlaneVAO);
-
-	v3 ViewPos = V3(0.0f, 0.0f, 10.0f);
-	v3 ViewDir = V3(0.0f, 0.0f, -1.0f);
-
-	surface_material TempSurfMat = LITCreateSurfaceMaterial(32.0f);
-	OpenGLUniformSurfaceMaterial(Shader, TempSurfMat);
-
-	mat4 ModelMatrix = Identity();
-	//ModelMatrix = Translate(ModelMatrix, V3(0.0f, 0.0f, -0.001f));
-	float ScaleValue = 100.0f;
-	ModelMatrix = ModelMatrix * ScalingMatrix(V3(ScaleValue, ScaleValue, ScaleValue));
-
-	glUniformMatrix4fv(Shader->ModelMatrixLocation, 1, GL_TRUE, ModelMatrix.E);
-
-	//NOTE(dima): Rendering
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-	glBindVertexArray(0);
-	glUseProgram(0);
 }
 
 void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
@@ -392,8 +340,11 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					glGenBuffers(1, &VBO);
 					glGenBuffers(1, &EBO);
 
+					/*
+						NOTE(dima): We need to be accurate here
+						because of the alignment..
+					*/
 					u32 OneVertexSize = sizeof(vertex_info);
-					u32 ComponentCount = sizeof(vertex_info) / 4;
 
 					glBindVertexArray(VAO);
 
@@ -450,36 +401,21 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				glUseProgram(GLState->WtfShader.Program.Handle);
 
 				glEnable(GL_DEPTH_TEST);
+
+				OpenGLUniformSurfaceMaterial(&GLState->WtfShader, EntryMesh->Material);
+
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
 				glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
 				glBindVertexArray(0);
+
 				glDisable(GL_DEPTH_TEST);
 
 				glUseProgram(0);
 			}break;
 
 			case RenderEntry_Test: {
-#if 0
-				glEnable(GL_DEPTH_TEST);
-				for (int i = -5; i < 5; i++) {
-					for (int j = -5; j < 5; j++) {
-						for (int k = -5; k < 5; k++) {
 
-							if (i != 0 && j != 0 && k != 0) {
-								OpenGLRenderCube(
-									GLState,
-									&GLState->WtfShader, 
-									V3(i * 10, j * 10, k * 10));
-							}
-						}
-					}
-				}
-
-				OpenGLTempRenderPlane(GLState, &GLState->WtfShader);
-
-				glDisable(GL_DEPTH_TEST);
-#endif
 			}break;
 
 			default: {
@@ -495,146 +431,5 @@ void OpenGLInitState(gl_state* State) {
 	*State = {};
 
 	State->WtfShader = OpenGLLoadWtfShader();
-
-
-#if 1
-	gl_wtf_shader* Shader = &State->WtfShader;
-	GLfloat PlaneVertices[] = {
-		//P N UV C
-		-0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 1.0f,		0.2f, 0.5f, 0.18f,
-		0.5f, 0.0f, -0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 1.0f,		0.2f, 0.5f, 0.18f,
-		0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	1.0f, 0.0f,		0.2f, 0.5f, 0.18f,
-		-0.5f, 0.0f, 0.5f,		0.0f, 1.0f, 0.0f,	0.0f, 0.0f,		0.2f, 0.5f, 0.18f,
-	};
-
-	GLuint PlaneIndices[] = {
-		0, 1, 2,
-		0, 2, 3,
-	};
-
-	GLuint PlaneEBO, PlaneVBO;
-
-	glGenVertexArrays(1, &State->PlaneVAO);
-	glGenBuffers(1, &PlaneVBO);
-	glGenBuffers(1, &PlaneEBO);
-
-	glBindVertexArray(State->PlaneVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, PlaneVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(PlaneVertices), PlaneVertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PlaneEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(PlaneIndices), PlaneIndices, GL_STATIC_DRAW);
-
-	if (OpenGLArrayIsValid(Shader->PositionIndex)) {
-		glEnableVertexAttribArray(Shader->PositionIndex);
-		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)0);
-	}
-
-	if (OpenGLArrayIsValid(Shader->UVIndex)) {
-		glEnableVertexAttribArray(Shader->UVIndex);
-		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	}
-
-	if (OpenGLArrayIsValid(Shader->NormalIndex)) {
-		glEnableVertexAttribArray(Shader->NormalIndex);
-		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	}
-
-	if (OpenGLArrayIsValid(Shader->ColorIndex)) {
-		glEnableVertexAttribArray(Shader->ColorIndex);
-		glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	float CubeVertices[] = {
-		/*P N UV C*/
-		//NOTE(Dima): Front side
-		-0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, 0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, 0.5f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		//NOTE(Dima): Top side
-		-0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, 0.5f, -0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, 0.5f, 0.5f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		//NOTE(Dima): Right side
-		0.5f, 0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, 0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, 0.5f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		//NOTE(Dima): Left side
-		-0.5f, 0.5f, -0.5f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, 0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, 0.5f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		//NOTE(Dima): Back side
-		0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, 0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		//NOTE(Dima): Down side
-		-0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		0.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, 0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 1.0f,		1.0f, 1.0f, 1.0f,
-		0.5f, -0.5f, -0.5f,		0.0f, -1.0f, 0.0f,		1.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,		1.0f, 1.0f, 1.0f,
-	};
-
-	u32 CubeIndices[] = {
-		0, 1, 2,
-		0, 2, 3,
-
-		4, 5, 6,
-		4, 6, 7,
-
-		8, 9, 10,
-		8, 10, 11,
-
-		12, 13, 14,
-		12, 14, 15,
-
-		16, 17, 18,
-		16, 18, 19,
-
-		20, 21, 22,
-		20, 22, 23
-	};
-
-	GLuint CubeEBO, CubeVBO;
-
-	glGenVertexArrays(1, &State->CubeVAO);
-	glGenBuffers(1, &CubeVBO);
-	glGenBuffers(1, &CubeEBO);
-
-	glBindVertexArray(State->CubeVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices), CubeVertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, CubeEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(CubeIndices), CubeIndices, GL_STATIC_DRAW);
-
-	if (OpenGLArrayIsValid(Shader->PositionIndex)) {
-		glEnableVertexAttribArray(Shader->PositionIndex);
-		glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)0);
-	}
-
-	if (OpenGLArrayIsValid(Shader->UVIndex)) {
-		glEnableVertexAttribArray(Shader->UVIndex);
-		glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(6 * sizeof(GLfloat)));
-	}
-
-	if (OpenGLArrayIsValid(Shader->NormalIndex)) {
-		glEnableVertexAttribArray(Shader->NormalIndex);
-		glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(3 * sizeof(GLfloat)));
-	}
-
-	if (OpenGLArrayIsValid(Shader->ColorIndex)) {
-		glEnableVertexAttribArray(Shader->ColorIndex);
-		glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, 11 * sizeof(GLfloat), (void*)(8 * sizeof(GLfloat)));
-	}
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-#endif
 
 }

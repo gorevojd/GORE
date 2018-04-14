@@ -6,6 +6,9 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->Camera = GAMECreateCamera();
 		State->CapturingMouse = 1;
 
+		State->CubeMat = LITCreateSurfaceMaterial(32.0f);
+		State->PlaneMat = LITCreateSurfaceMaterial(16.0f);
+
 		State->IsInitialized = 1;
 	}
 
@@ -58,7 +61,9 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	}
 
 	mesh_info* CubeInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
+	mesh_info* PlaneInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
 
+#if 1
 	for (int i = -5; i < 5; i++) {
 		for (int j = -5; j < 5; j++) {
 			for (int k = -5; k < 5; k++) {
@@ -66,12 +71,14 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 				if (i != 0 && j != 0 && k != 0) {
 					mat4 Transform = TranslationMatrix(V3(i * 10, j * 10, k * 10));
 
-					RENDERPushMesh(RenderStack, CubeInfo, Transform);
+					RENDERPushMesh(RenderStack, CubeInfo, Transform, &State->CubeMat);
 				}
 			}
 		}
 	}
 
+	RENDERPushMesh(RenderStack, PlaneInfo, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
+#endif
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,
