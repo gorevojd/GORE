@@ -939,6 +939,104 @@ mesh_info LoadMeshFromVertices(
 	return(Result);
 }
 
+inline void ASSETGenerateSphere_WriteVertex(float* Vertex, v3 P, v2 UV) {
+	*Vertex = P.x;
+	*(Vertex + 1) = P.y;
+	*(Vertex + 2) = P.z;
+
+	*(Vertex + 3) = UV.x;
+	*(Vertex + 4) = UV.y;
+}
+
+mesh_info ASSETGenerateSphere(int Segments, int Rings) {
+	mesh_info Result = {};
+
+	float Radius = 0.5f;
+
+	Segments = Max(Segments, 3);
+	Rings = Max(Rings, 2);
+
+	//NOTE(dima): 2 top and bottom triangle fans + 
+	int VerticesCount = (Segments * 3) * 2 + (Segments * (Rings - 2)) * 4;
+	int IndicesCount = (Segments * 3) * 2 + (Segments * (Rings - 2)) * 6;
+
+	//NOTE(dima): 5 floats per vertex
+	float* Vertices = (float*)malloc(VerticesCount * 5 * sizeof(float));
+	u32* Indices = (u32*)malloc(IndicesCount * sizeof(u32));
+
+	float AngleVert = GORE_PI / (float)Rings;
+	float AngleHorz = GORE_TWO_PI / (float)Segments;
+
+	int VertexAt = 0;
+	int IndexAt = 0;
+
+	for (int VertAt = 1; VertAt <= Rings; VertAt++) {
+		float CurrAngleVert = (float)VertAt * AngleVert;
+		float PrevAngleVert = (float)(VertAt - 1) * AngleVert;
+
+		float PrevY = Cos(PrevAngleVert) * Radius;
+		float CurrY = Cos(CurrAngleVert) * Radius;
+
+		float SinVertPrev = Sin(PrevAngleVert);
+		float SinVertCurr = Sin(CurrAngleVert);
+
+		for (int HorzAt = 1; HorzAt <= Segments; HorzAt++) {
+			float CurrAngleHorz = (float)HorzAt * AngleHorz;
+			float PrevAngleHorz = (float)(HorzAt - 1) * AngleHorz;
+
+			v3 P0, P1, C0, C1;
+			v2 P0uv, P1uv, C0uv, C1uv;
+
+			P0.y = PrevY;
+			P1.y = PrevY;
+
+			C0.y = CurrY;
+			C1.y = CurrY;
+
+			//TODO(dima): handle triangle fan case
+
+			P0.x = Cos(PrevAngleHorz) * SinVertPrev * Radius;
+			P1.x = Cos(CurrAngleHorz) * SinVertPrev * Radius;
+
+			P0.z = Sin(PrevAngleHorz) * SinVertPrev * Radius;
+			P1.z = Sin(CurrAngleHorz) * SinVertPrev * Radius;
+
+			C0.x = Cos(PrevAngleHorz) * SinVertCurr * Radius;
+			C1.x = Cos(CurrAngleHorz) * SinVertCurr * Radius;
+
+			C0.z = Sin(PrevAngleHorz) * SinVertCurr * Radius;
+			C1.z = Sin(CurrAngleHorz) * SinVertCurr * Radius;
+
+			P0uv = V2(0.0f, 0.0f);
+			P1uv = V2(0.0f, 0.0f);
+			C0uv = V2(0.0f, 0.0f);
+			C1uv = V2(0.0f, 0.0f);
+
+			float* V0 = Vertices + VertexAt * 5;
+			float* V1 = Vertices + (VertexAt + 1) * 5;
+			float* V2 = Vertices + (VertexAt + 2) * 5;
+			float* V3 = Vertices + (VertexAt + 3) * 5;
+
+			ASSETGenerateSphere_WriteVertex(V0, P0, P0uv);
+			ASSETGenerateSphere_WriteVertex(V1, P1, P1uv);
+			ASSETGenerateSphere_WriteVertex(V3, C1, C1uv);
+			ASSETGenerateSphere_WriteVertex(V2, C0, C0uv);
+
+			//float
+
+			IndexAt += 6;
+
+			VertexAt += 4;
+		}
+	}
+
+	Result = LoadMeshFromVertices(Vertices, VerticesCount, Indices, IndicesCount, MeshVertexLayout_PUV, 1, 1);
+
+	free(Vertices);
+	free(Indices);
+
+	return(Result);
+}
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 

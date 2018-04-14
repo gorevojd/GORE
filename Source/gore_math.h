@@ -12,6 +12,9 @@
 #define RAD_TO_DEG 57.2958f
 #endif
 
+#define GORE_PI 3.14159265359f
+#define GORE_TWO_PI 6.28318530718f
+
 typedef union v2 {
 	struct {
 		float x;
