@@ -13,7 +13,7 @@ PLATFORM_THREADWORK_CALLBACK(ASSETLoadFontAssetWork) {
 }
 
 void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSETGetByID(System, Id);
+	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)Asset->State, 
@@ -28,7 +28,7 @@ void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
 }
 
 void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSETGetByID(System, Id);
+	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)Asset->State,
@@ -43,7 +43,7 @@ void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate) {
 }
 
 void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSETGetByID(System, Id);
+	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)Asset->State,
@@ -58,7 +58,7 @@ void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
 }
 
 void ASSETLoadMeshAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSETGetByID(System, Id);
+	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)Asset->State,
@@ -73,7 +73,7 @@ void ASSETLoadMeshAsset(asset_system* System, u32 Id, b32 Immediate) {
 }
 
 void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSETGetByID(System, Id);
+	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)Asset->State,
@@ -95,52 +95,52 @@ inline game_asset* ASSETRequestFirstAsset(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-bitmap_info* ASSETRequestFirstBitmap(asset_system* System, u32 GroupID) {
+bitmap_id ASSETRequestFirstBitmap(asset_system* System, u32 GroupID) {
 	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Bitmap);
 
-	bitmap_info* Result = FirstAsset->Bitmap;
+	u32 Result = FirstAsset->ID;
 
 	return(Result);
 }
 
-sound_info* ASSETRequestFirstSound(asset_system* System, u32 GroupID) {
+sound_id ASSETRequestFirstSound(asset_system* System, u32 GroupID) {
 	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Sound);
 
-	sound_info* Result = FirstAsset->Sound;
+	u32 Result = FirstAsset->ID;
 
 	return(Result);
 }
 
-font_info* ASSETRequestFirstFont(asset_system* System, u32 GroupID) {
+font_id ASSETRequestFirstFont(asset_system* System, u32 GroupID) {
 	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Font);
 
-	font_info* Result = FirstAsset->Font;
+	u32 Result = FirstAsset->ID;
 
 	return(Result);
 }
 
-model_info* ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
+model_id ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
 	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Model);
 
-	model_info* Result = FirstAsset->Model;
+	u32 Result = FirstAsset->ID;
 
 	return(Result);
 }
 
-mesh_info* ASSETRequestFirstMesh(asset_system* System, u32 GroupID) {
+mesh_id ASSETRequestFirstMesh(asset_system* System, u32 GroupID) {
 	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Mesh);
 
-	mesh_info* Result = FirstAsset->Mesh;
+	u32 Result = FirstAsset->ID;
 
 	return(Result);
 }
@@ -190,6 +190,14 @@ static void AddBitmapAsset(asset_system* System, char* Path) {
 
 	game_asset_source* Source = Added.Source;
 	Source->BitmapSource.Path = Path;
+	Source->BitmapSource.BitmapInfo = 0;
+}
+
+static void AddBitmapAssetManual(asset_system* System, bitmap_info* Bitmap) {
+	added_asset Added = AddAsset(System, AssetType_Bitmap);
+
+	game_asset_source* Source = Added.Source;
+	Source->BitmapSource.BitmapInfo = Bitmap;
 }
 
 static void AddSoundAsset(asset_system* System, char* Path) {
@@ -197,8 +205,6 @@ static void AddSoundAsset(asset_system* System, char* Path) {
 
 	game_asset_source* Source = Added.Source;
 	Source->SoundSource.Path = Path;
-
-
 }
 
 static void AddModelAsset(asset_system* System, model_info* Model) {
@@ -393,7 +399,52 @@ bitmap_info LoadIMG(char* Path) {
 	return(Result);
 }
 
+bitmap_info GenerateCheckerboardBitmap(
+	int Width,
+	int CellCountPerWidth,
+	v3 FirstColor = V3(1.0f, 1.0f, 1.0f),
+	v3 SecondColor = V3(0.0f, 0.0f, 0.0f))
+{
+	bitmap_info Result = {};
 
+	if (CellCountPerWidth <= 1) {
+		CellCountPerWidth = 2;
+	}
+
+	int OneCellWidth = Width / CellCountPerWidth;
+
+	/*
+		NOTE(dima): Result color has alpha of 1. 
+		So color don't need to be premultiplied
+	*/
+	u32 FirstColorPacked = PackRGBA(V4(FirstColor, 1.0f));
+	u32 SecondColorPacked = PackRGBA(V4(SecondColor, 1.0f));
+
+	Result.Pixels = (u8*)malloc(Width * Width * 4);
+	Result.Pitch = Width * 4;
+	Result.Width = Width;
+	Result.Height = Width;
+	Result.TextureHandle = 0;
+	Result.WidthOverHeight = 1.0f;
+
+	int X, Y;
+	for (Y = 0; Y < Width; Y++) {
+
+		int VertIndex = Y / OneCellWidth;
+
+		for (X = 0; X < Width; X++) {
+			int HorzIndex = X / OneCellWidth;
+
+			u32 CellColor = ((HorzIndex + VertIndex) & 1) ? SecondColorPacked : FirstColorPacked;
+
+			u32* Out = (u32*)Result.Pixels + Width * Y + X;
+
+			*Out = CellColor;
+		}
+	}
+
+	return(Result);
+}
 
 font_info LoadFontInfoFromImage(
 	char* ImagePath, 
@@ -939,7 +990,7 @@ mesh_info LoadMeshFromVertices(
 	return(Result);
 }
 
-inline void ASSETGenerateSphere_WriteVertex(float* Vertex, v3 P, v2 UV) {
+inline void ASSETGenerateWriteVertex(float* Vertex, v3 P, v2 UV) {
 	*Vertex = P.x;
 	*(Vertex + 1) = P.y;
 	*(Vertex + 2) = P.z;
@@ -1018,9 +1069,9 @@ mesh_info ASSETGenerateSphere(int Segments, int Rings) {
 			float* V3 = Vertices + (VertexAt + 3) * 5;
 
 			if (VertAt == 1) {
-				ASSETGenerateSphere_WriteVertex(V0, P0, P0uv);
-				ASSETGenerateSphere_WriteVertex(V1, C0, C0uv);
-				ASSETGenerateSphere_WriteVertex(V2, C1, C1uv);
+				ASSETGenerateWriteVertex(V0, P0, P0uv);
+				ASSETGenerateWriteVertex(V1, C0, C0uv);
+				ASSETGenerateWriteVertex(V2, C1, C1uv);
 
 				u32* Ind = Indices + IndexAt;
 				Ind[0] = VertexAt;
@@ -1031,9 +1082,9 @@ mesh_info ASSETGenerateSphere(int Segments, int Rings) {
 				VertexAt += 3;
 			}
 			else if (VertAt == Rings) {
-				ASSETGenerateSphere_WriteVertex(V0, P1, P1uv);
-				ASSETGenerateSphere_WriteVertex(V1, P0, P0uv);
-				ASSETGenerateSphere_WriteVertex(V2, C1, C1uv);
+				ASSETGenerateWriteVertex(V0, P1, P1uv);
+				ASSETGenerateWriteVertex(V1, P0, P0uv);
+				ASSETGenerateWriteVertex(V2, C1, C1uv);
 
 				u32* Ind = Indices + IndexAt;
 				Ind[0] = VertexAt;
@@ -1044,10 +1095,10 @@ mesh_info ASSETGenerateSphere(int Segments, int Rings) {
 				VertexAt += 3;
 			}
 			else {
-				ASSETGenerateSphere_WriteVertex(V0, P1, P1uv);
-				ASSETGenerateSphere_WriteVertex(V1, P0, P0uv);
-				ASSETGenerateSphere_WriteVertex(V2, C0, C0uv);
-				ASSETGenerateSphere_WriteVertex(V3, C1, C1uv);
+				ASSETGenerateWriteVertex(V0, P1, P1uv);
+				ASSETGenerateWriteVertex(V1, P0, P0uv);
+				ASSETGenerateWriteVertex(V2, C0, C0uv);
+				ASSETGenerateWriteVertex(V3, C1, C1uv);
 
 				u32* Ind = Indices + IndexAt;
 				Ind[0] = VertexAt;
@@ -1120,9 +1171,9 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 		float* V2 = Vertices + (VertexAt + 2) * 5;
 
 		Center.y = TopY;
-		ASSETGenerateSphere_WriteVertex(V0, PrevP, PrevUV);
-		ASSETGenerateSphere_WriteVertex(V1, CurrP, CurrUV);
-		ASSETGenerateSphere_WriteVertex(V2, Center, CentUV);
+		ASSETGenerateWriteVertex(V0, PrevP, PrevUV);
+		ASSETGenerateWriteVertex(V1, CurrP, CurrUV);
+		ASSETGenerateWriteVertex(V2, Center, CentUV);
 
 		u32* Ind = Indices + IndexAt;
 		Ind[0] = VertexAt;
@@ -1164,9 +1215,9 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 		float* V2 = Vertices + (VertexAt + 2) * 5;
 
 		Center.y = BotY;
-		ASSETGenerateSphere_WriteVertex(V0, CurrP, CurrUV);
-		ASSETGenerateSphere_WriteVertex(V1, PrevP, PrevUV);
-		ASSETGenerateSphere_WriteVertex(V2, Center, CentUV);
+		ASSETGenerateWriteVertex(V0, CurrP, CurrUV);
+		ASSETGenerateWriteVertex(V1, PrevP, PrevUV);
+		ASSETGenerateWriteVertex(V2, Center, CentUV);
 
 		u32* Ind = Indices + IndexAt;
 		Ind[0] = VertexAt;
@@ -1219,10 +1270,10 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 		float* V2 = Vertices + (VertexAt + 2) * 5;
 		float* V3 = Vertices + (VertexAt + 3) * 5;
 
-		ASSETGenerateSphere_WriteVertex(V0, TopC, TopCuv);
-		ASSETGenerateSphere_WriteVertex(V1, TopP, TopPuv);
-		ASSETGenerateSphere_WriteVertex(V2, BotP, BotPuv);
-		ASSETGenerateSphere_WriteVertex(V3, BotC, BotCuv);
+		ASSETGenerateWriteVertex(V0, TopC, TopCuv);
+		ASSETGenerateWriteVertex(V1, TopP, TopPuv);
+		ASSETGenerateWriteVertex(V2, BotP, BotPuv);
+		ASSETGenerateWriteVertex(V3, BotC, BotCuv);
 
 		u32* Ind = Indices + IndexAt;
 		Ind[0] = VertexAt;
@@ -1245,6 +1296,10 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 }
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
+
+	BEGIN_SECTION("Assets");
+	//DEBUG_VALUE()
+	END_SECTION();
 
 	//NOTE(dima): Clearing asset groups
 	for (int AssetGroupIndex = 0;
@@ -1282,6 +1337,12 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	BeginAssetGroup(System, GameAsset_OblivonMemeImage);
 	AddBitmapAsset(System, "../Data/Images/image.bmp");
+	EndAssetGroup(System);
+
+	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64);
+
+	BeginAssetGroup(System, GameAsset_Checkerboard);
+	AddBitmapAssetManual(System, &Checker1);
 	EndAssetGroup(System);
 
 	float PlaneVertices[] = {
@@ -1355,9 +1416,11 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	mesh_info CylMeshAvg = ASSETGenerateCylynder(1.0f, 0.5f, 24);
 	mesh_info CylMeshHig = ASSETGenerateCylynder(1.0f, 0.5f, 48);
 
+	mesh_info SphereMeshSuperHig = ASSETGenerateSphere(160, 80);
 	mesh_info SphereMeshHig = ASSETGenerateSphere(80, 40);
 	mesh_info SphereMeshAvg = ASSETGenerateSphere(40, 20);
 	mesh_info SphereMeshLow = ASSETGenerateSphere(20, 10);
+	mesh_info SphereMeshSuperLow = ASSETGenerateSphere(10, 5);
 
 	mesh_info CubeMesh = LoadMeshFromVertices(CubeVertices, 24, CubeIndices, 36, MeshVertexLayout_PNUVC, 0, 1);
 	mesh_info PlaneMesh = LoadMeshFromVertices(PlaneVertices, 4, PlaneIndices, 6, MeshVertexLayout_PNUVC, 0, 1);
@@ -1371,15 +1434,17 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_Sphere);
+	AddMeshAsset(System, &SphereMeshSuperLow);
+	AddMeshAsset(System, &SphereMeshLow);
 	AddMeshAsset(System, &SphereMeshAvg);
 	AddMeshAsset(System, &SphereMeshHig);
-	AddMeshAsset(System, &SphereMeshLow);
+	AddMeshAsset(System, &SphereMeshSuperHig);
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_Cylynder);
-	AddMeshAsset(System, &CylMeshHig);
-	AddMeshAsset(System, &CylMeshAvg);
 	AddMeshAsset(System, &CylMeshLow);
+	AddMeshAsset(System, &CylMeshAvg);
+	AddMeshAsset(System, &CylMeshHig);
 	EndAssetGroup(System);
 
 #if 1
@@ -1390,10 +1455,17 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 		game_asset* Asset = System->Assets + AssetIndex;
 		game_asset_source* Source = System->AssetSources + AssetIndex;
 
+		Asset->ID = AssetIndex;
 
 		switch (System->AssetTypes[AssetIndex]) {
 			case AssetType_Bitmap: {
-				Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
+				if (!Source->BitmapSource.BitmapInfo) {
+					Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
+				}
+				else {
+					Asset->Bitmap_ = *Source->BitmapSource.BitmapInfo;
+				}
+
 				Asset->Bitmap = &Asset->Bitmap_;
 			}break;
 

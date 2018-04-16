@@ -19,7 +19,9 @@ void main(){
 	gl_Position = Projection * View * Model * vec4(Position.xyz, 1.0f);
 	FragmentColor = Color;
 
+	mat3 NormalMatrix = mat3(transpose(inverse(Model)));
+
 	FragmentWorldP = (Model * vec4(Position.xyz, 1.0f)).xyz;
-	FragmentWorldN = Normal;
+	FragmentWorldN = normalize(NormalMatrix * Normal);
 	FragmentUV = UV;
 }

@@ -13,6 +13,8 @@ enum game_asset_group_id {
 	GameAsset_PotImage,
 	GameAsset_AlphaImage,
 
+	GameAsset_Checkerboard,
+
 	GameAsset_Cube,
 	GameAsset_Plane,
 	GameAsset_Sphere,

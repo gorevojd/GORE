@@ -30,6 +30,8 @@ struct surface_material{
 	sampler2D Specular;
 	sampler2D Emissive;
 
+	vec3 Color;
+
 	float Shine;
 };
 
@@ -58,9 +60,11 @@ vec3 CalculatePointLight(
 	Result += Attenuation * CosLightNorm * FragDiffC * Lit.Color;
 
 	//NOTE(dima): Specular lighting
+	//vec4 ReflectPower = texture(Material.Specular, FragmentUV);
+	vec4 ReflectPower = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	float CosViewRefl = dot(ToCamera, reflect(-ToLight, FragmentWorldN));
 	CosViewRefl = clamp(CosViewRefl, 0.0f, 1.0f);
-	Result += Attenuation * pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
+	Result += Attenuation * pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC * ReflectPower.xyz;
 
 	return(Result);
 }
@@ -84,9 +88,11 @@ vec3 CalculateDirLight(
 	Result += CosLightNorm * Lit.Color * FragDiffC;
 
 	//NOTE(dima): specular
+	//vec4 ReflectPower = texture(Material.Specular, FragmentUV);
+	vec4 ReflectPower = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	float CosViewRefl = dot(ToCamera, reflect(-ToLight, FragmentWorldN));
 	CosViewRefl = clamp(CosViewRefl, 0.0f, 1.0f);
-	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
+	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC * ReflectPower.xyz;
 
 	return(Result);
 }
@@ -116,7 +122,7 @@ void main(){
 	//vec3 FragSpecColor = texture(Material.Specular, FragmentUV).xyz;
 	//vec3 FragEmisColor = texture(Material.Emissive, FragmentUV).xyz;
 	
-	vec3 FragDiffColor = FragmentColor;
+	vec3 FragDiffColor = Material.Color;
 	vec3 FragSpecColor = vec3(1.0f, 1.0f, 1.0f);
 	vec3 FragEmisColor = vec3(0.0f, 0.0f, 0.0f);
 	

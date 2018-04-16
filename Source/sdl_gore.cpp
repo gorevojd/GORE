@@ -18,6 +18,8 @@
 			Implement asset packer
 			Model loading
 
+			Generate UV's for cylynder and sphere
+
 		DEBUG:
 			Thread intervals for non-one frame records 
 
@@ -1150,7 +1152,9 @@ int main(int ArgsCount, char** Args) {
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
 
-	font_info* GUIFont = ASSETRequestFirstFont(&GlobalAssets, GameAsset_Font);
+	font_id GUIFontID = ASSETRequestFirstFont(&GlobalAssets, GameAsset_Font);
+	font_info* GUIFont = ASSET_GetFont(&GlobalAssets, GUIFontID);
+
 	GUIInitState(GUIState, &GUIMemory, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	
 	OpenGLInitState(GLState);
@@ -1187,7 +1191,7 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_REPEATED_TIMING("Other...");
-		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets);
 		render_state* Stack = &Stack_;
 
 		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));

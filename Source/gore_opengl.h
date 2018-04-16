@@ -27,6 +27,7 @@ struct gl_wtf_shader {
 	GLint SurfMatDiffLocation;
 	GLint SurfMatSpecLocation;
 	GLint SurfMatEmisLocation;
+	GLint SurfMatColorLocation;
 
 	gl_program Program;
 };

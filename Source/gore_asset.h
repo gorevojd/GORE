@@ -26,6 +26,8 @@ struct game_asset_group {
 
 struct game_asset_source_bitmap {
 	char* Path;
+
+	bitmap_info* BitmapInfo;
 };
 
 struct game_asset_source_mesh {
@@ -66,6 +68,8 @@ struct game_asset_source {
 
 struct game_asset {
 	platform_atomic_type_u32 State;
+
+	u32 ID;
 
 	u32 Type;
 
@@ -116,16 +120,88 @@ void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate);
 void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate);
 void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate);
 
-bitmap_info* ASSETRequestFirstBitmap(asset_system* System, u32 AssetID);
-sound_info* ASSETRequestFirstSound(asset_system* System, u32 AssetID);
-font_info* ASSETRequestFirstFont(asset_system* System, u32 AssetID);
-model_info* ASSETRequestFirstModel(asset_system* System, u32 AssetID);
-mesh_info* ASSETRequestFirstMesh(asset_system* System, u32 GroupID);
+bitmap_id ASSETRequestFirstBitmap(asset_system* System, u32 GroupID);
+sound_id ASSETRequestFirstSound(asset_system* System, u32 GroupID);
+font_id ASSETRequestFirstFont(asset_system* System, u32 GroupID);
+model_id ASSETRequestFirstModel(asset_system* System, u32 GroupID);
+mesh_id ASSETRequestFirstMesh(asset_system* System, u32 GroupID);
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets);
 
-inline game_asset* ASSETGetByID(asset_system* System, u32 ID) {
+inline game_asset* ASSET_GetByID(asset_system* System, u32 ID) {
 	game_asset* Result = System->Assets + ID;
+
+	return(Result);
+}
+
+inline game_asset* ASSET_GetByIDWithStateAndTypeCheck(asset_system* System, u32 ID, u32 AssetType) {
+	game_asset* Result = 0;
+
+	game_asset* Asset = ASSET_GetByID(System, ID);
+#if 0
+	if ((Asset->State == GameAssetState_Loaded) && 
+#else
+	if(
+#endif
+		(Asset->Type == AssetType)) 
+	{
+		Result = Asset;
+	}
+
+	return(Result);
+}
+
+inline bitmap_info* ASSET_GetBitmap(asset_system* System, bitmap_id ID) {
+	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Bitmap);
+
+	bitmap_info* Result = 0;
+	if (Asset){
+		Result = Asset->Bitmap;
+	}
+
+	return(Result);
+}
+
+inline sound_info* ASSET_GetSound(asset_system* System, sound_id ID) {
+	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Sound);
+
+	sound_info* Result = 0;
+	if (Asset) {
+		Result = Asset->Sound;
+	}
+
+	return(Result);
+}
+
+inline font_info* ASSET_GetFont(asset_system* System, font_id ID) {
+	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Font);
+
+	font_info* Result = 0;
+	if (Asset) {
+		Result = Asset->Font;
+	}
+
+	return(Result);
+}
+
+inline mesh_info* ASSET_GetMesh(asset_system* System, mesh_id ID) {
+	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Mesh);
+
+	mesh_info* Result = 0;
+	if (Asset) {
+		Result = Asset->Mesh;
+	}
+
+	return(Result);
+}
+
+inline model_info* ASSET_GetModel(asset_system* System, model_id ID) {
+	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Model);
+
+	model_info* Result = 0;
+	if (Asset) {
+		Result = Asset->Model;
+	}
 
 	return(Result);
 }

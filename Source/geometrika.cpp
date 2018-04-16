@@ -6,8 +6,8 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->Camera = GAMECreateCamera();
 		State->CapturingMouse = 1;
 
-		State->CubeMat = LITCreateSurfaceMaterial(32.0f);
-		State->PlaneMat = LITCreateSurfaceMaterial(16.0f);
+		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
+		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
 
 		State->IsInitialized = 1;
 	}
@@ -60,12 +60,12 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->CapturingMouse = 1;
 	}
 
-	mesh_info* CubeInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
-	mesh_info* PlaneInfo = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
-	mesh_info* SphereMesh = ASSETRequestFirstMesh(AssetSystem, GameAsset_Sphere);
-	mesh_info* CylMesh = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cylynder);
+	mesh_id CubeID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
+	mesh_id PlaneID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
+	mesh_id SphereID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Sphere);
+	mesh_id CylID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cylynder);
 
-#if 1
+#if 0
 	for (int i = -5; i < 5; i++) {
 		for (int j = -5; j < 5; j++) {
 			for (int k = -5; k < 5; k++) {
@@ -78,6 +78,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 			}
 		}
 	}
+#endif
 	
 	v3 SpherePos1 = V3(10.0f * Sin(Input->Time), 15.0f, 5.0f * Cos(Input->Time));
 	mat4 SphereMat1 = TranslationMatrix(SpherePos1) * ScalingMatrix(V3(5.0f, 5.0f, 5.0f));
@@ -85,16 +86,18 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	v3 SpherePos2 = V3(5.0f * Sin(Input->Time * 0.5f), 3.0f, 5.0f * Cos(Input->Time * 0.5f));
 	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
 
-	v3 CylPos1 = V3(1.0f, Sin(Input->Time) * 10.0f, 4.0f);
-	mat4 CylMat1 = TranslationMatrix(CylPos1) * ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
+	v3 CylPos1 = V3(1.0f, 6.0f, 7.0f);
+	mat4 CylMat1 = 
+		TranslationMatrix(CylPos1) * 
+		RotationX(Input->Time) *
+		ScalingMatrix(V3(2.0f, 10.0f, 2.0f));
 
-	RENDERPushMesh(RenderStack, SphereMesh, SphereMat1, &State->CubeMat);
-	RENDERPushMesh(RenderStack, SphereMesh, SphereMat2, &State->CubeMat);
+	RENDERPushMesh(RenderStack, SphereID, SphereMat1, &State->CubeMat);
+	RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
 
-	RENDERPushMesh(RenderStack, CylMesh, CylMat1, &State->CubeMat);
+	RENDERPushMesh(RenderStack, CylID, CylMat1, &State->CubeMat);
 
-	RENDERPushMesh(RenderStack, PlaneInfo, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
-#endif
+	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,

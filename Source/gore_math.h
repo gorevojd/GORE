@@ -569,12 +569,100 @@ inline mat4 TranslationMatrix(v3 Translation) {
 	return(Result);
 }
 
+inline mat4 RotationX(float Angle) {
+	mat4 Result;
+
+	float CosT = Cos(Angle);
+	float SinT = Sin(Angle);
+
+	Result.E[0] = 1.0f;
+	Result.E[1] = 0.0f;
+	Result.E[2] = 0.0f;
+	Result.E[3] = 0.0f;
+
+	Result.E[4] = 0.0f;
+	Result.E[5] = CosT;
+	Result.E[6] = -SinT;
+	Result.E[7] = 0.0f;
+
+	Result.E[8] = 0.0f;
+	Result.E[9] = SinT;
+	Result.E[10] = CosT;
+	Result.E[11] = 0.0f;
+
+	Result.E[12] = 0.0f;
+	Result.E[13] = 0.0f;
+	Result.E[14] = 0.0f;
+	Result.E[15] = 1.0f;
+
+	return(Result);
+}
+
+inline mat4 RotationY(float Angle) {
+	mat4 Result;
+
+	float CosT = Cos(Angle);
+	float SinT = Sin(Angle);
+
+	Result.E[0] = CosT;
+	Result.E[1] = 0.0f;
+	Result.E[2] = -SinT;
+	Result.E[3] = 0.0f;
+
+	Result.E[4] = 0.0f;
+	Result.E[5] = 1.0f;
+	Result.E[6] = 0.0f;
+	Result.E[7] = 0.0f;
+
+	Result.E[8] = SinT;
+	Result.E[9] = 0.0f;
+	Result.E[10] = CosT;
+	Result.E[11] = 0.0f;
+
+	Result.E[12] = 0.0f;
+	Result.E[13] = 0.0f;
+	Result.E[14] = 0.0f;
+	Result.E[15] = 1.0f;
+
+	return(Result);
+}
+
+
+inline mat4 RotationZ(float Angle) {
+	mat4 Result;
+
+	float CosT = Cos(Angle);
+	float SinT = Sin(Angle);
+
+	Result.E[0] = CosT;
+	Result.E[1] = -SinT;
+	Result.E[2] = 0.0f;
+	Result.E[3] = 0.0f;
+
+	Result.E[4] = SinT;
+	Result.E[5] = CosT;
+	Result.E[6] = 0.0f;
+	Result.E[7] = 0.0f;
+
+	Result.E[8] = 0.0f;
+	Result.E[9] = 0.0f;
+	Result.E[10] = 1.0f;
+	Result.E[11] = 0.0f;
+
+	Result.E[12] = 0.0f;
+	Result.E[13] = 0.0f;
+	Result.E[14] = 0.0f;
+	Result.E[15] = 1.0f;
+
+	return(Result);
+}
+
 inline mat4 RotationMatrix(v3 R, float Angle) {
 	mat4 Result;
 
 	float CosT = Cos(Angle);
 	float SinT = Sin(Angle);
-	float InvCosT = 1.0f - CosT;
+	float InvCosT = 1.0f - Cos(Angle);
 
 	float RxRyInvCos = R.x * R.y * InvCosT;
 	float RxRzInvCos = R.x * R.z * InvCosT;
@@ -586,7 +674,7 @@ inline mat4 RotationMatrix(v3 R, float Angle) {
 	Result.E[3] = 0;
 
 	Result.E[4] = RxRyInvCos + R.z * SinT;
-	Result.E[5] = CosT * R.y * R.y * InvCosT;
+	Result.E[5] = CosT + R.y * R.y * InvCosT;
 	Result.E[6] = RyRzInvCos - R.x * SinT;
 	Result.E[7] = 0.0f;
 

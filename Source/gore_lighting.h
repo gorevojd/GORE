@@ -4,6 +4,8 @@
 #include "gore_platform.h"
 
 struct surface_material {
+	v3 Color;
+
 	float Shine;
 };
 
@@ -25,10 +27,11 @@ struct lighting_setup {
 	point_light Light1;
 };
 
-inline surface_material LITCreateSurfaceMaterial(float Shine) {
+inline surface_material LITCreateSurfaceMaterial(float Shine, v3 Color) {
 	surface_material Result = {};
 
 	Result.Shine = Shine;
+	Result.Color = Color;
 
 	return(Result);
 }

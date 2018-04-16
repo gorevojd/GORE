@@ -87,12 +87,15 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.SurfMatDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.Diffuse");
 	Result.SurfMatSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.Specular");
 	Result.SurfMatEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.Emissive");
+	Result.SurfMatColorLocation = glGetUniformLocation(Result.Program.Handle, "Material.Color");
 
 	return(Result);
 }
 
 void OpenGLUniformSurfaceMaterial(gl_wtf_shader* Shader, surface_material* Mat) {
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
+	glUniform3f(Shader->SurfMatColorLocation, Mat->Color.x, Mat->Color.y, Mat->Color.z);
+
 	glUniform1i(Shader->SurfMatDiffLocation, 0);
 	glUniform1i(Shader->SurfMatSpecLocation, 0);
 	glUniform1i(Shader->SurfMatEmisLocation, 0);
@@ -431,5 +434,4 @@ void OpenGLInitState(gl_state* State) {
 	*State = {};
 
 	State->WtfShader = OpenGLLoadWtfShader();
-
 }

@@ -9,6 +9,8 @@ struct render_state {
 	stacked_memory Data;
 	stacked_memory* InitStack;
 
+	asset_system* AssetSystem;
+
 	int RenderWidth;
 	int RenderHeight;
 
@@ -180,6 +182,18 @@ inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformM
 	Entry->Material = Material;
 }
 
+inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMatrix, surface_material* Material) {
+	mesh_info* MeshInfo = ASSET_GetMesh(State->AssetSystem, MeshID);
+
+	if (MeshInfo) {
+		RENDERPushMesh(State, MeshInfo, TransformMatrix, Material);
+	}
+	else {
+		//TODO(dima): Load mesh asset
+	}
+}
+
+
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {
 	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderEntry_Gradient);
 
@@ -213,7 +227,7 @@ inline void RENDERPushTest(render_state* Stack) {
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Test);
 }
 
-extern render_state RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight);
+extern render_state RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight, asset_system* AssetSystem);
 extern void RENDEREndStack(render_state* Stack);
 
 #endif
