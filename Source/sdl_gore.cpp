@@ -1196,6 +1196,7 @@ int main(int ArgsCount, char** Args) {
 
 		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
 		RENDERPushTest(Stack);
+
 #if 0
 
 		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;

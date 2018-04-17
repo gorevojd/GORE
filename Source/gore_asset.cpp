@@ -164,6 +164,7 @@ static added_asset AddAsset(asset_system* System, u32 AssetType) {
 	Result.Source = System->AssetSources + AssetIndex;
 	System->AssetTypes[AssetIndex] = AssetType;
 
+	Result.Asset->ID = System->AssetCount;
 	++System->AssetCount;
 
 	return(Result);
@@ -1318,7 +1319,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	BeginAssetGroup(System, GameAsset_Font);
 #if 0
-	AddFontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
+	FontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
 	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
 #else
 	AddFontAssetManual(System, &DebugFontInfo);
@@ -1455,7 +1456,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 		game_asset* Asset = System->Assets + AssetIndex;
 		game_asset_source* Source = System->AssetSources + AssetIndex;
 
-		Asset->ID = AssetIndex;
+		Asset->State = GameAssetState_Loaded;
 
 		switch (System->AssetTypes[AssetIndex]) {
 			case AssetType_Bitmap: {

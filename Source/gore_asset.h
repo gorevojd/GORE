@@ -138,11 +138,7 @@ inline game_asset* ASSET_GetByIDWithStateAndTypeCheck(asset_system* System, u32 
 	game_asset* Result = 0;
 
 	game_asset* Asset = ASSET_GetByID(System, ID);
-#if 0
 	if ((Asset->State == GameAssetState_Loaded) && 
-#else
-	if(
-#endif
 		(Asset->Type == AssetType)) 
 	{
 		Result = Asset;
