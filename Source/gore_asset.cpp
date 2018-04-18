@@ -1298,9 +1298,8 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
-	BEGIN_SECTION("Assets");
-	//DEBUG_VALUE()
-	END_SECTION();
+	//NOTE(dima): Reserving first asset to make it NULL asset
+	System->AssetCount = 1;
 
 	//NOTE(dima): Clearing asset groups
 	for (int AssetGroupIndex = 0;
@@ -1449,7 +1448,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	EndAssetGroup(System);
 
 #if 1
-	for (int AssetIndex = 0;
+	for (int AssetIndex = 1;
 		AssetIndex < System->AssetCount;
 		AssetIndex++)
 	{

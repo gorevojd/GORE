@@ -118,11 +118,11 @@ void main(){
 
 	//v3 FragTextureColor = texture() * FramentColor;
 
-	//vec3 FragDiffColor = texture(Material.Diffuse, FragmentUV).xyz;
 	//vec3 FragSpecColor = texture(Material.Specular, FragmentUV).xyz;
 	//vec3 FragEmisColor = texture(Material.Emissive, FragmentUV).xyz;
 	
-	vec3 FragDiffColor = Material.Color;
+	vec3 FragDiffColor = texture(Material.Diffuse, FragmentUV).xyz;
+
 	vec3 FragSpecColor = vec3(1.0f, 1.0f, 1.0f);
 	vec3 FragEmisColor = vec3(0.0f, 0.0f, 0.0f);
 	

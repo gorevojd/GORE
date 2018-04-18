@@ -8,6 +8,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
 		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
+		State->PlaneMat.Diffuse = ASSETRequestFirstBitmap(AssetSystem, GameAsset_Checkerboard);
 
 		State->IsInitialized = 1;
 	}

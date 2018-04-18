@@ -1,5 +1,40 @@
 #include "gore_opengl.h"
 
+GLuint OpenGLAllocateTexture(bitmap_info* Buffer) {
+	GLuint TextureHandle;
+	glGenTextures(1, &TextureHandle);
+
+	glBindTexture(GL_TEXTURE_2D, TextureHandle);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glTexImage2D(
+		GL_TEXTURE_2D,
+		0,
+		GL_RGBA,
+		Buffer->Width,
+		Buffer->Height,
+		0,
+		GL_ABGR_EXT,
+		GL_UNSIGNED_BYTE,
+		Buffer->Pixels);
+
+	Buffer->TextureHandle = (void*)TextureHandle;
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return(TextureHandle);
+}
+
+void OpenGLDeallocateTexture(bitmap_info* Buffer) {
+	GLuint TextureHandle = (GLuint)Buffer->TextureHandle;
+
+	glDeleteTextures(1, &TextureHandle);
+	Buffer->TextureHandle = (void*)0;
+}
+
 GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	char InfoLog[1024];
 	int Success;
@@ -92,13 +127,40 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	return(Result);
 }
 
-void OpenGLUniformSurfaceMaterial(gl_wtf_shader* Shader, surface_material* Mat) {
+void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, surface_material* Mat) {
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
 	glUniform3f(Shader->SurfMatColorLocation, Mat->Color.x, Mat->Color.y, Mat->Color.z);
 
-	glUniform1i(Shader->SurfMatDiffLocation, 0);
-	glUniform1i(Shader->SurfMatSpecLocation, 0);
-	glUniform1i(Shader->SurfMatEmisLocation, 0);
+	if (Mat->Diffuse) {
+		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Diffuse);
+		if (!Info->TextureHandle) {
+			OpenGLAllocateTexture(Info);
+		}
+
+		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatDiffLocation, (GLint)Info->TextureHandle);
+	}
+	else {
+		glUniform1i(Shader->SurfMatDiffLocation, 0);
+	}
+
+	if (Mat->Specular) {
+		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
+		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatSpecLocation, (GLuint)Info->TextureHandle);
+	}
+	else {
+		glUniform1i(Shader->SurfMatSpecLocation, 0);
+	}
+
+	if (Mat->Emissive) {
+		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
+		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatEmisLocation, (GLuint)Info->TextureHandle);
+	}
+	else {
+		glUniform1i(Shader->SurfMatEmisLocation, 0);
+	}
 }
 
 inline void OpenGLUseProgramBegin(gl_program* Program) {
@@ -107,41 +169,6 @@ inline void OpenGLUseProgramBegin(gl_program* Program) {
 
 inline void OpenGLUseProgramEnd(gl_program* Program) {
 	glUseProgram(0);
-}
-
-GLuint OpenGLAllocateTexture(bitmap_info* Buffer) {
-	GLuint TextureHandle;
-	glGenTextures(1, &TextureHandle);
-
-	glBindTexture(GL_TEXTURE_2D, TextureHandle);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	
-	glTexImage2D(
-		GL_TEXTURE_2D,
-		0,
-		GL_RGBA,
-		Buffer->Width,
-		Buffer->Height,
-		0,
-		GL_ABGR_EXT,
-		GL_UNSIGNED_BYTE,
-		Buffer->Pixels);
-
-	Buffer->TextureHandle = (void*)TextureHandle;
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return(TextureHandle);
-}
-
-void OpenGLDeallocateTexture(bitmap_info* Buffer) {
-	GLuint TextureHandle = (GLuint)Buffer->TextureHandle;
-
-	glDeleteTextures(1, &TextureHandle);
-	Buffer->TextureHandle = (void*)0;
 }
 
 void OpenGLRenderBitmap(bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
@@ -405,7 +432,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 				glEnable(GL_DEPTH_TEST);
 
-				OpenGLUniformSurfaceMaterial(&GLState->WtfShader, EntryMesh->Material);
+				OpenGLUniformSurfaceMaterial(RenderState, &GLState->WtfShader, EntryMesh->Material);
 
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);

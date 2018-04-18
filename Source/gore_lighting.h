@@ -6,6 +6,10 @@
 struct surface_material {
 	v3 Color;
 
+	bitmap_id Diffuse;
+	bitmap_id Specular;
+	bitmap_id Emissive;
+
 	float Shine;
 };
 
@@ -32,6 +36,10 @@ inline surface_material LITCreateSurfaceMaterial(float Shine, v3 Color) {
 
 	Result.Shine = Shine;
 	Result.Color = Color;
+
+	Result.Diffuse = 0;
+	Result.Specular = 0;
+	Result.Emissive = 0;
 
 	return(Result);
 }
