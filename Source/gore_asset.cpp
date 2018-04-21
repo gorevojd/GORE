@@ -12,11 +12,19 @@ PLATFORM_THREADWORK_CALLBACK(ASSETLoadFontAssetWork) {
 	
 }
 
+/*
+	NOTE(dima): Thanks to Minsk Gameloft office programming
+	teamlead Kirill who found the mistake here xD.
+	This is my forever-ever mistake that I had and will 
+	always do in atomic operations - forget to put & in front
+	of the first parameter. Lol
+*/
+
 void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)Asset->State, 
+		(platform_atomic_type_u32*)&Asset->State, 
 		GameAssetState_InProgress, 
 		GameAssetState_Unloaded) == GameAssetState_Unloaded) 
 	{
@@ -31,7 +39,7 @@ void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)Asset->State,
+		(platform_atomic_type_u32*)&Asset->State,
 		GameAssetState_InProgress,
 		GameAssetState_Unloaded) == GameAssetState_Unloaded)
 	{
@@ -46,7 +54,7 @@ void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)Asset->State,
+		(platform_atomic_type_u32*)&Asset->State,
 		GameAssetState_InProgress,
 		GameAssetState_Unloaded) == GameAssetState_Unloaded)
 	{
@@ -61,7 +69,7 @@ void ASSETLoadMeshAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)Asset->State,
+		(platform_atomic_type_u32*)&Asset->State,
 		GameAssetState_InProgress,
 		GameAssetState_Unloaded) == GameAssetState_Unloaded)
 	{
@@ -76,7 +84,7 @@ void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
 	game_asset* Asset = ASSET_GetByID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)Asset->State,
+		(platform_atomic_type_u32*)&Asset->State,
 		GameAssetState_InProgress,
 		GameAssetState_Unloaded) == GameAssetState_Unloaded)
 	{
