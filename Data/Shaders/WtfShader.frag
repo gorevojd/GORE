@@ -30,6 +30,10 @@ struct surface_material{
 	sampler2D Specular;
 	sampler2D Emissive;
 
+	bool HasDiffuse;
+	bool HasSpecular;
+	bool HasEmissive;
+
 	vec3 Color;
 
 	float Shine;
@@ -116,16 +120,21 @@ void main(){
 	vec3 ToCamera = CameraP - FragmentWorldP;
 	ToCamera = normalize(ToCamera);
 
-	//v3 FragTextureColor = texture() * FramentColor;
-
-	//vec3 FragSpecColor = texture(Material.Specular, FragmentUV).xyz;
-	//vec3 FragEmisColor = texture(Material.Emissive, FragmentUV).xyz;
-	
-	vec3 FragDiffColor = texture(Material.Diffuse, FragmentUV).xyz;
+	vec3 FragDiffColor = Material.Color;
+	if(Material.HasDiffuse){
+		FragDiffColor = texture(Material.Diffuse, FragmentUV).xyz;
+	}
 
 	vec3 FragSpecColor = vec3(1.0f, 1.0f, 1.0f);
+	if(Material.HasSpecular){
+		FragSpecColor = texture(Material.Specular, FragmentUV).xyz;
+	}
+
 	vec3 FragEmisColor = vec3(0.0f, 0.0f, 0.0f);
-	
+	if(Material.HasEmissive){
+		FragEmisColor = texture(Material.Emissive, FragmentUV).xyz;
+	}
+
 	vec3 TotalColor = vec3(0.0f, 0.0f, 0.0f);
 
 	//TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);

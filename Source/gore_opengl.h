@@ -24,10 +24,15 @@ struct gl_wtf_shader {
 	GLint CameraPLocation;
 
 	GLint SurfMatShineLocation;
+	GLint SurfMatColorLocation;
+
 	GLint SurfMatDiffLocation;
 	GLint SurfMatSpecLocation;
 	GLint SurfMatEmisLocation;
-	GLint SurfMatColorLocation;
+
+	GLint SurfMatHasDiffLocation;
+	GLint SurfMatHasSpecLocation;
+	GLint SurfMatHasEmisLocation;
 
 	gl_program Program;
 };
@@ -116,6 +121,9 @@ extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 
 typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
 extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
+
+typedef void (GLAPIENTRY *MYPFNGLACTIVETEXTURE)(GLenum texture);
+extern MYPFNGLACTIVETEXTURE _glActiveTexture;
 
 extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
 

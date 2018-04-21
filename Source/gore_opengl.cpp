@@ -119,10 +119,15 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
 
 	Result.SurfMatShineLocation = glGetUniformLocation(Result.Program.Handle, "Material.Shine");
+	Result.SurfMatColorLocation = glGetUniformLocation(Result.Program.Handle, "Material.Color");
+
 	Result.SurfMatDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.Diffuse");
 	Result.SurfMatSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.Specular");
 	Result.SurfMatEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.Emissive");
-	Result.SurfMatColorLocation = glGetUniformLocation(Result.Program.Handle, "Material.Color");
+
+	Result.SurfMatHasDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasDiffuse");
+	Result.SurfMatHasSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasSpecular");
+	Result.SurfMatHasEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasEmissive");
 
 	return(Result);
 }
@@ -131,35 +136,30 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
 	glUniform3f(Shader->SurfMatColorLocation, Mat->Color.x, Mat->Color.y, Mat->Color.z);
 
+	glUniform1i(Shader->SurfMatHasDiffLocation, Mat->Diffuse ? 1 : 0);
 	if (Mat->Diffuse) {
 		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Diffuse);
 		if (!Info->TextureHandle) {
 			OpenGLAllocateTexture(Info);
 		}
 
+		_glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		glUniform1i(Shader->SurfMatDiffLocation, (GLint)Info->TextureHandle);
-	}
-	else {
-		glUniform1i(Shader->SurfMatDiffLocation, 0);
+		//glUniform1i(Shader->SurfMatDiffLocation, (GLint)Info->TextureHandle);
 	}
 
+	glUniform1i(Shader->SurfMatHasSpecLocation, Mat->Specular ? 1 : 0);
 	if (Mat->Specular) {
 		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
 		glUniform1i(Shader->SurfMatSpecLocation, (GLuint)Info->TextureHandle);
 	}
-	else {
-		glUniform1i(Shader->SurfMatSpecLocation, 0);
-	}
 
+	glUniform1i(Shader->SurfMatHasEmisLocation, Mat->Emissive ? 1 : 0);
 	if (Mat->Emissive) {
 		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
 		glUniform1i(Shader->SurfMatEmisLocation, (GLuint)Info->TextureHandle);
-	}
-	else {
-		glUniform1i(Shader->SurfMatEmisLocation, 0);
 	}
 }
 
@@ -179,7 +179,6 @@ void OpenGLRenderBitmap(bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1
 		OpenGLAllocateTexture(Buffer);
 	}
 
-	//glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, (size_t)Buffer->TextureHandle);
 	glBegin(GL_TRIANGLES);
 

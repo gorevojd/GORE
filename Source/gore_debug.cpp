@@ -1904,7 +1904,9 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 					rect2 LaneRect = Rect2MinDim(V2(TargetX, AtY), V2(TargetWidth, CurentThreadGraphYSpacing));
 
-					RENDERPushRect(GUIState->RenderStack, LaneRect, GUIGetColor(GUIState, ColorIndex));
+					v4 LaneColor = GUIGetColor(GUIState, ColorIndex);
+					LaneColor.a = 0.8f;
+					RENDERPushRect(GUIState->RenderStack, LaneRect, LaneColor);
 					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
 
 
