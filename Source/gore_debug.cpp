@@ -1792,7 +1792,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 		if (!Elem->Cache.IsInitialized) {
 
-			Elem->Cache.Dimensional.Dimension = V2(800, 400);
+			Elem->Cache.Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, 400);
 
 			Elem->Cache.IsInitialized = 1;
 		}
@@ -1905,7 +1905,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					rect2 LaneRect = Rect2MinDim(V2(TargetX, AtY), V2(TargetWidth, CurentThreadGraphYSpacing));
 
 					v4 LaneColor = GUIGetColor(GUIState, ColorIndex);
-					LaneColor.a = 0.8f;
+					LaneColor.a = 0.3f;
 					RENDERPushRect(GUIState->RenderStack, LaneRect, LaneColor);
 					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
 

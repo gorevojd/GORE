@@ -138,7 +138,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 	glUniform1i(Shader->SurfMatHasDiffLocation, Mat->Diffuse ? 1 : 0);
 	if (Mat->Diffuse) {
-		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Diffuse);
+		bitmap_info* Info = GetBitmapFromID(State->AssetSystem, Mat->Diffuse);
 		if (!Info->TextureHandle) {
 			OpenGLAllocateTexture(Info);
 		}
@@ -150,16 +150,26 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 	glUniform1i(Shader->SurfMatHasSpecLocation, Mat->Specular ? 1 : 0);
 	if (Mat->Specular) {
-		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
+		bitmap_info* Info = GetBitmapFromID(State->AssetSystem, Mat->Specular);
+		if (!Info->TextureHandle) {
+			OpenGLAllocateTexture(Info);
+		}
+
+		_glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		glUniform1i(Shader->SurfMatSpecLocation, (GLuint)Info->TextureHandle);
+		//glUniform1i(Shader->SurfMatSpecLocation, (GLuint)Info->TextureHandle);
 	}
 
 	glUniform1i(Shader->SurfMatHasEmisLocation, Mat->Emissive ? 1 : 0);
 	if (Mat->Emissive) {
-		bitmap_info* Info = ASSET_GetBitmap(State->AssetSystem, Mat->Specular);
+		bitmap_info* Info = GetBitmapFromID(State->AssetSystem, Mat->Emissive);
+		if (!Info->TextureHandle) {
+			OpenGLAllocateTexture(Info);
+		}
+
+		_glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		glUniform1i(Shader->SurfMatEmisLocation, (GLuint)Info->TextureHandle);
+		//glUniform1i(Shader->SurfMatEmisLocation, (GLuint)Info->TextureHandle);
 	}
 }
 

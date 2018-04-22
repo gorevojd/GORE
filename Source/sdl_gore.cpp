@@ -1153,8 +1153,8 @@ int main(int ArgsCount, char** Args) {
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
 
-	font_id GUIFontID = ASSETRequestFirstFont(&GlobalAssets, GameAsset_Font);
-	font_info* GUIFont = ASSET_GetFont(&GlobalAssets, GUIFontID);
+	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
+	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
 	GUIInitState(GUIState, &GUIMemory, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	

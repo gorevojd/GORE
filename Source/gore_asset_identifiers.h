@@ -6,6 +6,8 @@ enum game_asset_tag_id {
 
 	GameAssetTag_Font_Debug,
 	GameAssetTag_Font_Golden,
+
+	GameAssetTag_LOD,
 };
 
 enum game_asset_group_id {
@@ -14,6 +16,9 @@ enum game_asset_group_id {
 	GameAsset_AlphaImage,
 
 	GameAsset_Checkerboard,
+
+	GameAsset_ContainerDiffImage,
+	GameAsset_ContainerSpecImage,
 
 	GameAsset_Cube,
 	GameAsset_Plane,

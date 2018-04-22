@@ -20,8 +20,8 @@ PLATFORM_THREADWORK_CALLBACK(ASSETLoadFontAssetWork) {
 	of the first parameter. Lol
 */
 
-void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSET_GetByID(System, Id);
+void LoadAsset(asset_system* System, u32 Id, b32 Immediate) {
+	game_asset* Asset = GetByAssetID(System, Id);
 
 	if (PlatformApi.AtomicCAS_U32(
 		(platform_atomic_type_u32*)&Asset->State, 
@@ -35,76 +35,140 @@ void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate) {
 	}
 }
 
-void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSET_GetByID(System, Id);
+inline game_asset_tag* FindTagInAsset(game_asset* Asset, u32 TagType) {
+	game_asset_tag* Result = 0;
 
-	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)&Asset->State,
-		GameAssetState_InProgress,
-		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	for (int TagIndex = 0;
+		TagIndex < Asset->TagCount;
+		TagIndex++)
 	{
-
+		game_asset_tag* Tag = Asset->Tags + TagIndex;
+		if (Tag->Type == TagType) {
+			Result = Tag;
+			break;
+		}
 	}
-	else {
 
-	}
+	return(Result);
 }
 
-void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSET_GetByID(System, Id);
+static game_asset* GetAssetByBestFloatTagInternal(asset_system* System, u32 GroupID, u32 TagType, float TagValue) {
+	FUNCTION_TIMING();
 
-	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)&Asset->State,
-		GameAssetState_InProgress,
-		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	game_asset* Result = 0;
+
+	game_asset_group* Group = &System->AssetGroups[GroupID];
+
+	//NOTE(dima): Should be added with Group first asset index
+	int BestMatchAssetIndex = 0;
+	float BestMatchDiff = 1000000000.0f;
+
+	for (int AssetIndex = 0;
+		AssetIndex < Group->GroupAssetCount;
+		AssetIndex++)
 	{
+		int ExactAssetIndex = Group->FirstAssetIndex + AssetIndex;
+		game_asset* Asset = System->Assets + ExactAssetIndex;
 
-	}
-	else {
+		game_asset_tag* Tag = FindTagInAsset(Asset, TagType);
 
+		if (Tag) {
+			float Diff = Tag->Value_Float - TagValue;
+			//NOTE(dima): Getting absolute value of the diff
+			if (Diff < 0.0f) {
+				Diff = -Diff;
+			}
+
+			if (Diff < BestMatchDiff) {
+				BestMatchAssetIndex = AssetIndex;
+				BestMatchDiff = Diff;
+			}
+		}
 	}
+
+	int ResultAssetIndex = Group->FirstAssetIndex + BestMatchAssetIndex;
+	Result = System->Assets + ResultAssetIndex;
+
+	return(Result);
 }
 
-void ASSETLoadMeshAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSET_GetByID(System, Id);
+static game_asset* GetAssetByBestIntTagInternal(asset_system* System, u32 GroupID, u32 TagType, int TagValue) {
+	FUNCTION_TIMING();
 
-	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)&Asset->State,
-		GameAssetState_InProgress,
-		GameAssetState_Unloaded) == GameAssetState_Unloaded)
+	game_asset* Result = 0;
+
+	game_asset_group* Group = &System->AssetGroups[GroupID];
+
+	//NOTE(dima): Should be added with Group first asset index
+	int BestMatchAssetIndex = 0;
+	int BestMatchDiff = 0x7FFFFFFF;
+
+	for (int AssetIndex = 0;
+		AssetIndex < Group->GroupAssetCount;
+		AssetIndex++)
 	{
+		int ExactAssetIndex = Group->FirstAssetIndex + AssetIndex;
+		game_asset* Asset = System->Assets + ExactAssetIndex;
 
-	}
-	else {
+		game_asset_tag* Tag = FindTagInAsset(Asset, TagType);
 
+		if (Tag) {
+			int Diff = Tag->Value_Float - TagValue;
+			//NOTE(dima): Getting absolute value of the diff
+			if (Diff < 0.0f) {
+				Diff = -Diff;
+			}
+
+			if (Diff < BestMatchDiff) {
+				BestMatchAssetIndex = AssetIndex;
+				BestMatchDiff = Diff;
+			}
+		}
 	}
+
+	int ResultAssetIndex = Group->FirstAssetIndex + BestMatchAssetIndex;
+	Result = System->Assets + ResultAssetIndex;
+
+	return(Result);
 }
 
-void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = ASSET_GetByID(System, Id);
+u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType) {
+	game_asset* Asset = GetAssetByBestFloatTagInternal(System, GroupID, TagType, TagValue);
 
-	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)&Asset->State,
-		GameAssetState_InProgress,
-		GameAssetState_Unloaded) == GameAssetState_Unloaded)
-	{
+	Assert(Asset->Type == AssetType);
+	u32 Result = Asset->ID;
 
-	}
-	else {
-
-	}
+	return(Result);
 }
 
+u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType) {
+	game_asset* Asset = GetAssetByBestIntTagInternal(System, GroupID, TagType, TagValue);
 
-inline game_asset* ASSETRequestFirstAsset(asset_system* System, u32 GroupID) {
+	Assert(Asset->Type == AssetType);
+	u32 Result = Asset->ID;
+
+	return(Result);
+}
+
+inline game_asset* GetFirstAssetInternal(asset_system* System, u32 GroupID) {
 	u32 TargetAssetIndex = System->AssetGroups[GroupID].FirstAssetIndex;
 	game_asset* Result = &System->Assets[TargetAssetIndex];
 
 	return(Result);
 }
 
-bitmap_id ASSETRequestFirstBitmap(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+u32 GetFirstAsset(asset_system* System, u32 GroupID, u32 AssetType) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
+
+	Assert(FirstAsset->Type == AssetType);
+
+	u32 Result = FirstAsset->ID;
+
+	return(Result);
+}
+
+bitmap_id GetFirstBitmap(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Bitmap);
 
@@ -113,8 +177,8 @@ bitmap_id ASSETRequestFirstBitmap(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-sound_id ASSETRequestFirstSound(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+sound_id GetFirstSound(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Sound);
 
@@ -123,8 +187,8 @@ sound_id ASSETRequestFirstSound(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-font_id ASSETRequestFirstFont(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+font_id GetFirstFont(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Font);
 
@@ -133,8 +197,8 @@ font_id ASSETRequestFirstFont(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-model_id ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+model_id GetFirstModel(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Model);
 
@@ -143,8 +207,8 @@ model_id ASSETRequestFirstModel(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-mesh_id ASSETRequestFirstMesh(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = ASSETRequestFirstAsset(System, GroupID);
+mesh_id GetFirstMesh(asset_system* System, u32 GroupID) {
+	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
 
 	Assert(FirstAsset->Type == AssetType_Mesh);
 
@@ -175,11 +239,52 @@ static added_asset AddAsset(asset_system* System, u32 AssetType) {
 	Result.Asset->ID = System->AssetCount;
 	++System->AssetCount;
 
+	System->PrevAssetPointer = Result.Asset;
+
 	return(Result);
+}
+
+static game_asset_tag* AddTag(asset_system* System, u32 TagType) {
+	game_asset_tag* Result = 0;
+
+	if (System->PrevAssetPointer) {
+		/*
+			NOTE(dima): First we should check if tag with 
+			the same type alredy exist.. Just for sure...
+		*/
+		Result = FindTagInAsset(System->PrevAssetPointer, TagType);
+
+		if (!Result) {
+			if (System->PrevAssetPointer->TagCount < MAX_TAGS_PER_ASSET) {
+				//NOTE(dima): Getting tag and incrementing tag count
+				Result = System->PrevAssetPointer->Tags + System->PrevAssetPointer->TagCount++;
+				Result->Type = TagType;
+			}
+		}
+	}
+
+	return(Result);
+}
+
+static void AddFloatTag(asset_system* System, u32 TagType, float TagValue) {
+	game_asset_tag* Tag = AddTag(System, TagType);
+
+	if (Tag) {
+		Tag->Value_Float = TagValue;
+	}
+}
+
+static void AddIntTag(asset_system* System, u32 TagType, int TagValue) {
+	game_asset_tag* Tag = AddTag(System, TagType);
+
+	if (Tag) {
+		Tag->Value_Int = TagValue;
+	}
 }
 
 static void BeginAssetGroup(asset_system* System, u32 AssetID) {
 	System->CurrentGroup = System->AssetGroups + AssetID;
+	System->PrevAssetPointer = 0;
 
 	game_asset_group* Group = System->CurrentGroup;
 
@@ -192,6 +297,7 @@ static void EndAssetGroup(asset_system* System) {
 	game_asset_group* Group = System->CurrentGroup;
 
 	System->CurrentGroup = 0;
+	System->PrevAssetPointer = 0;
 }
 
 static void AddBitmapAsset(asset_system* System, char* Path) {
@@ -1308,6 +1414,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	//NOTE(dima): Reserving first asset to make it NULL asset
 	System->AssetCount = 1;
+	System->PrevAssetPointer = 0;
 
 	//NOTE(dima): Clearing asset groups
 	for (int AssetGroupIndex = 0;
@@ -1345,6 +1452,14 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	BeginAssetGroup(System, GameAsset_OblivonMemeImage);
 	AddBitmapAsset(System, "../Data/Images/image.bmp");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_ContainerDiffImage);
+	AddBitmapAsset(System, "../Data/Images/container_diff.png");
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_ContainerSpecImage);
+	AddBitmapAsset(System, "../Data/Images/container_spec.png");
 	EndAssetGroup(System);
 
 	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64);
@@ -1443,16 +1558,24 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 
 	BeginAssetGroup(System, GameAsset_Sphere);
 	AddMeshAsset(System, &SphereMeshSuperLow);
+	AddFloatTag(System, GameAssetTag_LOD, 0.0f);
 	AddMeshAsset(System, &SphereMeshLow);
+	AddFloatTag(System, GameAssetTag_LOD, 0.25f);
 	AddMeshAsset(System, &SphereMeshAvg);
+	AddFloatTag(System, GameAssetTag_LOD, 0.5f);
 	AddMeshAsset(System, &SphereMeshHig);
+	AddFloatTag(System, GameAssetTag_LOD, 0.75f);
 	AddMeshAsset(System, &SphereMeshSuperHig);
+	AddFloatTag(System, GameAssetTag_LOD, 1.0f);
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_Cylynder);
 	AddMeshAsset(System, &CylMeshLow);
+	AddFloatTag(System, GameAssetTag_LOD, 0.0f);
 	AddMeshAsset(System, &CylMeshAvg);
+	AddFloatTag(System, GameAssetTag_LOD, 0.5f);
 	AddMeshAsset(System, &CylMeshHig);
+	AddFloatTag(System, GameAssetTag_LOD, 1.0f);
 	EndAssetGroup(System);
 
 #if 1

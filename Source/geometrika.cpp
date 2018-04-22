@@ -8,7 +8,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
 		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
-		State->PlaneMat.Diffuse = ASSETRequestFirstBitmap(AssetSystem, GameAsset_Checkerboard);
+		
+		State->PlaneMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_Checkerboard);
+
+		State->CubeMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_ContainerDiffImage);
+		State->CubeMat.Specular = GetFirstBitmap(AssetSystem, GameAsset_ContainerSpecImage);
+
+		//State->PlaneMat.Emissive = ASSETRequestFirstBitmap(AssetSystem, GameAsset_Checkerboard);
 
 		State->IsInitialized = 1;
 	}
@@ -61,12 +67,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->CapturingMouse = 1;
 	}
 
-	mesh_id CubeID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cube);
-	mesh_id PlaneID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Plane);
-	mesh_id SphereID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Sphere);
-	mesh_id CylID = ASSETRequestFirstMesh(AssetSystem, GameAsset_Cylynder);
+	mesh_id CubeID = GetFirstMesh(AssetSystem, GameAsset_Cube);
+	mesh_id PlaneID = GetFirstMesh(AssetSystem, GameAsset_Plane);
+	mesh_id CylID = GetFirstMesh(AssetSystem, GameAsset_Cylynder);
 
-#if 0
+	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.5f, AssetType_Mesh);
+
+#if 1
 	for (int i = -5; i < 5; i++) {
 		for (int j = -5; j < 5; j++) {
 			for (int k = -5; k < 5; k++) {
@@ -74,7 +81,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 				if (i != 0 && j != 0 && k != 0) {
 					mat4 Transform = TranslationMatrix(V3(i * 10, j * 10, k * 10));
 
-					RENDERPushMesh(RenderStack, CubeInfo, Transform, &State->CubeMat);
+					RENDERPushMesh(RenderStack, CubeID, Transform, &State->CubeMat);
 				}
 			}
 		}
@@ -87,14 +94,18 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	v3 SpherePos2 = V3(5.0f * Sin(Input->Time * 0.5f), 3.0f, 5.0f * Cos(Input->Time * 0.5f));
 	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
 
-	v3 CylPos1 = V3(1.0f, 6.0f, 7.0f);
+	v3 CylPos1 = V3(1.0f, 6.0f, 20.0f);
 	mat4 CylMat1 = 
 		TranslationMatrix(CylPos1) * 
 		RotationX(Input->Time) *
 		ScalingMatrix(V3(2.0f, 10.0f, 2.0f));
 
+	v3 CubePos = V3(-5.0f, 2.0f, 3.0f);
+	mat4 CubeMat = TranslationMatrix(CubePos) * RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
+
 	RENDERPushMesh(RenderStack, SphereID, SphereMat1, &State->CubeMat);
-	RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
+	//RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
+	RENDERPushMesh(RenderStack, CubeID, CubeMat, &State->CubeMat);
 
 	RENDERPushMesh(RenderStack, CylID, CylMat1, &State->CubeMat);
 

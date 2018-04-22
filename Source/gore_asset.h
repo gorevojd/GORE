@@ -66,12 +66,23 @@ struct game_asset_source {
 	};
 };
 
+#define MAX_TAGS_PER_ASSET 4
+struct game_asset_tag {
+	u32 Type;
+
+	float Value_Float;
+	int Value_Int;
+};
+
 struct game_asset {
 	platform_atomic_type_u32 State;
 
 	u32 ID;
 
 	u32 Type;
+
+	game_asset_tag Tags[MAX_TAGS_PER_ASSET];
+	int TagCount;
 
 	union {
 		bitmap_info* Bitmap;
@@ -112,32 +123,38 @@ struct asset_system {
 	u32 AssetCount;
 	game_asset_source AssetSources[TEMP_STORED_ASSET_COUNT];
 	game_asset_group* CurrentGroup;
+	game_asset* PrevAssetPointer;
 #endif
 };
 
-void ASSETLoadBitmapAsset(asset_system* System, u32 Id, b32 Immediate);
-void ASSETLoadFontAsset(asset_system* System, u32 Id, b32 Immediate);
-void ASSETLoadModelAsset(asset_system* System, u32 Id, b32 Immediate);
-void ASSETLoadSoundAsset(asset_system* System, u32 Id, b32 Immediate);
+void LoadAsset(asset_system* System, u32 Id, b32 Immediate);
 
-bitmap_id ASSETRequestFirstBitmap(asset_system* System, u32 GroupID);
-sound_id ASSETRequestFirstSound(asset_system* System, u32 GroupID);
-font_id ASSETRequestFirstFont(asset_system* System, u32 GroupID);
-model_id ASSETRequestFirstModel(asset_system* System, u32 GroupID);
-mesh_id ASSETRequestFirstMesh(asset_system* System, u32 GroupID);
+bitmap_id GetFirstBitmap(asset_system* System, u32 GroupID);
+sound_id GetFirstSound(asset_system* System, u32 GroupID);
+font_id GetFirstFont(asset_system* System, u32 GroupID);
+model_id GetFirstModel(asset_system* System, u32 GroupID);
+mesh_id GetFirstMesh(asset_system* System, u32 GroupID);
+
+u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType);
+u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType);
 
 void ASSETSInit(asset_system* System, u32 MemorySizeForAssets);
 
-inline game_asset* ASSET_GetByID(asset_system* System, u32 ID) {
+inline game_asset* GetByAssetID(asset_system* System, u32 ID) {
 	game_asset* Result = System->Assets + ID;
 
 	return(Result);
 }
 
-inline game_asset* ASSET_GetByIDWithStateAndTypeCheck(asset_system* System, u32 ID, u32 AssetType) {
+/*
+	NOTE(dima): Get asset from global asset structure
+	with check if it has been loaded and with the check
+	of the type of the asset
+*/
+inline game_asset* GetByAssetIDCheck(asset_system* System, u32 ID, u32 AssetType) {
 	game_asset* Result = 0;
 
-	game_asset* Asset = ASSET_GetByID(System, ID);
+	game_asset* Asset = GetByAssetID(System, ID);
 	if ((Asset->State == GameAssetState_Loaded) && 
 		(Asset->Type == AssetType)) 
 	{
@@ -147,8 +164,8 @@ inline game_asset* ASSET_GetByIDWithStateAndTypeCheck(asset_system* System, u32 
 	return(Result);
 }
 
-inline bitmap_info* ASSET_GetBitmap(asset_system* System, bitmap_id ID) {
-	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Bitmap);
+inline bitmap_info* GetBitmapFromID(asset_system* System, bitmap_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_Bitmap);
 
 	bitmap_info* Result = 0;
 	if (Asset){
@@ -158,8 +175,8 @@ inline bitmap_info* ASSET_GetBitmap(asset_system* System, bitmap_id ID) {
 	return(Result);
 }
 
-inline sound_info* ASSET_GetSound(asset_system* System, sound_id ID) {
-	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Sound);
+inline sound_info* GetSoundFromID(asset_system* System, sound_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_Sound);
 
 	sound_info* Result = 0;
 	if (Asset) {
@@ -169,8 +186,8 @@ inline sound_info* ASSET_GetSound(asset_system* System, sound_id ID) {
 	return(Result);
 }
 
-inline font_info* ASSET_GetFont(asset_system* System, font_id ID) {
-	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Font);
+inline font_info* GetFontFromID(asset_system* System, font_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_Font);
 
 	font_info* Result = 0;
 	if (Asset) {
@@ -180,8 +197,8 @@ inline font_info* ASSET_GetFont(asset_system* System, font_id ID) {
 	return(Result);
 }
 
-inline mesh_info* ASSET_GetMesh(asset_system* System, mesh_id ID) {
-	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Mesh);
+inline mesh_info* GetMeshFromID(asset_system* System, mesh_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_Mesh);
 
 	mesh_info* Result = 0;
 	if (Asset) {
@@ -191,8 +208,8 @@ inline mesh_info* ASSET_GetMesh(asset_system* System, mesh_id ID) {
 	return(Result);
 }
 
-inline model_info* ASSET_GetModel(asset_system* System, model_id ID) {
-	game_asset* Asset = ASSET_GetByIDWithStateAndTypeCheck(System, ID, AssetType_Model);
+inline model_info* GetModelFromID(asset_system* System, model_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_Model);
 
 	model_info* Result = 0;
 	if (Asset) {

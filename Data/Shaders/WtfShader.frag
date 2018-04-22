@@ -64,11 +64,9 @@ vec3 CalculatePointLight(
 	Result += Attenuation * CosLightNorm * FragDiffC * Lit.Color;
 
 	//NOTE(dima): Specular lighting
-	//vec4 ReflectPower = texture(Material.Specular, FragmentUV);
-	vec4 ReflectPower = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	float CosViewRefl = dot(ToCamera, reflect(-ToLight, FragmentWorldN));
 	CosViewRefl = clamp(CosViewRefl, 0.0f, 1.0f);
-	Result += Attenuation * pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC * ReflectPower.xyz;
+	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
 
 	return(Result);
 }
@@ -92,11 +90,9 @@ vec3 CalculateDirLight(
 	Result += CosLightNorm * Lit.Color * FragDiffC;
 
 	//NOTE(dima): specular
-	//vec4 ReflectPower = texture(Material.Specular, FragmentUV);
-	vec4 ReflectPower = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 	float CosViewRefl = dot(ToCamera, reflect(-ToLight, FragmentWorldN));
 	CosViewRefl = clamp(CosViewRefl, 0.0f, 1.0f);
-	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC * ReflectPower.xyz;
+	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
 
 	return(Result);
 }
@@ -105,7 +101,7 @@ void main(){
 
 	float GlobalAmbientCoef = 0.05f;
 
-	Light1.P = vec3(0.0f, 4.0f, 0.0f);
+	Light1.P = vec3(0.0f, 5.0f, 0.0f);
 	Light1.Color = vec3(1.0f, 1.0f, 1.0f);
 	Light1.Radius = 50.0f;
 	Light1.AmbientPercentage = 0.05f;
@@ -139,6 +135,7 @@ void main(){
 
 	//TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);
 	TotalColor += CalculatePointLight(Light1, FragDiffColor, FragSpecColor, ToCamera);
+	TotalColor += FragEmisColor;
 
 	OutFragmentColor = vec4(TotalColor, 1.0f);
 }

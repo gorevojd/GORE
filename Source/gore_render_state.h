@@ -183,7 +183,7 @@ inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformM
 }
 
 inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMatrix, surface_material* Material) {
-	mesh_info* MeshInfo = ASSET_GetMesh(State->AssetSystem, MeshID);
+	mesh_info* MeshInfo = GetMeshFromID(State->AssetSystem, MeshID);
 
 	if (MeshInfo) {
 		RENDERPushMesh(State, MeshInfo, TransformMatrix, Material);
