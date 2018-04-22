@@ -66,7 +66,7 @@ vec3 CalculatePointLight(
 	//NOTE(dima): Specular lighting
 	float CosViewRefl = dot(ToCamera, reflect(-ToLight, FragmentWorldN));
 	CosViewRefl = clamp(CosViewRefl, 0.0f, 1.0f);
-	Result += pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
+	Result += Attenuation * pow(CosViewRefl, Material.Shine) *  Lit.Color * FragSpecC;
 
 	return(Result);
 }

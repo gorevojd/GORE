@@ -145,7 +145,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		_glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		//glUniform1i(Shader->SurfMatDiffLocation, (GLint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatDiffLocation, 0);
 	}
 
 	glUniform1i(Shader->SurfMatHasSpecLocation, Mat->Specular ? 1 : 0);
@@ -157,7 +157,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		_glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		//glUniform1i(Shader->SurfMatSpecLocation, (GLuint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatSpecLocation, 1);
 	}
 
 	glUniform1i(Shader->SurfMatHasEmisLocation, Mat->Emissive ? 1 : 0);
@@ -169,7 +169,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		_glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, (GLuint)Info->TextureHandle);
-		//glUniform1i(Shader->SurfMatEmisLocation, (GLuint)Info->TextureHandle);
+		glUniform1i(Shader->SurfMatEmisLocation, 2);
 	}
 }
 
