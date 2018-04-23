@@ -1376,6 +1376,7 @@ extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
 extern b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect = 0, v4* TextColor = 0);
 extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
 extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
+extern void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value);
 extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
 extern void GUITooltip(gui_state* GUIState, char* TooltipText);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);

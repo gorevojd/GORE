@@ -2142,9 +2142,14 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
-#if 0
+#if 1
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
+
+	static b32 Test = 0;
+	GUIBoolChecker(GUIState, "Hello", &Test);
+	GUIBoolChecker(GUIState, "Hello2", &Test);
+	GUIBoolChecker(GUIState, "Hello3", &Test);
 
 	GUIBeginRow(GUIState);
 	//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);

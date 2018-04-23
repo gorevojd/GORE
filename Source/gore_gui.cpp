@@ -1734,9 +1734,11 @@ void GUIPerformInteraction(
 		} break;
 
 		case GUIInteraction_Bool: {
-			b32* WorkValue = Interaction->BoolInteraction.InteractBool;
-			if (WorkValue) {
-				*WorkValue = !(*WorkValue);
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				b32* WorkValue = Interaction->BoolInteraction.InteractBool;
+				if (WorkValue) {
+					*WorkValue = !(*WorkValue);
+				}
 			}
 		}break;
 
@@ -1745,33 +1747,40 @@ void GUIPerformInteraction(
 		}break;
 
 		case GUIInteraction_RadioButton: {
-			gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
 
-			Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
+				Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
+			}
 		}break;
 
 		case GUIInteraction_StateChangerGroup: {
 			gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
 
-			gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
-		
-			while (1) {
-				gui_element* Next = 0;
+			if(MouseButtonWentDown(GUIState->Input, MouseButton_Left) ||
+				MouseButtonWentDown(GUIState->Input, MouseButton_Right))
+			{
+				gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
 
-				if (Context->IncrementDirection) {
-					Next = CurrentElement->NextBro;
-				}
-				else {
-					Next = CurrentElement->PrevBro;
-				}
+				while (1) {
+					gui_element* Next = 0;
 
-				if (Next != CurrentElement->Parent->ChildrenSentinel) {
-					Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Next;
-					break;
-				}
+					if (Context->IncrementDirection) {
+						Next = CurrentElement->NextBro;
+					}
+					else {
+						Next = CurrentElement->PrevBro;
+					}
 
-				CurrentElement = Next;
+					if (Next != CurrentElement->Parent->ChildrenSentinel) {
+						Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Next;
+						break;
+					}
+
+					CurrentElement = Next;
+				}
 			}
+
 		}break;
 
 		case GUIInteraction_ReturnMouseAction: {
@@ -1818,9 +1827,9 @@ rect2 GUITextBase(
 	if (MouseInRect(GUIState->Input, TextRc)) {
 		CurTextColor = TextHighlightColor;
 
-		if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+		//if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
 			GUIPerformInteraction(GUIState, Interaction);
-		}
+		//}
 	}
 
 	RENDERPushRect(GUIState->RenderStack, TextRc, BackgroundColor);
@@ -2556,6 +2565,51 @@ void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value) {
 			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
 
 		GUIDescribeElement(GUIState, GetRectDim(ButRc), ButRc.Min);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_InteractibleItem);
+}
+
+void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
+	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, 0, 1);
+
+	if (GUIElementShouldBeUpdated(Element)) {
+		GUIPreAdvanceCursor(GUIState);
+
+		gui_interaction BoolInteraction = GUIBoolInteraction(Value);
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+
+		float AscByScale = GUIState->FontScale * GUIState->FontInfo->AscenderHeight;
+		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
+		rect2 CheckerRc = Rect2MinDim(V2(Layout->CurrentX, Layout->CurrentY - AscByScale), V2(RowAdvance, RowAdvance));
+		v2 CheckerDim = GetRectDim(CheckerRc);
+		v2 Delta = CheckerDim * 0.2f;
+
+		rect2 InnerRc = Rect2MinMax(CheckerRc.Min + Delta, CheckerRc.Max - Delta);
+
+		RENDERPushRect(GUIState->RenderStack, CheckerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
+		RENDERPushRectOutline(GUIState->RenderStack, CheckerRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		if (MouseInRect(GUIState->Input, CheckerRc)) {
+			GUIPerformInteraction(GUIState, &BoolInteraction);
+		}
+
+		if (*Value) {
+			RENDERPushRect(GUIState->RenderStack, InnerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
+		}
+
+		rect2 TextRc = GUIPrintText(
+			GUIState, Name, 
+			V2(CheckerRc.Max.x + AscByScale, Layout->CurrentY), 
+			GUIState->FontScale, 
+			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
+
+		rect2 RowRc = Rect2MinMax(CheckerRc.Min, TextRc.Max);
+		
+		GUIDescribeElement(GUIState, GetRectDim(RowRc), RowRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
 
