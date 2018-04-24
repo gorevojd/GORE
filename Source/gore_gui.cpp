@@ -2586,11 +2586,11 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
 		rect2 CheckerRc = Rect2MinDim(V2(Layout->CurrentX, Layout->CurrentY - AscByScale), V2(RowAdvance, RowAdvance));
 		v2 CheckerDim = GetRectDim(CheckerRc);
-		v2 Delta = CheckerDim * 0.2f;
+		v2 Delta = V2(1.0f, 1.0f);
 
 		rect2 InnerRc = Rect2MinMax(CheckerRc.Min + Delta, CheckerRc.Max - Delta);
 
-		RENDERPushRect(GUIState->RenderStack, CheckerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
+		RENDERPushRect(GUIState->RenderStack, CheckerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
 		RENDERPushRectOutline(GUIState->RenderStack, CheckerRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		if (MouseInRect(GUIState->Input, CheckerRc)) {
@@ -2598,7 +2598,7 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 		}
 
 		if (*Value) {
-			RENDERPushRect(GUIState->RenderStack, InnerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1));
+			RENDERPushRect(GUIState->RenderStack, InnerRc, GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor));
 		}
 
 		rect2 TextRc = GUIPrintText(

@@ -2146,10 +2146,13 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
 
-	static b32 Test = 0;
-	GUIBoolChecker(GUIState, "Hello", &Test);
-	GUIBoolChecker(GUIState, "Hello2", &Test);
-	GUIBoolChecker(GUIState, "Hello3", &Test);
+	static b32 Test1 = 0;
+	static b32 Test2 = 0;
+	static b32 Test3 = 0;
+
+	GUIBoolChecker(GUIState, "Hello", &Test1);
+	GUIBoolChecker(GUIState, "Hello2", &Test2);
+	GUIBoolChecker(GUIState, "Hello3", &Test3);
 
 	GUIBeginRow(GUIState);
 	//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);
