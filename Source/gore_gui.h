@@ -1106,6 +1106,7 @@ struct gui_color_theme {
 
 	u32 AnchorColor;
 
+	u32 WalkaroundColor;
 	u32 WalkaroundHotColor;
 };
 
@@ -1119,7 +1120,8 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 	Result.OutlineColor = GUIColor_Black;
 
-	Result.WalkaroundHotColor = GUIColor_PrettyGreen;
+	Result.WalkaroundColor = GUIColor_Yellow;
+	Result.WalkaroundHotColor = GUIColor_Red;
 
 	Result.GraphAlpha = 0.75f;
 	Result.GraphColor1 = GUIColorExt_green3;
@@ -1370,6 +1372,7 @@ extern rect2 GUIPrintTextMultiline(gui_state* GUIState, char* Text, v2 P, float 
 extern v2 GUIGetTextSize(gui_state* GUIState, char* Text, float Scale);
 extern v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale);
 
+extern void GUIPerformInteraction(gui_state* GUIState, gui_interaction* Interaction);
 
 extern void GUIText(gui_state* GUIState, char* Text);
 extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
@@ -1381,7 +1384,7 @@ extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Inte
 extern void GUITooltip(gui_state* GUIState, char* TooltipText);
 extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
 extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue);
-extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction);
+extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float* InteractValue);
 extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
 extern void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer);
 extern void GUIColorView(gui_state* GUIState, v4 Color, char* Name);
@@ -1437,7 +1440,6 @@ extern rect2 GUITextBase(
 	v2 Pos,
 	v4 TextColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
 	float FontScale = 1.0f,
-	gui_interaction* Interaction = 0,
 	v4 TextHighlightColor = V4(1.0f, 1.0f, 1.0f, 1.0f),
 	v4 BackgroundColor = V4(0.0f, 0.5f, 1.0f, 1.0f),
 	u32 OutlineWidth = 0,

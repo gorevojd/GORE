@@ -168,4 +168,28 @@ inline b32 MouseButtonIsDown(input_system* Input, u32 MouseBut) {
 	return(Result);
 }
 
+inline b32 MouseLeftWentDownInRect(input_system* Input, rect2 Rect) {
+	b32 Result = 0;
+
+	if (MouseInRect(Input, Rect)) {
+		if (MouseButtonWentDown(Input, MouseButton_Left)) {
+			Result = 1;
+		}
+	}
+
+	return(Result);
+}
+
+inline b32 MouseRightWentDownInRect(input_system* Input, rect2 Rect) {
+	b32 Result = 0;
+
+	if (MouseInRect(Input, Rect)) {
+		if (MouseButtonWentDown(Input, MouseButton_Right)) {
+			Result = 1;
+		}
+	}
+
+	return(Result);
+}
+
 #endif

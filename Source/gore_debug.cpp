@@ -1388,7 +1388,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 				gui_interaction NullInteraction = GUINullInteraction();
 
 				GUITextBase(GUIState, TextBuf, V2(Layout->CurrentX, AtY), TextColor, 
-					GUIState->FontScale, &NullInteraction, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
+					GUIState->FontScale, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
 		
 				AtY += RowAdvance;
 			}
@@ -1651,10 +1651,15 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 		rect2 StopButRc = GUITextBase(GUIState, "Rec", V2(ClearButRc.Max.x + AscByScale, ActualAt.y),
 			LogIsPlaying ? GUIGetColor(GUIState, GUIState->ColorTheme.PlayColor) : GUIGetColor(GUIState, GUIState->ColorTheme.PauseColor),
 			GUIState->FontScale,
-			&StopBoolInteraction,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		if (MouseInRect(GUIState->Input, StopButRc)) {
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				GUIPerformInteraction(GUIState, &StopBoolInteraction);
+			}
+		}
 
 		PlatformApi.AtomicSet_I32(&GlobalRecordTable->LogIncrement, LogIsPlaying);
 
@@ -2150,9 +2155,15 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 	static b32 Test2 = 0;
 	static b32 Test3 = 0;
 
+	static float Float1 = 0.0f;
+	static float Float2 = 1.0f;
+
 	GUIBoolChecker(GUIState, "Hello", &Test1);
 	GUIBoolChecker(GUIState, "Hello2", &Test2);
 	GUIBoolChecker(GUIState, "Hello3", &Test3);
+
+	GUISlider(GUIState, "Float1", -5.0f, 5.0f, &Float1);
+	GUIVerticalSlider(GUIState, "Float2", 0.0f, 1.0f, &Float2);
 
 	GUIBeginRow(GUIState);
 	//GUISlider(GUIState, "Slider2", -1000.0f, 10.0f, &SliderInteract);

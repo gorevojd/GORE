@@ -1734,11 +1734,9 @@ void GUIPerformInteraction(
 		} break;
 
 		case GUIInteraction_Bool: {
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				b32* WorkValue = Interaction->BoolInteraction.InteractBool;
-				if (WorkValue) {
-					*WorkValue = !(*WorkValue);
-				}
+			b32* WorkValue = Interaction->BoolInteraction.InteractBool;
+			if (WorkValue) {
+				*WorkValue = !(*WorkValue);
 			}
 		}break;
 
@@ -1747,38 +1745,32 @@ void GUIPerformInteraction(
 		}break;
 
 		case GUIInteraction_RadioButton: {
-			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-				gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
+			gui_radio_button_interaction_context* Context = &Interaction->RadioButtonInteraction;
 
-				Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
-			}
+			Context->RadioGroup->Cache.RadioCache.ActiveIndex = Context->PressedIndex;
 		}break;
 
 		case GUIInteraction_StateChangerGroup: {
 			gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
 
-			if(MouseButtonWentDown(GUIState->Input, MouseButton_Left) ||
-				MouseButtonWentDown(GUIState->Input, MouseButton_Right))
-			{
-				gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
+			gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
 
-				while (1) {
-					gui_element* Next = 0;
+			while (1) {
+				gui_element* Next = 0;
 
-					if (Context->IncrementDirection) {
-						Next = CurrentElement->NextBro;
-					}
-					else {
-						Next = CurrentElement->PrevBro;
-					}
-
-					if (Next != CurrentElement->Parent->ChildrenSentinel) {
-						Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Next;
-						break;
-					}
-
-					CurrentElement = Next;
+				if (Context->IncrementDirection) {
+					Next = CurrentElement->NextBro;
 				}
+				else {
+					Next = CurrentElement->PrevBro;
+				}
+
+				if (Next != CurrentElement->Parent->ChildrenSentinel) {
+					Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement = Next;
+					break;
+				}
+
+				CurrentElement = Next;
 			}
 
 		}break;
@@ -1815,7 +1807,6 @@ rect2 GUITextBase(
 	v2 Pos,
 	v4 TextColor,
 	float FontScale,
-	gui_interaction* Interaction,
 	v4 TextHighlightColor,
 	v4 BackgroundColor,
 	u32 OutlineWidth,
@@ -1826,10 +1817,6 @@ rect2 GUITextBase(
 	v4 CurTextColor = TextColor;
 	if (MouseInRect(GUIState->Input, TextRc)) {
 		CurTextColor = TextHighlightColor;
-
-		//if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
-			GUIPerformInteraction(GUIState, Interaction);
-		//}
 	}
 
 	RENDERPushRect(GUIState->RenderStack, TextRc, BackgroundColor);
@@ -2044,7 +2031,6 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 			GUITextBase(GUIState, Name, V2(View->CurrentX, View->CurrentY),
 				TextHighlighColor,
 				GUIState->FontScale,
-				&NullInteraction,
 				TextHighlighColor,
 				GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 				2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
@@ -2355,7 +2341,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 		}
 
 		if (GUIWalkaroundIsHere(GUIState)) {
-			RENDERPushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+			RENDERPushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
 				GUIPerformInteraction(GUIState, Interaction);
@@ -2383,19 +2369,27 @@ b32 GUIButton(gui_state* GUIState, char* ButtonName) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		gui_interaction MouseInteraction = GUIReturnMouseActionInteraction(
-			GUIState->Input, 
-			&Result, 
-			GUIReturnMouseAction_IsDown, 
-			MouseButton_Left);
-
 		rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(Layout->CurrentX, Layout->CurrentY),
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
 			GUIState->FontScale,
-			&MouseInteraction,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+
+		if (MouseInRect(GUIState->Input, ButRc)) {
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				Result = 1;
+			}
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			RENDERPushRectOutline(GUIState->RenderStack, ButRc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				Result = 1;
+			}
+		}
 
 		GUIDescribeElement(GUIState, GetRectDim(ButRc), ButRc.Min);
 		GUIAdvanceCursor(GUIState);
@@ -2425,10 +2419,15 @@ b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect,
 	rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(At.x, At.y),
 		ButtonTextColor,
 		GUIState->FontScale,
-		&Interaction,
 		GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
 		GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 		2, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+	if (MouseInRect(GUIState->Input, ButRc)) {
+		if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+			Result = 1;
+		}
+	}
 
 	if (ButtonRect) {
 		*ButtonRect = ButRc;
@@ -2445,7 +2444,6 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
-
 
 		if (!Element->Cache.IsInitialized ||
 			GUIState->TextElemsCacheShouldBeReinitialized)
@@ -2522,7 +2520,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 					GUIState->RenderStack,
 					NameRc,
 					2,
-					GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+					GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
 
 				if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
 					*Value = !(*Value);
@@ -2559,11 +2557,21 @@ void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value) {
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor);
 
 		rect2 ButRc = GUITextBase(GUIState, ButtonName, V2(Layout->CurrentX, Layout->CurrentY),
-			TextColor, GUIState->FontScale, &BoolInteraction,
+			TextColor, GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor2), 
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
 
+		if (MouseInRect(GUIState->Input, ButRc)) {
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				GUIPerformInteraction(GUIState, &BoolInteraction);
+			}
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			RENDERPushRectOutline(GUIState->RenderStack, ButRc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
+		}
+		
 		GUIDescribeElement(GUIState, GetRectDim(ButRc), ButRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2594,7 +2602,9 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 		RENDERPushRectOutline(GUIState->RenderStack, CheckerRc, 1, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		if (MouseInRect(GUIState->Input, CheckerRc)) {
-			GUIPerformInteraction(GUIState, &BoolInteraction);
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				GUIPerformInteraction(GUIState, &BoolInteraction);
+			}
 		}
 
 		if (*Value) {
@@ -2607,8 +2617,18 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 			GUIState->FontScale, 
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
+		if (GUIWalkaroundIsHere(GUIState)) {
+			v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor);
+			RENDERPushRectOutline(GUIState->RenderStack, CheckerRc, 2, OutlineColor);
+			RENDERPushRectOutline(GUIState->RenderStack, TextRc, 2, OutlineColor);
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIPerformInteraction(GUIState, &BoolInteraction);
+			}
+		}
+
 		rect2 RowRc = Rect2MinMax(CheckerRc.Min, TextRc.Max);
-		
+
 		GUIDescribeElement(GUIState, GetRectDim(RowRc), RowRc.Min);
 		GUIAdvanceCursor(GUIState);
 	}
@@ -2616,7 +2636,10 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_interaction* Interaction) {
+void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float* InteractValue) {
+	gui_interaction Interaction_ = GUIVariableInteraction(InteractValue, GUIVarType_F32);
+	gui_interaction* Interaction = &Interaction_;
+
 	gui_element* Element = GUIBeginElement(State, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2742,7 +2765,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 
 
 		//NOTE(DIMA): Processing interactions
-		v4 CursorColor = GUIGetColor(State, State->ColorTheme.GraphColor1);
+		v4 CursorColor = GUIGetColor(State, State->ColorTheme.GraphColor2);
 		b32 IsHot = GUIInteractionIsHot(State, Interaction);
 		b32 MouseInWorkRect = MouseInRect(State->Input, WorkRect);
 		b32 MouseInCursRect = MouseInRect(State->Input, CursorRect);
@@ -2774,8 +2797,6 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			if (GUIWalkaroundIsHot(State)) {
 				RENDERPushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.WalkaroundHotColor));
 
-				CursorColor = GUIGetColor(State, State->ColorTheme.TextHighlightColor);
-
 				float ChangeStep = 0.02f * Range;
 				if (ButtonIsDown(State->Input, KeyType_Down)) {
 					float NewValue = *Value - ChangeStep;
@@ -2795,13 +2816,13 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, gui_i
 			}
 			else {
 				//RENDERPushRectOutline(State->RenderStack, Rect2MinDim(MaxValueRcMin, V2(MaxWidth, SmallTextRc.Max.y - MaxValueRc.Min.y)));
-				RENDERPushRectOutline(State->RenderStack, SmallTextRc, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
-				RENDERPushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.TextHighlightColor));
+				RENDERPushRectOutline(State->RenderStack, SmallTextRc, 2, GUIGetColor(State, State->ColorTheme.WalkaroundColor));
+				RENDERPushRectOutline(State->RenderStack, WorkRect, 2, GUIGetColor(State, State->ColorTheme.WalkaroundColor));
 			}
 		}
 
 		if (IsHot) {
-			CursorColor = GUIGetColor(State, State->ColorTheme.TextHighlightColor);
+			CursorColor = GUIGetColor(State, State->ColorTheme.WalkaroundHotColor);
 
 			v2 InteractMouseP = State->Input->MouseP;
 			if (InteractMouseP.y > (WorkRect.Min.y - 0.5f * CursorHeight)) {
@@ -2847,7 +2868,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
-		gui_layout* View = GUIGetCurrentLayout(GUIState);
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -2857,23 +2878,14 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 
 		Assert(Max > Min);
 
-		rect2 NameTextSize = PrintTextInternal(
-			GUIState,
-			GUIPrintText_Print,
-			Name,
-			V2(View->CurrentX, View->CurrentY),
-			GUIState->FontScale,
-			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
-		v2 NameTextDim = GetRectDim(NameTextSize);
-
 		char ValueBuf[32];
 		stbsp_sprintf(ValueBuf, "%.3f", *Value);
 		rect2 ValueTextSize = PrintTextInternal(GUIState, GUIPrintText_GetSize, ValueBuf, {}, GUIState->FontScale);
 
 		//NOTE(Dima): Next element to the text is advanced by AscenderHeight
 		v2 WorkRectMin = V2(
-			View->CurrentX + NameTextDim.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale,
-			View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+			Layout->CurrentX,
+			Layout->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
 
 		v2 WorkRectDim = V2(NextRowAdvanceFull * 10, NextRowAdvanceFull);
 
@@ -2884,6 +2896,14 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 
 		RENDERPushRect(GUIState->RenderStack, WorkRect, WorkRectColor);
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		v2 NameTextDim = GUIGetTextSize(GUIState, Name, GUIState->FontScale);
+		rect2 NameTextSize = GUIPrintText(
+			GUIState, 
+			Name, 
+			V2(WorkRect.Max.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale, Layout->CurrentY), 
+			GUIState->FontScale, 
+			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 
 		float Range = Max - Min;
 		if (*Value > Max) {
@@ -2903,11 +2923,12 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 
 		v2 CursorDim = V2(CursorWidth, CursorHeight);
 		rect2 CursorRect = Rect2MinDim(V2(CursorX, CursorY), CursorDim);
-		v4 CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor);
+		v4 CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor2);
 
 		b32 IsHot = GUIInteractionIsHot(GUIState, Interaction);
 
 		if (MouseInRect(GUIState->Input, CursorRect) || MouseInRect(GUIState->Input, WorkRect)) {
+
 
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left) && !IsHot) {
 				GUISetInteractionHot(GUIState, Interaction, true);
@@ -2921,7 +2942,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 		}
 
 		if (IsHot) {
-			CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+			CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundHotColor);
 
 			v2 InteractMouseP = GUIState->Input->MouseP;
 #if 0
@@ -2951,7 +2972,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 			if (GUIState->WalkaroundIsHot) {
 				RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundHotColor));
 
-				CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
+				CursorColor = GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundHotColor);
 
 				float ChangeStep = Range * 0.02f;
 				if (ButtonIsDown(GUIState->Input, KeyType_Right)) {
@@ -2967,7 +2988,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 				}
 			}
 			else {
-				RENDERPushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+				RENDERPushRectOutline(GUIState->RenderStack, NameTextSize, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
 			}
 		}
 
@@ -2988,9 +3009,9 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 
 		GUIDescribeElement(
 			GUIState,
-			V2(WorkRect.Max.x - View->CurrentX,
+			V2(NameTextSize.Max.x - Layout->CurrentX,
 				WorkRect.Max.y - WorkRect.Min.y + (2.0f * RectOutlineWidth)),
-			V2(View->CurrentX, WorkRect.Min.y));
+			V2(Layout->CurrentX, WorkRect.Min.y));
 
 		GUIAdvanceCursor(GUIState);
 	}
@@ -3043,7 +3064,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 			RENDERPushRectOutline(
 				GUIState->RenderStack,
 				Rc, 2,
-				GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor));
+				GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
 
 			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
 				GUIPerformInteraction(GUIState, &TreeInteraction);
@@ -3156,11 +3177,24 @@ void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex) {
 			GUIState, Name, V2(Layout->CurrentX, Layout->CurrentY),
 			*IsActive ? TextHighColor : TextColor,
 			GUIState->FontScale,
-			&RadioButtonInteraction,
 			TextHighColor,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		if (MouseInRect(GUIState->Input, Rc)) {
+			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				GUIPerformInteraction(GUIState, &RadioButtonInteraction);
+			}
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			RENDERPushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIPerformInteraction(GUIState, &RadioButtonInteraction);
+			}
+		}
 
 		GUIDescribeElement(GUIState, GetRectDim(Rc), Rc.Min);
 		GUIAdvanceCursor(GUIState);
@@ -3243,10 +3277,28 @@ void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement) 
 
 		rect2 Rc = GUITextBase(GUIState, Text, Pos,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextColor),
-			GUIState->FontScale, &Interaction,
+			GUIState->FontScale,
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonTextHighColor),
 			GUIGetColor(GUIState, GUIState->ColorTheme.ButtonBackColor),
 			1, GUIGetColor(GUIState, GUIState->ColorTheme.ButtonOutlineColor));
+
+		if (MouseLeftWentDownInRect(GUIState->Input, Rc)) {
+			GUIPerformInteraction(GUIState, &Interaction);
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIPerformInteraction(GUIState, &Interaction);
+			}
+		}
+
+		if (GUIWalkaroundIsHere(GUIState)) {
+			RENDERPushRectOutline(GUIState->RenderStack, Rc, 2, GUIGetColor(GUIState, GUIState->ColorTheme.WalkaroundColor));
+
+			if (ButtonWentDown(GUIState->Input, KeyType_Return)) {
+				GUIPerformInteraction(GUIState, &Interaction);
+			}
+		}
 
 		/*
 		rect2 Rc = GUITextBase(GUIState, Text, V2(Layout->CurrentX, Layout->CurrentY),
