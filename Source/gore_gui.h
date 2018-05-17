@@ -396,50 +396,23 @@ enum gui_tree_node_exit_state {
 	GUITreeNodeExit_Finished,
 };
 
+enum gui_tree_node_out_flags {
+	GUITreeOutFlag_MouseOverRect = 1,
+	GUITreeOutFlag_MouseLeftClickedInRect = 2,
+};
+
 struct gui_tree_node_cache {
 	u32 ExitState;
+
+	u32 OutFlags;
 
 	float StackBeginY;
 	float StackY;
 	float ExitY;
 };
 
-struct gui_vertical_slider_cache {
-};
-
-struct gui_slider_cache {
-
-};
-
-struct gui_button_cache {
-	v2 ButtonRectDim;
-};
-
-struct gui_bool_button_cache {
-	v2 ButtonRectDim;
-	v2 ButtonTrueDim;
-};
-
-struct gui_image_view_cache {
-	v2 Dimension;
-};
-
-struct gui_stackedmem_cache {
-	v2 Dimension;
-};
-
 struct gui_anchor_cache {
 	v2 OffsetInAnchor;
-};
-
-struct gui_layout_cache {
-	v2 Position;
-	v2 Dimension;
-};
-
-struct gui_dimensional_cache {
-	v2 Position;
-	v2 Dimension;
 };
 
 struct gui_menu_node_cache{
@@ -469,23 +442,21 @@ struct gui_state_changer_cache {
 	u32 StateID;
 };
 
+struct gui_dimensional_cache {
+	v2 Pos;
+	v2 Dim;
+};
+
 struct gui_element_cache {
 	union {
 		gui_tree_node_cache TreeNode;
-		gui_vertical_slider_cache VerticalSlider;
-		gui_slider_cache Slider;
-		gui_button_cache Button;
-		gui_bool_button_cache BoolButton;
-		gui_image_view_cache ImageView;
-		gui_stackedmem_cache StackedMem;
 		gui_anchor_cache Anchor;
-		gui_layout_cache Layout;
 		gui_menu_node_cache MenuNode;
-		gui_dimensional_cache Dimensional;
 		gui_radio_group_cache RadioCache;
 		gui_radio_button_cache RadioButton;
 		gui_state_changer_group_cache StateChangerGroupCache;
 		gui_state_changer_cache StateChangerCache;
+		gui_dimensional_cache Dimensional;
 	};
 
 	b32 IsInitialized;
@@ -497,7 +468,6 @@ struct gui_element {
 	s32 Depth;
 
 	gui_element* Parent;
-	//gui_element* TempParent;
 
 	//NOTE(Dima): Used for remembering last tree parent for tree nodes
 	gui_element* TempParentTree;
@@ -1423,6 +1393,7 @@ extern void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP);
 extern void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing = 0.0f);
 
 extern void GUITreeBegin(gui_state* State, char* NodeText, char* NameText = 0);
+extern u32 GUITreeGetOutFlags(gui_state* GUIState);
 extern void GUITreeEnd(gui_state* State);
 
 

@@ -1278,12 +1278,12 @@ void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType) {
 
 	if (!CurrentElement->Cache.IsInitialized) {
 		//IMPORTANT(DIMA): Think about how to choose position that we want
-		CurrentElement->Cache.Layout.Position = V2(ParentView->CurrentX, ParentView->CurrentY);
-		CurrentElement->Cache.Layout.Dimension = V2(100, 100);
+		CurrentElement->Cache.Dimensional.Pos = V2(ParentView->CurrentX, ParentView->CurrentY);
+		CurrentElement->Cache.Dimensional.Dim = V2(100, 100);
 
 		CurrentElement->Cache.IsInitialized = true;
 	}
-	v2* ViewPosition = &CurrentElement->Cache.Layout.Position;
+	v2* ViewPosition = &CurrentElement->Cache.Dimensional.Pos;
 
 
 	//NOTE(Dima): Find view in the existing list
@@ -1939,12 +1939,12 @@ void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer) {
 			gui_element_cache* Cache = &ImageView->Cache;
 
 			if (!Cache->IsInitialized) {
-				Cache->ImageView.Dimension = V2(
+				Cache->Dimensional.Dim = V2(
 					(float)Buffer->Width /
 					(float)Buffer->Height * 100, 100);
 				Cache->IsInitialized = true;
 			}
-			v2* WorkDim = &Cache->ImageView.Dimension;
+			v2* WorkDim = &Cache->Dimensional.Dim;
 			int OutlineWidth = 3;
 
 			gui_layout* View = GUIGetCurrentLayout(GUIState);
@@ -1987,14 +1987,14 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 
 			if (!Cache->IsInitialized) {
 
-				Cache->StackedMem.Dimension =
+				Cache->Dimensional.Dim =
 					V2(GUIState->FontInfo->AscenderHeight * 40.0f,
 						GUIState->FontInfo->AscenderHeight * 5.0f);
 
 				Cache->IsInitialized = true;
 			}
 
-			v2* WorkDim = &Cache->StackedMem.Dimension;
+			v2* WorkDim = &Cache->Dimensional.Dim;
 
 			float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 
@@ -2448,21 +2448,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		if (!Element->Cache.IsInitialized ||
 			GUIState->TextElemsCacheShouldBeReinitialized)
 		{
-			rect2 ButRect = PrintTextInternal(
-				GUIState,
-				GUIPrintText_GetSize,
-				"false",
-				{},
-				GUIState->FontScale);
-			Element->Cache.BoolButton.ButtonRectDim = GetRectDim(ButRect);
 
-			rect2 TrueRc = PrintTextInternal(
-				GUIState, 
-				GUIPrintText_GetSize,
-				"true", 
-				{},
-				GUIState->FontScale);
-			Element->Cache.BoolButton.ButtonTrueDim = GetRectDim(TrueRc);
 
 			Element->Cache.IsInitialized = true;
 		}
@@ -2476,13 +2462,13 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 			GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 		v2 NameDim = GetRectDim(NameRect);
 
-		v2* ButDim = &Element->Cache.BoolButton.ButtonRectDim;
-		v2* TrueDim = &Element->Cache.BoolButton.ButtonTrueDim;
+		v2 ButDim = GUIGetTextSize(GUIState, "false", GUIState->FontScale);
+		v2 TrueDim = GUIGetTextSize(GUIState, "true", GUIState->FontScale);
 
 		float PrintButX = View->CurrentX + NameDim.x + GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		float PrintButY = View->CurrentY;
 
-		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), *ButDim);
+		rect2 ButRc = Rect2MinDim(V2(PrintButX, PrintButY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), ButDim);
 		rect2 NameRc = Rect2MinDim(V2(View->CurrentX, View->CurrentY - GUIState->FontInfo->AscenderHeight * GUIState->FontScale), NameDim);
 
 		float OutlineWidth = 1;
@@ -2494,7 +2480,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 		if (Value) {
 			if (*Value) {
 
-				PrintButX = ButRc.Min.x + (ButDim->x - TrueDim->x) * 0.5f;
+				PrintButX = ButRc.Min.x + (ButDim.x - TrueDim.x) * 0.5f;
 
 				stbsp_sprintf(TextToPrint, "%s", "true");
 			}
@@ -2644,7 +2630,6 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float
 
 	if (GUIElementShouldBeUpdated(Element)) {
 		gui_layout* View = GUIGetCurrentLayout(State);
-		gui_vertical_slider_cache* Cache = &State->CurrentNode->Cache.VerticalSlider;
 		float FontScale = State->FontScale;
 		float SmallTextScale = FontScale * 0.8f;
 		float NextRowAdvanceFull = GetNextRowAdvance(State->FontInfo, FontScale);
@@ -3042,6 +3027,8 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	else {
 		stbsp_sprintf(TextBuf, "%s", ToWriteName);
 	}
+	
+	Cache->OutFlags = 0;
 
 	if (GUIElementShouldBeUpdated(Element)) {
 		GUIPreAdvanceCursor(GUIState);
@@ -3049,13 +3036,16 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 		rect2 Rc = PrintTextInternal(GUIState, GUIPrintText_GetSize, TextBuf, V2(View->CurrentX, View->CurrentY), GUIState->FontScale);
 		v2 Dim = V2(Rc.Max.x - Rc.Min.x, Rc.Max.y - Rc.Min.y);
 
-
 		gui_interaction TreeInteraction = GUITreeInteraction(Element, Rc);
 
 		v4 TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextColor);
 		if (MouseInRect(GUIState->Input, Rc)) {
+			Cache->OutFlags |= GUITreeOutFlag_MouseOverRect;
+
 			TextHighlightColor = GUIGetColor(GUIState, GUIState->ColorTheme.TextHighlightColor);
 			if (MouseButtonWentDown(GUIState->Input, MouseButton_Left)) {
+				Cache->OutFlags |= GUITreeOutFlag_MouseLeftClickedInRect;
+
 				GUIPerformInteraction(GUIState, &TreeInteraction);
 			}
 		}
@@ -3079,12 +3069,23 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	Element->Cache.TreeNode.StackBeginY = View->CurrentY;
 }
 
+u32 GUITreeGetOutFlags(gui_state* GUIState) {
+	gui_element* Element = GUIGetCurrentElement(GUIState);
+
+	Assert(Element->Type == GUIElement_TreeNode);
+
+	u32 Result = Element->Cache.TreeNode.OutFlags;
+
+	return(Result);
+}
+
 void GUITreeEnd(gui_state* State) {
 	gui_element* Elem = GUIGetCurrentElement(State);
 
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_tree_node_cache* Cache = &Elem->Cache.TreeNode;
+	Cache->OutFlags = 0;
 
 	if ((Elem->Expanded == false) &&
 		(Cache->ExitState == GUITreeNodeExit_None))

@@ -857,12 +857,12 @@ static void DEBUGFramesSlider(debug_state* State) {
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		if (!Element->Cache.IsInitialized) {
-			Element->Cache.Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 3);
+			Element->Cache.Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 3);
 
 			Element->Cache.IsInitialized = 1;
 		}
 
-		v2* GraphDim = &Element->Cache.Dimensional.Dimension;
+		v2* GraphDim = &Element->Cache.Dimensional.Dim;
 
 		GUIPreAdvanceCursor(GUIState);
 
@@ -956,7 +956,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
-			Cache->Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15f);
+			Cache->Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, (float)GUIState->ScreenHeight * 0.15f);
 
 			Cache->IsInitialized = 1;
 		}
@@ -966,7 +966,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2* GraphDim = &Cache->Dimensional.Dimension;
+		v2* GraphDim = &Cache->Dimensional.Dim;
 
 		float OneColumnWidth = GraphDim->x / (float)DEBUG_FRAMES_COUNT;
 
@@ -1303,13 +1303,13 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
-			Cache->Dimensional.Dimension = V2(AscByScale * 60, AscByScale * 20);
+			Cache->Dimensional.Dim = V2(AscByScale * 60, AscByScale * 20);
 
 			Cache->IsInitialized = 1;
 		}
 
 		v2 GroundMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
-		v2* GroundDim = &Cache->Dimensional.Dimension;
+		v2* GroundDim = &Cache->Dimensional.Dim;
 
 		rect2 GroundRc = Rect2MinDim(GroundMin, *GroundDim);
 		v4 GroundC = GUIGetColor(GUIState, GUIColor_Black);
@@ -1444,19 +1444,19 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
-			Cache->Dimensional.Dimension = V2(650, AscByScale * 20);
-			Cache->Dimensional.Position = At - V2(0, AscByScale);
+			Cache->Dimensional.Dim = V2(650, AscByScale * 20);
+			Cache->Dimensional.Pos = At - V2(0, AscByScale);
 
 			Cache->IsInitialized = 1;
 		}
 
 		if (!ValidForMoving) {
-			Cache->Dimensional.Position = At - V2(0, AscByScale);
+			Cache->Dimensional.Pos = At - V2(0, AscByScale);
 		}
 
-		v2 ActualAt = Cache->Dimensional.Position + V2(0, AscByScale);
+		v2 ActualAt = Cache->Dimensional.Pos + V2(0, AscByScale);
 
-		v2* WorkDim = &Cache->Dimensional.Dimension;
+		v2* WorkDim = &Cache->Dimensional.Dim;
 		v2 WorkP = V2(ActualAt.x, ActualAt.y - AscByScale);
 		rect2 WorkRect = Rect2MinDim(WorkP, *WorkDim);
 
@@ -1740,7 +1740,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
 
 		if (ValidForMoving) {
-			gui_interaction MoveInteraction = GUIMoveInteraction(&Cache->Dimensional.Position, GUIMoveInteraction_Move);
+			gui_interaction MoveInteraction = GUIMoveInteraction(&Cache->Dimensional.Pos, GUIMoveInteraction_Move);
 			GUIAnchor(GUIState, "MoveAnchor", WorkRect.Min, V2(10, 10), &MoveInteraction);
 		}
 
@@ -1797,12 +1797,12 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 		if (!Elem->Cache.IsInitialized) {
 
-			Elem->Cache.Dimensional.Dimension = V2((float)GUIState->ScreenWidth * 0.8f, 400);
+			Elem->Cache.Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, 400);
 
 			Elem->Cache.IsInitialized = 1;
 		}
 
-		v2* WorkDim = &Elem->Cache.Dimensional.Dimension;
+		v2* WorkDim = &Elem->Cache.Dimensional.Dim;
 
 		v2 RectMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
 		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
@@ -2006,6 +2006,17 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 				DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
 
 				GUITreeBegin(State->GUIState, NodeName);
+
+				u32 TreeOutFlags = GUITreeGetOutFlags(State->GUIState);
+
+				if (TreeOutFlags & GUITreeOutFlag_MouseOverRect) {
+					if (MouseButtonWentDown(State->GUIState->Input, MouseButton_Left) && 
+						ButtonIsDown(State->GUIState->Input, KeyType_LShift)) 
+					{
+
+					}
+				}
+
 				DEBUGOutputSectionChildrenToGUI(State, At);
 				GUITreeEnd(State->GUIState);
 			}break;
@@ -2147,7 +2158,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 
 	DEBUGOutputSectionChildrenToGUI(State, State->RootSection);
 
-#if 1
+#if 0
 	GUITreeBegin(GUIState, "Test");
 	GUITreeBegin(GUIState, "Other");
 
