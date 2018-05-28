@@ -736,15 +736,40 @@ PLATFORM_GET_THREAD_ID(SDLGetThreadID) {
 }
 #endif
 
+/* 
+	NOTE(dima): 
+		I'v allocated 1 byte per cell here.
+		If i want I can actually do 1 bit per 1 cell, 
+		but i think it might be useful at some time 
+		to use other states than black or white.
+*/
+
+typedef u8 cellural_t;
+
 struct cellural_buffer {
-	u8* Buf;
+	cellural_t* Buf;
 	i32 Width;
 	i32 Height;
 };
 
+inline cellural_t* GetCelluralCell(cellural_buffer* Buffer, int X, int Y) {
+	cellural_t* Result = 0;
+
+	if ((X < 0 || X >= Buffer->Width) ||
+		(Y < 0 || Y >= Buffer->Height))
+	{
+		Result = 0;
+	}
+	else {
+		Result = Buffer->Buf + Y * Buffer->Width + X;
+	}
+
+	return(Result);
+}
+
 static cellural_buffer AllocateCelluralBuffer(i32 Width, i32 Height) {
 	cellural_buffer Buffer;
-	Buffer.Buf = (u8*)calloc(Width * Height, 1);
+	Buffer.Buf = (u8*)calloc(Width * Height, sizeof(cellural_t));
 	Buffer.Width = Width;
 	Buffer.Height = Height;
 
@@ -757,6 +782,202 @@ static void DeallocateCelluralBuffer(cellural_buffer* Buffer) {
 	}
 	Buffer->Width = 0;
 	Buffer->Height = 0;
+}
+
+enum cellural_jump_direction {
+	CellJumpDirection_Left,
+	CellJumpDirection_Right,
+	CellJumpDirection_Top,
+	CellJumpDirection_Bottom,
+};
+
+enum try_get_next_cell_result_type {
+	TryGetNextCell_OK,
+	TryGetNextCell_DeadEnd,
+	TryGetNextCell_CantJump,
+};
+
+static u32 TryGetNextLabyCell(int* GenX, int* GenY, cellural_buffer* Buffer, random_state* RandomState) {
+
+	u32 Result = TryGetNextCell_CantJump;
+
+	cellural_t* CurCell = GetCelluralCell(Buffer, *GenX, *GenY);
+
+	cellural_t* LeftCell = GetCelluralCell(Buffer, *GenX - 2, *GenY);
+	cellural_t* RightCell = GetCelluralCell(Buffer, *GenX + 2, *GenY);
+	cellural_t* TopCell = GetCelluralCell(Buffer, *GenX, *GenY - 2);
+	cellural_t* BottomCell = GetCelluralCell(Buffer, *GenX, *GenY + 2);
+
+	cellural_t* PreLeftCell = GetCelluralCell(Buffer, *GenX - 1, *GenY);
+	cellural_t* PreRightCell = GetCelluralCell(Buffer, *GenX + 1, *GenY);
+	cellural_t* PreTopCell = GetCelluralCell(Buffer, *GenX, *GenY - 1);
+	cellural_t* PreBottomCell = GetCelluralCell(Buffer, *GenX, *GenY + 1);
+
+	b32 CantJumpLeft = 1;
+	b32 CantJumpRight = 1;
+	b32 CantJumpTop = 1;
+	b32 CantJumpBottom = 1;
+
+	if (CurCell) {
+		*CurCell = 1;
+	}
+
+	if (LeftCell) {
+		CantJumpLeft = (*LeftCell != 0);
+	}
+	if (RightCell) {
+		CantJumpRight = (*RightCell != 0);
+	}
+	if (TopCell) {
+		CantJumpTop = (*TopCell != 0);
+	}
+	if (BottomCell) {
+		CantJumpBottom = (*BottomCell != 0);
+	}
+
+	if (CantJumpLeft &&
+		CantJumpRight &&
+		CantJumpTop &&
+		CantJumpBottom)
+	{
+		//NOTE(dima): Can't make a jump anymore!!!
+		return(TryGetNextCell_DeadEnd);
+	}
+
+	u32 RandomDirection = XORShift32(RandomState) & 3;
+	cellural_t* RandomDirectionCell = 0;
+	int NewX, NewY;
+
+	b32 JumpHappened = 0;
+
+	cellural_t *DstCell = 0;
+	cellural_t *PreDstCell = 0;
+
+	switch (RandomDirection) {
+		case CellJumpDirection_Left: {
+			RandomDirectionCell = LeftCell;
+
+			if (!CantJumpLeft) {
+				JumpHappened = 1;
+
+				NewX = *GenX - 2;
+				NewY = *GenY;
+
+				DstCell = LeftCell;
+				PreDstCell = PreLeftCell;
+			}
+		}break;
+
+		case CellJumpDirection_Right: {
+			RandomDirectionCell = RightCell;
+
+			if (!CantJumpRight) {
+				JumpHappened = 1;
+
+				NewX = *GenX + 2;
+				NewY = *GenY;
+
+				DstCell = RightCell;
+				PreDstCell = PreRightCell;
+			}
+		}break;
+
+		case CellJumpDirection_Top: {
+			RandomDirectionCell = TopCell;
+
+			if (!CantJumpTop) {
+				JumpHappened = 1;
+
+				NewX = *GenX;
+				NewY = *GenY - 2;
+
+				DstCell = TopCell;
+				PreDstCell = PreTopCell;
+			}
+		}break;
+
+		case CellJumpDirection_Bottom: {
+			RandomDirectionCell = BottomCell;
+
+			if (!CantJumpBottom) {
+				JumpHappened = 1;
+
+				NewX = *GenX;
+				NewY = *GenY + 2;
+
+				DstCell = BottomCell;
+				PreDstCell = PreBottomCell;
+			}
+		}break;
+	}
+
+	if (JumpHappened) {
+		*GenX = NewX;
+		*GenY = NewY;
+		
+		if (DstCell) {
+			*DstCell = 1;
+		}
+
+		if (PreDstCell) {
+			*PreDstCell = 1;
+		}
+
+		Result = TryGetNextCell_OK;
+	}
+
+	return(Result);
+}
+
+//TODO(dima): check for input Buffer width and height for minimal requirements
+static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomState) {
+	//NOTE(dima): Clearing just for safe
+	for (int Y = 0; Y < Buffer->Height; Y++) {
+		cellural_t* Out = GetCelluralCell(Buffer, 0, Y);
+		for (int X = 0; X < Buffer->Width; X++) {
+			*Out++ = 0;
+		}
+	}
+
+	//NOTE(dima): Generation
+#if 0
+	for (int Y = 0; Y < Buffer->Height; Y++) {
+		cellural_t* Out = GetCelluralCell(Buffer, 0, Y);
+		for (int X = 0; X < Buffer->Height; X++) {
+			cellural_t ResultState = 0;
+
+			ResultState = ((X & 1) && (Y & 1));
+
+			*Out++ = ResultState;
+		}
+	}
+#endif
+
+	int GenX = Buffer->Width / 2;
+	int GenY = Buffer->Height / 2;
+
+	if ((GenX & 1) == 0) {
+		GenX |= 1;
+	}
+
+	if ((GenY & 1) == 0) {
+		GenY |= 1;
+	}
+
+	if (TryGetNextLabyCell(&GenX, &GenY, Buffer, RandomState) == TryGetNextCell_DeadEnd) {
+		GenX = XORShift32(RandomState) % Buffer->Width;
+		GenY = XORShift32(RandomState) % Buffer->Height;
+
+		if ((GenX & 1) == 0) {
+			GenX |= 1;
+		}
+
+		if ((GenY & 1) == 0) {
+			GenY |= 1;
+		}
+	}
+
+	int a = 1;
 }
 
 static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, random_state* RandomState) {
@@ -852,14 +1073,11 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 #endif
 }
 
-#if 0
 #define CELLURAL_CELL_WIDTH 4
-static bitmap_info CelluralBufferToRGBA(cellural_buffer* Buffer) {
+static bitmap_info CelluralBufferToBitmap(cellural_buffer* Buffer) {
 	bitmap_info Res = AllocateRGBABuffer(
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
-
-	render_stack Stack = RENDERBeginStack(10 * 1024 * 1024, Buffer->Width, Buffer->Height);
 
 	u8* At = Buffer->Buf;
 	for (i32 Y = 0; Y < Buffer->Height; Y++) {
@@ -872,34 +1090,25 @@ static bitmap_info CelluralBufferToRGBA(cellural_buffer* Buffer) {
 			DrawRect.Max.y = (Y + 1) * CELLURAL_CELL_WIDTH;
 
 			v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f);
-			if (*At) {
-				Color = V4(0.9f, 0.1f, 0.1f, 1.0f);
+			if (*At == 1) {
+				Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 			}
 
-			/*
-			extern void RenderRectFast(
-				bitmap_info* Buffer,
-				v2 P,
-				v2 Dim,
-				v4 ModulationColor01,
-				rect2 ClipRect);
-			*/
+			u32 ColorU32 = PackRGBA(Color);
 
-			//RenderRectFast
-
-			RENDERPushRect(&Stack, DrawRect, Color);
+			for (int TargetY = DrawRect.Min.y; TargetY != DrawRect.Max.y; TargetY++) {
+				for (int TargetX = DrawRect.Min.x; TargetX != DrawRect.Max.x; TargetX++) {
+					u32* OutPixel = (u32*)Res.Pixels + TargetY * Res.Width + TargetX;
+					*OutPixel = ColorU32;
+				}
+			}
 
 			++At;
 		}
 	}
 
-	RenderDickInjection(&Stack, &Res);
-
-	RENDEREndStack(&Stack);
-
 	return(Res);
 }
-#endif
 
 int main(int ArgsCount, char** Args) {
 
@@ -1126,9 +1335,11 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Renderer is not created");
 	}
 
-	//random_state CellRandom = InitRandomStateWithSeed(1234);
-	//cellural_buffer Cellural = AllocateCelluralBuffer(64, 64);
+	random_state CellRandom = InitRandomStateWithSeed(1234);
+	cellural_buffer Cellural = AllocateCelluralBuffer(129, 129);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
+	CelluralGenerateLaby(&Cellural, &CellRandom);
+	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
 
 	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
 	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
@@ -1224,6 +1435,8 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
+		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 800);
+
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);
