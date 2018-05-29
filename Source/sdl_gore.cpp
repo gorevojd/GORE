@@ -824,15 +824,19 @@ static u32 TryGetNextLabyCell(int* GenX, int* GenY, cellural_buffer* Buffer, ran
 
 	if (LeftCell) {
 		CantJumpLeft = (*LeftCell != 0);
+		//CantJumpLeft = 0;
 	}
 	if (RightCell) {
 		CantJumpRight = (*RightCell != 0);
+		//CantJumpRight = 0;
 	}
 	if (TopCell) {
 		CantJumpTop = (*TopCell != 0);
+		//CantJumpTop = 0;
 	}
 	if (BottomCell) {
 		CantJumpBottom = (*BottomCell != 0);
+		//CantJumpBottom = 0;
 	}
 
 	if (CantJumpLeft &&
@@ -929,8 +933,90 @@ static u32 TryGetNextLabyCell(int* GenX, int* GenY, cellural_buffer* Buffer, ran
 	return(Result);
 }
 
+static inline b32 CellHasNotVisitedMembers(int GenX, int GenY, cellural_buffer* Buffer) {
+	b32 Result = 0;
+
+	cellural_t* LeftCell = GetCelluralCell(Buffer, GenX - 2, GenY);
+	cellural_t* RightCell = GetCelluralCell(Buffer, GenX + 2, GenY);
+	cellural_t* TopCell = GetCelluralCell(Buffer, GenX, GenY - 2);
+	cellural_t* BottomCell = GetCelluralCell(Buffer, GenX, GenY + 2);
+
+	if (LeftCell) {
+		Result |= (*LeftCell != 0);
+	}
+	if (RightCell) {
+		Result = (*RightCell != 0);
+	}
+	if (TopCell) {
+		Result = (*TopCell != 0);
+	}
+	if (BottomCell) {
+		Result = (*BottomCell != 0);
+	}
+
+	return(Result);
+}
+
+static b32 CelluralLabyIsGenerated(cellural_buffer* Buffer) {
+
+	for (int Y = 0; Y < Buffer->Height; Y++) {
+		for (int X = 0; X < Buffer->Width; X++) {
+			if ((X & 1) && (Y & 1)) {
+				cellural_t* Cell = GetCelluralCell(Buffer, X, Y);
+				if (!*Cell) {
+					return(0);
+				}
+			}
+		}
+	}
+
+	return(1);
+}
+
+
+/*
+	NOTE(dima): 
+		Cache parameters are used here to give 
+		possibility not to rerun from the beginning
+*/
+
+static b32 CelluralLabyFindValidCoord(
+	cellural_buffer* Buffer, 
+	int* GenX, int* GenY,
+	int* Cache) 
+{
+	int StartX = 0;
+	int StartY = 0;
+
+	if (Cache) {
+		StartX = *Cache % Buffer->Width;
+		StartY = *Cache / Buffer->Width;
+	}
+
+	for (int Y = StartY; Y < Buffer->Height; Y++) {
+		for (int X = StartX; X < Buffer->Width; X++) {
+			if ((X & 1) && (Y & 1)) {
+				cellural_t* Cell = GetCelluralCell(Buffer, X, Y);
+				if (!*Cell) {
+					*GenX = X;
+					*GenY = Y;
+
+					if (Cache) {
+						*Cache = X + Y * Buffer->Width;
+					}
+
+					return(1);
+				}
+			}
+		}
+	}
+
+	return(0);
+}
+
 //TODO(dima): check for input Buffer width and height for minimal requirements
 static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomState) {
+
 	//NOTE(dima): Clearing just for safe
 	for (int Y = 0; Y < Buffer->Height; Y++) {
 		cellural_t* Out = GetCelluralCell(Buffer, 0, Y);
@@ -943,7 +1029,7 @@ static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomSt
 #if 0
 	for (int Y = 0; Y < Buffer->Height; Y++) {
 		cellural_t* Out = GetCelluralCell(Buffer, 0, Y);
-		for (int X = 0; X < Buffer->Height; X++) {
+		for (int X = 0; X < Buffer->Width; X++) {
 			cellural_t ResultState = 0;
 
 			ResultState = ((X & 1) && (Y & 1));
@@ -951,8 +1037,14 @@ static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomSt
 			*Out++ = ResultState;
 		}
 	}
+
+	int GenX = 1;
+	int GenY = 1;
+
+
 #endif
 
+#if 1
 	int GenX = Buffer->Width / 2;
 	int GenY = Buffer->Height / 2;
 
@@ -964,20 +1056,44 @@ static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomSt
 		GenY |= 1;
 	}
 
-	if (TryGetNextLabyCell(&GenX, &GenY, Buffer, RandomState) == TryGetNextCell_DeadEnd) {
-		GenX = XORShift32(RandomState) % Buffer->Width;
-		GenY = XORShift32(RandomState) % Buffer->Height;
+	int CycleCounter = 0;
 
-		if ((GenX & 1) == 0) {
-			GenX |= 1;
+	int Cache = 0;
+
+	for (;; CycleCounter++) {
+		if (TryGetNextLabyCell(&GenX, &GenY, Buffer, RandomState) == TryGetNextCell_DeadEnd) {
+#if 1
+			GenX = XORShift32(RandomState) % Buffer->Width;
+			GenY = XORShift32(RandomState) % Buffer->Height;
+
+			if ((GenX & 1) == 0) {
+				GenX |= 1;
+			}
+
+			if ((GenY & 1) == 0) {
+				GenY |= 1;
+			}
+#else
+#if 1
+			if (!CelluralLabyFindValidCoord(Buffer, &GenX, &GenY, &Cache)) {
+#else
+			if (!CelluralLabyFindValidCoord(Buffer, &GenX, &GenY, 0)) {
+#endif
+					break;
+			}
+#endif
 		}
 
-		if ((GenY & 1) == 0) {
-			GenY |= 1;
+#define CELLURAL_GENERATION_CYCLE_TRESHOLD 10000
+		if (CycleCounter > CELLURAL_GENERATION_CYCLE_TRESHOLD) {
+			if (CelluralLabyIsGenerated(Buffer)) {
+				break;
+			}
+
+			CycleCounter = 0;
 		}
 	}
-
-	int a = 1;
+#endif
 }
 
 static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, random_state* RandomState) {
@@ -1003,7 +1119,7 @@ static void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, 
 
 #if 1
 	for (int SmoothIteration = 0;
-		SmoothIteration < 3;
+		SmoothIteration < 10;
 		SmoothIteration++) 
 	{
 		cellural_buffer Temp = AllocateCelluralBuffer(Buffer->Width, Buffer->Height);
@@ -1336,7 +1452,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(129, 129);
+	cellural_buffer Cellural = AllocateCelluralBuffer(65, 65);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	CelluralGenerateLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
@@ -1435,7 +1551,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 800);
+		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 500);
 
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
