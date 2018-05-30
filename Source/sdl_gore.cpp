@@ -752,6 +752,57 @@ struct cellural_buffer {
 	i32 Height;
 };
 
+struct cellural_stack_entry {
+	cellural_stack_entry* Next;
+
+	int X;
+	int Y;
+};
+
+struct cellural_stack {
+	cellural_stack_entry* Head;
+	int Count;
+};
+
+void InitCelluralStack(cellural_stack* Stack) {
+	Stack->Count = 0;
+	Stack->Head = 0;
+}
+
+inline void CelluralStackPush(cellural_stack* Stack, cellural_stack_entry* Entry) {
+	Entry->Next = Stack->Head;
+	Stack->Head = Entry;
+	Stack->Count++;
+}
+
+inline b32 CelluralStackIsEmpty(cellural_stack* Stack) {
+	b32 Result = (Stack->Count == 0) && (Stack->Head == 0);
+
+	return(Result);
+}
+
+inline cellural_stack_entry* CelluralStackPeek(cellural_stack* Stack) {
+	cellural_stack_entry* Result = Stack->Head;
+
+	return(Result);
+}
+
+inline void CelluralStackPop(cellural_stack* Stack) {
+	if (Stack->Head) {
+		cellural_stack_entry* Popped = Stack->Head;
+		Stack->Head = Stack->Head->Next;
+		Stack->Count--;
+
+		free(Popped);
+	}
+}
+
+void FreeCelluralStack(cellural_stack* Stack) {
+	while (Stack->Head) {
+		CelluralStackPop(Stack);
+	}
+}
+
 inline cellural_t* GetCelluralCell(cellural_buffer* Buffer, int X, int Y) {
 	cellural_t* Result = 0;
 
@@ -789,6 +840,8 @@ enum cellural_jump_direction {
 	CellJumpDirection_Right,
 	CellJumpDirection_Top,
 	CellJumpDirection_Bottom,
+
+	CellJumpDirection_Count,
 };
 
 enum try_get_next_cell_result_type {
@@ -798,8 +851,6 @@ enum try_get_next_cell_result_type {
 };
 
 static u32 TryGetNextLabyCell(int* GenX, int* GenY, cellural_buffer* Buffer, random_state* RandomState) {
-
-	u32 Result = TryGetNextCell_CantJump;
 
 	cellural_t* CurCell = GetCelluralCell(Buffer, *GenX, *GenY);
 
@@ -852,85 +903,89 @@ static u32 TryGetNextLabyCell(int* GenX, int* GenY, cellural_buffer* Buffer, ran
 	cellural_t* RandomDirectionCell = 0;
 	int NewX, NewY;
 
-	b32 JumpHappened = 0;
-
 	cellural_t *DstCell = 0;
 	cellural_t *PreDstCell = 0;
+
+
+	/*
+		NOTE(dima): What i did here is that i
+		found first random valid direction that
+		i can go to. Instead of just peeking random 
+		direction and hope that i can go there
+	*/
+	u32 CanJumpDirections[CellJumpDirection_Count];
+	CanJumpDirections[CellJumpDirection_Left] = !CantJumpLeft;
+	CanJumpDirections[CellJumpDirection_Right] = !CantJumpRight;
+	CanJumpDirections[CellJumpDirection_Bottom] = !CantJumpBottom;
+	CanJumpDirections[CellJumpDirection_Top] = !CantJumpTop;
+
+	u32 TmpDirection = RandomDirection;
+	for (int TmpIndex = TmpDirection;; TmpIndex++) {
+
+		if (CanJumpDirections[TmpIndex]) {
+			RandomDirection = TmpIndex;
+			break;
+		}
+
+		if (TmpIndex == 3) {
+			TmpIndex = -1;
+		}
+	}
 
 	switch (RandomDirection) {
 		case CellJumpDirection_Left: {
 			RandomDirectionCell = LeftCell;
 
-			if (!CantJumpLeft) {
-				JumpHappened = 1;
+			NewX = *GenX - 2;
+			NewY = *GenY;
 
-				NewX = *GenX - 2;
-				NewY = *GenY;
-
-				DstCell = LeftCell;
-				PreDstCell = PreLeftCell;
-			}
+			DstCell = LeftCell;
+			PreDstCell = PreLeftCell;
 		}break;
 
 		case CellJumpDirection_Right: {
 			RandomDirectionCell = RightCell;
 
-			if (!CantJumpRight) {
-				JumpHappened = 1;
+			NewX = *GenX + 2;
+			NewY = *GenY;
 
-				NewX = *GenX + 2;
-				NewY = *GenY;
-
-				DstCell = RightCell;
-				PreDstCell = PreRightCell;
-			}
+			DstCell = RightCell;
+			PreDstCell = PreRightCell;
 		}break;
 
 		case CellJumpDirection_Top: {
 			RandomDirectionCell = TopCell;
 
-			if (!CantJumpTop) {
-				JumpHappened = 1;
+			NewX = *GenX;
+			NewY = *GenY - 2;
 
-				NewX = *GenX;
-				NewY = *GenY - 2;
-
-				DstCell = TopCell;
-				PreDstCell = PreTopCell;
-			}
+			DstCell = TopCell;
+			PreDstCell = PreTopCell;
 		}break;
 
 		case CellJumpDirection_Bottom: {
 			RandomDirectionCell = BottomCell;
 
-			if (!CantJumpBottom) {
-				JumpHappened = 1;
+			NewX = *GenX;
+			NewY = *GenY + 2;
 
-				NewX = *GenX;
-				NewY = *GenY + 2;
-
-				DstCell = BottomCell;
-				PreDstCell = PreBottomCell;
-			}
+			DstCell = BottomCell;
+			PreDstCell = PreBottomCell;
 		}break;
 	}
 
-	if (JumpHappened) {
-		*GenX = NewX;
-		*GenY = NewY;
+	*GenX = NewX;
+	*GenY = NewY;
 		
-		if (DstCell) {
-			*DstCell = 1;
-		}
-
-		if (PreDstCell) {
-			*PreDstCell = 1;
-		}
-
-		Result = TryGetNextCell_OK;
+	if (DstCell) {
+		*DstCell = 1;
 	}
 
-	return(Result);
+	if (PreDstCell) {
+		*PreDstCell = 1;
+	}
+
+	return(TryGetNextCell_OK);
 }
 
 static inline b32 CellHasNotVisitedMembers(int GenX, int GenY, cellural_buffer* Buffer) {
@@ -942,19 +997,30 @@ static inline b32 CellHasNotVisitedMembers(int GenX, int GenY, cellural_buffer* 
 	cellural_t* BottomCell = GetCelluralCell(Buffer, GenX, GenY + 2);
 
 	if (LeftCell) {
-		Result |= (*LeftCell != 0);
+		Result |= (*LeftCell == 0);
 	}
 	if (RightCell) {
-		Result = (*RightCell != 0);
+		Result |= (*RightCell == 0);
 	}
 	if (TopCell) {
-		Result = (*TopCell != 0);
+		Result |= (*TopCell == 0);
 	}
 	if (BottomCell) {
-		Result = (*BottomCell != 0);
+		Result |= (*BottomCell == 0);
 	}
 
 	return(Result);
+}
+
+static void CelluralStackPushCellCond(cellural_stack* Stack, int X, int Y, cellural_buffer* Buffer) {
+	if (CellHasNotVisitedMembers(X, Y, Buffer)) {
+		cellural_stack_entry* Entry = (cellural_stack_entry*)malloc(sizeof(cellural_stack_entry));
+		Entry->Next = 0;
+		Entry->X = X;
+		Entry->Y = Y;
+
+		CelluralStackPush(Stack, Entry);
+	}
 }
 
 static b32 CelluralLabyIsGenerated(cellural_buffer* Buffer) {
@@ -972,6 +1038,7 @@ static b32 CelluralLabyIsGenerated(cellural_buffer* Buffer) {
 
 	return(1);
 }
+
 
 
 /*
@@ -1044,7 +1111,7 @@ static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomSt
 
 #endif
 
-#if 1
+#if 0
 	int GenX = Buffer->Width / 2;
 	int GenY = Buffer->Height / 2;
 
@@ -1093,6 +1160,34 @@ static void CelluralGenerateLaby(cellural_buffer* Buffer, random_state* RandomSt
 			CycleCounter = 0;
 		}
 	}
+#endif
+
+#if 1
+	cellural_stack CellStack;
+	InitCelluralStack(&CellStack);
+
+	int GenX = 1;
+	int GenY = 1;
+
+	CelluralStackPushCellCond(&CellStack, GenX, GenY, Buffer);
+
+	while (!CelluralStackIsEmpty(&CellStack)) {
+		if (TryGetNextLabyCell(&GenX, &GenY, Buffer, RandomState) == TryGetNextCell_DeadEnd) {
+			cellural_stack_entry* Entry = CelluralStackPeek(&CellStack);
+
+			GenX = Entry->X;
+			GenY = Entry->Y;
+
+			if (!CellHasNotVisitedMembers(GenX, GenY, Buffer)) {
+				CelluralStackPop(&CellStack);
+			}
+		}
+		else {
+			CelluralStackPushCellCond(&CellStack, GenX, GenY, Buffer);
+		}
+	}
+
+	FreeCelluralStack(&CellStack);
 #endif
 }
 
@@ -1452,7 +1547,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(65, 65);
+	cellural_buffer Cellural = AllocateCelluralBuffer(127, 127);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	CelluralGenerateLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
@@ -1551,7 +1646,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 500);
+		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 700);
 
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
