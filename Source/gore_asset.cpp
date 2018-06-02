@@ -1430,6 +1430,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	//NOTE(dima): Fonts
 	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+	font_info ChurchFontInfo = LoadFontInfoWithSTB("../Data/Fonts/11550.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
 #if 0
@@ -1438,6 +1439,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 #else
 	AddFontAssetManual(System, &DebugFontInfo);
 	AddFontAssetManual(System, &GoldenFontInfo);
+	AddFontAssetManual(System, &ChurchFontInfo);
 #endif
 	EndAssetGroup(System);
 
@@ -1462,7 +1464,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	AddBitmapAsset(System, "../Data/Images/container_spec.png");
 	EndAssetGroup(System);
 
-	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64);
+	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64, V3(1.0f, 0.0f, 0.0f), V3(0.0f, 1.0f, 0.0f));
 
 	BeginAssetGroup(System, GameAsset_Checkerboard);
 	AddBitmapAssetManual(System, &Checker1);

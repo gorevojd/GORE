@@ -4,7 +4,6 @@
 #include "stb_sprintf.h"
 
 #include "geometrika.h"
-
 /*
 	NOTE(Dima):
 		Images are stored in premultiplied alpha format
@@ -21,7 +20,7 @@
 			Generate UV's for cylynder and sphere
 
 		DEBUG:
-			Thread intervals for non-one frame records 
+			Thread intervals for non-one frame records
 
 			Implement 'Record next' button on frames slider
 			DEBUG console
@@ -412,6 +411,9 @@ static debug_state* DEBUGState = &DEBUGState_;
 
 static gl_state GLState_;
 static gl_state* GLState = &GLState_;
+
+static color_state ColorState_;
+static color_state* ColorState = &ColorState_;
 
 inline SDL_Surface* SDLSurfaceFromBuffer(bitmap_info* Buffer) {
 	SDL_Surface* Result = SDL_CreateRGBSurfaceFrom(
@@ -1040,7 +1042,6 @@ static b32 CelluralLabyIsGenerated(cellural_buffer* Buffer) {
 }
 
 
-
 /*
 	NOTE(dima): 
 		Cache parameters are used here to give 
@@ -1547,7 +1548,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(127, 127);
+	cellural_buffer Cellural = AllocateCelluralBuffer(255, 255);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	CelluralGenerateLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
@@ -1574,11 +1575,14 @@ int main(int ArgsCount, char** Args) {
 
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
+	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(500));
 
 	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
-	GUIInitState(GUIState, &GUIMemory, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+	InitColorsState(ColorState, &ColorsMemory);
+
+	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 	
 	OpenGLInitState(GLState);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
@@ -1646,7 +1650,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 700);
+		//RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 700);
 
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 

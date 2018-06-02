@@ -164,6 +164,7 @@
   <ItemGroup>
     <ClCompile Include="..\Source\geometrika.cpp" />
     <ClCompile Include="..\Source\gore_asset.cpp" />
+    <ClCompile Include="..\Source\gore_colors.cpp" />
     <ClCompile Include="..\Source\gore_debug.cpp" />
     <ClCompile Include="..\Source\gore_debug_layer.cpp" />
     <ClCompile Include="..\Source\gore_engine.cpp" />
@@ -181,6 +182,7 @@
     <ClInclude Include="..\Source\gore_asset_common.h" />
     <ClInclude Include="..\Source\gore_asset_identifiers.h" />
     <ClInclude Include="..\Source\gore_asset_types.h" />
+    <ClInclude Include="..\Source\gore_colors.h" />
     <ClInclude Include="..\Source\gore_debug.h" />
     <ClInclude Include="..\Source\gore_debug_layer.h" />
     <ClInclude Include="..\Source\gore_engine.h" />

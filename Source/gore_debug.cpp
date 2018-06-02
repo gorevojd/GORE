@@ -866,7 +866,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 
 		GUIPreAdvanceCursor(GUIState);
 
-		v4 OutlineColor = GUIGetColor(GUIState, GUIColor_Black);
+		v4 OutlineColor = GUIGetColor(GUIState, Color_Black);
 
 		v2 GraphMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
 
@@ -878,13 +878,13 @@ static void DEBUGFramesSlider(debug_state* State) {
 		RENDERPushRect(GUIState->RenderStack, GraphMin, *GraphDim, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, 0.75f));
 
 		//NOTE(dima): Collation frame column
-		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Green));
+		DEBUGPushFrameColumn(GUIState, State->CollationFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, Color_Green));
 
 		//NOTE(dima): Newest frame column
-		DEBUGPushFrameColumn(GUIState, State->NewestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Red));
+		DEBUGPushFrameColumn(GUIState, State->NewestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, Color_Red));
 
 		//NOTE(dima): Oldest frame column
-		DEBUGPushFrameColumn(GUIState, State->OldestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Blue));
+		DEBUGPushFrameColumn(GUIState, State->OldestFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, Color_Blue));
 
 		for (int ColumnIndex = 0;
 			ColumnIndex < DEBUG_FRAMES_COUNT;
@@ -907,7 +907,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 		}
 
 		//NOTE(dima): Viewing frame column
-		DEBUGPushFrameColumn(GUIState, State->ViewFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, GUIColor_Yellow));
+		DEBUGPushFrameColumn(GUIState, State->ViewFrameIndex, GraphMin, ColumnDim, GUIGetColor(GUIState, Color_Yellow));
 
 		v2 BarDim = V2(1.0f, GraphDim->y);
 
@@ -923,7 +923,7 @@ static void DEBUGFramesSlider(debug_state* State) {
 		}
 
 		rect2 GraphRect = Rect2MinDim(GraphMin, *GraphDim);
-		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIGetColor(GUIState, GUIColor_Black));
+		RENDERPushRectOutline(GUIState->RenderStack, GraphRect, 3, GUIGetColor(GUIState, Color_Black));
 
 #if 1
 		gui_interaction ResizeInteraction = GUIResizeInteraction(GraphRect.Min, GraphDim, GUIResizeInteraction_Default);
@@ -992,7 +992,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
 
 					if (ColumnIndex == State->CollationFrameIndex) {
-						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, ColorExt_green1));
 					}
 					else {
 						float FilledPercentage = Frame->DeltaTime * NormalizeValue;
@@ -1007,7 +1007,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 							ColorMultiplier = V4(0.5f, 0.5f, 0.5f, 1.0f);
 						}
 
-						//RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIColorExt_green3) * ColorMultiplier);
+						//RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, ColorExt_green3) * ColorMultiplier);
 						RENDERPushRect(GUIState->RenderStack, FilledRect, GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor2) * ColorMultiplier);
 						RENDERPushRect(GUIState->RenderStack, FreeRect, V4(GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor).xyz, GUIState->ColorTheme.GraphAlpha) * ColorMultiplier);
 
@@ -1043,7 +1043,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 					float CurrentFPS = 1.0f / Frame->DeltaTime;
 
 					if (ColumnIndex == State->CollationFrameIndex) {
-						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, ColorExt_green1));
 					}
 					else {
 						float FilledPercentage = CurrentFPS * NormalizeValue;
@@ -1093,7 +1093,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
 
 					if (ColumnIndex == State->CollationFrameIndex) {
-						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, ColorExt_green1));
 					}
 					else {
 						debug_tree_node* FrameUpdateNode = Frame->FrameUpdateNode;
@@ -1139,7 +1139,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 								GUITooltip(GUIState, "Waiting...");
 							}
 
-							RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, GUIColor_White) * ColorMultiplier);
+							RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, Color_White) * ColorMultiplier);
 						}
 					}
 
@@ -1165,7 +1165,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 					debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, ColumnIndex);
 
 					if (ColumnIndex == State->CollationFrameIndex) {
-						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, GUIColorExt_green1));
+						RENDERPushRect(GUIState->RenderStack, ColumnRect, GUIGetColor(GUIState, ColorExt_green1));
 					}
 					else {
 						float FilledPercentage = (float)Frame->RecordCount * (float)NormalizeValue;
@@ -1312,7 +1312,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		v2* GroundDim = &Cache->Dimensional.Dim;
 
 		rect2 GroundRc = Rect2MinDim(GroundMin, *GroundDim);
-		v4 GroundC = GUIGetColor(GUIState, GUIColor_Black);
+		v4 GroundC = GUIGetColor(GUIState, Color_Black);
 		GroundC = V4(GroundC.xyz, 0.8f);
 
 		RENDERPushRect(GUIState->RenderStack, GroundRc, GroundC);
@@ -1460,7 +1460,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 		v2 WorkP = V2(ActualAt.x, ActualAt.y - AscByScale);
 		rect2 WorkRect = Rect2MinDim(WorkP, *WorkDim);
 
-		v4 WindowColor = GUIGetColor(GUIState, GUIColor_Black);
+		v4 WindowColor = GUIGetColor(GUIState, Color_Black);
 		WindowColor = V4(WindowColor.rgb, 0.90f);
 		v4 WindowOutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
@@ -1808,7 +1808,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
 
 		//NOTE(dima): Graph background
-		v4 GraphColor = GUIGetColor(GUIState, GUIColor_Black);
+		v4 GraphColor = GUIGetColor(GUIState, Color_Black);
 		RENDERPushRect(GUIState->RenderStack, WorkRect, V4(GraphColor.rgb, 0.75f));
 
 		u32 ThreadCount = 0;
@@ -1834,14 +1834,14 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			GraphColors[5] = GUIState->ColorTheme.GraphColor6;
 			GraphColors[6] = GUIState->ColorTheme.GraphColor7;
 			GraphColors[7] = GUIState->ColorTheme.GraphColor8;
-			GraphColors[8] = GUIColorExt_coral2;
-			GraphColors[9] = GUIColorExt_DarkOliveGreen1;
-			GraphColors[10] = GUIColorExt_burlywood;
-			GraphColors[11] = GUIColorExt_FloralWhite;
-			GraphColors[12] = GUIColorExt_gray51;
-			GraphColors[13] = GUIColorExt_SteelBlue1;
-			GraphColors[14] = GUIColorExt_yellow1;
-			GraphColors[15] = GUIColorExt_LightGoldenrod4;
+			GraphColors[8] = ColorExt_coral2;
+			GraphColors[9] = ColorExt_DarkOliveGreen1;
+			GraphColors[10] = ColorExt_burlywood;
+			GraphColors[11] = ColorExt_FloralWhite;
+			GraphColors[12] = ColorExt_gray51;
+			GraphColors[13] = ColorExt_SteelBlue1;
+			GraphColors[14] = ColorExt_yellow1;
+			GraphColors[15] = ColorExt_LightGoldenrod4;
 
 			v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
@@ -1979,11 +1979,11 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
 
 		if (HotOulineShouldBeDrawn) {
-			RENDERPushRectInnerOutline(GUIState->RenderStack, HotOutlineRect, 2, GUIGetColor(GUIState, GUIColor_Red));
+			RENDERPushRectInnerOutline(GUIState->RenderStack, HotOutlineRect, 2, GUIGetColor(GUIState, Color_Red));
 		}
 
 		if (HotFullLaneShouldBeDrawn) {
-			RENDERPushRectOutline(GUIState->RenderStack, HotFullLaneRect, 1, GUIGetColor(GUIState, GUIColor_Blue));
+			RENDERPushRectOutline(GUIState->RenderStack, HotFullLaneRect, 1, GUIGetColor(GUIState, Color_Blue));
 		}
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
@@ -2151,8 +2151,6 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 	stbsp_sprintf(DebugStr, "%.2fmsp/f %.2fFPS", TempDT * 1000.0f, LastFrameFPS);
 
 	GUIBeginLayout(State->GUIState, "DEBUG", GUILayout_Tree);
-	GUIText(State->GUIState, "Press ~ to open devtools");
-	GUIText(State->GUIState, "{[||][||]^^__^^}``~~");
 	GUITreeBegin(State->GUIState, "DEBUG", DebugStr);
 	//GUIChangeTreeNodeText(State->GUIState, "Hello world Pazha Biceps my friend");
 
@@ -2289,7 +2287,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 
 	GUITreeBegin(GUIState, "Colors");
 	for (int ColorIndex = 0;
-		ColorIndex < Min(30, GUIColor_Count);
+		ColorIndex < Min(30, Color_Count);
 		ColorIndex++)
 	{
 		gui_color_slot* Slot = &GUIState->ColorTable[ColorIndex];
@@ -2297,7 +2295,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 		char ColorNameBuf[32];
 		stbsp_sprintf(ColorNameBuf, "%-15s", Slot->Name);
 
-		GUIColorView(GUIState, Slot->Color, ColorNameBuf);
+		ColorView(GUIState, Slot->Color, ColorNameBuf);
 	}
 	GUITreeEnd(GUIState);
 
@@ -2349,7 +2347,7 @@ static void DEBUGOverlayToOutput(debug_state* State) {
 #endif
 
 	GUITreeBegin(GUIState, "Audio");
-	GUIColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
+	ColorView(GUIState, V4(0.4f, 0.0f, 1.0f, 1.0f), "asd");
 	GUIBeginRow(GUIState);
 	GUIVector2View(GUIState, V2(1.0f, 256.0f), "Vector2");
 	GUIText(GUIState, "Hello");

@@ -3,10 +3,10 @@
 
 #include "gore_platform.h"
 
+#include "gore_colors.h"
 #include "gore_debug.h"
 #include "gore_gui.h"
 #include "gore_asset.h"
-
 
 
 #endif
