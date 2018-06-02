@@ -806,6 +806,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 					DebugTreeNode_Value);
 
 				NewSection->Value.ValueType = Record->Value_Value.ValueType;
+				NewSection->Value.Value = Record->Value_Value.Value;
 
 				//NOTE(dima): Remembering last section
 				NewSection->Parent = CurrentSection;
@@ -2125,6 +2126,13 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 
 						GUIText(State->GUIState, DebugStateInfoBuf);
 						GUIStackedMemGraph(State->GUIState, "DebugMem", State->DebugMemory);
+					}break;
+
+					case DebugValue_StackedMemory: {
+						char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
+						DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
+
+						GUIStackedMemGraph(State->GUIState, NodeName, (stacked_memory*)At->Value.Value);
 					}break;
 				}
 			}break;

@@ -32,8 +32,7 @@ struct debug_timing_snapshot {
 
 struct debug_value_node {
 	u32 ValueType;
-
-
+	void* Value;
 };
 
 enum debug_timing_statistic_type {

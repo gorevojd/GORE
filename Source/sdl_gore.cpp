@@ -1575,7 +1575,7 @@ int main(int ArgsCount, char** Args) {
 
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
-	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(500));
+	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
 
 	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
@@ -1601,6 +1601,13 @@ int main(int ArgsCount, char** Args) {
 
 		BEGIN_TIMING(DEBUG_FRAME_UPDATE_NODE_NAME);
 		BEGIN_SECTION("Platform");
+
+		DEBUG_STACKED_MEM("Platform GameMode Memory", &PlatformApi.GameModeMemoryBlock);
+		DEBUG_STACKED_MEM("Platform GeneralPurpose Memory", &PlatformApi.GeneralPurposeMemoryBlock);
+		DEBUG_STACKED_MEM("Platform DEBUG Memory", &PlatformApi.DEBUGMemoryBlock);
+
+		DEBUG_STACKED_MEM("GUIMem", &GUIMemory);
+		DEBUG_STACKED_MEM("ColorsMem", &ColorsMemory);
 
 		BEGIN_TIMING("Input processing");
 		SDLProcessEvents(Window, &GlobalInput);

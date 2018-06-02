@@ -70,6 +70,8 @@ struct debug_record {
 			v3* Value_DebugValue_Vector3;
 			v4* Value_DebugValue_Vector4;
 			v4* Value_DebugValue_Color;
+			stacked_memory* Value_DebugValue_StackedMemory;
+			void* Value;
 		};
 
 	} Value_Value;
@@ -145,6 +147,8 @@ inline void DEBUGSetLogRecording(b32 Recording) {
 
 #define DEBUG_VALUE(value_type) {debug_record* Rec = ADD_DEBUG_RECORD("Value", DebugRecord_Value); Rec->Value_Value.ValueType = value_type;}
 #define DEBUG_VALUE_SET_VALUE(rec, value_type, value) rec->Value_Value.Value_##value_type = value
+
+#define DEBUG_STACKED_MEM(name, value) {debug_record* Rec = ADD_DEBUG_RECORD(name, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_StackedMemory; Rec->Value_Value.Value_DebugValue_StackedMemory = value;}
 
 #define DEBUG_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_Log)
 #define DEBUG_ERROR_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_ErrLog)
