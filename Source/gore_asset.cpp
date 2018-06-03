@@ -913,14 +913,6 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	return(Result);
 }
 
-enum load_mesh_vertex_layout {
-	MeshVertexLayout_PUV,
-	MeshVertexLayout_PUVN,
-	MeshVertexLayout_PNUV,
-	MeshVertexLayout_PUVNC,
-	MeshVertexLayout_PNUVC,
-};
-
 inline vertex_info LoadMeshVertex(float* Pos, float* Tex, float* Norm, float* Color) {
 	vertex_info Result = {};
 
@@ -1106,10 +1098,13 @@ mesh_info LoadMeshFromVertices(
 }
 
 inline void ASSETGenerateWriteVertex(float* Vertex, v3 P, v2 UV) {
+	//NOTE(dima): Writing position
 	*Vertex = P.x;
 	*(Vertex + 1) = P.y;
 	*(Vertex + 2) = P.z;
 
+
+	//NOTE(dima): Writing texture coordinate
 	*(Vertex + 3) = UV.x;
 	*(Vertex + 4) = UV.y;
 }

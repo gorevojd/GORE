@@ -2041,7 +2041,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float
 		//NOTE(DIMA): Drawing vertical rectangle
 		i32 RectOutlineWidth = 1;
 
-		RENDERPushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.GraphColor1));
+		RENDERPushRect(State->RenderStack, WorkRect, GUIGetColor(State, State->ColorTheme.GraphBackColor));
 		RENDERPushRectOutline(State->RenderStack, WorkRect, RectOutlineWidth, GUIGetColor(State, State->ColorTheme.OutlineColor));
 
 		//NOTE(DIMA): Calculating Min text rectangle
@@ -2254,7 +2254,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 		v2 WorkRectDim = V2(NextRowAdvanceFull * 10, NextRowAdvanceFull);
 
 		rect2 WorkRect = Rect2MinDim(WorkRectMin, WorkRectDim);
-		v4 WorkRectColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphColor1);
+		v4 WorkRectColor = GUIGetColor(GUIState, GUIState->ColorTheme.GraphBackColor);
 
 		float RectOutlineWidth = 1.0f;
 

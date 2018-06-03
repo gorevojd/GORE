@@ -846,9 +846,6 @@ static void DEBUGFramesSlider(debug_state* State) {
 		State->ViewFrameIndex = State->OldestFrameIndex;
 	}
 
-	if (GUIButton(GUIState, "TODO: Record next")) {
-
-	}
 	GUIEndRow(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "FrameSlider", 0, 1, 1);
@@ -1252,8 +1249,14 @@ static void DEBUGViewingFrameInfo(debug_state* State) {
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
 
-	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS, %urs", ViewingFrame->DeltaTime * 1000.0f, 1.0f / ViewingFrame->DeltaTime, ViewingFrame->RecordCount);
-	GUITreeBegin(State->GUIState, "ViewingFrameInfo", Buf);
+	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS, %urs, %.2f%% occupied, %dkb total", 
+		ViewingFrame->DeltaTime * 1000.0f, 
+		1.0f / ViewingFrame->DeltaTime, 
+		ViewingFrame->RecordCount,
+		(float)ViewingFrame->FrameMemory.Used / (float)ViewingFrame->FrameMemory.MaxSize * 100.0f,
+		ViewingFrame->FrameMemory.MaxSize >> 10);
+	GUIText(State->GUIState, Buf);
+	//GUITreeBegin(State->GUIState, "ViewingFrameInfo", Buf);
 #if 0
 	char MemInfoBuf[256];
 	stbsp_sprintf(MemInfoBuf, "Frame memory left: %u; Occupied: %f;",
@@ -1261,8 +1264,8 @@ static void DEBUGViewingFrameInfo(debug_state* State) {
 		(float)ViewingFrame->FrameMemory.Used / (float)ViewingFrame->FrameMemory.MaxSize * 100.0f);
 #endif
 
-	GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
-	GUITreeEnd(State->GUIState);
+	//GUIStackedMemGraph(State->GUIState, "FrameMemory", &ViewingFrame->FrameMemory);
+	//GUITreeEnd(State->GUIState);
 }
 
 enum debug_clock_list_type {

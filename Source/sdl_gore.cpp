@@ -820,6 +820,15 @@ inline cellural_t* GetCelluralCell(cellural_buffer* Buffer, int X, int Y) {
 	return(Result);
 }
 
+inline b32 CellIsAtEdge(cellural_buffer* Buffer, int X, int Y) {
+	b32 Result =
+		(X == 0) || (Y == 0) ||
+		(X == (Buffer->Width - 1)) ||
+		(Y == (Buffer->Height - 1));
+
+	return(Result);
+}
+
 static cellural_buffer AllocateCelluralBuffer(i32 Width, i32 Height) {
 	cellural_buffer Buffer;
 	Buffer.Buf = (u8*)calloc(Width * Height, sizeof(cellural_t));
@@ -1322,6 +1331,146 @@ static bitmap_info CelluralBufferToBitmap(cellural_buffer* Buffer) {
 	return(Res);
 }
 
+inline void CelluralWriteVertex(float* Vertex, v3 P, v2 UV) {
+	*Vertex = P.x;
+	*(Vertex + 1) = P.y;
+	*(Vertex + 2) = P.z;
+
+	*(Vertex + 3) = UV.x;
+	*(Vertex + 4) = UV.y;
+}
+
+inline void CelluralWriteFace(v3 Vert1, v3 Vert2, v3 Vert3, v3 Vert4, float* VerticesBase, u32* IndicesBase, u32* IndexAt, u32* VertexAt) {
+
+	float* Vertex0 = VerticesBase + *VertexAt * 5;
+	float* Vertex1 = VerticesBase + (*VertexAt + 1) * 5;
+	float* Vertex2 = VerticesBase + (*VertexAt + 2) * 5;
+	float* Vertex3 = VerticesBase + (*VertexAt + 3) * 5;
+
+	CelluralWriteVertex(Vertex0, Vert1, V2(0.0f, 0.0f));
+	CelluralWriteVertex(Vertex1, Vert2, V2(0.0f, 0.0f));
+	CelluralWriteVertex(Vertex2, Vert3, V2(0.0f, 0.0f));
+	CelluralWriteVertex(Vertex3, Vert4, V2(0.0f, 0.0f));
+
+	u32* Ind = IndicesBase + *IndexAt;
+	Ind[0] = *VertexAt;
+	Ind[1] = *VertexAt + 1;
+	Ind[2] = *VertexAt + 2;
+	Ind[3] = *VertexAt;
+	Ind[4] = *VertexAt + 2;
+	Ind[5] = *VertexAt + 3;
+
+	*IndexAt += 6;
+	*VertexAt += 4;
+}
+
+static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, float Height) {
+
+	mesh_info Result = {};
+
+	float* TempVerts = (float*)malloc(1000000 * sizeof(float) * 5);
+	u32* TempIndices = (u32*)malloc(1500000 * sizeof(u32));
+
+	v3 UpOffsetVector = V3(0.0f, Height, 0.0f);
+
+	u32 IndexAt = 0;
+	u32 VertexAt = 0;
+
+	u8* At = Buffer->Buf;
+	for (i32 Y = 0; Y < Buffer->Height; Y++) {
+		for (i32 X = 0; X < Buffer->Width; X++) {
+
+			float CurHeight = 0.0f;
+
+			cellural_t* Cell = GetCelluralCell(Buffer, X, Y);
+			if (!*Cell) {
+				CurHeight = Height;
+
+				cellural_t* LeftCell = GetCelluralCell(Buffer, X - 1, Y);
+				cellural_t* RightCell = GetCelluralCell(Buffer, X + 1, Y);
+				cellural_t* TopCell = GetCelluralCell(Buffer, X, Y + 1);
+				cellural_t* BottomCell = GetCelluralCell(Buffer, X, Y - 1);
+
+				b32 LeftCellShouldBeWritten = 
+					(LeftCell && *LeftCell) || (X == 0);
+
+				b32 RightCellShouldBeWritten = 
+					(RightCell && *RightCell) || (X == Buffer->Width - 1);
+
+				b32 TopCellShouldBeWritten = 
+					(TopCell && *TopCell) || (Y == Buffer->Height - 1);
+
+				b32 BottomCellShouldBeWritten = 
+					(BottomCell && *BottomCell) || (Y == 0);
+
+				if (LeftCellShouldBeWritten) {
+					v3 First = V3(X, 0.0f, Y);
+					v3 Second = V3(X, 0.0f, Y + 1);
+
+					v3 Vert1 = First + UpOffsetVector;
+					v3 Vert2 = Second + UpOffsetVector;
+					v3 Vert3 = Second;
+					v3 Vert4 = First;
+
+					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+				}
+
+				if (RightCellShouldBeWritten) {
+					v3 First = V3(X + 1, 0.0f, Y);
+					v3 Second = V3(X + 1, 0.0f, Y + 1);
+
+					v3 Vert1 = Second + UpOffsetVector;
+					v3 Vert2 = First + UpOffsetVector;
+					v3 Vert3 = First;
+					v3 Vert4 = Second;
+
+					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+				}
+
+				if (TopCellShouldBeWritten) {
+					v3 First = V3(X, 0.0f, Y + 1);
+					v3 Second = V3(X + 1, 0.0f, Y + 1);
+
+					v3 Vert1 = First + UpOffsetVector;
+					v3 Vert2 = Second + UpOffsetVector;
+					v3 Vert3 = Second;
+					v3 Vert4 = First;
+
+					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+				}
+
+				if (BottomCellShouldBeWritten) {
+					v3 First = V3(X, 0.0f, Y);
+					v3 Second = V3(X + 1, 0.0f, Y);
+
+					v3 Vert1 = Second + UpOffsetVector;
+					v3 Vert2 = First + UpOffsetVector;
+					v3 Vert3 = First;
+					v3 Vert4 = Second;
+
+					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+				}
+			}
+
+			v3 Vert1 = V3(X, CurHeight, Y);
+			v3 Vert2 = V3(X + 1, CurHeight, Y);
+			v3 Vert3 = V3(X + 1, CurHeight, Y + 1);
+			v3 Vert4 = V3(X, CurHeight, Y + 1);
+
+			CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+
+			++At;
+		}
+	}
+
+	Result = LoadMeshFromVertices(TempVerts, VertexAt, TempIndices, IndexAt, MeshVertexLayout_PUV, 1, 1);
+
+	free(TempVerts);
+	free(TempIndices);
+
+	return(Result);
+}
+
 int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
@@ -1548,10 +1697,11 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(255, 255);
+	cellural_buffer Cellural = AllocateCelluralBuffer(127, 127);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	CelluralGenerateLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
+	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 2.0f);
 
 	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
 	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
@@ -1657,7 +1807,9 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		//RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 700);
+		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 400);
+		surface_material SurfMat = LITCreateSurfaceMaterial(16.0f, V3(1.0f, 1.0f, 1.0f));
+		RENDERPushMesh(Stack, &CaveMesh, ScalingMatrix(V3(1.0f, 1.0f, 1.0f)), &SurfMat);
 
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
