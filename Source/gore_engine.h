@@ -7,6 +7,7 @@
 #include "gore_debug.h"
 #include "gore_gui.h"
 #include "gore_asset.h"
+#include "gore_voxel_shared.h"
 
 
 #endif

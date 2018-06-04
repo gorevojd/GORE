@@ -133,9 +133,10 @@ void main(){
 
 	vec3 TotalColor = vec3(0.0f, 0.0f, 0.0f);
 
-	//TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);
+	TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);
 	TotalColor += CalculatePointLight(Light1, FragDiffColor, FragSpecColor, ToCamera);
 	TotalColor += FragEmisColor;
 
 	OutFragmentColor = vec4(TotalColor, 1.0f);
+	//OutFragmentColor = vec4(FragDiffColor, 1.0f);
 }

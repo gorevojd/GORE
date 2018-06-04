@@ -134,5 +134,8 @@
     <ClInclude Include="..\Source\gore_colors.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\gore_voxel_shared.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

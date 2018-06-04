@@ -95,10 +95,14 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
 
 	v3 CylPos1 = V3(1.0f, 6.0f, 20.0f);
+	
+	static mat4 CylTranMat = TranslationMatrix(CylPos1);
 	mat4 CylMat1 = 
-		TranslationMatrix(CylPos1) * 
-		RotationX(Input->Time) *
+		CylTranMat * 
+		RotationX(Input->Time * 10) *
 		ScalingMatrix(V3(2.0f, 10.0f, 2.0f));
+	CylTranMat = Translate(CylTranMat, V3(1.0f, 0.0f, 1.0f) * Input->DeltaTime * 3);
+	
 
 	v3 CubePos = V3(-5.0f, 2.0f, 3.0f);
 	mat4 CubeMat = TranslationMatrix(CubePos) * RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f));

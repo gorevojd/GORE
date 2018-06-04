@@ -199,6 +199,7 @@
     <ClInclude Include="..\Source\gore_render_state.h" />
     <ClInclude Include="..\Source\gore_threadwork_memory.h" />
     <ClInclude Include="..\Source\gore_types.h" />
+    <ClInclude Include="..\Source\gore_voxel_shared.h" />
     <ClInclude Include="..\Source\sdl_gore.h" />
     <ClInclude Include="..\Source\stb_image.h" />
     <ClInclude Include="..\Source\stb_sprintf.h" />

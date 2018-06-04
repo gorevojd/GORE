@@ -11,6 +11,7 @@ typedef u32 font_id;
 typedef u32 sound_id;
 typedef u32 model_id;
 typedef u32 mesh_id;
+typedef u32 voxel_atlas_id;
 
 enum game_asset_state {
 	GameAssetState_Unloaded,
@@ -56,6 +57,10 @@ struct game_asset_source_font {
 	font_info* FontInfo;
 };
 
+struct game_asset_source_voxel_atlas {
+	voxel_atlas_info* Info;
+};
+
 struct game_asset_source {
 	union {
 		game_asset_source_bitmap BitmapSource;
@@ -63,6 +68,7 @@ struct game_asset_source {
 		game_asset_source_font FontSource;
 		game_asset_source_model ModelSource;
 		game_asset_source_mesh MeshSource;
+		game_asset_source_voxel_atlas VoxelAtlasSource;
 	};
 };
 
@@ -90,6 +96,7 @@ struct game_asset {
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;
+		voxel_atlas_info* VoxelAtlas;
 	};
 
 	/*
@@ -107,6 +114,7 @@ struct game_asset {
 		sound_info Sound_;
 		model_info Model_;
 		mesh_info Mesh_;
+		voxel_atlas_info VoxelAtlas_;
 	};
 };
 
@@ -134,6 +142,7 @@ sound_id GetFirstSound(asset_system* System, u32 GroupID);
 font_id GetFirstFont(asset_system* System, u32 GroupID);
 model_id GetFirstModel(asset_system* System, u32 GroupID);
 mesh_id GetFirstMesh(asset_system* System, u32 GroupID);
+voxel_atlas_id GetFirstVoxelAtlas(asset_system* System, u32 GroupID);
 
 u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType);
 u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType);
@@ -214,6 +223,17 @@ inline model_info* GetModelFromID(asset_system* System, model_id ID) {
 	model_info* Result = 0;
 	if (Asset) {
 		Result = Asset->Model;
+	}
+
+	return(Result);
+}
+
+inline voxel_atlas_info* GetVoxelAtlasFromID(asset_system* System, voxel_atlas_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_VoxelAtlas);
+
+	voxel_atlas_info* Result = 0;
+	if (Asset) {
+		Result = Asset->VoxelAtlas;
 	}
 
 	return(Result);

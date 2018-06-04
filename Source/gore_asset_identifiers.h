@@ -27,6 +27,8 @@ enum game_asset_group_id {
 
 	GameAsset_Font,
 
+	GameAsset_MyVoxelAtlas,
+
 	GameAsset_Count,
 };
 

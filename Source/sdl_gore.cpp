@@ -1340,17 +1340,22 @@ inline void CelluralWriteVertex(float* Vertex, v3 P, v2 UV) {
 	*(Vertex + 4) = UV.y;
 }
 
-inline void CelluralWriteFace(v3 Vert1, v3 Vert2, v3 Vert3, v3 Vert4, float* VerticesBase, u32* IndicesBase, u32* IndexAt, u32* VertexAt) {
+inline void CelluralWriteFace(
+	v3 Vert1, v3 Vert2, v3 Vert3, v3 Vert4, 
+	voxel_face_tex_coords_set* FaceTexSet,
+	float* VerticesBase, u32* IndicesBase, 
+	u32* IndexAt, u32* VertexAt) 
+{
 
 	float* Vertex0 = VerticesBase + *VertexAt * 5;
 	float* Vertex1 = VerticesBase + (*VertexAt + 1) * 5;
 	float* Vertex2 = VerticesBase + (*VertexAt + 2) * 5;
 	float* Vertex3 = VerticesBase + (*VertexAt + 3) * 5;
 
-	CelluralWriteVertex(Vertex0, Vert1, V2(0.0f, 0.0f));
-	CelluralWriteVertex(Vertex1, Vert2, V2(0.0f, 0.0f));
-	CelluralWriteVertex(Vertex2, Vert3, V2(0.0f, 0.0f));
-	CelluralWriteVertex(Vertex3, Vert4, V2(0.0f, 0.0f));
+	CelluralWriteVertex(Vertex0, Vert1, FaceTexSet->T1);
+	CelluralWriteVertex(Vertex1, Vert2, FaceTexSet->T0);
+	CelluralWriteVertex(Vertex2, Vert3, FaceTexSet->T3);
+	CelluralWriteVertex(Vertex3, Vert4, FaceTexSet->T2);
 
 	u32* Ind = IndicesBase + *IndexAt;
 	Ind[0] = *VertexAt;
@@ -1364,14 +1369,14 @@ inline void CelluralWriteFace(v3 Vert1, v3 Vert2, v3 Vert3, v3 Vert4, float* Ver
 	*VertexAt += 4;
 }
 
-static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, float Height) {
+static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, int Height, voxel_atlas_info* Atlas) {
 
 	mesh_info Result = {};
 
 	float* TempVerts = (float*)malloc(1000000 * sizeof(float) * 5);
 	u32* TempIndices = (u32*)malloc(1500000 * sizeof(u32));
 
-	v3 UpOffsetVector = V3(0.0f, Height, 0.0f);
+	v3 UpOffsetVector = V3(0.0f, 1.0f, 0.0f);
 
 	u32 IndexAt = 0;
 	u32 VertexAt = 0;
@@ -1382,14 +1387,28 @@ static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, float Height) {
 
 			float CurHeight = 0.0f;
 
+			u8 FloorCellIndex = Atlas->Materials[VoxelMaterial_BigBrick].Top;
+			//u8 WallCellIndex = Atlas->Materials[VoxelMaterial_Secret].Side;
+			u8 WallCellIndex = Atlas->Materials[VoxelMaterial_GrassyBigBrick].Side;
+			u8 TopCellIndex = Atlas->Materials[VoxelMaterial_GrassyBigBrick].Top;
+
+			voxel_face_tex_coords_set TexSet = GetFaceTexCoordSetForTextureIndex(
+				FloorCellIndex,
+				Atlas->OneTextureWidth,
+				Atlas->AtlasWidth);
+
 			cellural_t* Cell = GetCelluralCell(Buffer, X, Y);
 			if (!*Cell) {
 				CurHeight = Height;
-
+				TexSet = GetFaceTexCoordSetForTextureIndex(
+					TopCellIndex,
+					Atlas->OneTextureWidth,
+					Atlas->AtlasWidth);
+				
 				cellural_t* LeftCell = GetCelluralCell(Buffer, X - 1, Y);
 				cellural_t* RightCell = GetCelluralCell(Buffer, X + 1, Y);
-				cellural_t* TopCell = GetCelluralCell(Buffer, X, Y + 1);
-				cellural_t* BottomCell = GetCelluralCell(Buffer, X, Y - 1);
+				cellural_t* TopCell = GetCelluralCell(Buffer, X, Y - 1);
+				cellural_t* BottomCell = GetCelluralCell(Buffer, X, Y + 1);
 
 				b32 LeftCellShouldBeWritten = 
 					(LeftCell && *LeftCell) || (X == 0);
@@ -1398,57 +1417,98 @@ static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, float Height) {
 					(RightCell && *RightCell) || (X == Buffer->Width - 1);
 
 				b32 TopCellShouldBeWritten = 
-					(TopCell && *TopCell) || (Y == Buffer->Height - 1);
+					(TopCell && *TopCell) || (Y == 0);
 
 				b32 BottomCellShouldBeWritten = 
-					(BottomCell && *BottomCell) || (Y == 0);
+					(BottomCell && *BottomCell) || (Y == Buffer->Height - 1);
 
 				if (LeftCellShouldBeWritten) {
-					v3 First = V3(X, 0.0f, Y);
-					v3 Second = V3(X, 0.0f, Y + 1);
+					for (int HeightIndex = 0;
+						HeightIndex < Height;
+						HeightIndex++)
+					{
+						v3 First = V3(X, HeightIndex, Y);
+						v3 Second = V3(X, HeightIndex, Y + 1);
 
-					v3 Vert1 = First + UpOffsetVector;
-					v3 Vert2 = Second + UpOffsetVector;
-					v3 Vert3 = Second;
-					v3 Vert4 = First;
+						v3 Vert1 = First + UpOffsetVector;
+						v3 Vert2 = Second + UpOffsetVector;
+						v3 Vert3 = Second;
+						v3 Vert4 = First;
 
-					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+						voxel_face_tex_coords_set LeftTexSet = GetFaceTexCoordSetForTextureIndex(
+							WallCellIndex,
+							Atlas->OneTextureWidth,
+							Atlas->AtlasWidth);
+
+						CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, &LeftTexSet, TempVerts, TempIndices, &IndexAt, &VertexAt);
+					}
 				}
 
 				if (RightCellShouldBeWritten) {
-					v3 First = V3(X + 1, 0.0f, Y);
-					v3 Second = V3(X + 1, 0.0f, Y + 1);
+					for (int HeightIndex = 0;
+						HeightIndex < Height;
+						HeightIndex++)
+					{
 
-					v3 Vert1 = Second + UpOffsetVector;
-					v3 Vert2 = First + UpOffsetVector;
-					v3 Vert3 = First;
-					v3 Vert4 = Second;
+						v3 First = V3(X + 1, HeightIndex, Y);
+						v3 Second = V3(X + 1, HeightIndex, Y + 1);
 
-					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+						v3 Vert1 = Second + UpOffsetVector;
+						v3 Vert2 = First + UpOffsetVector;
+						v3 Vert3 = First;
+						v3 Vert4 = Second;
+
+						voxel_face_tex_coords_set RightTexSet = GetFaceTexCoordSetForTextureIndex(
+							WallCellIndex,
+							Atlas->OneTextureWidth,
+							Atlas->AtlasWidth);
+
+						CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, &RightTexSet, TempVerts, TempIndices, &IndexAt, &VertexAt);
+					}
 				}
 
 				if (TopCellShouldBeWritten) {
-					v3 First = V3(X, 0.0f, Y + 1);
-					v3 Second = V3(X + 1, 0.0f, Y + 1);
+					for (int HeightIndex = 0;
+						HeightIndex < Height;
+						HeightIndex++)
+					{
+						v3 First = V3(X, HeightIndex, Y);
+						v3 Second = V3(X + 1, HeightIndex, Y);
 
-					v3 Vert1 = First + UpOffsetVector;
-					v3 Vert2 = Second + UpOffsetVector;
-					v3 Vert3 = Second;
-					v3 Vert4 = First;
+						v3 Vert1 = Second + UpOffsetVector;
+						v3 Vert2 = First + UpOffsetVector;
+						v3 Vert3 = First;
+						v3 Vert4 = Second;
 
-					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+						voxel_face_tex_coords_set TopTexSet = GetFaceTexCoordSetForTextureIndex(
+							WallCellIndex,
+							Atlas->OneTextureWidth,
+							Atlas->AtlasWidth);
+
+						CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, &TopTexSet, TempVerts, TempIndices, &IndexAt, &VertexAt);
+					}
 				}
 
 				if (BottomCellShouldBeWritten) {
-					v3 First = V3(X, 0.0f, Y);
-					v3 Second = V3(X + 1, 0.0f, Y);
+					for (int HeightIndex = 0;
+						HeightIndex < Height;
+						HeightIndex++)
+					{
+						v3 First = V3(X, HeightIndex, Y + 1);
+						v3 Second = V3(X + 1, HeightIndex, Y + 1);
 
-					v3 Vert1 = Second + UpOffsetVector;
-					v3 Vert2 = First + UpOffsetVector;
-					v3 Vert3 = First;
-					v3 Vert4 = Second;
+						v3 Vert1 = First + UpOffsetVector;
+						v3 Vert2 = Second + UpOffsetVector;
+						v3 Vert3 = Second;
+						v3 Vert4 = First;
 
-					CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+						voxel_face_tex_coords_set BottomTexSet = GetFaceTexCoordSetForTextureIndex(
+							WallCellIndex,
+							Atlas->OneTextureWidth,
+							Atlas->AtlasWidth);
+
+						CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, &BottomTexSet, TempVerts, TempIndices, &IndexAt, &VertexAt);
+					}
 				}
 			}
 
@@ -1457,7 +1517,7 @@ static mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, float Height) {
 			v3 Vert3 = V3(X + 1, CurHeight, Y + 1);
 			v3 Vert4 = V3(X, CurHeight, Y + 1);
 
-			CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, TempVerts, TempIndices, &IndexAt, &VertexAt);
+			CelluralWriteFace(Vert1, Vert2, Vert3, Vert4, &TexSet, TempVerts, TempIndices, &IndexAt, &VertexAt);
 
 			++At;
 		}
@@ -1695,13 +1755,16 @@ int main(int ArgsCount, char** Args) {
 	if (!renderer) {
 		printf("ERROR: Renderer is not created");
 	}
+	ASSETSInit(&GlobalAssets, MEGABYTES(32));
 
+	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(&GlobalAssets, GameAsset_MyVoxelAtlas);
+	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(&GlobalAssets, VoxelAtlasID);
 	random_state CellRandom = InitRandomStateWithSeed(1234);
 	cellural_buffer Cellural = AllocateCelluralBuffer(127, 127);
 	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
 	CelluralGenerateLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
-	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 2.0f);
+	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 3, VoxelAtlas);
 
 	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
 	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
@@ -1720,8 +1783,6 @@ int main(int ArgsCount, char** Args) {
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
 
 	geometrika_state GameState = {};
-
-	ASSETSInit(&GlobalAssets, MEGABYTES(32));
 
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
@@ -1807,8 +1868,10 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
-		RENDERPushBitmap(Stack, &CaveBitmap, V2(10, 10), 400);
+		//RENDERPushBitmap(Stack, &CaveBitmap, V2(400, 10), 400);
 		surface_material SurfMat = LITCreateSurfaceMaterial(16.0f, V3(1.0f, 1.0f, 1.0f));
+		SurfMat.DiffuseInfo = &VoxelAtlas->Bitmap;
+		//RENDERPushBitmap(Stack, &VoxelAtlas->Bitmap, V2(400, 10), 400);
 		RENDERPushMesh(Stack, &CaveMesh, ScalingMatrix(V3(1.0f, 1.0f, 1.0f)), &SurfMat);
 
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);

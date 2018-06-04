@@ -98,6 +98,85 @@ struct font_info {
 	bitmap_info FontAtlasImage;
 };
 
+enum voxel_material_type {
+	VoxelMaterial_None,
+	VoxelMaterial_Stone,
+	VoxelMaterial_Ground,
+	VoxelMaterial_Sand,
+	VoxelMaterial_GrassyGround,
+	VoxelMaterial_Lava,
+	VoxelMaterial_SnowGround,
+	VoxelMaterial_WinterGround,
+	VoxelMaterial_Leaves,
+	VoxelMaterial_Brick,
+	VoxelMaterial_Logs,
+	VoxelMaterial_Birch,
+	VoxelMaterial_Tree,
+
+	VoxelMaterial_GrassyBigBrick,
+	VoxelMaterial_DecorateBrick,
+	VoxelMaterial_BigBrick,
+	VoxelMaterial_BookShelf,
+
+	VoxelMaterial_Secret,
+
+	VoxelMaterial_Count,
+};
+
+enum voxel_face_type_index {
+	VoxelFaceTypeIndex_Top = 0,
+	VoxelFaceTypeIndex_Bottom,
+	VoxelFaceTypeIndex_Left,
+	VoxelFaceTypeIndex_Right,
+	VoxelFaceTypeIndex_Front,
+	VoxelFaceTypeIndex_Back,
+
+	VoxelFaceTypeIndex_Count,
+
+	VoxelFaceTypeIndex_All,
+	VoxelFaceTypeIndex_Side,
+	VoxelFaceTypeIndex_TopBottom,
+};
+
+struct voxel_tex_coords_set{
+	union {
+		struct {
+			union {
+				struct {
+					u8 Top;
+					u8 Bottom;
+				};
+				u8 TopBottom;
+			};
+			union {
+				struct {
+					u8 Left;
+					u8 Right;
+					u8 Front;
+					u8 Back;
+				};
+				u8 Side;
+			};
+		};
+
+		u8 All;
+		u8 Sets[VoxelFaceTypeIndex_Count];
+	};
+};
+
+struct voxel_atlas_info {
+	bitmap_info Bitmap;
+
+	int MaxTexturesCount;
+	int TexturesCount;
+
+	int AtlasWidth;
+	int OneTextureWidth;
+
+	voxel_tex_coords_set* Materials;
+	int MaterialsCount;
+};
+
 enum asset_type {
 	AssetType_None,
 
@@ -106,6 +185,7 @@ enum asset_type {
 	AssetType_Font,
 	AssetType_Model,
 	AssetType_Mesh,
+	AssetType_VoxelAtlas,
 };
 
 
