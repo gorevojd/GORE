@@ -1,6 +1,5 @@
 #version 330 core
 
-in vec3 FragmentColor;
 in vec2 FragmentUV;
 in vec3 FragmentWorldP;
 in vec3 FragmentWorldN;
@@ -133,7 +132,7 @@ void main(){
 
 	vec3 TotalColor = vec3(0.0f, 0.0f, 0.0f);
 
-	TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);
+	//TotalColor += CalculateDirLight(DirLight, FragDiffColor, FragSpecColor, ToCamera);
 	TotalColor += CalculatePointLight(Light1, FragDiffColor, FragSpecColor, ToCamera);
 	TotalColor += FragEmisColor;
 

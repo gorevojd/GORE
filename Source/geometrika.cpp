@@ -9,12 +9,21 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
 		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
 		
+#if 1
+		voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(AssetSystem, GameAsset_MyVoxelAtlas);
+		voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(AssetSystem, VoxelAtlasID);
+
+		GenerateTestChunk(&State->TestChunk);
+		
+		State->VoxelAtalsBitmap = &VoxelAtlas->Bitmap;
+		State->TestChunkMesh.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
+		VoxmeshGenerate(&State->TestChunkMesh, &State->TestChunk, VoxelAtlas);
+#endif
+
 		State->PlaneMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_Checkerboard);
 
 		State->CubeMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_ContainerDiffImage);
 		State->CubeMat.Specular = GetFirstBitmap(AssetSystem, GameAsset_ContainerSpecImage);
-
-		//State->PlaneMat.Emissive = ASSETRequestFirstBitmap(AssetSystem, GameAsset_Checkerboard);
 
 		State->IsInitialized = 1;
 	}
@@ -71,7 +80,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	mesh_id PlaneID = GetFirstMesh(AssetSystem, GameAsset_Plane);
 	mesh_id CylID = GetFirstMesh(AssetSystem, GameAsset_Cylynder);
 
-	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.5f, AssetType_Mesh);
+	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
 #if 0
 	for (int i = -5; i < 5; i++) {
@@ -114,6 +123,11 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	RENDERPushMesh(RenderStack, CylID, CylMat1, &State->CubeMat);
 
 	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
+
+#if 1
+	RENDERPushVoxelLighting(RenderStack);
+	RENDERPushVoxelMesh(RenderStack, &State->TestChunkMesh, V3(0.0f, 0.0f, 0.0f), State->VoxelAtalsBitmap);
+#endif
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,

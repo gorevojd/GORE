@@ -54,6 +54,12 @@
     <ClCompile Include="..\Source\gore_colors.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\gore_voxmesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Source\gore_cellural.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\geometrika.h">
@@ -134,7 +140,13 @@
     <ClInclude Include="..\Source\gore_colors.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Source\gore_voxel_shared.h">
+    <ClInclude Include="..\Source\gore_voxmesh.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_voxshared.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_cellural.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

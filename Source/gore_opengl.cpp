@@ -11,7 +11,6 @@ GLuint OpenGLAllocateTexture(bitmap_info* Buffer) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
@@ -133,6 +132,30 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.SurfMatHasDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasDiffuse");
 	Result.SurfMatHasSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasSpecular");
 	Result.SurfMatHasEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasEmissive");
+
+	return(Result);
+}
+
+gl_voxel_shader OpenGLLoadVoxelShader() {
+	gl_voxel_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/VoxelShader.vert";
+	char* FragmentPath = "../Data/Shaders/VoxelShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.VertexDataIndex = glGetAttribLocation(Result.Program.Handle, "VertexData");
+
+	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
+	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
+	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
+	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
+
+	Result.DiffuseMapLocation = glGetUniformLocation(Result.Program.Handle, "DiffuseMap");
+
+	Result.DirDirectionLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Direction");
+	Result.DirDiffuseLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Diffuse");
+	Result.DirAmbientLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Ambient");
 
 	return(Result);
 }
@@ -284,18 +307,30 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 
-	//glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
 	u8* At = (u8*)RenderState->Data.BaseAddress;
 	u8* StackEnd = (u8*)RenderState->Data.BaseAddress + RenderState->Data.Used;
 
 	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
+
 	glUseProgram(GLState->WtfShader.Program.Handle);
 	glUniformMatrix4fv(GLState->WtfShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
 	glUniformMatrix4fv(GLState->WtfShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
-	glUniform3f(GLState->WtfShader.CameraPLocation,
+	glUniform3f(
+		GLState->WtfShader.CameraPLocation,
+		RenderState->CameraSetup.Camera.Position.x,
+		RenderState->CameraSetup.Camera.Position.y,
+		RenderState->CameraSetup.Camera.Position.z);
+	glUseProgram(0);
+
+	glUseProgram(GLState->VoxelShader.Program.Handle);
+	glUniformMatrix4fv(GLState->VoxelShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
+	glUniformMatrix4fv(GLState->VoxelShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniform3f(
+		GLState->VoxelShader.CameraPLocation,
 		RenderState->CameraSetup.Camera.Position.x,
 		RenderState->CameraSetup.Camera.Position.y,
 		RenderState->CameraSetup.Camera.Position.z);
@@ -447,12 +482,6 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 						glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, OneVertexSize, (void*)UVOffset);
 					}
 
-					if (OpenGLArrayIsValid(Shader->ColorIndex)) {
-						glEnableVertexAttribArray(Shader->ColorIndex);
-						u32 COffset = offsetof(vertex_info, C);
-						glVertexAttribPointer(Shader->ColorIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)COffset);
-					}
-
 					if (OpenGLArrayIsValid(Shader->TangentIndex)) {
 						glEnableVertexAttribArray(Shader->TangentIndex);
 						u32 TOffset = offsetof(vertex_info, T);
@@ -481,6 +510,108 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				glUseProgram(0);
 			}break;
 
+			case RenderEntry_VoxelMesh: {
+				render_stack_entry_voxel_mesh* EntryVoxelMesh = (render_stack_entry_voxel_mesh*)At;
+
+				gl_voxel_shader* Shader = &GLState->VoxelShader;
+				voxel_mesh_info* Mesh = EntryVoxelMesh->MeshInfo;
+
+				mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
+
+				u32 TextureToBind = 0;
+				if (EntryVoxelMesh->VoxelAtlasBitmap) {
+					if (EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle) {
+						TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
+					}
+					else {
+						TextureToBind = OpenGLAllocateTexture(EntryVoxelMesh->VoxelAtlasBitmap);
+					}
+				}
+
+				if (!Mesh->MeshHandle) {
+					GLuint MeshVAO;
+					GLuint MeshVBO;
+
+					glGenVertexArrays(1, &MeshVAO);
+					glGenBuffers(1, &MeshVBO);
+
+					glBindVertexArray(MeshVAO);
+
+					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+					glBufferData(GL_ARRAY_BUFFER,
+						Mesh->VerticesCount * sizeof(u32),
+						Mesh->Vertices, GL_DYNAMIC_DRAW);
+
+					if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
+						glEnableVertexAttribArray(Shader->VertexDataIndex);
+						glVertexAttribPointer(Shader->VertexDataIndex, 1, GL_FLOAT, GL_FALSE, 4, 0);
+					}
+
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray(0);
+
+					//glDeleteVertexArrays(1, &MeshVAO);
+					//glDeleteBuffers(1, &MeshVBO);
+
+					Mesh->MeshHandle = (void*)MeshVAO;
+				}
+
+				glUseProgram((u32)Shader->Program.Handle);
+
+				glEnable(GL_DEPTH_TEST);
+
+				_glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, TextureToBind);
+				glUniform1i(Shader->DiffuseMapLocation, 0);
+
+				glUniformMatrix4fv(
+					Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+
+				glBindVertexArray((u32)Mesh->MeshHandle);
+				glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
+				glBindVertexArray(0);
+
+				glDisable(GL_DEPTH_TEST);
+
+				glUseProgram(0);
+			}break;
+
+			case RenderEntry_Lighting: {
+				gl_wtf_shader* WtfShader = &GLState->WtfShader;
+
+				glUseProgram(WtfShader->Program.Handle);
+
+				glUseProgram(0);
+			}break;
+
+			case RenderEntry_VoxelLighting: {
+
+				gl_voxel_shader* VoxelShader = &GLState->VoxelShader;
+
+				v3 VoxDirDir = V3(0.5f, -0.5f, 0.5f);
+				v3 VoxDirAmb = V3(0.1f, 0.1f, 0.1f);
+				v3 VoxDirDif = V3(1.0f, 1.0f, 1.0f);
+
+				glUseProgram(VoxelShader->Program.Handle);
+				glUniform3f(
+					VoxelShader->DirDirectionLocation, 
+					VoxDirDir.x, 
+					VoxDirDir.y, 
+					VoxDirDir.z);
+				glUniform3f(
+					VoxelShader->DirDiffuseLocation,  
+					VoxDirDif.x, 
+					VoxDirDif.y, 
+					VoxDirDif.z);
+				glUniform3f(
+					VoxelShader->DirAmbientLocation,
+					VoxDirAmb.x, 
+					VoxDirAmb.y, 
+					VoxDirAmb.z);
+				glUseProgram(0);
+
+			}break;
+
 			case RenderEntry_Test: {
 
 			}break;
@@ -498,4 +629,5 @@ void OpenGLInitState(gl_state* State) {
 	*State = {};
 
 	State->WtfShader = OpenGLLoadWtfShader();
+	State->VoxelShader = OpenGLLoadVoxelShader();
 }

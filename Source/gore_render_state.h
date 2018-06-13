@@ -27,6 +27,10 @@ enum render_entry_type {
 	RenderEntry_Gradient,
 	RenderEntry_Rectangle,
 	RenderEntry_Mesh,
+	RenderEntry_VoxelMesh,
+
+	RenderEntry_Lighting,
+	RenderEntry_VoxelLighting,
 
 	RenderEntry_Glyph,
 	RenderEntry_BeginText,
@@ -70,6 +74,22 @@ struct render_stack_entry_mesh {
 
 	mat4 TransformMatrix;
 	surface_material* Material;
+};
+
+struct render_stack_entry_voxel_mesh {
+	voxel_mesh_info* MeshInfo;
+
+	bitmap_info* VoxelAtlasBitmap;
+
+	v3 P;
+};
+
+struct render_stack_entry_lighting {
+
+};
+
+struct render_stack_entry_voxel_lighting {
+
 };
 
 struct render_stack_entry_begin_text {
@@ -174,6 +194,7 @@ inline void RENDERPushClear(render_state* Stack, v3 Clear) {
 	Entry->Color = Clear;
 }
 
+
 inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material* Material) {
 	render_stack_entry_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_mesh, RenderEntry_Mesh);
 
@@ -193,6 +214,25 @@ inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMa
 	}
 }
 
+inline void RENDERPushVoxelMesh(render_state* State, voxel_mesh_info* Mesh, v3 P, bitmap_info* VoxelAtlasBitmap) {
+	render_stack_entry_voxel_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_mesh, RenderEntry_VoxelMesh);
+
+	Entry->MeshInfo = Mesh;
+	Entry->P = P;
+	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
+}
+
+
+inline void RENDERPushLighting(render_state* State) {
+	render_stack_entry_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lighting, RenderEntry_Lighting);
+
+
+}
+
+inline void RENDERPushVoxelLighting(render_state* State) {
+	render_stack_entry_voxel_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_lighting, RenderEntry_VoxelLighting);
+
+}
 
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {
 	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderEntry_Gradient);

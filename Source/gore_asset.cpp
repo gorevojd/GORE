@@ -1,4 +1,5 @@
 #include "gore_asset.h"
+#include "gore_voxshared.h"
 
 #include <stdio.h>
 
@@ -930,7 +931,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	return(Result);
 }
 
-inline vertex_info LoadMeshVertex(float* Pos, float* Tex, float* Norm, float* Color) {
+inline vertex_info LoadMeshVertex(float* Pos, float* Tex, float* Norm) {
 	vertex_info Result = {};
 
 	if (Pos) {
@@ -948,12 +949,6 @@ inline vertex_info LoadMeshVertex(float* Pos, float* Tex, float* Norm, float* Co
 		Result.N.x = *Norm;
 		Result.N.y = *(Norm + 1);
 		Result.N.z = *(Norm + 2);
-	}
-
-	if (Color) {
-		Result.C.x = *Color;
-		Result.C.y = *(Color + 1);
-		Result.C.z = *(Color + 2);
 	}
 
 	return(Result);
@@ -1014,8 +1009,7 @@ mesh_info LoadMeshFromVertices(
 				float* Positions = VertexAt;
 				float* TexCoords = VertexAt + 3;
 
-				*ToLoad = LoadMeshVertex(Positions, TexCoords, 0, 0);
-				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, 0);
 			}break;
 
 			case MeshVertexLayout_PUVN: {
@@ -1023,8 +1017,7 @@ mesh_info LoadMeshFromVertices(
 				float* TexCoords = VertexAt + 3;
 				float* Normals = VertexAt + 5;
 
-				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, 0);
-				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals);
 			}break;
 
 			case MeshVertexLayout_PNUV: {
@@ -1032,8 +1025,7 @@ mesh_info LoadMeshFromVertices(
 				float* TexCoords = VertexAt + 6;
 				float* Normals = VertexAt + 3;
 
-				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, 0);
-				(*ToLoad).C = V3(1.0f, 1.0f, 1.0f);
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals);
 			}break;
 
 			case MeshVertexLayout_PUVNC: {
@@ -1042,7 +1034,7 @@ mesh_info LoadMeshFromVertices(
 				float* Normals = VertexAt + 5;
 				float* Colors = VertexAt + 8;
 
-				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, Colors);
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals);
 			}break;
 
 			case MeshVertexLayout_PNUVC: {
@@ -1051,7 +1043,7 @@ mesh_info LoadMeshFromVertices(
 				float* Normals = VertexAt + 3;
 				float* Colors = VertexAt + 8;
 
-				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals, Colors);
+				*ToLoad = LoadMeshVertex(Positions, TexCoords, Normals);
 			}break;
 		}
 		

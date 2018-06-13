@@ -6,7 +6,6 @@ struct vertex_info {
 	v3 P;
 	v3 N;
 	v2 UV;
-	v3 C;
 	v3 T;
 };
 
@@ -16,7 +15,6 @@ struct skinned_vertex_info {
 	v3 P;
 	v3 N;
 	v2 UV;
-	v3 C;
 	v3 T;
 
 	u32 Bones[INFLUENCE_BONE_COUNT];
@@ -98,31 +96,6 @@ struct font_info {
 	bitmap_info FontAtlasImage;
 };
 
-enum voxel_material_type {
-	VoxelMaterial_None,
-	VoxelMaterial_Stone,
-	VoxelMaterial_Ground,
-	VoxelMaterial_Sand,
-	VoxelMaterial_GrassyGround,
-	VoxelMaterial_Lava,
-	VoxelMaterial_SnowGround,
-	VoxelMaterial_WinterGround,
-	VoxelMaterial_Leaves,
-	VoxelMaterial_Brick,
-	VoxelMaterial_Logs,
-	VoxelMaterial_Birch,
-	VoxelMaterial_Tree,
-
-	VoxelMaterial_GrassyBigBrick,
-	VoxelMaterial_DecorateBrick,
-	VoxelMaterial_BigBrick,
-	VoxelMaterial_BookShelf,
-
-	VoxelMaterial_Secret,
-
-	VoxelMaterial_Count,
-};
-
 enum voxel_face_type_index {
 	VoxelFaceTypeIndex_Top = 0,
 	VoxelFaceTypeIndex_Bottom,
@@ -177,6 +150,9 @@ struct voxel_atlas_info {
 	int MaterialsCount;
 };
 
+struct voxel_chunk_info;
+struct voxel_mesh_info;
+
 enum asset_type {
 	AssetType_None,
 
@@ -187,6 +163,5 @@ enum asset_type {
 	AssetType_Mesh,
 	AssetType_VoxelAtlas,
 };
-
 
 #endif

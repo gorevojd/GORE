@@ -3,6 +3,7 @@
 #include "gore_platform.h"
 #include "gore_render_state.h"
 #include "gore_lighting.h"
+#include "gore_voxshared.h"
 
 #include <SDL_opengl.h>
 
@@ -37,9 +38,29 @@ struct gl_wtf_shader {
 	gl_program Program;
 };
 
+struct gl_voxel_shader {
+
+	GLint VertexDataIndex;
+
+	GLint ModelMatrixLocation;
+	GLint ViewMatrixLocation;
+	GLint ProjectionMatrixLocation;
+
+	GLint CameraPLocation;
+
+	GLint DiffuseMapLocation;
+
+	GLint DirDirectionLocation;
+	GLint DirDiffuseLocation;
+	GLint DirAmbientLocation;
+
+	gl_program Program;
+};
+
 
 struct gl_state {
 	gl_wtf_shader WtfShader;
+	gl_voxel_shader VoxelShader;
 
 	//NOTE(dima): theese are temp values
 	GLuint CubeVAO;

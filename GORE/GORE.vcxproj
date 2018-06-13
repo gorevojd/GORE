@@ -164,6 +164,7 @@
   <ItemGroup>
     <ClCompile Include="..\Source\geometrika.cpp" />
     <ClCompile Include="..\Source\gore_asset.cpp" />
+    <ClCompile Include="..\Source\gore_cellural.cpp" />
     <ClCompile Include="..\Source\gore_colors.cpp" />
     <ClCompile Include="..\Source\gore_debug.cpp" />
     <ClCompile Include="..\Source\gore_debug_layer.cpp" />
@@ -174,6 +175,7 @@
     <ClCompile Include="..\Source\gore_renderer.cpp" />
     <ClCompile Include="..\Source\gore_render_state.cpp" />
     <ClCompile Include="..\Source\gore_threadwork_memory.cpp" />
+    <ClCompile Include="..\Source\gore_voxmesh.cpp" />
     <ClCompile Include="..\Source\sdl_gore.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -182,6 +184,7 @@
     <ClInclude Include="..\Source\gore_asset_common.h" />
     <ClInclude Include="..\Source\gore_asset_identifiers.h" />
     <ClInclude Include="..\Source\gore_asset_types.h" />
+    <ClInclude Include="..\Source\gore_cellural.h" />
     <ClInclude Include="..\Source\gore_colors.h" />
     <ClInclude Include="..\Source\gore_debug.h" />
     <ClInclude Include="..\Source\gore_debug_layer.h" />
@@ -199,7 +202,8 @@
     <ClInclude Include="..\Source\gore_render_state.h" />
     <ClInclude Include="..\Source\gore_threadwork_memory.h" />
     <ClInclude Include="..\Source\gore_types.h" />
-    <ClInclude Include="..\Source\gore_voxel_shared.h" />
+    <ClInclude Include="..\Source\gore_voxshared.h" />
+    <ClInclude Include="..\Source\gore_voxmesh.h" />
     <ClInclude Include="..\Source\sdl_gore.h" />
     <ClInclude Include="..\Source\stb_image.h" />
     <ClInclude Include="..\Source\stb_sprintf.h" />
