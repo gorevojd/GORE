@@ -1,12 +1,12 @@
+GORE/Builds/Debug32/*
+GORE/Builds/Debug64/*
+GORE/Builds/Release32/*
+GORE/Builds/Release64/*
+
 !GORE/Builds/Debug32/SDL2.dll
 !GORE/Builds/Debug64/SDL2.dll
 !GORE/Builds/Release32/SDL2.dll
 !GORE/Builds/Release64/SDL2.dll
-
-GORE/Builds/Debug32/**
-GORE/Builds/Debug64/**
-GORE/Builds/Release32/**
-GORE/Builds/Release64/**
 
 AssetBuilder/Builds/**
 SourceStatistics/Builds/**
