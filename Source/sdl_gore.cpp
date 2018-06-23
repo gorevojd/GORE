@@ -22,13 +22,13 @@
 		DEBUG:
 			Thread intervals for non-one frame records
 
-			Implement 'Record next' button on frames slider
 			DEBUG console
-			VARARG macro functions for hitcount
+
+			One timing - multiple hit counts
 			
 		GUI:
-			Build glyph chunks and render them instead individual bitmaps
-			
+			WHOLE NEW GUI SYSTEM!!! Think about it)
+
 			Message boxes
 
 			Interaction rules list
@@ -55,7 +55,6 @@
 			Dynamically growing memory layout
 
 		Other:
-			Split code to platform dependent and platform independent parts
 
 		Platform layer:
 			Correct aspect ratio handling
@@ -812,9 +811,9 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	//NOTE(dima): Initialization of the memory
-	u32 GameModeMemorySize = MEGABYTES(256);
-	u32 GeneralPurposeMemorySize = MEGABYTES(256);
-	u32 DEBUGMemorySize = MEGABYTES(256);
+	u32 GameModeMemorySize = MEGABYTES(128);
+	u32 GeneralPurposeMemorySize = MEGABYTES(512);
+	u32 DEBUGMemorySize = MEGABYTES(128);
 
 	u64 TotalMemoryBlockSize =
 		GameModeMemorySize +
@@ -962,6 +961,7 @@ int main(int ArgsCount, char** Args) {
 	if (!renderer) {
 		printf("ERROR: Renderer is not created");
 	}
+
 	ASSETSInit(&GlobalAssets, MEGABYTES(32));
 
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(&GlobalAssets, GameAsset_MyVoxelAtlas);
@@ -995,14 +995,16 @@ int main(int ArgsCount, char** Args) {
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
 	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
+	stacked_memory VoxelMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(256));
 
 	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
+	voxworld_generation_state VoxelGeneration;
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 20);
 	InitColorsState(ColorState, &ColorsMemory);
-
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
-	
+
 	OpenGLInitState(GLState);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
 
@@ -1076,6 +1078,7 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
+		VoxelChunksGenerationUpdate(&VoxelGeneration, Stack, GameState.Camera.Position);
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);

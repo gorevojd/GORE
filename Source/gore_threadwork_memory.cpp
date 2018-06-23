@@ -29,7 +29,7 @@ threadwork_memory* BeginThreadworkMemory(threadwork_memory* Memories, int Count)
 		{
 			Result = Mem;
 
-			BeginTempStackedMemory(&Mem->MemoryInternal_, Mem->MemoryInternal_.MaxSize, MemAllocFlag_Align16);
+			Mem->Memory = BeginTempStackedMemory(&Mem->MemoryInternal_, Mem->MemoryInternal_.MaxSize, MemAllocFlag_Align16);
 			NotFound = 0;
 			break;
 		}

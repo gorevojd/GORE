@@ -419,3 +419,386 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 		}
 	}
 }
+
+#include "stb_sprintf.h"
+
+inline void GetVoxelChunkPosForCamera(
+	v3 CamPos, 
+	int* IDChunkX, 
+	int* IDChunkZ) 
+{
+	int ResX;
+	int CamPosX = (int)(CamPos.x);
+	if (CamPos.x >= 0.0f) {
+		ResX = CamPosX / VOXEL_CHUNK_WIDTH;
+	}
+	else {
+		ResX = (CamPosX / VOXEL_CHUNK_WIDTH) - 1;
+	}
+
+	int ResZ;
+	int CamPosZ = (int)CamPos.z;
+	if (CamPos.z >= 0.0f) {
+		ResZ = CamPosZ / VOXEL_CHUNK_WIDTH;
+	}
+	else {
+		ResZ = (CamPosZ / VOXEL_CHUNK_WIDTH) - 1;
+	}
+
+	*IDChunkX = ResX;
+	*IDChunkX = ResZ;
+}
+
+inline v3 GetPosForVoxelChunk(voxel_chunk_info* Chunk) {
+	v3 Result;
+
+	Result.x = Chunk->IndexX * VOXEL_CHUNK_WIDTH;
+	Result.y = Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
+	Result.z = Chunk->IndexZ * VOXEL_CHUNK_WIDTH;
+
+	return(Result);
+}
+
+static voxworld_threadwork* VoxelAllocateThreadwork(
+	stacked_memory* Memory, 
+	u32 ThreadworkMemorySize) 
+{
+	voxworld_threadwork* Result = PushStruct(Memory, voxworld_threadwork);
+
+	Result->Next = Result;
+	Result->Prev = Result;
+
+	Result->UseState = 0;
+	Result->MemoryInternal = SplitStackedMemory(Memory, ThreadworkMemorySize);
+
+	return(Result);
+}
+
+static void VoxelInsertThreadworkAfter(
+	voxworld_threadwork* ToInsert,
+	voxworld_threadwork* Sentinel)
+{
+	ToInsert->Next = Sentinel->Next;
+	ToInsert->Prev = Sentinel;
+
+	ToInsert->Next->Prev = ToInsert;
+	ToInsert->Prev->Next = ToInsert;
+}
+
+static voxworld_threadwork* VoxelBeginThreadwork(
+	voxworld_threadwork* FreeSentinel, 
+	voxworld_threadwork* UseSentinel,
+	std::mutex* ThreadworksMutex) 
+{
+	voxworld_threadwork* Result = 0;
+
+	ThreadworksMutex->lock();
+
+	if (FreeSentinel->Next != FreeSentinel) {
+		//NOTE(dima): Putting threadwork list entry to use list
+		Result = FreeSentinel->Next;
+
+		Result->Prev->Next = Result->Next;
+		Result->Next->Prev = Result->Prev;
+
+		Result->Next = UseSentinel->Next;
+		Result->Prev = UseSentinel;
+
+		Result->Next->Prev = Result;
+		Result->Prev->Next = Result;
+
+		//NOTE(dima): Beginning temp memory
+		Result->Memory = BeginTempStackedMemory(
+			&Result->MemoryInternal,
+			Result->MemoryInternal.MaxSize,
+			MemAllocFlag_Align16);
+	}
+
+	ThreadworksMutex->unlock();
+
+	return(Result);
+}
+
+static void VoxelEndThreadwork(
+	voxworld_threadwork* Threadwork,
+	voxworld_threadwork* FreeSentinel,
+	std::mutex* ThreadworksMutex)
+{
+	ThreadworksMutex->lock();
+
+	//NOTE(dima): Putting threadwork list entry to free list
+	Threadwork->Prev->Next = Threadwork->Next;
+	Threadwork->Next->Prev = Threadwork->Prev;
+
+	Threadwork->Next = FreeSentinel->Next;
+	Threadwork->Prev = FreeSentinel;
+
+	Threadwork->Next->Prev = Threadwork;
+	Threadwork->Prev->Next = Threadwork;
+
+	//NOTE(dima): Freing temp memory
+	EndTempStackedMemory(&Threadwork->MemoryInternal, &Threadwork->Memory);
+
+	ThreadworksMutex->unlock();
+}
+
+static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
+{
+	char KeyStr[64];
+	stbsp_sprintf(KeyStr, "%d|%d|%d", Info->IndexX, Info->IndexY, Info->IndexZ);
+	u32 Key = StringHashFNV(KeyStr);
+	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
+
+	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
+
+	voxworld_table_entry* PrevEntry = 0;
+
+	if (*FirstEntry) {
+		PrevEntry = *FirstEntry;
+	}
+
+	if (PrevEntry) {
+		while (PrevEntry->Next) {
+			PrevEntry = PrevEntry->Next;
+		}
+	}
+
+	/*
+		NOTE(dima): Now that the prev element found we
+		can create slot to insert it at the new place
+	*/
+	voxworld_table_entry* NewEntry = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+
+	NewEntry->ValueChunk = Info;
+	NewEntry->Next = 0;
+	NewEntry->Key = Key;
+
+	if (PrevEntry) {
+		PrevEntry->Next = NewEntry;
+	}
+	else {
+		*FirstEntry = NewEntry;
+	}
+}
+
+static voxel_chunk_info* VoxelFindChunk(
+	voxworld_generation_state* Generation,
+	int X, int Y, int Z) 
+{
+	voxel_chunk_info* Result = 0;
+
+	char KeyStr[64];
+	stbsp_sprintf(KeyStr, "%d|%d|%d", X, Y, Z);
+	u32 Key = StringHashFNV(KeyStr);
+	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
+
+	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
+	
+	voxworld_table_entry* At = FirstEntry;
+
+	while (At != 0) {
+		if (At->Key == Key) {
+			char AtChunkStr[64];
+			stbsp_sprintf(
+				AtChunkStr, "%d|%d|%d", 
+				At->ValueChunk->IndexX,
+				At->ValueChunk->IndexY,
+				At->ValueChunk->IndexZ);
+
+			//NOTE(dima): Important to have additional check here!!!
+			//NOTE(dima): Because of hash function might overlap with others chunks
+			if (StringsAreEqual(AtChunkStr, KeyStr)) {
+				Result = At->ValueChunk;
+				break;
+			}
+		}
+
+		At = At->Next;
+	}
+
+	return(Result);
+}
+
+struct generate_voxel_chunk_data {
+	//NOTE(dima): Used to store temporary generation work data while generating chunk
+	voxworld_threadwork* GenThreadwork;
+
+	voxworld_generation_state* Generation;
+
+	voxel_chunk_info* Chunk;
+	voxel_atlas_info* VoxelAtlasInfo;
+};
+
+PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
+	generate_voxel_chunk_data* GenData = (generate_voxel_chunk_data*)Data;
+
+	voxel_chunk_info* WorkChunk = GenData->Chunk;
+
+	if (PlatformApi.AtomicCAS_U32(
+		&WorkChunk->State,
+		VoxelChunkState_InProcess,
+		VoxelChunkState_None))
+	{
+		GenerateTestChunk(WorkChunk);
+
+		//TODO(dima): Better memory management here
+		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
+		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 4);
+		VoxmeshGenerate(&WorkChunk->MeshInfo, WorkChunk, GenData->VoxelAtlasInfo);
+		WorkChunk->MeshInfo.Vertices = (u32*)realloc(
+			WorkChunk->MeshInfo.Vertices,
+			WorkChunk->MeshInfo.VerticesCount * 4);
+
+		PLATFORM_COMPILER_BARRIER();
+
+		WorkChunk->State = VoxelChunkState_Ready;
+
+		VoxelEndThreadwork(
+			GenData->GenThreadwork,
+			GenData->Generation->GenFreeSentinel,
+			&GenData->Generation->GenMutex);
+	}
+	else if (WorkChunk->State == VoxelChunkState_InProcess) {
+		while (WorkChunk->State == VoxelChunkState_InProcess) {
+
+		}
+	}
+	else {
+
+	}
+}
+
+void VoxelChunksGenerationInit(
+	voxworld_generation_state* Generation,
+	stacked_memory* Memory,
+	int ChunksViewDistanceCount)
+{
+	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
+	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
+
+	Generation->ChunksSideCount = TotalChunksSideCount;
+	Generation->ChunksCount = TotalChunksCount;
+
+	Generation->TotalMemory = Memory;
+
+	/*
+		NOTE(dima): Initialization of work threadworks.
+		They are used to store loaded chunk data;
+	*/
+	Generation->WorkUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+
+	for (int NewWorkIndex = 0;
+		NewWorkIndex < TotalChunksCount;
+		NewWorkIndex++) 
+	{
+		voxworld_threadwork* NewThreadwork = 
+			VoxelAllocateThreadwork(Generation->TotalMemory, KILOBYTES(70));
+		VoxelInsertThreadworkAfter(NewThreadwork, Generation->WorkFreeSentinel);
+	}
+
+	/*
+		NOTE(dima): Initialization of generation threadworks.
+		They are used to store temporary data( for chunk
+		generation threads.
+	*/
+	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+
+	for (int GenThreadworkIndex = 0;
+		GenThreadworkIndex < 2000;
+		GenThreadworkIndex++)
+	{
+		voxworld_threadwork* NewThreadwork =
+			VoxelAllocateThreadwork(Generation->TotalMemory, sizeof(generate_voxel_chunk_data) + 16);
+		VoxelInsertThreadworkAfter(NewThreadwork, Generation->GenFreeSentinel);
+	}
+
+	//NOTE(dima): Initializing of world chunks hash table
+	for (int EntryIndex = 0;
+		EntryIndex < VOXWORLD_TABLE_SIZE;
+		EntryIndex++)
+	{
+		Generation->HashTable[EntryIndex] = 0;
+	}
+}
+
+void VoxelChunksGenerationUpdate(
+	voxworld_generation_state* Generation,
+	render_state* RenderState,
+	v3 CameraPos)
+{
+	BEGIN_SECTION("VoxelState");
+	DEBUG_STACKED_MEM("VoxelState memory", Generation->TotalMemory);
+	END_SECTION();
+
+	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(RenderState->AssetSystem, GameAsset_MyVoxelAtlas);
+	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(RenderState->AssetSystem, VoxelAtlasID);
+	
+	int CamChunkIndexX;
+	int CamChunkIndexZ;
+
+	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexZ);
+
+	int CellY = 0;
+
+	for (int CellX = -10; CellX < 10; CellX++) {
+		for (int CellZ = -10; CellZ < 10; CellZ++) {
+			
+			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
+
+			if (NeededChunk) {
+				if (NeededChunk->State == VoxelChunkState_Ready) {
+
+					v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
+
+					RENDERPushVoxelMesh(
+						RenderState, 
+						&NeededChunk->MeshInfo, 
+						ChunkPos, 
+						&VoxelAtlas->Bitmap);
+				}
+			}
+			else {
+				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(
+					Generation->WorkFreeSentinel,
+					Generation->WorkUseSentinel,
+					&Generation->WorkMutex);
+
+				if (Threadwork) {
+					voxworld_threadwork* GenThreadwork = VoxelBeginThreadwork(
+						Generation->GenFreeSentinel,
+						Generation->GenUseSentinel,
+						&Generation->GenMutex);
+
+					Assert(GenThreadwork);
+
+					generate_voxel_chunk_data* ChunkGenerationData = PushStruct(
+						&GenThreadwork->Memory, 
+						generate_voxel_chunk_data);
+
+					ChunkGenerationData->Chunk = PushStruct(
+						&Threadwork->Memory, 
+						voxel_chunk_info);
+
+					ChunkGenerationData->Chunk->IndexX = CellX;
+					ChunkGenerationData->Chunk->IndexY = CellY;
+					ChunkGenerationData->Chunk->IndexZ = CellZ;
+					ChunkGenerationData->Chunk->State = VoxelChunkState_None;
+					ChunkGenerationData->Chunk->Threadwork = Threadwork;
+
+					ChunkGenerationData->VoxelAtlasInfo = VoxelAtlas;
+					ChunkGenerationData->Generation = Generation;
+					ChunkGenerationData->GenThreadwork = GenThreadwork;
+
+					PlatformApi.AddThreadworkEntry(
+						PlatformApi.HighPriorityQueue,
+						ChunkGenerationData,
+						GenerateVoxelChunkThreadwork);
+
+					VoxelInsertToTable(Generation, ChunkGenerationData->Chunk);
+				}
+			}
+		}
+	}
+}

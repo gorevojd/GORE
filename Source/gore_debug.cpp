@@ -403,7 +403,7 @@ void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* 
 	{
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 	
-		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(500));
+		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(250));
 
 		char TempBuf[256];
 		stbsp_sprintf(TempBuf, "FrameMem_%d", FrameIndex);

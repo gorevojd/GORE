@@ -19,7 +19,6 @@ struct geometrika_state {
 #if 1
 	bitmap_info* VoxelAtalsBitmap;
 	voxel_chunk_info TestChunk;
-	voxel_mesh_info TestChunkMesh;
 #endif
 
 	surface_material CubeMat;

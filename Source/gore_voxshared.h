@@ -8,8 +8,40 @@
 #define VOXEL_CHUNK_TOTAL_VOXELS_COUNT 65536
 #define VOXEL_CHUNK_HORZ_LAYER_VOXEL_COUNT 256
 #define VOXEL_CHUNK_VERT_LAYER_VOXEL_COUNT 4096
+#define VOXEL_MAX_MESH_BYTE_SIZE 9437184
+
+enum voxel_chunk_state {
+	VoxelChunkState_None,
+	VoxelChunkState_InProcess,
+	VoxelChunkState_Ready,
+};
+
+struct voxel_mesh_info {
+	void* MeshHandle;
+
+	u32* Vertices;
+	u32 VerticesCount;
+};
+
+struct voxworld_threadwork {
+	voxworld_threadwork* Next;
+	voxworld_threadwork* Prev;
+
+	//NOTE(dima): 1 - in use; 0 - free;
+	platform_atomic_type_u32 UseState;
+
+	stacked_memory Memory;
+	stacked_memory MemoryInternal;
+};
 
 struct voxel_chunk_info {
+	platform_atomic_type_u32 State;
+
+	int IndexX;
+	int IndexY;
+	int IndexZ;
+
+	//u8* Voxels;
 	u8 Voxels[VOXEL_CHUNK_TOTAL_VOXELS_COUNT];
 
 	voxel_chunk_info* LeftChunk;
@@ -18,14 +50,11 @@ struct voxel_chunk_info {
 	voxel_chunk_info* BackChunk;
 	voxel_chunk_info* TopChunk;
 	voxel_chunk_info* BottomChunk;
-};
 
-struct voxel_mesh_info {
-	void* MeshHandle;
+	voxel_mesh_info MeshInfo;
 
-	u32* Vertices;
-
-	u32 VerticesCount;
+	//NOTE(dima): Used to store loaded chunk data
+	voxworld_threadwork* Threadwork;
 };
 
 enum voxel_material_type {

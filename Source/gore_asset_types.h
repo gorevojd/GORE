@@ -150,8 +150,8 @@ struct voxel_atlas_info {
 	int MaterialsCount;
 };
 
-struct voxel_chunk_info;
 struct voxel_mesh_info;
+struct voxel_chunk_info;
 
 enum asset_type {
 	AssetType_None,

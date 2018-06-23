@@ -8,17 +8,6 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
 		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
-		
-#if 1
-		voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(AssetSystem, GameAsset_MyVoxelAtlas);
-		voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(AssetSystem, VoxelAtlasID);
-
-		GenerateTestChunk(&State->TestChunk);
-		
-		State->VoxelAtalsBitmap = &VoxelAtlas->Bitmap;
-		State->TestChunkMesh.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		VoxmeshGenerate(&State->TestChunkMesh, &State->TestChunk, VoxelAtlas);
-#endif
 
 		State->PlaneMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_Checkerboard);
 
@@ -126,7 +115,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 #if 1
 	RENDERPushVoxelLighting(RenderStack);
-	RENDERPushVoxelMesh(RenderStack, &State->TestChunkMesh, V3(0.0f, 0.0f, 0.0f), State->VoxelAtalsBitmap);
+	RENDERPushVoxelMesh(RenderStack, &State->TestChunk.MeshInfo, V3(0.0f, 0.0f, 0.0f), State->VoxelAtalsBitmap);
 #endif
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
