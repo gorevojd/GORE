@@ -72,14 +72,14 @@ inline stacked_memory BeginTempStackedMemory(stacked_memory* Stack, u32 Size, u3
 	//NOTE(dima): checking for overlapping the initial stack
 	Assert(Stack->Used + Size <= Stack->MaxSize);
 
-	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
-	AlignStackedMemory(Stack, AlignValue);
-
 	Result.BaseAddress = (u8*)Stack->BaseAddress + Stack->Used;
 	Result.MaxSize = Size;
 	Result.Used = 0;
 	Result.InitUsed = Stack->Used;
 	Result.FragmentationBytesCount = 0;
+
+	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
+	AlignStackedMemory(&Result, AlignValue);
 
 	Stack->Used += Size;
 

@@ -35,9 +35,23 @@ struct voxworld_table_entry {
 
 struct voxworld_generation_state {
 
+	/*
+		NOTE(dima): Work threadworks are used to 
+		store loaded chunks data.
+	*/
+	int FreeWorkThreadworksCount;
+	int TotalWorkThreadworksCount;
+
 	std::mutex WorkMutex;
 	voxworld_threadwork* WorkUseSentinel;
 	voxworld_threadwork* WorkFreeSentinel;
+
+	/*
+		NOTE(dima): Gen threadworks are used to 
+		store temp information while generating chunk;
+	*/
+	int FreeGenThreadworksCount;
+	int TotalGenThreadworksCount;
 
 	std::mutex GenMutex;
 	voxworld_threadwork* GenUseSentinel;

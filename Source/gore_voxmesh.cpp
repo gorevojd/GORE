@@ -399,6 +399,17 @@ static void BuildColumn(
 	}
 }
 
+
+inline v3 GetPosForVoxelChunk(voxel_chunk_info* Chunk) {
+	v3 Result;
+
+	Result.x = Chunk->IndexX * VOXEL_CHUNK_WIDTH;
+	Result.y = Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
+	Result.z = Chunk->IndexZ * VOXEL_CHUNK_WIDTH;
+
+	return(Result);
+}
+
 void GenerateTestChunk(voxel_chunk_info* Chunk) {
 
 	Chunk->BackChunk = 0;
@@ -416,6 +427,52 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeightIndex)] = VoxelMaterial_GrassyGround;
 
 			BuildColumn(Chunk, i, j, 0, SetHeightIndex - 1, VoxelMaterial_Ground);
+		}
+	}
+}
+
+#define STB_PERLIN_IMPLEMENTATION
+#include "stb_perlin.h"
+void GenerateRandomChunk(voxel_chunk_info* Chunk) {
+
+	Chunk->BackChunk = 0;
+	Chunk->FrontChunk = 0;
+	Chunk->TopChunk = 0;
+	Chunk->BottomChunk = 0;
+	Chunk->LeftChunk = 0;
+	Chunk->RightChunk = 0;
+
+	int StartHeight = 100;
+
+	v3 ChunkPos = GetPosForVoxelChunk(Chunk);
+
+	for (int j = 0; j < VOXEL_CHUNK_WIDTH; j++) {
+		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
+
+			float NoiseScale1 = 3.0f;
+			float NoiseScale2 = 25.0f;
+			float NoiseScale3 = 160.0f;
+
+			float Noise1 = stb_perlin_noise3(
+				(float)(ChunkPos.x + i) / 64.0f,
+				(float)ChunkPos.y / 64.0f,
+				(float)(ChunkPos.z + j) / 64.0f, 0, 0, 0);
+
+			float Noise2 = stb_perlin_noise3(
+				(float)(ChunkPos.x + i) / 128.0f,
+				(float)ChunkPos.y / 128.0f,
+				(float)(ChunkPos.z + j) / 128.0f, 0, 0, 0);
+
+			float Noise3 = stb_perlin_noise3(
+				(float)(ChunkPos.x + i) / 256.0f,
+				(float)ChunkPos.y / 256.0f,
+				(float)(ChunkPos.z + j) / 256.0f, 0, 0, 0);
+
+			float RandHeight = (Noise1 * NoiseScale1 + Noise2 * NoiseScale2 + Noise3 * NoiseScale3) + StartHeight;
+
+			Chunk->Voxels[GET_VOXEL_INDEX(i, j, (u32)RandHeight)] = VoxelMaterial_GrassyGround;
+
+			BuildColumn(Chunk, i, j, 0, (u32)RandHeight - 1, VoxelMaterial_Ground);
 		}
 	}
 }
@@ -449,16 +506,6 @@ inline void GetVoxelChunkPosForCamera(
 	*IDChunkX = ResZ;
 }
 
-inline v3 GetPosForVoxelChunk(voxel_chunk_info* Chunk) {
-	v3 Result;
-
-	Result.x = Chunk->IndexX * VOXEL_CHUNK_WIDTH;
-	Result.y = Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
-	Result.z = Chunk->IndexZ * VOXEL_CHUNK_WIDTH;
-
-	return(Result);
-}
-
 static voxworld_threadwork* VoxelAllocateThreadwork(
 	stacked_memory* Memory, 
 	u32 ThreadworkMemorySize) 
@@ -488,7 +535,8 @@ static void VoxelInsertThreadworkAfter(
 static voxworld_threadwork* VoxelBeginThreadwork(
 	voxworld_threadwork* FreeSentinel, 
 	voxworld_threadwork* UseSentinel,
-	std::mutex* ThreadworksMutex) 
+	std::mutex* ThreadworksMutex,
+	int* FreeWorkCount) 
 {
 	voxworld_threadwork* Result = 0;
 
@@ -512,6 +560,8 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 			&Result->MemoryInternal,
 			Result->MemoryInternal.MaxSize,
 			MemAllocFlag_Align16);
+
+		(*FreeWorkCount)--;
 	}
 
 	ThreadworksMutex->unlock();
@@ -522,7 +572,8 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 static void VoxelEndThreadwork(
 	voxworld_threadwork* Threadwork,
 	voxworld_threadwork* FreeSentinel,
-	std::mutex* ThreadworksMutex)
+	std::mutex* ThreadworksMutex,
+	int* FreeWorkCount)
 {
 	ThreadworksMutex->lock();
 
@@ -538,6 +589,8 @@ static void VoxelEndThreadwork(
 
 	//NOTE(dima): Freing temp memory
 	EndTempStackedMemory(&Threadwork->MemoryInternal, &Threadwork->Memory);
+
+	(*FreeWorkCount)++;
 
 	ThreadworksMutex->unlock();
 }
@@ -639,11 +692,11 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		VoxelChunkState_InProcess,
 		VoxelChunkState_None))
 	{
-		GenerateTestChunk(WorkChunk);
+		GenerateRandomChunk(WorkChunk);
 
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 4);
+		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 5);
 		VoxmeshGenerate(&WorkChunk->MeshInfo, WorkChunk, GenData->VoxelAtlasInfo);
 		WorkChunk->MeshInfo.Vertices = (u32*)realloc(
 			WorkChunk->MeshInfo.Vertices,
@@ -656,7 +709,8 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		VoxelEndThreadwork(
 			GenData->GenThreadwork,
 			GenData->Generation->GenFreeSentinel,
-			&GenData->Generation->GenMutex);
+			&GenData->Generation->GenMutex,
+			&GenData->Generation->FreeGenThreadworksCount);
 	}
 	else if (WorkChunk->State == VoxelChunkState_InProcess) {
 		while (WorkChunk->State == VoxelChunkState_InProcess) {
@@ -688,6 +742,9 @@ void VoxelChunksGenerationInit(
 	Generation->WorkUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
+	Generation->FreeWorkThreadworksCount = TotalChunksCount;
+	Generation->TotalWorkThreadworksCount = TotalChunksCount;
+
 	for (int NewWorkIndex = 0;
 		NewWorkIndex < TotalChunksCount;
 		NewWorkIndex++) 
@@ -702,13 +759,19 @@ void VoxelChunksGenerationInit(
 		They are used to store temporary data( for chunk
 		generation threads.
 	*/
+	int GenThreadworksCount = 2000;
+
 	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
+	Generation->FreeGenThreadworksCount = GenThreadworksCount;
+	Generation->TotalGenThreadworksCount = GenThreadworksCount;
+
 	for (int GenThreadworkIndex = 0;
-		GenThreadworkIndex < 2000;
+		GenThreadworkIndex < GenThreadworksCount;
 		GenThreadworkIndex++)
 	{
+		//NOTE(dima): 16 bytes added here because of the alignment problems that may arrive
 		voxworld_threadwork* NewThreadwork =
 			VoxelAllocateThreadwork(Generation->TotalMemory, sizeof(generate_voxel_chunk_data) + 16);
 		VoxelInsertThreadworkAfter(NewThreadwork, Generation->GenFreeSentinel);
@@ -728,7 +791,20 @@ void VoxelChunksGenerationUpdate(
 	render_state* RenderState,
 	v3 CameraPos)
 {
+	FUNCTION_TIMING();
+
 	BEGIN_SECTION("VoxelState");
+	char Stat1Str[64];
+	char Stat2Str[64];
+
+	stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total.",
+		Generation->FreeGenThreadworksCount,
+		Generation->TotalGenThreadworksCount);
+
+	stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total.",
+		Generation->FreeWorkThreadworksCount,
+		Generation->TotalWorkThreadworksCount);
+
 	DEBUG_STACKED_MEM("VoxelState memory", Generation->TotalMemory);
 	END_SECTION();
 
@@ -742,8 +818,8 @@ void VoxelChunksGenerationUpdate(
 
 	int CellY = 0;
 
-	for (int CellX = -10; CellX < 10; CellX++) {
-		for (int CellZ = -10; CellZ < 10; CellZ++) {
+	for (int CellX = -20; CellX < 20; CellX++) {
+		for (int CellZ = -20; CellZ < 20; CellZ++) {
 			
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
 
@@ -763,13 +839,15 @@ void VoxelChunksGenerationUpdate(
 				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(
 					Generation->WorkFreeSentinel,
 					Generation->WorkUseSentinel,
-					&Generation->WorkMutex);
+					&Generation->WorkMutex,
+					&Generation->FreeWorkThreadworksCount);
 
 				if (Threadwork) {
 					voxworld_threadwork* GenThreadwork = VoxelBeginThreadwork(
 						Generation->GenFreeSentinel,
 						Generation->GenUseSentinel,
-						&Generation->GenMutex);
+						&Generation->GenMutex,
+						&Generation->FreeGenThreadworksCount);
 
 					Assert(GenThreadwork);
 

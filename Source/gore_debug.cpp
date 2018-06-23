@@ -2137,6 +2137,10 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 
 						GUIStackedMemGraph(State->GUIState, NodeName, (stacked_memory*)At->Value.Value);
 					}break;
+
+					case DebugValue_Text: {
+						GUIText(State->GUIState, (char*)At->Value.Value);
+					}break;
 				}
 			}break;
 		}
