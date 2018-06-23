@@ -450,8 +450,8 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
 
 			float NoiseScale1 = 3.0f;
-			float NoiseScale2 = 25.0f;
-			float NoiseScale3 = 160.0f;
+			float NoiseScale2 = 20.0f;
+			float NoiseScale3 = 120.0f;
 
 			float Noise1 = stb_perlin_noise3(
 				(float)(ChunkPos.x + i) / 64.0f,
@@ -608,12 +608,12 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 
 	if (*FirstEntry) {
 		PrevEntry = *FirstEntry;
-	}
 
-	if (PrevEntry) {
 		while (PrevEntry->Next) {
 			PrevEntry = PrevEntry->Next;
 		}
+
+		Generation->HashTableCollisionCount++;
 	}
 
 	/*
@@ -632,12 +632,16 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	else {
 		*FirstEntry = NewEntry;
 	}
+
+	Generation->HashTableTotalInsertedEntries++;
 }
 
 static voxel_chunk_info* VoxelFindChunk(
 	voxworld_generation_state* Generation,
 	int X, int Y, int Z) 
 {
+	FUNCTION_TIMING();
+
 	voxel_chunk_info* Result = 0;
 
 	char KeyStr[64];
@@ -651,6 +655,7 @@ static voxel_chunk_info* VoxelFindChunk(
 
 	while (At != 0) {
 		if (At->Key == Key) {
+#if 0
 			char AtChunkStr[64];
 			stbsp_sprintf(
 				AtChunkStr, "%d|%d|%d", 
@@ -660,7 +665,13 @@ static voxel_chunk_info* VoxelFindChunk(
 
 			//NOTE(dima): Important to have additional check here!!!
 			//NOTE(dima): Because of hash function might overlap with others chunks
-			if (StringsAreEqual(AtChunkStr, KeyStr)) {
+			if (StringsAreEqual(AtChunkStr, KeyStr)) 
+#else
+			if (At->ValueChunk->IndexX == X &&
+				At->ValueChunk->IndexY == Y &&
+				At->ValueChunk->IndexZ == Z)
+#endif
+			{
 				Result = At->ValueChunk;
 				break;
 			}
@@ -696,7 +707,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 5);
+		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6);
 		VoxmeshGenerate(&WorkChunk->MeshInfo, WorkChunk, GenData->VoxelAtlasInfo);
 		WorkChunk->MeshInfo.Vertices = (u32*)realloc(
 			WorkChunk->MeshInfo.Vertices,
@@ -784,6 +795,9 @@ void VoxelChunksGenerationInit(
 	{
 		Generation->HashTable[EntryIndex] = 0;
 	}
+
+	Generation->HashTableCollisionCount = 0;
+	Generation->HashTableTotalInsertedEntries = 0;
 }
 
 void VoxelChunksGenerationUpdate(

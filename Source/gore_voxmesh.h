@@ -64,6 +64,8 @@ struct voxworld_generation_state {
 
 #define VOXWORLD_TABLE_SIZE 2048
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];
+	int HashTableCollisionCount;
+	int HashTableTotalInsertedEntries;
 
 	voxel_atlas_info* VoxelAtlas;
 };

@@ -666,11 +666,16 @@ static void DEBUGProcessRecords(debug_state* State) {
 				//TODO(dima): I might just change parent childrenSumCLocks
 
 				//NOTE(dima): Going througn children and summing all their total clocks
+#if 0
 				TimingSnapshot->ClocksElapsedInChildren = 0;
 				debug_tree_node* At = CurrentBlock->ChildrenSentinel->NextBro;
 				for (At; At != CurrentBlock->ChildrenSentinel; At = At->NextBro) {
 					TimingSnapshot->ClocksElapsedInChildren += At->TimingSnapshot.ClocksElapsed;
 				}
+#else
+				debug_timing_snapshot* ParentTimingSnapshot = &CurrentBlock->Parent->TimingSnapshot;
+				ParentTimingSnapshot->ClocksElapsedInChildren += TimingSnapshot->ClocksElapsed;
+#endif
 
 				//NOTE(dima): Finding needed element in the hash table
 				debug_timing_statistic* TimingStatistic = DEBUGInitDebugStatistic(
