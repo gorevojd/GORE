@@ -1,7 +1,8 @@
 #ifndef GORE_STACKED_MEMORY_H_DEFINED
 #define GORE_STACKED_MEMORY_H_DEFINED
 
-#include <stdlib.h>
+
+#include "gore_types.h"
 
 enum memory_allocation_flag {
 	MemAllocFlag_None = 0,
@@ -124,5 +125,7 @@ inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 #define PushStruct(StMem, type) (type*)PushSomeMemory(StMem, sizeof(type))
 #define PushArray(StMem, type, count) (type*)PushSomeMemory(StMem, sizeof(type) * count)
 #define PushString(StMem, str) (char*)PushSomeMemory(StMem, StringLength(str) + 1)
+
+void ClearStackedMemory(stacked_memory* Mem);
 
 #endif

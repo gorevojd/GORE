@@ -470,9 +470,12 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 
 			float RandHeight = (Noise1 * NoiseScale1 + Noise2 * NoiseScale2 + Noise3 * NoiseScale3) + StartHeight;
 
-			Chunk->Voxels[GET_VOXEL_INDEX(i, j, (u32)RandHeight)] = VoxelMaterial_GrassyGround;
+			int SetHeight = (int)RandHeight;
+			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
 
-			BuildColumn(Chunk, i, j, 0, (u32)RandHeight - 1, VoxelMaterial_Ground);
+			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_GrassyGround;
+
+			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_Ground);
 		}
 	}
 }
@@ -481,7 +484,8 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 
 inline void GetVoxelChunkPosForCamera(
 	v3 CamPos, 
-	int* IDChunkX, 
+	int* IDChunkX,
+	int* IDChunkY,
 	int* IDChunkZ) 
 {
 	int ResX;
@@ -491,6 +495,15 @@ inline void GetVoxelChunkPosForCamera(
 	}
 	else {
 		ResX = (CamPosX / VOXEL_CHUNK_WIDTH) - 1;
+	}
+
+	int ResY;
+	int CamPosY = (int)(CamPos.y);
+	if (CamPos.y >= 0.0f) {
+		ResY = CamPosY / VOXEL_CHUNK_HEIGHT;
+	}
+	else {
+		ResY = (CamPosY / VOXEL_CHUNK_HEIGHT) - 1;
 	}
 
 	int ResZ;
@@ -503,6 +516,7 @@ inline void GetVoxelChunkPosForCamera(
 	}
 
 	*IDChunkX = ResX;
+	*IDChunkY = ResY;
 	*IDChunkX = ResZ;
 }
 
@@ -595,11 +609,17 @@ static void VoxelEndThreadwork(
 	ThreadworksMutex->unlock();
 }
 
+inline u32 GetKeyFromString(char* String) {
+	u32 Result = StringHashFNV(String);
+
+	return(Result);
+}
+
 static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
 {
 	char KeyStr[64];
 	stbsp_sprintf(KeyStr, "%d|%d|%d", Info->IndexX, Info->IndexY, Info->IndexZ);
-	u32 Key = StringHashFNV(KeyStr);
+	u32 Key = GetKeyFromString(KeyStr);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
@@ -646,7 +666,7 @@ static voxel_chunk_info* VoxelFindChunk(
 
 	char KeyStr[64];
 	stbsp_sprintf(KeyStr, "%d|%d|%d", X, Y, Z);
-	u32 Key = StringHashFNV(KeyStr);
+	u32 Key = GetKeyFromString(KeyStr);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
 	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
@@ -655,6 +675,8 @@ static voxel_chunk_info* VoxelFindChunk(
 
 	while (At != 0) {
 		if (At->Key == Key) {
+			//NOTE(dima): Important to have additional check here!!!
+			//NOTE(dima): Because of hash function might overlap with others chunks
 #if 0
 			char AtChunkStr[64];
 			stbsp_sprintf(
@@ -663,8 +685,6 @@ static voxel_chunk_info* VoxelFindChunk(
 				At->ValueChunk->IndexY,
 				At->ValueChunk->IndexZ);
 
-			//NOTE(dima): Important to have additional check here!!!
-			//NOTE(dima): Because of hash function might overlap with others chunks
 			if (StringsAreEqual(AtChunkStr, KeyStr)) 
 #else
 			if (At->ValueChunk->IndexX == X &&
@@ -681,6 +701,39 @@ static voxel_chunk_info* VoxelFindChunk(
 	}
 
 	return(Result);
+}
+
+static void VoxelRegenerateSetatistics(
+	voxworld_generation_state* Generation,
+	v3 CameraP) 
+{
+	voxel_generation_statistics* Result = &Generation->DEBUGStat;
+
+	Result->HashTableCollisionCount = Generation->HashTableCollisionCount;
+	Result->HashTableInsertedElements = Generation->HashTableTotalInsertedEntries;
+
+	Result->FreeWorkThreadworksCount = Generation->FreeWorkThreadworksCount;
+	Result->TotalWorkThreadworksCount = Generation->TotalWorkThreadworksCount;
+
+	Result->FreeGenThreadworksCount = Generation->FreeGenThreadworksCount;
+	Result->TotalGenThreadworksCount = Generation->TotalGenThreadworksCount;
+
+	Result->ChunksViewDistance = Generation->ChunksViewDistance;
+	Result->BlocksViewDistance = Generation->ChunksViewDistance * VOXEL_CHUNK_WIDTH;
+
+	Result->CameraPos = CameraP;
+
+	GetVoxelChunkPosForCamera(
+		CameraP,
+		&Result->CurrentChunkX,
+		&Result->CurrentChunkY,
+		&Result->CurrentCHunkZ);
+
+	Result->MeshGenerationsStartedThisFrame = Generation->MeshGenerationsStartedThisFrame;
+	Generation->MeshGenerationsStartedThisFrame = 0;
+
+	Result->ChunksPushedToRender = Generation->ChunksPushedToRender;
+	Generation->ChunksPushedToRender = 0;
 }
 
 struct generate_voxel_chunk_data {
@@ -707,7 +760,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6);
+		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 5);
 		VoxmeshGenerate(&WorkChunk->MeshInfo, WorkChunk, GenData->VoxelAtlasInfo);
 		WorkChunk->MeshInfo.Vertices = (u32*)realloc(
 			WorkChunk->MeshInfo.Vertices,
@@ -722,6 +775,8 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 			GenData->Generation->GenFreeSentinel,
 			&GenData->Generation->GenMutex,
 			&GenData->Generation->FreeGenThreadworksCount);
+
+		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);
 	}
 	else if (WorkChunk->State == VoxelChunkState_InProcess) {
 		while (WorkChunk->State == VoxelChunkState_InProcess) {
@@ -741,8 +796,13 @@ void VoxelChunksGenerationInit(
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
 	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
 
+	Generation->ChunksViewDistance = ChunksViewDistanceCount;
 	Generation->ChunksSideCount = TotalChunksSideCount;
 	Generation->ChunksCount = TotalChunksCount;
+	
+	Generation->ChunksPushedToRender = 0;
+
+	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->TotalMemory = Memory;
 
@@ -807,33 +867,20 @@ void VoxelChunksGenerationUpdate(
 {
 	FUNCTION_TIMING();
 
-	BEGIN_SECTION("VoxelState");
-	char Stat1Str[64];
-	char Stat2Str[64];
-
-	stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total.",
-		Generation->FreeGenThreadworksCount,
-		Generation->TotalGenThreadworksCount);
-
-	stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total.",
-		Generation->FreeWorkThreadworksCount,
-		Generation->TotalWorkThreadworksCount);
-
-	DEBUG_STACKED_MEM("VoxelState memory", Generation->TotalMemory);
-	END_SECTION();
-
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(RenderState->AssetSystem, GameAsset_MyVoxelAtlas);
 	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(RenderState->AssetSystem, VoxelAtlasID);
 	
 	int CamChunkIndexX;
+	int CamChunkIndexY;
 	int CamChunkIndexZ;
 
-	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexZ);
+	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
 	int CellY = 0;
 
-	for (int CellX = -20; CellX < 20; CellX++) {
-		for (int CellZ = -20; CellZ < 20; CellZ++) {
+	int testviewdist = 20;
+	for (int CellX = -testviewdist; CellX < testviewdist; CellX++) {
+		for (int CellZ = -testviewdist; CellZ < testviewdist; CellZ++) {
 			
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
 
@@ -847,6 +894,8 @@ void VoxelChunksGenerationUpdate(
 						&NeededChunk->MeshInfo, 
 						ChunkPos, 
 						&VoxelAtlas->Bitmap);
+
+					Generation->ChunksPushedToRender++;
 				}
 			}
 			else {
@@ -893,4 +942,10 @@ void VoxelChunksGenerationUpdate(
 			}
 		}
 	}
+
+	VoxelRegenerateSetatistics(Generation, CameraPos);
+
+	BEGIN_SECTION("VoxelGeneration");
+	DEBUG_VOXEL_STATISTICS(&Generation->DEBUGStat);
+	END_SECTION();
 }

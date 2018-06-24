@@ -59,7 +59,12 @@ struct voxworld_generation_state {
 
 	int ChunksSideCount;
 	int ChunksCount;
+	int ChunksViewDistance;
 
+	int ChunksPushedToRender;
+
+	platform_atomic_type_i32 MeshGenerationsStartedThisFrame;
+	
 	stacked_memory* TotalMemory;
 
 #define VOXWORLD_TABLE_SIZE 2048
@@ -68,6 +73,8 @@ struct voxworld_generation_state {
 	int HashTableTotalInsertedEntries;
 
 	voxel_atlas_info* VoxelAtlas;
+
+	voxel_generation_statistics DEBUGStat;
 };
 
 void GenerateTestChunk(voxel_chunk_info* Chunk);

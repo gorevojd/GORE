@@ -171,6 +171,7 @@
     <ClCompile Include="..\Source\gore_engine.cpp" />
     <ClCompile Include="..\Source\gore_game_common.cpp" />
     <ClCompile Include="..\Source\gore_gui.cpp" />
+    <ClCompile Include="..\Source\gore_memory.cpp" />
     <ClCompile Include="..\Source\gore_opengl.cpp" />
     <ClCompile Include="..\Source\gore_renderer.cpp" />
     <ClCompile Include="..\Source\gore_render_state.cpp" />
@@ -188,6 +189,7 @@
     <ClInclude Include="..\Source\gore_colors.h" />
     <ClInclude Include="..\Source\gore_debug.h" />
     <ClInclude Include="..\Source\gore_debug_layer.h" />
+    <ClInclude Include="..\Source\gore_debug_layer_types.h" />
     <ClInclude Include="..\Source\gore_engine.h" />
     <ClInclude Include="..\Source\gore_game_common.h" />
     <ClInclude Include="..\Source\gore_gui.h" />

@@ -24,6 +24,7 @@
 #endif
 
 struct debug_timing_snapshot {
+	u64 FirstEntryBeginClocks;
 	u64 BeginClocks;
 	u64 ClocksElapsed;
 	u64 ClocksElapsedInChildren;

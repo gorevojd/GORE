@@ -60,6 +60,9 @@
     <ClCompile Include="..\Source\gore_cellural.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\gore_memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\geometrika.h">
@@ -147,6 +150,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Source\gore_cellural.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_debug_layer_types.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

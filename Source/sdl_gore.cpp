@@ -517,7 +517,7 @@ PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_
 #if defined(PLATFORM_WINDA)
 PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
 	int EntryIndex = Queue->AddIndex;
-	int NewToSet = (EntryIndex + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	int NewToSet = (EntryIndex + 1) % Queue->EntriesCount;
 	platform_threadwork* Entry = Queue->Entries + EntryIndex;
 
 	Entry->Callback = Callback;
@@ -536,7 +536,7 @@ b32 WindaDoNextThreadwork(platform_thread_queue* Queue) {
 	b32 NoWorkLeft = 0;
 
 	int OriginalToDoIndex = Queue->DoIndex;
-	int NewToSet = (OriginalToDoIndex + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	int NewToSet = (OriginalToDoIndex + 1) % Queue->EntriesCount;
 
 	if (Queue->DoIndex != Queue->AddIndex) {
 		if (InterlockedCompareExchange((volatile unsigned int*)&Queue->DoIndex, NewToSet, OriginalToDoIndex) == OriginalToDoIndex) {
@@ -580,11 +580,20 @@ PLATFORM_COMPLETE_THREAD_WORKS(WindaCompleteThreadWorks) {
 	Queue->StartedEntries = 0;
 }
 
-void WindaInitThreadQueue(platform_thread_queue* Queue, winda_thread_worker* Workers, int WorkersCount, char* QueueName) {
+void WindaInitThreadQueue(
+	platform_thread_queue* Queue, 
+	winda_thread_worker* Workers, 
+	int WorkersCount, 
+	char* QueueName,
+	platform_threadwork* Entries,
+	u32 EntriesCount) 
+{
 	Queue->AddIndex = 0;
 	Queue->DoIndex = 0;
 	Queue->FinishedEntries = 0;
 	Queue->StartedEntries = 0;
+	Queue->Entries = Entries;
+	Queue->EntriesCount = EntriesCount;
 
 	char SemaphoreNameBuf[256];
 	stbsp_sprintf(SemaphoreNameBuf, "%s_Sem", QueueName);
@@ -613,7 +622,7 @@ PLATFORM_GET_THREAD_ID(WindaGetThreadID) {
 
 PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 
-	int NewToSet = (Queue->AddIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	int NewToSet = (Queue->AddIndex.value + 1) % Queue->EntriesCount;
 
 	/*
 		NOTE(dima): If NewToSet(new value for queue write index)
@@ -648,7 +657,7 @@ b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
 	b32 NoWorkLeft = 0;
 
 	int OriginalToDoIndex = Queue->DoIndex.value;
-	int NewToSet = (Queue->DoIndex.value + 1) % PLATFORM_THREAD_QUEUE_SIZE;
+	int NewToSet = (Queue->DoIndex.value + 1) % Queue->EntriesCount;
 	if (OriginalToDoIndex != Queue->AddIndex.value) {
 		if (SDL_AtomicCAS(&Queue->DoIndex, OriginalToDoIndex, NewToSet)) {
 			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
@@ -703,15 +712,19 @@ static int SDLThreadWorkerWork(void* Data) {
 }
 
 void SDLInitThreadQueue(
-	platform_thread_queue* Queue, 
-	sdl_thread_worker* Workers, 
+	platform_thread_queue* Queue,
+	sdl_thread_worker* Workers,
 	int ThreadWorkersCount,
-	char* ThreadQueueName)
+	char* ThreadQueueName,
+	platform_threadwork* Entries,
+	u32 EntriesCount)
 {
 	Queue->AddIndex.value = 0;
 	Queue->DoIndex.value = 0;
 	Queue->StartedEntries.value = 0;
 	Queue->FinishedEntries.value = 0;
+	Queue->Entries = Entries;
+	Queue->EntriesCount = EntriesCount;
 
 	Queue->Semaphore = SDL_CreateSemaphore(0);
 
@@ -745,18 +758,45 @@ int main(int ArgsCount, char** Args) {
 	platform_thread_queue HighPriorityQueue;
 	platform_thread_queue LowPriorityQueue;
 
+	platform_threadwork HighQueueEntries[8192];
+	platform_threadwork LowQueueEntries[512];
+
 #if defined(PLATFORM_WINDA)
 	winda_thread_worker HighThreadWorkers[8];
-	WindaInitThreadQueue(&HighPriorityQueue, HighThreadWorkers, ArrayCount(HighThreadWorkers), "HighQueue");
+	WindaInitThreadQueue(
+		&HighPriorityQueue, 
+		HighThreadWorkers, 
+		ArrayCount(HighThreadWorkers), 
+		"HighQueue",
+		HighQueueEntries,
+		ArrayCount(HighQueueEntries));
 
 	winda_thread_worker LowThreadWorkers[4];
-	WindaInitThreadQueue(&LowPriorityQueue, LowThreadWorkers, ArrayCount(LowThreadWorkers), "LowQueue");
+	WindaInitThreadQueue(
+		&LowPriorityQueue, 
+		LowThreadWorkers, 
+		ArrayCount(LowThreadWorkers), 
+		"LowQueue",
+		LowQueueEntries,
+		ArrayCount(LowQueueEntries));
 #else
 	sdl_thread_worker HighThreadWorkers[8];
-	SDLInitThreadQueue(&HighPriorityQueue, HighThreadWorkers, ArrayCount(HighThreadWorkers), "HighQueue");
+	SDLInitThreadQueue(
+		&HighPriorityQueue, 
+		HighThreadWorkers, 
+		ArrayCount(HighThreadWorkers), 
+		"HighQueue",
+		HighQueueEntries,
+		ArrayCount(HighQueueEntries));
 
 	sdl_thread_worker LowThreadWorkers[4];
-	SDLInitThreadQueue(&LowPriorityQueue, LowThreadWorkers, ArrayCount(LowThreadWorkers), "LowQueue");
+	SDLInitThreadQueue(
+		&LowPriorityQueue, 
+		LowThreadWorkers, 
+		ArrayCount(LowThreadWorkers), 
+		"LowQueue",
+		LowQueueEntries,
+		ArrayCount(LowQueueEntries));
 #endif
 
 	//NOTE(dima): Initializing of Platform API
@@ -862,7 +902,7 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetSwapInterval(0);
 
 	int SetR, SetG, SetB, SetD;
 	SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &SetR);

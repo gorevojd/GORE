@@ -80,7 +80,8 @@ MYPFNGLACTIVETEXTURE _glActiveTexture;
 #if defined(PLATFORM_WINDA)
 
 struct platform_thread_queue {
-	platform_threadwork Entries[PLATFORM_THREAD_QUEUE_SIZE];
+	platform_threadwork* Entries;
+	u32 EntriesCount;
 
 	volatile unsigned int AddIndex;
 	volatile unsigned int DoIndex;
@@ -102,7 +103,8 @@ struct winda_thread_worker {
 #else
 
 struct platform_thread_queue {
-	platform_threadwork Entries[PLATFORM_THREAD_QUEUE_SIZE];
+	platform_threadwork* Entries;
+	u32 EntriesCount;
 
 	SDL_atomic_t AddIndex;
 	SDL_atomic_t DoIndex;

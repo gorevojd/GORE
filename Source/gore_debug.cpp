@@ -137,9 +137,12 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 	debug_tree_node* FreeSentinel,
 	stacked_memory* Mem,
 	char* UniqueName, 
-	u32 Type) 
+	u32 Type,
+	b32* Allocated = 0) 
 {
 	debug_tree_node* NewBlock = 0;
+
+	b32 TimingWasAllocated = 0;
 
 	u32 BlockHashID = StringHashFNV(UniqueName);
 
@@ -156,6 +159,8 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 	}
 
 	if (NewBlock == 0) {
+		TimingWasAllocated = 1;
+
 		//NOTE(dima): Debug node not exist. Should be allocated.
 		NewBlock = DEBUGAllocateTreeNode(FreeSentinel, Mem);
 
@@ -179,6 +184,10 @@ static debug_tree_node* DEBUGInitLayerTreeNode(
 		DEBUGInsertToList(CurrentBlock->ChildrenSentinel, NewBlock);
 	}
 
+	if (Allocated) {
+		*Allocated = TimingWasAllocated;
+	}
+
 	return(NewBlock);
 }
 
@@ -186,7 +195,8 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 	stacked_memory* Mem,
 	debug_timing_statistic** StatisticArray,
 	debug_timing_statistic* StatisticSentinel, 
-	char* UniqueName) 
+	char* UniqueName,
+	b32* Allocated = 0) 
 {
 	debug_timing_statistic* Statistic = 0;
 
@@ -196,6 +206,8 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 	Statistic = StatisticArray[StatisticIndex];
 
 	debug_timing_statistic* PrevInHash = 0;
+
+	b32 HasBeenAllocated = 0;
 
 	while (Statistic) {
 		if (Statistic->ID == RecordHash) {
@@ -208,6 +220,8 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 
 	//NOTE(dima): If element was not found in hash table
 	if (Statistic == 0) {
+		HasBeenAllocated = 1;
+
 		Statistic = DEBUGAllocateStatistic(Mem);
 
 		Statistic->NextAllocBro = StatisticSentinel->NextAllocBro;
@@ -232,6 +246,10 @@ static debug_timing_statistic* DEBUGInitDebugStatistic(
 		CopyStrings(Statistic->Name, NewName);
 
 		Statistic->Timing = {};
+	}
+
+	if (Allocated) {
+		*Allocated = HasBeenAllocated;
 	}
 
 	return(Statistic);
@@ -271,20 +289,10 @@ static void DEBUGInitThreadFrameInfo(debug_thread_frame_info* ThreadFrameInfo) {
 static void DEBUGFreeFrameInfo(debug_state* State, debug_profiled_frame* Frame) {
 	//FUNCTION_TIMING();
 
+	//ClearStackedMemory(&Frame->FrameMemory);
 	Frame->FrameMemory.Used = 0;
 
 	Frame->DeltaTime = 0.0f;
-
-#if 0
-	debug_timing_statistic* TimingAt = Frame->TimingStatisticSentinel->NextBro;
-	while (TimingAt != Frame->TimingStatisticSentinel) {
-		debug_timing_statistic* TempNext = TimingAt->NextBro;
-		
-		DEBUGDeallocateStatistic(State, TimingAt);
-
-		TimingAt = TempNext;
-	}
-#endif
 
 	for (int TimingStatisticIndex = 0;
 		TimingStatisticIndex < DEBUG_TIMING_STATISTIC_TABLE_SIZE;
@@ -615,18 +623,21 @@ static void DEBUGProcessRecords(debug_state* State) {
 				}
 
 				debug_tree_node* CurrentBlock = ThreadFrameInfo->CurrentTiming;
+				b32 TimingWasAllocated;
 				debug_tree_node* TimingNode = DEBUGInitLayerTreeNode(
 					CurrentBlock,
 					0,
 					&Frame->FrameMemory,
 					Record->UniqueName, 
-					DebugTreeNode_Timing);
+					DebugTreeNode_Timing, 
+					&TimingWasAllocated);
 				debug_timing_snapshot* TimingSnapshot = &TimingNode->TimingSnapshot;
 
 				TimingSnapshot->BeginClocks = Record->Clocks;
-				TimingSnapshot->HitCount = 0;
-				TimingSnapshot->ClocksElapsedInChildren = 0;
-				TimingSnapshot->ClocksElapsed = 0;
+
+				if (TimingWasAllocated) {
+					TimingSnapshot->FirstEntryBeginClocks = TimingSnapshot->BeginClocks;
+				}
 
 				ThreadFrameInfo->CurrentTiming = TimingNode;
 			}break;
@@ -660,31 +671,26 @@ static void DEBUGProcessRecords(debug_state* State) {
 				debug_timing_snapshot* TimingSnapshot = &CurrentBlock->TimingSnapshot;
 
 				//NOTE(dima): difference between start and end clocks
-				TimingSnapshot->ClocksElapsed = Record->Clocks - TimingSnapshot->BeginClocks;
+				u64 ClocksElapsedForThisTiming = Record->Clocks - TimingSnapshot->BeginClocks;
+				TimingSnapshot->ClocksElapsed += ClocksElapsedForThisTiming;
 
 				//TODO(dima): think about not going through children.. Instead of it
 				//TODO(dima): I might just change parent childrenSumCLocks
 
 				//NOTE(dima): Going througn children and summing all their total clocks
-#if 0
-				TimingSnapshot->ClocksElapsedInChildren = 0;
-				debug_tree_node* At = CurrentBlock->ChildrenSentinel->NextBro;
-				for (At; At != CurrentBlock->ChildrenSentinel; At = At->NextBro) {
-					TimingSnapshot->ClocksElapsedInChildren += At->TimingSnapshot.ClocksElapsed;
-				}
-#else
 				debug_timing_snapshot* ParentTimingSnapshot = &CurrentBlock->Parent->TimingSnapshot;
-				ParentTimingSnapshot->ClocksElapsedInChildren += TimingSnapshot->ClocksElapsed;
-#endif
+				ParentTimingSnapshot->ClocksElapsedInChildren += ClocksElapsedForThisTiming;
 
-				//NOTE(dima): Finding needed element in the hash table
+				//NOTE(dima): Finding needed statistic in the hash table
+				b32 TimingStatisticWasAllocated;
 				debug_timing_statistic* TimingStatistic = DEBUGInitDebugStatistic(
-					&Frame->FrameMemory, 
-					Frame->TimingStatistics, 
-					Frame->TimingStatisticSentinel, 
-					CurrentBlock->UniqueName);
+					&Frame->FrameMemory,
+					Frame->TimingStatistics,
+					Frame->TimingStatisticSentinel,
+					CurrentBlock->UniqueName,
+					&TimingStatisticWasAllocated);
 
-				TimingStatistic->Timing.ClocksElapsed += TimingSnapshot->ClocksElapsed;
+				TimingStatistic->Timing.ClocksElapsed = TimingSnapshot->ClocksElapsed;
 				TimingStatistic->Timing.HitCount += 1;
 				TimingStatistic->Timing.ClocksElapsedInChildren = TimingSnapshot->ClocksElapsedInChildren;
 
@@ -1120,11 +1126,18 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 								ChildrenAt != FrameUpdateNode->ChildrenSentinel;
 								ChildrenAt = ChildrenAt->PrevBro)
 							{
-								float CurrentPercentage = (float)ChildrenAt->TimingSnapshot.ClocksElapsed * OneOverFrameClocks;
+								//NOTE(dima): Finding needed element in the hash table
+								debug_timing_statistic* TimingStatistic = DEBUGInitDebugStatistic(
+									&Frame->FrameMemory,
+									Frame->TimingStatistics,
+									Frame->TimingStatisticSentinel,
+									ChildrenAt->UniqueName);
+
+								float CurrentPercentage = (float)TimingStatistic->Timing.ClocksElapsed * OneOverFrameClocks;
 
 								float CurColY = ColumnDim.y * CurrentPercentage;
 								ColY -= CurColY;
-								
+
 								rect2 CurrentRect = Rect2MinDim(V2(ColumnRect.Min.x, ColY), V2(ColumnDim.x, CurColY));
 								v4 CurColColor = GUIGetColor(GUIState, GraphColors[ColorIndex++]);
 
@@ -1285,6 +1298,7 @@ inline u64 DEBUGGetClocksFromTiming(debug_timing_statistic* Stat, u32 Type) {
 		Result = Stat->Timing.ClocksElapsed;
 	}
 	else if (Type == DebugClockList_Exclusive) {
+		//Assert(Stat->Timing.ClocksElapsed >= Stat->Timing.ClocksElapsedInChildren);
 		Result = Stat->Timing.ClocksElapsed - Stat->Timing.ClocksElapsedInChildren;
 	}
 	else {
@@ -1835,6 +1849,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 		if (ThreadCount) {
 #define DEBUG_GRAPH_COLORS_TABLE_SIZE 16
 			u32 GraphColors[DEBUG_GRAPH_COLORS_TABLE_SIZE];
+#if 0
 			GraphColors[0] = GUIState->ColorTheme.GraphColor1;
 			GraphColors[1] = GUIState->ColorTheme.GraphColor2;
 			GraphColors[2] = GUIState->ColorTheme.GraphColor3;
@@ -1851,6 +1866,25 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 			GraphColors[13] = ColorExt_SteelBlue1;
 			GraphColors[14] = ColorExt_yellow1;
 			GraphColors[15] = ColorExt_LightGoldenrod4;
+#else
+			GraphColors[0] = ColorExt_red4;
+			GraphColors[1] = Color_Green;
+			GraphColors[2] = Color_Blue;
+			GraphColors[3] = Color_Magenta;
+			GraphColors[4] = Color_Cyan;
+			GraphColors[5] = Color_Purple;
+			GraphColors[6] = Color_Orange;
+			GraphColors[7] = Color_PrettyBlue;
+			GraphColors[8] = Color_Yellow;
+			GraphColors[9] = ColorExt_DarkOliveGreen1;
+			GraphColors[10] = ColorExt_burlywood;
+			GraphColors[11] = Color_White;
+			GraphColors[12] = ColorExt_gray51;
+			GraphColors[13] = ColorExt_OrangeRed1;
+			GraphColors[14] = ColorExt_GreenYellow;
+			GraphColors[15] = ColorExt_azure1;
+
+#endif
 
 			v4 OutlineColor = GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor);
 
@@ -1910,7 +1944,8 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					AtChildren != View->ChildrenSentinel;
 					AtChildren = AtChildren->NextBro) 
 				{
-					float TargetX = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.BeginClocks - FrameStartTime) * OneOverTotalClocks);
+
+					float TargetX = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.FirstEntryBeginClocks - FrameStartTime) * OneOverTotalClocks);
 					float TargetFramePercentage = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks;
 					float TargetWidth = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks * WorkDim->x;
 
@@ -1918,7 +1953,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 					rect2 LaneRect = Rect2MinDim(V2(TargetX, AtY), V2(TargetWidth, CurentThreadGraphYSpacing));
 
-					v4 LaneColor = GUIGetColor(GUIState, ColorIndex);
+					v4 LaneColor = GUIGetColor(GUIState, GraphColors[ColorIndex]);
 					LaneColor.a = 0.3f;
 					RENDERPushRect(GUIState->RenderStack, LaneRect, LaneColor);
 					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
@@ -2134,6 +2169,111 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 
 						GUIText(State->GUIState, DebugStateInfoBuf);
 						GUIStackedMemGraph(State->GUIState, "DebugMem", State->DebugMemory);
+					}break;
+
+					case DebugValue_VoxelStatistics: {
+						voxel_generation_statistics* GenerationStat = (voxel_generation_statistics*)At->Value.Value;
+
+						gui_state* GUI = State->GUIState;
+
+#if 0
+						GUIText(GUI, Stat0Str);
+						GUIText(GUI, Stat1Str);
+						GUIText(GUI, Stat2Str);
+						GUIText(GUI, ViewDistStat);
+						GUIText(GUI, ThisFrameMeshStartStat);
+						GUIText(GUI, ChunksStat);
+#else
+						gui_element* Elem = GUIBeginElement(
+							GUI, GUIElement_CachedItem, "VoxelStat",
+							0 , 1, 1);
+
+						if (GUIElementShouldBeUpdated(Elem)) {
+							gui_layout* Layout = GUIGetCurrentLayout(GUI);
+
+							GUIPreAdvanceCursor(GUI);
+
+							char Stat0Str[128];
+							char Stat1Str[64];
+							char Stat2Str[64];
+							char ViewDistStat[64];
+							char ThisFrameMeshStartStat[64];
+							char ChunksStat[128];
+
+							stbsp_sprintf(Stat0Str, "CamP: (X)%.2f (Y)%.2f (Z)%.2f",
+								GenerationStat->CameraPos.x,
+								GenerationStat->CameraPos.y,
+								GenerationStat->CameraPos.z);
+
+							stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total",
+								GenerationStat->FreeGenThreadworksCount,
+								GenerationStat->TotalGenThreadworksCount);
+
+							stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total",
+								GenerationStat->FreeWorkThreadworksCount,
+								GenerationStat->TotalWorkThreadworksCount);
+
+							stbsp_sprintf(ViewDistStat, "View dist: %d chunks; %d blocks",
+								GenerationStat->ChunksViewDistance,
+								GenerationStat->BlocksViewDistance);
+
+							stbsp_sprintf(ThisFrameMeshStartStat,
+								"%d mesh gens started this frame",
+								GenerationStat->MeshGenerationsStartedThisFrame);
+
+							stbsp_sprintf(ChunksStat,
+								"Chunks: %d sent to render; hahaha",
+								GenerationStat->ChunksPushedToRender);
+
+							char* ToPrintStatistics[] = {
+								Stat0Str,
+								Stat1Str,
+								Stat2Str,
+								ViewDistStat,
+								ThisFrameMeshStartStat,
+								ChunksStat,
+							};
+
+							v4 TextColor = GUIGetColor(GUI, Color_White);
+
+							float FontScale = GUI->FontScale;
+
+							v2 PrintAt = V2(Layout->CurrentX, Layout->CurrentY);
+
+							float MaxWidth = 0.0f;
+
+							for (int ToPrintStatIndex = 0;
+								ToPrintStatIndex < ArrayCount(ToPrintStatistics);
+								ToPrintStatIndex++)
+							{
+								char* ToPrint = ToPrintStatistics[ToPrintStatIndex];
+
+								v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
+								v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
+
+								rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
+
+								if (MouseInRect(GUI->Input, TxtRc)) {
+									RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, Color_PrettyBlue));
+									RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Black));
+								}
+
+								GUIPrintText(GUI, ToPrint, PrintAt, FontScale, TextColor);
+
+								PrintAt.y += GetNextRowAdvance(GUI->FontInfo) * FontScale;
+
+								if (TxtDim.x > MaxWidth) {
+									MaxWidth = TxtDim.x;
+								}
+							}
+
+							GUIDescribeElement(GUI, V2(MaxWidth, PrintAt.y - Layout->CurrentY), 
+								V2(Layout->CurrentX, Layout->CurrentY - GUI->FontInfo->AscenderHeight * FontScale));
+							GUIAdvanceCursor(GUI);
+						}
+
+						GUIEndElement(GUI, GUIElement_CachedItem);
+#endif
 					}break;
 
 					case DebugValue_StackedMemory: {

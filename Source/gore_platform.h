@@ -41,7 +41,7 @@ struct platform_threadwork {
 };
 
 //NOTE(dima): Platform thread queue structure defined in platform dependent code
-#define PLATFORM_THREAD_QUEUE_SIZE 4086
+//#define PLATFORM_THREAD_QUEUE_SIZE 4086
 struct platform_thread_queue;
 
 typedef volatile i32 platform_atomic_type_i32;

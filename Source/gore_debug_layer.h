@@ -4,6 +4,7 @@
 #include "gore_types.h"
 #include "gore_math.h"
 #include "gore_types.h"
+#include "gore_debug_layer_types.h"
 
 enum debug_record_type {
 	DebugRecord_None,
@@ -42,6 +43,8 @@ enum debug_value_type {
 	DebugValue_ProfileOverlays,
 	DebugValue_DebugStateInfo,
 
+	DebugValue_VoxelStatistics,
+
 	DebugValue_Logger,
 
 	//DebugValue_FramesGraph,
@@ -71,6 +74,7 @@ struct debug_record {
 			v4* Value_DebugValue_Vector4;
 			v4* Value_DebugValue_Color;
 			stacked_memory* Value_DebugValue_StackedMemory;
+			voxel_generation_statistics* Value_DebugValue_VoxelStatistics;
 			void* Value;
 		};
 
@@ -150,6 +154,7 @@ inline void DEBUGSetLogRecording(b32 Recording) {
 
 #define DEBUG_STACKED_MEM(name, value) {debug_record* Rec = ADD_DEBUG_RECORD(name, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_StackedMemory; Rec->Value_Value.Value_DebugValue_StackedMemory = value;}
 #define DEBUG_TEXT(idname, text) {debug_record* Rec = ADD_DEBUG_RECORD(idname, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_Text; Rec->Value_Value.Value_DebugValue_Text = text;}
+#define DEBUG_VOXEL_STATISTICS(data) {debug_record* Rec = ADD_DEBUG_RECORD("VoxelStatistics", DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_VoxelStatistics; Rec->Value_Value.Value_DebugValue_VoxelStatistics = data;}
 
 #define DEBUG_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_Log)
 #define DEBUG_ERROR_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_ErrLog)
