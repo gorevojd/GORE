@@ -24,7 +24,6 @@ enum voxel_texture_vert_type{
 	VoxelTextureVertType_DownLeft,
 };
 
-
 struct voxworld_table_entry {
 	voxworld_table_entry* Next;
 
@@ -34,7 +33,6 @@ struct voxworld_table_entry {
 };
 
 struct voxworld_generation_state {
-
 	/*
 		NOTE(dima): Work threadworks are used to 
 		store loaded chunks data.
@@ -48,7 +46,7 @@ struct voxworld_generation_state {
 
 	/*
 		NOTE(dima): Gen threadworks are used to 
-		store temp information while generating chunk;
+		store temp information while generating chunks or meshes;
 	*/
 	int FreeGenThreadworksCount;
 	int TotalGenThreadworksCount;

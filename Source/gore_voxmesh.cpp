@@ -736,9 +736,61 @@ static void VoxelRegenerateSetatistics(
 	Generation->ChunksPushedToRender = 0;
 }
 
+struct generate_voxel_mesh_data {
+	voxel_chunk_info* Chunk;
+	voxel_atlas_info* VoxelAtlasInfo;
+
+	voxworld_threadwork* MeshGenThreadwork;
+
+	voxworld_generation_state* Generation;
+};
+
+PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
+	generate_voxel_mesh_data* GenData = (generate_voxel_mesh_data*)Data;
+
+	voxel_chunk_info* ChunkInfo = GenData->Chunk;
+	voxel_mesh_info* MeshInfo = &GenData->Chunk->MeshInfo;
+
+	if (PlatformApi.AtomicCAS_U32(
+		&MeshInfo->State,
+		VoxelMeshState_InProcess,
+		VoxelChunkState_None))
+	{
+
+		//TODO(dima): Better memory management here
+		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
+		MeshInfo->Vertices = (u32*)malloc(65536 * 5);
+		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
+		MeshInfo->Vertices = (u32*)realloc(
+			MeshInfo->Vertices,
+			MeshInfo->VerticesCount * 4);
+
+		PLATFORM_COMPILER_BARRIER();
+
+		MeshInfo->State = VoxelMeshState_Ready;
+
+		VoxelEndThreadwork(
+			GenData->MeshGenThreadwork,
+			GenData->Generation->GenFreeSentinel,
+			&GenData->Generation->GenMutex,
+			&GenData->Generation->FreeGenThreadworksCount);
+
+		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);
+		
+	}
+	else if (MeshInfo->State == VoxelMeshState_InProcess) {
+		while (MeshInfo->State == VoxelMeshState_InProcess) {
+
+		}
+	}
+	else {
+
+	}
+}
+
 struct generate_voxel_chunk_data {
 	//NOTE(dima): Used to store temporary generation work data while generating chunk
-	voxworld_threadwork* GenThreadwork;
+	voxworld_threadwork* ChunkGenThreadwork;
 
 	voxworld_generation_state* Generation;
 
@@ -758,25 +810,38 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	{
 		GenerateRandomChunk(WorkChunk);
 
-		//TODO(dima): Better memory management here
-		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 5);
-		VoxmeshGenerate(&WorkChunk->MeshInfo, WorkChunk, GenData->VoxelAtlasInfo);
-		WorkChunk->MeshInfo.Vertices = (u32*)realloc(
-			WorkChunk->MeshInfo.Vertices,
-			WorkChunk->MeshInfo.VerticesCount * 4);
-
 		PLATFORM_COMPILER_BARRIER();
 
 		WorkChunk->State = VoxelChunkState_Ready;
 
-		VoxelEndThreadwork(
-			GenData->GenThreadwork,
+		voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(
 			GenData->Generation->GenFreeSentinel,
+			GenData->Generation->GenUseSentinel,
 			&GenData->Generation->GenMutex,
 			&GenData->Generation->FreeGenThreadworksCount);
 
-		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);
+		Assert(MeshGenThreadwork);
+
+		generate_voxel_mesh_data* MeshGenerationData = PushStruct(
+			&MeshGenThreadwork->Memory,
+			generate_voxel_mesh_data);
+
+		MeshGenerationData->Chunk = WorkChunk;
+		MeshGenerationData->Generation = GenData->Generation;
+		MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
+		MeshGenerationData->VoxelAtlasInfo = GenData->VoxelAtlasInfo;
+
+		PlatformApi.AddThreadworkEntry(
+			PlatformApi.HighPriorityQueue,
+			MeshGenerationData,
+			GenerateVoxelMeshThreadwork);
+
+
+		VoxelEndThreadwork(
+			GenData->ChunkGenThreadwork,
+			GenData->Generation->GenFreeSentinel,
+			&GenData->Generation->GenMutex,
+			&GenData->Generation->FreeGenThreadworksCount);
 	}
 	else if (WorkChunk->State == VoxelChunkState_InProcess) {
 		while (WorkChunk->State == VoxelChunkState_InProcess) {
@@ -830,7 +895,7 @@ void VoxelChunksGenerationInit(
 		They are used to store temporary data( for chunk
 		generation threads.
 	*/
-	int GenThreadworksCount = 2000;
+	int GenThreadworksCount = 10000;
 
 	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
@@ -838,13 +903,17 @@ void VoxelChunksGenerationInit(
 	Generation->FreeGenThreadworksCount = GenThreadworksCount;
 	Generation->TotalGenThreadworksCount = GenThreadworksCount;
 
+	int SizeForGenThreadwork = Min(
+		sizeof(generate_voxel_chunk_data) + 16, 
+		sizeof(generate_voxel_mesh_data) + 16);
+
 	for (int GenThreadworkIndex = 0;
 		GenThreadworkIndex < GenThreadworksCount;
 		GenThreadworkIndex++)
 	{
 		//NOTE(dima): 16 bytes added here because of the alignment problems that may arrive
 		voxworld_threadwork* NewThreadwork =
-			VoxelAllocateThreadwork(Generation->TotalMemory, sizeof(generate_voxel_chunk_data) + 16);
+			VoxelAllocateThreadwork(Generation->TotalMemory, SizeForGenThreadwork);
 		VoxelInsertThreadworkAfter(NewThreadwork, Generation->GenFreeSentinel);
 	}
 
@@ -887,15 +956,17 @@ void VoxelChunksGenerationUpdate(
 			if (NeededChunk) {
 				if (NeededChunk->State == VoxelChunkState_Ready) {
 
-					v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
+					if (NeededChunk->MeshInfo.State == VoxelMeshState_Ready) {
+						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
-					RENDERPushVoxelMesh(
-						RenderState, 
-						&NeededChunk->MeshInfo, 
-						ChunkPos, 
-						&VoxelAtlas->Bitmap);
+						RENDERPushVoxelMesh(
+							RenderState, 
+							&NeededChunk->MeshInfo, 
+							ChunkPos, 
+							&VoxelAtlas->Bitmap);
 
-					Generation->ChunksPushedToRender++;
+						Generation->ChunksPushedToRender++;
+					}
 				}
 			}
 			else {
@@ -906,16 +977,16 @@ void VoxelChunksGenerationUpdate(
 					&Generation->FreeWorkThreadworksCount);
 
 				if (Threadwork) {
-					voxworld_threadwork* GenThreadwork = VoxelBeginThreadwork(
+					voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(
 						Generation->GenFreeSentinel,
 						Generation->GenUseSentinel,
 						&Generation->GenMutex,
 						&Generation->FreeGenThreadworksCount);
 
-					Assert(GenThreadwork);
+					Assert(ChunkGenThreadwork);
 
 					generate_voxel_chunk_data* ChunkGenerationData = PushStruct(
-						&GenThreadwork->Memory, 
+						&ChunkGenThreadwork->Memory, 
 						generate_voxel_chunk_data);
 
 					ChunkGenerationData->Chunk = PushStruct(
@@ -930,7 +1001,7 @@ void VoxelChunksGenerationUpdate(
 
 					ChunkGenerationData->VoxelAtlasInfo = VoxelAtlas;
 					ChunkGenerationData->Generation = Generation;
-					ChunkGenerationData->GenThreadwork = GenThreadwork;
+					ChunkGenerationData->ChunkGenThreadwork = ChunkGenThreadwork;
 
 					PlatformApi.AddThreadworkEntry(
 						PlatformApi.HighPriorityQueue,

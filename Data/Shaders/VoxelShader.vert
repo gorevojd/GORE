@@ -25,6 +25,7 @@ void main(){
 	uint VertexData1 = VertexData;
 #endif
 
+
 	vec3 NormalTable[6];
 	NormalTable[0] = vec3(0.0f, 1.0f, 0.0f);
 	NormalTable[1] = vec3(0.0f, -1.0f, 0.0f);
@@ -32,6 +33,7 @@ void main(){
 	NormalTable[3] = vec3(1.0f, 0.0f, 0.0f);
 	NormalTable[4] = vec3(0.0f, 0.0f, -1.0f);
 	NormalTable[5] = vec3(0.0f, 0.0f, 1.0f);
+
 
 	vec3 Pos;
 	Pos.x = float((VertexData1 >> 27u) & 31u);

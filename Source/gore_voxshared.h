@@ -16,7 +16,15 @@ enum voxel_chunk_state {
 	VoxelChunkState_Ready,
 };
 
+enum voxel_mesh_state {
+	VoxelMeshState_None,
+	VoxelMeshState_InProcess,
+	VoxelMeshState_Ready,
+};
+
 struct voxel_mesh_info {
+	platform_atomic_type_u32 State;
+
 	void* MeshHandle;
 
 	u32* Vertices;
