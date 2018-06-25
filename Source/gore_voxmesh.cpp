@@ -723,6 +723,8 @@ static void VoxelRegenerateSetatistics(
 
 	Result->CameraPos = CameraP;
 
+	Result->Queue = PlatformApi.VoxelQueue;
+
 	GetVoxelChunkPosForCamera(
 		CameraP,
 		&Result->CurrentChunkX,
@@ -832,7 +834,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->VoxelAtlasInfo = GenData->VoxelAtlasInfo;
 
 		PlatformApi.AddThreadworkEntry(
-			PlatformApi.HighPriorityQueue,
+			PlatformApi.VoxelQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
 
@@ -956,6 +958,14 @@ void VoxelChunksGenerationUpdate(
 			if (NeededChunk) {
 				if (NeededChunk->State == VoxelChunkState_Ready) {
 
+					/*
+						NOTE(dima): It was interesting to see this
+						but if I delete this check then some meshes
+						will be visible partially. This is because 
+						they wasn't generated at this time and when 
+						time came to generating VAOs in the renderer
+						they were generated partially too. :D
+					*/
 					if (NeededChunk->MeshInfo.State == VoxelMeshState_Ready) {
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
@@ -1004,7 +1014,7 @@ void VoxelChunksGenerationUpdate(
 					ChunkGenerationData->ChunkGenThreadwork = ChunkGenThreadwork;
 
 					PlatformApi.AddThreadworkEntry(
-						PlatformApi.HighPriorityQueue,
+						PlatformApi.VoxelQueue,
 						ChunkGenerationData,
 						GenerateVoxelChunkThreadwork);
 

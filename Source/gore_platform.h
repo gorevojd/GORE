@@ -44,6 +44,15 @@ struct platform_threadwork {
 //#define PLATFORM_THREAD_QUEUE_SIZE 4086
 struct platform_thread_queue;
 
+struct platform_thread_queue_info {
+	int WorkingThreadsCount;
+	int TotalEntriesCount;
+	int EntriesBusy;
+};
+
+#define PLATFORM_GET_THREAD_QUEUE_INFO(name) platform_thread_queue_info name(platform_thread_queue* Queue)
+typedef PLATFORM_GET_THREAD_QUEUE_INFO(platform_get_thread_queue_info);
+
 typedef volatile i32 platform_atomic_type_i32;
 typedef volatile u32 platform_atomic_type_u32;
 typedef volatile i64 platform_atomic_type_i64;
@@ -210,7 +219,9 @@ struct platform_api {
 	platform_add_threadwork_entry* AddThreadworkEntry;
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
+	platform_get_thread_queue_info* GetThreadQueueInfo;
 
+	platform_thread_queue* VoxelQueue;
 	platform_thread_queue* HighPriorityQueue;
 	platform_thread_queue* LowPriorityQueue;
 

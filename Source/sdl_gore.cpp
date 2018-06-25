@@ -594,6 +594,7 @@ void WindaInitThreadQueue(
 	Queue->StartedEntries = 0;
 	Queue->Entries = Entries;
 	Queue->EntriesCount = EntriesCount;
+	Queue->WorkingThreadsCount = WorkersCount;
 
 	char SemaphoreNameBuf[256];
 	stbsp_sprintf(SemaphoreNameBuf, "%s_Sem", QueueName);
@@ -614,6 +615,24 @@ void WindaInitThreadQueue(
 
 PLATFORM_GET_THREAD_ID(WindaGetThreadID) {
 	u32 Result = GetCurrentThreadId();
+
+	return(Result);
+}
+
+PLATFORM_GET_THREAD_QUEUE_INFO(WindaGetThreadQueueInfo) {
+	platform_thread_queue_info Result = {};
+
+	Result.TotalEntriesCount = Queue->EntriesCount;
+	Result.WorkingThreadsCount = Queue->WorkingThreadsCount;
+	
+	u32 EntriesBusy = 0;
+	if (Queue->DoIndex <= Queue->AddIndex) {
+		EntriesBusy = Queue->AddIndex - Queue->DoIndex;
+	}
+	else {
+		EntriesBusy = Queue->EntriesCount - Queue->DoIndex + Queue->AddIndex;
+	}
+	Result.EntriesBusy = EntriesBusy;
 
 	return(Result);
 }
@@ -725,6 +744,7 @@ void SDLInitThreadQueue(
 	Queue->FinishedEntries.value = 0;
 	Queue->Entries = Entries;
 	Queue->EntriesCount = EntriesCount;
+	Queue->WorkingThreadsCount = ThreadWorkersCount;
 
 	Queue->Semaphore = SDL_CreateSemaphore(0);
 
@@ -748,6 +768,24 @@ PLATFORM_GET_THREAD_ID(SDLGetThreadID) {
 
 	return(Result);
 }
+
+PLATFORM_GET_THREAD_QUEUE_INFO(SDLGetThreadQueueInfo) {
+	platform_thread_queue_info Result = {};
+
+	Result.TotalEntriesCount = Queue->EntriesCount;
+	Result.WorkingThreadsCount = Queue->WorkingThreadsCount;
+
+	u32 EntriesBusy = 0;
+	if (Queue->DoIndex.value <= Queue->AddIndex.value) {
+		EntriesBusy = Queue->AddIndex.value - Queue->DoIndex.value;
+	}
+	else {
+		EntriesBusy = Queue->EntriesCount - Queue->DoIndex.value + Queue->AddIndex.value;
+	}
+	Result.EntriesBusy = EntriesBusy;
+
+	return(Result);
+}
 #endif
 
 int main(int ArgsCount, char** Args) {
@@ -755,14 +793,29 @@ int main(int ArgsCount, char** Args) {
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
 	//NOTE(dima): Initializing of threads
+	platform_thread_queue VoxelQueue;
 	platform_thread_queue HighPriorityQueue;
 	platform_thread_queue LowPriorityQueue;
 
-	platform_threadwork HighQueueEntries[8192];
+	platform_threadwork VoxelQueueEntries[8192];
+	platform_threadwork HighQueueEntries[512];
 	platform_threadwork LowQueueEntries[512];
 
+#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 8
+#define PLATFORM_HIGH_QUEUE_THREADS_COUNT 4
+#define PLATFORM_LOW_QUEUE_THREADS_COUNT 2
+
 #if defined(PLATFORM_WINDA)
-	winda_thread_worker HighThreadWorkers[8];
+	winda_thread_worker VoxelThreadWorkers[PLATFORM_VOXEL_QUEUE_THREADS_COUNT];
+	WindaInitThreadQueue(
+		&VoxelQueue,
+		VoxelThreadWorkers,
+		ArrayCount(VoxelThreadWorkers),
+		"VoxelQueue",
+		VoxelQueueEntries,
+		ArrayCount(VoxelQueueEntries));
+
+	winda_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
 	WindaInitThreadQueue(
 		&HighPriorityQueue, 
 		HighThreadWorkers, 
@@ -771,7 +824,7 @@ int main(int ArgsCount, char** Args) {
 		HighQueueEntries,
 		ArrayCount(HighQueueEntries));
 
-	winda_thread_worker LowThreadWorkers[4];
+	winda_thread_worker LowThreadWorkers[PLATFORM_LOW_QUEUE_THREADS_COUNT];
 	WindaInitThreadQueue(
 		&LowPriorityQueue, 
 		LowThreadWorkers, 
@@ -780,7 +833,16 @@ int main(int ArgsCount, char** Args) {
 		LowQueueEntries,
 		ArrayCount(LowQueueEntries));
 #else
-	sdl_thread_worker HighThreadWorkers[8];
+	sdl_thread_worker VoxelThreadWorkers[PLATFORM_VOXEL_QUEUE_THREADS_COUNT];
+	SDLInitThreadQueue(
+		&VoxelQueue,
+		VoxelThreadWorkers,
+		ArrayCount(VoxelThreadWorkers),
+		"VoxelQueue",
+		VoxelQueueEntries,
+		ArrayCount(VoxelQueueEntries));
+
+	sdl_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
 	SDLInitThreadQueue(
 		&HighPriorityQueue, 
 		HighThreadWorkers, 
@@ -789,7 +851,7 @@ int main(int ArgsCount, char** Args) {
 		HighQueueEntries,
 		ArrayCount(HighQueueEntries));
 
-	sdl_thread_worker LowThreadWorkers[4];
+	sdl_thread_worker LowThreadWorkers[PLATFORM_LOW_QUEUE_THREADS_COUNT];
 	SDLInitThreadQueue(
 		&LowPriorityQueue, 
 		LowThreadWorkers, 
@@ -804,10 +866,12 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AddThreadworkEntry = WindaAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = WindaCompleteThreadWorks;
 	PlatformApi.GetThreadID = WindaGetThreadID;
+	PlatformApi.GetThreadQueueInfo = WindaGetThreadQueueInfo;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
 	PlatformApi.GetThreadID = SDLGetThreadID;
+	PlatformApi.GetThreadQueueInfo = SDLGetThreadQueueInfo;
 #endif
 
 	PlatformApi.AtomicCAS_I32 = SDLAtomicCAS_I32;
@@ -830,6 +894,7 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
 
+	PlatformApi.VoxelQueue = &VoxelQueue;
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
 	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;

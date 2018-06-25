@@ -2040,6 +2040,157 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
+static void DEBUGVoxelThreadQueueInfoElement(debug_state* State, platform_thread_queue_info* QueueInfo) 
+{
+	gui_state* GUIState = State->GUIState;
+
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, "VoxelThreadQueueOverlay", 0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Elem)) {
+		GUIPreAdvanceCursor(GUIState);
+
+		float AscByScale = GUIState->FontInfo->AscenderHeight * GUIState->FontScale;
+		float RowAdvance = GetNextRowAdvance(GUIState->FontInfo) * GUIState->FontScale;
+
+		gui_layout* Layout = GUIGetCurrentLayout(GUIState);
+
+		if (!Elem->Cache.IsInitialized) {
+
+			Elem->Cache.Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.5f, 80);
+
+			Elem->Cache.IsInitialized = 1;
+		}
+
+		v2* WorkDim = &Elem->Cache.Dimensional.Dim;
+
+		v2 RectMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
+		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
+
+		float BusyPercentage = (float)QueueInfo->EntriesBusy / (float)QueueInfo->TotalEntriesCount;
+
+		rect2 BusyRect = Rect2MinDim(RectMin, V2(BusyPercentage * WorkDim->x, WorkDim->y));
+		rect2 FreeRect = Rect2MinMax(V2(BusyRect.Max.x, BusyRect.Min.y), WorkRect.Max);
+
+		RENDERPushRect(GUIState->RenderStack, BusyRect, GUIGetColor(GUIState, ColorExt_OrangeRed2));
+		RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, ColorExt_DarkGreen));
+		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
+		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
+
+		GUIDescribeElement(GUIState, *WorkDim, RectMin);
+		GUIAdvanceCursor(GUIState);
+	}
+
+	GUIEndElement(GUIState, GUIElement_CachedItem);
+}
+
+static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_statistics* GenerationStat) {
+
+	gui_state* GUI = State->GUIState;
+
+	platform_thread_queue_info QueueInfo = PlatformApi.GetThreadQueueInfo(GenerationStat->Queue);
+
+	DEBUGVoxelThreadQueueInfoElement(State, &QueueInfo);
+
+	gui_element* Elem = GUIBeginElement(
+		GUI, GUIElement_CachedItem, "VoxelStat",
+		0, 1, 1);
+
+	if (GUIElementShouldBeUpdated(Elem)) {
+		gui_layout* Layout = GUIGetCurrentLayout(GUI);
+
+		GUIPreAdvanceCursor(GUI);
+
+		char QueueStat[64];
+		char Stat0Str[128];
+		char Stat1Str[64];
+		char Stat2Str[64];
+		char ViewDistStat[64];
+		char ThisFrameMeshStartStat[64];
+		char ChunksStat[128];
+
+		stbsp_sprintf(QueueStat, "%d entries busy; %d total; %d working threads active",
+			QueueInfo.EntriesBusy,
+			QueueInfo.TotalEntriesCount,
+			QueueInfo.WorkingThreadsCount);
+
+		stbsp_sprintf(Stat0Str, "CamP: (X)%.2f (Y)%.2f (Z)%.2f",
+			GenerationStat->CameraPos.x,
+			GenerationStat->CameraPos.y,
+			GenerationStat->CameraPos.z);
+
+		stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total",
+			GenerationStat->FreeGenThreadworksCount,
+			GenerationStat->TotalGenThreadworksCount);
+
+		stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total",
+			GenerationStat->FreeWorkThreadworksCount,
+			GenerationStat->TotalWorkThreadworksCount);
+
+		stbsp_sprintf(ViewDistStat, "View dist: %d chunks; %d blocks",
+			GenerationStat->ChunksViewDistance,
+			GenerationStat->BlocksViewDistance);
+
+		stbsp_sprintf(ThisFrameMeshStartStat,
+			"%d mesh gens started this frame",
+			GenerationStat->MeshGenerationsStartedThisFrame);
+
+		stbsp_sprintf(ChunksStat,
+			"Chunks: %d sent to render; hahaha",
+			GenerationStat->ChunksPushedToRender);
+
+		char* ToPrintStatistics[] = {
+			QueueStat,
+			Stat0Str,
+			Stat1Str,
+			Stat2Str,
+			ViewDistStat,
+			ThisFrameMeshStartStat,
+			ChunksStat,
+		};
+
+		v4 TextColor = GUIGetColor(GUI, Color_White);
+
+		float FontScale = GUI->FontScale;
+
+		v2 PrintAt = V2(Layout->CurrentX, Layout->CurrentY);
+
+		float MaxWidth = 0.0f;
+
+		for (int ToPrintStatIndex = 0;
+			ToPrintStatIndex < ArrayCount(ToPrintStatistics);
+			ToPrintStatIndex++)
+		{
+			char* ToPrint = ToPrintStatistics[ToPrintStatIndex];
+
+			v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
+			v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
+
+			rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
+
+			if (MouseInRect(GUI->Input, TxtRc)) {
+				RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, ColorExt_red4));
+				RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Red));
+			}
+
+			GUIPrintText(GUI, ToPrint, PrintAt, FontScale, TextColor);
+
+			PrintAt.y += GetNextRowAdvance(GUI->FontInfo) * FontScale;
+
+			if (TxtDim.x > MaxWidth) {
+				MaxWidth = TxtDim.x;
+			}
+		}
+
+		GUIDescribeElement(GUI, V2(MaxWidth, PrintAt.y - Layout->CurrentY),
+			V2(Layout->CurrentX, Layout->CurrentY - GUI->FontInfo->AscenderHeight * FontScale));
+		GUIAdvanceCursor(GUI);
+	}
+
+	GUIEndElement(GUI, GUIElement_CachedItem);
+}
+
 static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
 	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
 
@@ -2174,106 +2325,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 					case DebugValue_VoxelStatistics: {
 						voxel_generation_statistics* GenerationStat = (voxel_generation_statistics*)At->Value.Value;
 
-						gui_state* GUI = State->GUIState;
-
-#if 0
-						GUIText(GUI, Stat0Str);
-						GUIText(GUI, Stat1Str);
-						GUIText(GUI, Stat2Str);
-						GUIText(GUI, ViewDistStat);
-						GUIText(GUI, ThisFrameMeshStartStat);
-						GUIText(GUI, ChunksStat);
-#else
-						gui_element* Elem = GUIBeginElement(
-							GUI, GUIElement_CachedItem, "VoxelStat",
-							0 , 1, 1);
-
-						if (GUIElementShouldBeUpdated(Elem)) {
-							gui_layout* Layout = GUIGetCurrentLayout(GUI);
-
-							GUIPreAdvanceCursor(GUI);
-
-							char Stat0Str[128];
-							char Stat1Str[64];
-							char Stat2Str[64];
-							char ViewDistStat[64];
-							char ThisFrameMeshStartStat[64];
-							char ChunksStat[128];
-
-							stbsp_sprintf(Stat0Str, "CamP: (X)%.2f (Y)%.2f (Z)%.2f",
-								GenerationStat->CameraPos.x,
-								GenerationStat->CameraPos.y,
-								GenerationStat->CameraPos.z);
-
-							stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total",
-								GenerationStat->FreeGenThreadworksCount,
-								GenerationStat->TotalGenThreadworksCount);
-
-							stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total",
-								GenerationStat->FreeWorkThreadworksCount,
-								GenerationStat->TotalWorkThreadworksCount);
-
-							stbsp_sprintf(ViewDistStat, "View dist: %d chunks; %d blocks",
-								GenerationStat->ChunksViewDistance,
-								GenerationStat->BlocksViewDistance);
-
-							stbsp_sprintf(ThisFrameMeshStartStat,
-								"%d mesh gens started this frame",
-								GenerationStat->MeshGenerationsStartedThisFrame);
-
-							stbsp_sprintf(ChunksStat,
-								"Chunks: %d sent to render; hahaha",
-								GenerationStat->ChunksPushedToRender);
-
-							char* ToPrintStatistics[] = {
-								Stat0Str,
-								Stat1Str,
-								Stat2Str,
-								ViewDistStat,
-								ThisFrameMeshStartStat,
-								ChunksStat,
-							};
-
-							v4 TextColor = GUIGetColor(GUI, Color_White);
-
-							float FontScale = GUI->FontScale;
-
-							v2 PrintAt = V2(Layout->CurrentX, Layout->CurrentY);
-
-							float MaxWidth = 0.0f;
-
-							for (int ToPrintStatIndex = 0;
-								ToPrintStatIndex < ArrayCount(ToPrintStatistics);
-								ToPrintStatIndex++)
-							{
-								char* ToPrint = ToPrintStatistics[ToPrintStatIndex];
-
-								v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
-								v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
-
-								rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
-
-								if (MouseInRect(GUI->Input, TxtRc)) {
-									RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, Color_PrettyBlue));
-									RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Black));
-								}
-
-								GUIPrintText(GUI, ToPrint, PrintAt, FontScale, TextColor);
-
-								PrintAt.y += GetNextRowAdvance(GUI->FontInfo) * FontScale;
-
-								if (TxtDim.x > MaxWidth) {
-									MaxWidth = TxtDim.x;
-								}
-							}
-
-							GUIDescribeElement(GUI, V2(MaxWidth, PrintAt.y - Layout->CurrentY), 
-								V2(Layout->CurrentX, Layout->CurrentY - GUI->FontInfo->AscenderHeight * FontScale));
-							GUIAdvanceCursor(GUI);
-						}
-
-						GUIEndElement(GUI, GUIElement_CachedItem);
-#endif
+						DEBUGVoxelStatisticsElement(State, GenerationStat);
 					}break;
 
 					case DebugValue_StackedMemory: {

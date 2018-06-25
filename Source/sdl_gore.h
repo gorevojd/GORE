@@ -89,6 +89,8 @@ struct platform_thread_queue {
 	volatile unsigned int StartedEntries;
 	volatile unsigned int FinishedEntries;
 
+	u32 WorkingThreadsCount;
+
 	HANDLE Semaphore;
 
 	char* QueueName;
@@ -111,6 +113,8 @@ struct platform_thread_queue {
 
 	SDL_atomic_t StartedEntries;
 	SDL_atomic_t FinishedEntries;
+
+	u32 WorkingThreadsCount;
 
 	SDL_sem* Semaphore;
 
