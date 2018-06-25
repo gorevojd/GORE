@@ -609,17 +609,17 @@ static void VoxelEndThreadwork(
 	ThreadworksMutex->unlock();
 }
 
-inline u32 GetKeyFromString(char* String) {
-	u32 Result = StringHashFNV(String);
+inline u32 GetKeyFromIndices(int X, int Y, int Z) {
+	char KeyStr[64];
+	stbsp_sprintf(KeyStr, "%d|%d|%d", X, Y, Z);
+	u32 Result = StringHashFNV(KeyStr);
 
 	return(Result);
 }
 
 static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
 {
-	char KeyStr[64];
-	stbsp_sprintf(KeyStr, "%d|%d|%d", Info->IndexX, Info->IndexY, Info->IndexZ);
-	u32 Key = GetKeyFromString(KeyStr);
+	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
@@ -629,8 +629,8 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	if (*FirstEntry) {
 		PrevEntry = *FirstEntry;
 
-		while (PrevEntry->Next) {
-			PrevEntry = PrevEntry->Next;
+		while (PrevEntry->NextInHash) {
+			PrevEntry = PrevEntry->NextInHash;
 		}
 
 		Generation->HashTableCollisionCount++;
@@ -640,14 +640,26 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 		NOTE(dima): Now that the prev element found we
 		can create slot to insert it at the new place
 	*/
-	voxworld_table_entry* NewEntry = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+	voxworld_table_entry* NewEntry = 0; 
+	if (Generation->FreeEntrySentinel->NextBro == Generation->FreeEntrySentinel) {
+		NewEntry = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+	}
+	else {
+		NewEntry = Generation->FreeEntrySentinel->NextBro;
+		
+		NewEntry->NextBro->PrevBro = NewEntry->PrevBro;
+		NewEntry->PrevBro->NextBro = NewEntry->NextBro;
+
+		NewEntry->PrevBro = NewEntry;
+		NewEntry->NextBro = NewEntry;
+	}
 
 	NewEntry->ValueChunk = Info;
-	NewEntry->Next = 0;
+	NewEntry->NextInHash = 0;
 	NewEntry->Key = Key;
 
 	if (PrevEntry) {
-		PrevEntry->Next = NewEntry;
+		PrevEntry->NextInHash = NewEntry;
 	}
 	else {
 		*FirstEntry = NewEntry;
@@ -664,9 +676,7 @@ static voxel_chunk_info* VoxelFindChunk(
 
 	voxel_chunk_info* Result = 0;
 
-	char KeyStr[64];
-	stbsp_sprintf(KeyStr, "%d|%d|%d", X, Y, Z);
-	u32 Key = GetKeyFromString(KeyStr);
+	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
 	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
@@ -677,27 +687,16 @@ static voxel_chunk_info* VoxelFindChunk(
 		if (At->Key == Key) {
 			//NOTE(dima): Important to have additional check here!!!
 			//NOTE(dima): Because of hash function might overlap with others chunks
-#if 0
-			char AtChunkStr[64];
-			stbsp_sprintf(
-				AtChunkStr, "%d|%d|%d", 
-				At->ValueChunk->IndexX,
-				At->ValueChunk->IndexY,
-				At->ValueChunk->IndexZ);
-
-			if (StringsAreEqual(AtChunkStr, KeyStr)) 
-#else
 			if (At->ValueChunk->IndexX == X &&
 				At->ValueChunk->IndexY == Y &&
 				At->ValueChunk->IndexZ == Z)
-#endif
 			{
 				Result = At->ValueChunk;
 				break;
 			}
 		}
 
-		At = At->Next;
+		At = At->NextInHash;
 	}
 
 	return(Result);
@@ -758,7 +757,6 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		VoxelMeshState_InProcess,
 		VoxelChunkState_None))
 	{
-
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
 		MeshInfo->Vertices = (u32*)malloc(65536 * 5);
@@ -837,7 +835,6 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 			PlatformApi.VoxelQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
-
 
 		VoxelEndThreadwork(
 			GenData->ChunkGenThreadwork,
@@ -926,6 +923,11 @@ void VoxelChunksGenerationInit(
 	{
 		Generation->HashTable[EntryIndex] = 0;
 	}
+
+	//NOTE(dima): Initialization of free sentinel for table entries
+	Generation->FreeEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+	Generation->FreeEntrySentinel->NextBro = Generation->FreeEntrySentinel;
+	Generation->FreeEntrySentinel->PrevBro = Generation->FreeEntrySentinel;
 
 	Generation->HashTableCollisionCount = 0;
 	Generation->HashTableTotalInsertedEntries = 0;

@@ -25,7 +25,10 @@ enum voxel_texture_vert_type{
 };
 
 struct voxworld_table_entry {
-	voxworld_table_entry* Next;
+	voxworld_table_entry* NextInHash;
+
+	voxworld_table_entry* NextBro;
+	voxworld_table_entry* PrevBro;
 
 	u32 Key;
 
@@ -69,6 +72,8 @@ struct voxworld_generation_state {
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];
 	int HashTableCollisionCount;
 	int HashTableTotalInsertedEntries;
+
+	voxworld_table_entry* FreeEntrySentinel;
 
 	voxel_atlas_info* VoxelAtlas;
 
