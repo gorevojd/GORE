@@ -517,7 +517,7 @@ inline void GetVoxelChunkPosForCamera(
 
 	*IDChunkX = ResX;
 	*IDChunkY = ResY;
-	*IDChunkX = ResZ;
+	*IDChunkZ = ResZ;
 }
 
 static voxworld_threadwork* VoxelAllocateThreadwork(
@@ -641,19 +641,26 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 		can create slot to insert it at the new place
 	*/
 	voxworld_table_entry* NewEntry = 0; 
-	if (Generation->FreeEntrySentinel->NextBro == Generation->FreeEntrySentinel) {
+	if (Generation->FreeTableEntrySentinel->NextBro == Generation->FreeTableEntrySentinel) {
+		//NOTE(dima): Allocate element
 		NewEntry = PushStruct(Generation->TotalMemory, voxworld_table_entry);
 	}
 	else {
-		NewEntry = Generation->FreeEntrySentinel->NextBro;
+		//NOTE(dima): Get the element from free list and remove it from there
+		NewEntry = Generation->FreeTableEntrySentinel->NextBro;
 		
 		NewEntry->NextBro->PrevBro = NewEntry->PrevBro;
 		NewEntry->PrevBro->NextBro = NewEntry->NextBro;
-
-		NewEntry->PrevBro = NewEntry;
-		NewEntry->NextBro = NewEntry;
 	}
 
+	//NOTE(dima): Insert element to work list
+	NewEntry->PrevBro = Generation->WorkTableEntrySentinel;
+	NewEntry->NextBro = Generation->WorkTableEntrySentinel->NextBro;
+
+	NewEntry->PrevBro->NextBro = NewEntry;
+	NewEntry->NextBro->PrevBro = NewEntry;
+
+	//NOTE(dima): Initialization
 	NewEntry->ValueChunk = Info;
 	NewEntry->NextInHash = 0;
 	NewEntry->Key = Key;
@@ -666,6 +673,56 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	}
 
 	Generation->HashTableTotalInsertedEntries++;
+}
+
+static void VoxelDeleteFromTable(
+	voxworld_generation_state* Generation,
+	int X, int Y, int Z)
+{
+	voxel_chunk_info* Result = 0;
+
+	u32 Key = GetKeyFromIndices(X, Y, Z);
+	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
+
+	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
+
+	voxworld_table_entry* PrevEntry = 0;
+
+	voxworld_table_entry* At = *FirstEntry;
+	while (At != 0) {
+		if (At->Key == Key) {
+			if (At->ValueChunk->IndexX == X &&
+				At->ValueChunk->IndexY == Y &&
+				At->ValueChunk->IndexZ == Z)
+			{
+				//NOTE(dima): Delete element from work list
+				At->PrevBro->NextBro = At->NextBro;
+				At->NextBro->PrevBro = At->PrevBro;
+
+				//NOTE(dima): Insert element to free list
+				At->PrevBro = Generation->FreeTableEntrySentinel;
+				At->NextBro = Generation->FreeTableEntrySentinel->NextBro;
+
+				At->PrevBro->NextBro = At;
+				At->NextBro->PrevBro = At;
+
+				//NOTE(dima): Delete element from hash table
+				if (PrevEntry) {
+					PrevEntry->NextInHash = At->NextInHash;
+				}
+				else {
+					*FirstEntry = At->NextInHash;
+				}
+
+				At->NextInHash = 0;
+
+				break;
+			}
+		}
+
+		PrevEntry = At;
+		At = At->NextInHash;
+	}
 }
 
 static voxel_chunk_info* VoxelFindChunk(
@@ -924,13 +981,18 @@ void VoxelChunksGenerationInit(
 		Generation->HashTable[EntryIndex] = 0;
 	}
 
-	//NOTE(dima): Initialization of free sentinel for table entries
-	Generation->FreeEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
-	Generation->FreeEntrySentinel->NextBro = Generation->FreeEntrySentinel;
-	Generation->FreeEntrySentinel->PrevBro = Generation->FreeEntrySentinel;
-
 	Generation->HashTableCollisionCount = 0;
 	Generation->HashTableTotalInsertedEntries = 0;
+
+	//NOTE(dima): Initialization of free sentinel for table entries
+	Generation->FreeTableEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+	Generation->FreeTableEntrySentinel->NextBro = Generation->FreeTableEntrySentinel;
+	Generation->FreeTableEntrySentinel->PrevBro = Generation->FreeTableEntrySentinel;
+
+	//NOTE(dima): Initialization of work sentinel for table entries
+	Generation->WorkTableEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+	Generation->WorkTableEntrySentinel->NextBro = Generation->WorkTableEntrySentinel;
+	Generation->WorkTableEntrySentinel->PrevBro = Generation->WorkTableEntrySentinel;
 }
 
 void VoxelChunksGenerationUpdate(
@@ -949,16 +1011,51 @@ void VoxelChunksGenerationUpdate(
 
 	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
-	int CellY = 0;
+	int testviewdist = 10;
+#if 0
+	int MinCellX = -testviewdist;
+	int MaxCellX = testviewdist;
+	int MinCellZ = -testviewdist;
+	int MaxCellZ = testviewdist;
+#else
+	int MinCellX = CamChunkIndexX - Generation->ChunksViewDistance;
+	int MaxCellX = CamChunkIndexX + Generation->ChunksViewDistance;
+	int MinCellZ = CamChunkIndexZ - Generation->ChunksViewDistance;
+	int MaxCellZ = CamChunkIndexZ + Generation->ChunksViewDistance;
+#endif
 
-	int testviewdist = 20;
-	for (int CellX = -testviewdist; CellX < testviewdist; CellX++) {
-		for (int CellZ = -testviewdist; CellZ < testviewdist; CellZ++) {
+	int CellY = 0;
+	for (int CellX = MinCellX; CellX <= MaxCellX; CellX++) {
+		for (int CellZ = MinCellZ; CellZ <= MaxCellZ; CellZ++) {
 			
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
 
 			if (NeededChunk) {
 				if (NeededChunk->State == VoxelChunkState_Ready) {
+#if 0
+					if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
+						NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
+					{
+						//NOTE(dima): Chunk is out of range and should be deallocated
+						if (PlatformApi.AtomicCAS_U32(
+							&NeededChunk->State,
+							VoxelChunkState_None,
+							VoxelChunkState_Ready))
+						{
+							VoxelDeleteFromTable(
+								Generation,
+								NeededChunk->IndexX,
+								NeededChunk->IndexY,
+								NeededChunk->IndexZ);
+
+							VoxelEndThreadwork(
+								NeededChunk->Threadwork,
+								Generation->WorkFreeSentinel,
+								&Generation->WorkMutex,
+								&Generation->FreeWorkThreadworksCount);
+						}
+					}
+#endif
 
 					/*
 						NOTE(dima): It was interesting to see this
@@ -969,6 +1066,8 @@ void VoxelChunksGenerationUpdate(
 						they were generated partially too. :D
 					*/
 					if (NeededChunk->MeshInfo.State == VoxelMeshState_Ready) {
+
+						
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
 						RENDERPushVoxelMesh(

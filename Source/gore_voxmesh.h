@@ -73,7 +73,8 @@ struct voxworld_generation_state {
 	int HashTableCollisionCount;
 	int HashTableTotalInsertedEntries;
 
-	voxworld_table_entry* FreeEntrySentinel;
+	voxworld_table_entry* FreeTableEntrySentinel;
+	voxworld_table_entry* WorkTableEntrySentinel;
 
 	voxel_atlas_info* VoxelAtlas;
 

@@ -2104,6 +2104,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 
 		char QueueStat[64];
 		char Stat0Str[128];
+		char ChunkIDsStr[64];
 		char Stat1Str[64];
 		char Stat2Str[64];
 		char ViewDistStat[64];
@@ -2119,6 +2120,11 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->CameraPos.x,
 			GenerationStat->CameraPos.y,
 			GenerationStat->CameraPos.z);
+
+		stbsp_sprintf(ChunkIDsStr, "CamChunkP: (X)%d, (Y)%d, (Z)%d",
+			GenerationStat->CurrentChunkX,
+			GenerationStat->CurrentChunkY,
+			GenerationStat->CurrentCHunkZ);
 
 		stbsp_sprintf(Stat1Str, "Gen tasks: %d free; %d total",
 			GenerationStat->FreeGenThreadworksCount,
@@ -2140,50 +2146,85 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			"Chunks: %d sent to render; hahaha",
 			GenerationStat->ChunksPushedToRender);
 
-		char* ToPrintStatistics[] = {
+		char* ToPrintStatistics0[] = {
 			QueueStat,
+			"", 
 			Stat0Str,
+			ChunkIDsStr,
+			ViewDistStat,
+			ChunksStat,
+			0
+		};
+
+		char* ToPrintStatistics1[] = {
+			"",
+			"",
 			Stat1Str,
 			Stat2Str,
-			ViewDistStat,
 			ThisFrameMeshStartStat,
-			ChunksStat,
+			0
+		};
+
+		char** ToPrintStatistics[] = {
+			ToPrintStatistics0,
+			ToPrintStatistics1
 		};
 
 		v4 TextColor = GUIGetColor(GUI, Color_White);
 
 		float FontScale = GUI->FontScale;
 
+
 		v2 PrintAt = V2(Layout->CurrentX, Layout->CurrentY);
-
+		v2 PrintAtInit = PrintAt;
 		float MaxWidth = 0.0f;
+		float MaxY = 0.0f;
 
-		for (int ToPrintStatIndex = 0;
-			ToPrintStatIndex < ArrayCount(ToPrintStatistics);
-			ToPrintStatIndex++)
+		for (int ToPrintStatArrayIndex = 0;
+			ToPrintStatArrayIndex < ArrayCount(ToPrintStatistics);
+			ToPrintStatArrayIndex++) 
 		{
-			char* ToPrint = ToPrintStatistics[ToPrintStatIndex];
-
-			v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
-			v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
-
-			rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
-
-			if (MouseInRect(GUI->Input, TxtRc)) {
-				RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, ColorExt_red4));
-				RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Red));
+			if (MaxWidth > 0.0001f) {
+				PrintAt.x += GUI->FontInfo->AscenderHeight * GUI->FontScale * 30;
 			}
+			PrintAt.y = PrintAtInit.y;
 
-			GUIPrintText(GUI, ToPrint, PrintAt, FontScale, TextColor);
+			int CurrArrLen = 0;
+			char** CurrentArrayOfStrings = ToPrintStatistics[ToPrintStatArrayIndex];
+			while (CurrentArrayOfStrings[CurrArrLen]) {
+				CurrArrLen++;
+			}
+			for (int ToPrintStatIndex = 0;
+				ToPrintStatIndex < CurrArrLen;
+				ToPrintStatIndex++)
+			{
+				char* ToPrint = CurrentArrayOfStrings[ToPrintStatIndex];
 
-			PrintAt.y += GetNextRowAdvance(GUI->FontInfo) * FontScale;
+				v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
+				v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
 
-			if (TxtDim.x > MaxWidth) {
-				MaxWidth = TxtDim.x;
+				rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
+
+				if (MouseInRect(GUI->Input, TxtRc)) {
+					RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, ColorExt_red4));
+					RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Red));
+				}
+
+				GUIPrintText(GUI, ToPrint, PrintAt, FontScale, TextColor);
+
+				PrintAt.y += GetNextRowAdvance(GUI->FontInfo) * FontScale;
+
+				if (TxtDim.x > MaxWidth) {
+					MaxWidth = TxtDim.x;
+				}
+
+				if (PrintAt.y > MaxY) {
+					MaxY = PrintAt.y;
+				}
 			}
 		}
 
-		GUIDescribeElement(GUI, V2(MaxWidth, PrintAt.y - Layout->CurrentY),
+		GUIDescribeElement(GUI, V2(MaxWidth, MaxY - Layout->CurrentY),
 			V2(Layout->CurrentX, Layout->CurrentY - GUI->FontInfo->AscenderHeight * FontScale));
 		GUIAdvanceCursor(GUI);
 	}
