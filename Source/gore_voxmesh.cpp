@@ -442,6 +442,13 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 	Chunk->LeftChunk = 0;
 	Chunk->RightChunk = 0;
 
+	for (int BlockIndex = 0;
+		BlockIndex < VOXEL_CHUNK_TOTAL_VOXELS_COUNT;
+		BlockIndex++)
+	{
+		Chunk->Voxels[BlockIndex] = VoxelMaterial_None;
+	}
+
 	int StartHeight = 100;
 
 	v3 ChunkPos = GetPosForVoxelChunk(Chunk);
@@ -686,6 +693,9 @@ static void VoxelDeleteFromTable(
 
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
 
+	//NOTE(dima): This element MUST exist
+	Assert(*FirstEntry);
+
 	voxworld_table_entry* PrevEntry = 0;
 
 	voxworld_table_entry* At = *FirstEntry;
@@ -812,11 +822,11 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	if (PlatformApi.AtomicCAS_U32(
 		&MeshInfo->State,
 		VoxelMeshState_InProcess,
-		VoxelChunkState_None))
+		VoxelMeshState_None))
 	{
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		MeshInfo->Vertices = (u32*)malloc(65536 * 5);
+		MeshInfo->Vertices = (u32*)malloc(65536 * 16);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 		MeshInfo->Vertices = (u32*)realloc(
 			MeshInfo->Vertices,
@@ -853,6 +863,14 @@ struct generate_voxel_chunk_data {
 
 	voxel_chunk_info* Chunk;
 	voxel_atlas_info* VoxelAtlasInfo;
+};
+
+struct unload_voxel_chunk_data {
+	voxworld_generation_state* Generation;
+
+	voxel_chunk_info* Chunk;
+
+	voxworld_threadwork* ChunkUnloadThreadwork;
 };
 
 PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
@@ -909,6 +927,50 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	}
 }
 
+PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
+	unload_voxel_chunk_data* UnloadData = (unload_voxel_chunk_data*)Data;
+
+	voxel_chunk_info* WorkChunk = UnloadData->Chunk;
+
+	//TODO(dima): Deallocate mesh from VAO in opengl
+	//TODO(dima): Fix waiting for mesh bug??? IMPORTANT
+
+	//NOTE(dima): Chunk is out of range and should be deallocated
+	if (PlatformApi.AtomicCAS_U32(
+		&WorkChunk->State,
+		VoxelChunkState_None,
+		VoxelChunkState_Ready))
+	{
+		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
+		//NOTE(dima): Infinite loop to wait for the mesh to become generated
+		while (MeshInfo->State != VoxelMeshState_Ready) {
+			int a = 1;
+		}
+
+		free(MeshInfo->Vertices);
+		MeshInfo->Vertices = 0;
+		MeshInfo->VerticesCount = 0;
+
+		PLATFORM_COMPILER_BARRIER();
+
+		MeshInfo->State = VoxelMeshState_None;
+
+		//NOTE(dima): Close threadwork that contains chunk data
+		VoxelEndThreadwork(
+			WorkChunk->Threadwork,
+			UnloadData->Generation->WorkFreeSentinel,
+			&UnloadData->Generation->WorkMutex,
+			&UnloadData->Generation->FreeWorkThreadworksCount);
+
+		//NOTE(dima): Close threadwork that contains data for this function(thread)
+		VoxelEndThreadwork(
+			UnloadData->ChunkUnloadThreadwork,
+			UnloadData->Generation->GenFreeSentinel,
+			&UnloadData->Generation->GenMutex,
+			&UnloadData->Generation->FreeGenThreadworksCount);
+	}
+}
+
 void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
@@ -959,9 +1021,13 @@ void VoxelChunksGenerationInit(
 	Generation->FreeGenThreadworksCount = GenThreadworksCount;
 	Generation->TotalGenThreadworksCount = GenThreadworksCount;
 
-	int SizeForGenThreadwork = Min(
-		sizeof(generate_voxel_chunk_data) + 16, 
-		sizeof(generate_voxel_mesh_data) + 16);
+	int SizeForGenThreadwork = Max(
+		sizeof(generate_voxel_chunk_data), 
+		sizeof(generate_voxel_mesh_data));
+
+	SizeForGenThreadwork = Max(SizeForGenThreadwork, sizeof(unload_voxel_chunk_data));
+
+	SizeForGenThreadwork += 16;
 
 	for (int GenThreadworkIndex = 0;
 		GenThreadworkIndex < GenThreadworksCount;
@@ -1032,31 +1098,6 @@ void VoxelChunksGenerationUpdate(
 
 			if (NeededChunk) {
 				if (NeededChunk->State == VoxelChunkState_Ready) {
-#if 0
-					if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
-						NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
-					{
-						//NOTE(dima): Chunk is out of range and should be deallocated
-						if (PlatformApi.AtomicCAS_U32(
-							&NeededChunk->State,
-							VoxelChunkState_None,
-							VoxelChunkState_Ready))
-						{
-							VoxelDeleteFromTable(
-								Generation,
-								NeededChunk->IndexX,
-								NeededChunk->IndexY,
-								NeededChunk->IndexZ);
-
-							VoxelEndThreadwork(
-								NeededChunk->Threadwork,
-								Generation->WorkFreeSentinel,
-								&Generation->WorkMutex,
-								&Generation->FreeWorkThreadworksCount);
-						}
-					}
-#endif
-
 					/*
 						NOTE(dima): It was interesting to see this
 						but if I delete this check then some meshes
@@ -1100,15 +1141,17 @@ void VoxelChunksGenerationUpdate(
 						&ChunkGenThreadwork->Memory, 
 						generate_voxel_chunk_data);
 
-					ChunkGenerationData->Chunk = PushStruct(
-						&Threadwork->Memory, 
+					voxel_chunk_info* ChunkInfo = PushStruct(
+						&Threadwork->Memory,
 						voxel_chunk_info);
 
+					ChunkGenerationData->Chunk = ChunkInfo;
 					ChunkGenerationData->Chunk->IndexX = CellX;
 					ChunkGenerationData->Chunk->IndexY = CellY;
 					ChunkGenerationData->Chunk->IndexZ = CellZ;
 					ChunkGenerationData->Chunk->State = VoxelChunkState_None;
 					ChunkGenerationData->Chunk->Threadwork = Threadwork;
+					ChunkGenerationData->Chunk->MeshInfo = {};
 
 					ChunkGenerationData->VoxelAtlasInfo = VoxelAtlas;
 					ChunkGenerationData->Generation = Generation;
@@ -1119,10 +1162,53 @@ void VoxelChunksGenerationUpdate(
 						ChunkGenerationData,
 						GenerateVoxelChunkThreadwork);
 
-					VoxelInsertToTable(Generation, ChunkGenerationData->Chunk);
+					VoxelInsertToTable(Generation, ChunkInfo);
 				}
 			}
 		}
+	}
+	
+	for (voxworld_table_entry* At = Generation->WorkTableEntrySentinel->NextBro;
+		At != Generation->WorkTableEntrySentinel;)
+	{
+		voxworld_table_entry* NextTableEntry = At->NextBro;
+
+		voxel_chunk_info* NeededChunk = At->ValueChunk;
+
+#if 1
+		if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
+			NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
+		{
+			VoxelDeleteFromTable(
+				Generation,
+				NeededChunk->IndexX,
+				NeededChunk->IndexY,
+				NeededChunk->IndexZ);
+
+			voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(
+				Generation->GenFreeSentinel, 
+				Generation->GenUseSentinel,
+				&Generation->GenMutex,
+				&Generation->FreeGenThreadworksCount);
+
+			Assert(UnloadThreadwork);
+
+			unload_voxel_chunk_data* UnloadData = PushStruct(
+				&UnloadThreadwork->Memory,
+				unload_voxel_chunk_data);
+
+			UnloadData->Chunk = NeededChunk;
+			UnloadData->ChunkUnloadThreadwork = UnloadThreadwork;
+			UnloadData->Generation = Generation;
+
+			PlatformApi.AddThreadworkEntry(
+				PlatformApi.VoxelQueue,
+				UnloadData,
+				UnloadVoxelChunkThreadwork);
+		}
+#endif
+
+		At = NextTableEntry;
 	}
 
 	VoxelRegenerateSetatistics(Generation, CameraPos);

@@ -12,7 +12,7 @@
 #define PLATFORM_COMPILER_READ_BARRIER()
 #define PLATFORM_COMPILER_WRITE_BARRIER()
 
-#if defined(WIN32) || defined(WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 #define PLATFORM_WINDA
 
 #undef PLATFORM_COMPILER_BARRIER

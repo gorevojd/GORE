@@ -2110,6 +2110,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 		char ViewDistStat[64];
 		char ThisFrameMeshStartStat[64];
 		char ChunksStat[128];
+		char HashTableStat[128];
 
 		stbsp_sprintf(QueueStat, "%d entries busy; %d total; %d working threads active",
 			QueueInfo.EntriesBusy,
@@ -2138,6 +2139,10 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->ChunksViewDistance,
 			GenerationStat->BlocksViewDistance);
 
+		stbsp_sprintf(HashTableStat, "Hash table: %d inserted; %d collisions",
+			GenerationStat->HashTableInsertedElements,
+			GenerationStat->HashTableCollisionCount);
+
 		stbsp_sprintf(ThisFrameMeshStartStat,
 			"%d mesh gens started this frame",
 			GenerationStat->MeshGenerationsStartedThisFrame);
@@ -2162,6 +2167,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			Stat1Str,
 			Stat2Str,
 			ThisFrameMeshStartStat,
+			HashTableStat,
 			0
 		};
 

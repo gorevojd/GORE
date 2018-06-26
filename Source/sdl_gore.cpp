@@ -797,7 +797,7 @@ int main(int ArgsCount, char** Args) {
 	platform_thread_queue HighPriorityQueue;
 	platform_thread_queue LowPriorityQueue;
 
-	platform_threadwork VoxelQueueEntries[8192];
+	platform_threadwork VoxelQueueEntries[16384];
 	platform_threadwork HighQueueEntries[512];
 	platform_threadwork LowQueueEntries[512];
 
@@ -1106,7 +1106,7 @@ int main(int ArgsCount, char** Args) {
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 10);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 11);
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
