@@ -179,6 +179,8 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 	voxel_chunk_info* BackChunk = Chunk->BackChunk;
 	voxel_chunk_info* FrontChunk = Chunk->FrontChunk;
 
+	Result->VerticesCount = 0;
+
 	for (int DepthIndex = 0; DepthIndex < VOXEL_CHUNK_WIDTH; DepthIndex++) {
 		for (int WidthIndex = 0; WidthIndex < VOXEL_CHUNK_WIDTH; WidthIndex++) {
 			for (int HeightIndex = 0; HeightIndex < VOXEL_CHUNK_HEIGHT; HeightIndex++) {
@@ -449,40 +451,76 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 		Chunk->Voxels[BlockIndex] = VoxelMaterial_None;
 	}
 
-	int StartHeight = 100;
+	int StartHeight = 128;
 
 	v3 ChunkPos = GetPosForVoxelChunk(Chunk);
 
 	for (int j = 0; j < VOXEL_CHUNK_WIDTH; j++) {
 		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
 
+#if 0
 			float NoiseScale1 = 3.0f;
 			float NoiseScale2 = 20.0f;
 			float NoiseScale3 = 120.0f;
 
+			float Noise1Scale = 16.0f;
 			float Noise1 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / 64.0f,
-				(float)ChunkPos.y / 64.0f,
-				(float)(ChunkPos.z + j) / 64.0f, 0, 0, 0);
+				(float)(ChunkPos.x + i) / Noise1Scale,
+				(float)ChunkPos.y / Noise1Scale,
+				(float)(ChunkPos.z + j) / Noise1Scale, 0, 0, 0);
 
+			float Noise2Scale = 32.0f;
 			float Noise2 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / 128.0f,
-				(float)ChunkPos.y / 128.0f,
-				(float)(ChunkPos.z + j) / 128.0f, 0, 0, 0);
+				(float)(ChunkPos.x + i) / Noise2Scale,
+				(float)ChunkPos.y / Noise2Scale,
+				(float)(ChunkPos.z + j) / Noise2Scale, 0, 0, 0);
 
+			float Noise3Scale = 64.0f;
 			float Noise3 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / 256.0f,
-				(float)ChunkPos.y / 256.0f,
-				(float)(ChunkPos.z + j) / 256.0f, 0, 0, 0);
-
+				(float)(ChunkPos.x + i) / Noise3Scale,
+				(float)ChunkPos.y / Noise3Scale,
+				(float)(ChunkPos.z + j) / Noise3Scale, 0, 0, 0);
+		
 			float RandHeight = (Noise1 * NoiseScale1 + Noise2 * NoiseScale2 + Noise3 * NoiseScale3) + StartHeight;
+#else
+			int Octaves = 6;
+			float Lacunarity = 2.0f;
+			float Gain = 0.5f;
+
+			float NoiseS = 256.0f;
+#if 1
+			float Noise = stb_perlin_fbm_noise3(
+				(float)(ChunkPos.x + i) / NoiseS,
+				(float)ChunkPos.y / NoiseS,
+				(float)(ChunkPos.z + j) / NoiseS,
+				Lacunarity, Gain, Octaves, 0, 0, 0);
+#else
+#if 0
+			float Noise = stb_perlin_ridge_noise3(
+				(float)(ChunkPos.x + i) / NoiseS,
+				(float)ChunkPos.y / NoiseS,
+				(float)(ChunkPos.z + j) / NoiseS,
+				Lacunarity, Gain, 1.0f, Octaves, 0, 0, 0);
+#else
+
+			float Noise = stb_perlin_turbulence_noise3(
+				(float)(ChunkPos.x + i) / NoiseS,
+				(float)ChunkPos.y / NoiseS,
+				(float)(ChunkPos.z + j) / NoiseS,
+				Lacunarity, Gain, Octaves, 0, 0, 0);
+#endif
+#endif
+
+			float RandHeight = StartHeight + Noise * 127;
+#endif
+
 
 			int SetHeight = (int)RandHeight;
 			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
 
-			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_GrassyGround;
+			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_SnowGround;
 
-			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_Ground);
+			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_WinterGround);
 		}
 	}
 }
@@ -826,7 +864,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	{
 		//TODO(dima): Better memory management here
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		MeshInfo->Vertices = (u32*)malloc(65536 * 16);
+		MeshInfo->Vertices = (u32*)malloc(65536 * 6 + 30000);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 		MeshInfo->Vertices = (u32*)realloc(
 			MeshInfo->Vertices,

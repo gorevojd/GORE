@@ -1106,7 +1106,7 @@ int main(int ArgsCount, char** Args) {
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 11);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 15);
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 

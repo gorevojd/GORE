@@ -2178,8 +2178,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 
 		v4 TextColor = GUIGetColor(GUI, Color_White);
 
-		float FontScale = GUI->FontScale;
-
+		float FontScale = GUI->FontScale * 0.8f;
 
 		v2 PrintAt = V2(Layout->CurrentX, Layout->CurrentY);
 		v2 PrintAtInit = PrintAt;
