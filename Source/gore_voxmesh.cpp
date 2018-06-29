@@ -870,7 +870,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 			MeshInfo->Vertices,
 			MeshInfo->VerticesCount * 4);
 
-		PLATFORM_COMPILER_BARRIER();
+		PlatformApi.WriteBarrier();
 
 		MeshInfo->State = VoxelMeshState_Ready;
 
@@ -923,7 +923,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	{
 		GenerateRandomChunk(WorkChunk);
 
-		PLATFORM_COMPILER_BARRIER();
+		PlatformApi.WriteBarrier();
 
 		WorkChunk->State = VoxelChunkState_Ready;
 
@@ -981,15 +981,17 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 	{
 		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
-		while (MeshInfo->State != VoxelMeshState_Ready) {
+		while (MeshInfo->State == VoxelMeshState_InProcess) {
 			int a = 1;
 		}
 
-		free(MeshInfo->Vertices);
+		if (MeshInfo->Vertices) {
+			free(MeshInfo->Vertices);
+		}
 		MeshInfo->Vertices = 0;
 		MeshInfo->VerticesCount = 0;
 
-		PLATFORM_COMPILER_BARRIER();
+		PlatformApi.WriteBarrier();
 
 		MeshInfo->State = VoxelMeshState_None;
 

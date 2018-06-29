@@ -45,7 +45,7 @@ threadwork_memory* BeginThreadworkMemory(threadwork_memory* Memories, int Count)
 void EndThreadworkMemory(threadwork_memory* Memory) {
 	EndTempStackedMemory(&Memory->MemoryInternal_, &Memory->Memory);
 
-	PLATFORM_COMPILER_BARRIER();
+	PlatformApi.WriteBarrier();
 
 	Memory->UseState = ThreadworkUseState_None;
 }

@@ -98,7 +98,7 @@ typedef PLATFORM_COMPLETE_THREAD_WORKS(platform_complete_thread_works);
 typedef PLATFORM_GET_THREAD_ID(platform_get_thread_id);
 
 #define PLATFORM_COMPILER_BARRIER_TYPE(name) void name()
-typedef PLATFROM_COMPILER_BARRIER_TYPE(platform_compiler_barrier_type);
+typedef PLATFORM_COMPILER_BARRIER_TYPE(platform_compiler_barrier_type);
 
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
