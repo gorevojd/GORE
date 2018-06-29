@@ -1410,9 +1410,27 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 
 				gui_interaction NullInteraction = GUINullInteraction();
 
-				GUITextBase(GUIState, TextBuf, V2(Layout->CurrentX, AtY), TextColor, 
+				v2 TextPrintAt = V2(Layout->CurrentX, AtY);
+
+				rect2 TextRect = GUITextBase(GUIState, TextBuf, TextPrintAt, TextColor, 
 					GUIState->FontScale, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
 		
+				v2 TxtDim = GUIGetTextSize(GUIState, TextBuf, GUIState->FontScale);
+
+				v2 TxtMin = V2(TextPrintAt.x,
+					TextPrintAt.y - GUIState->FontInfo->AscenderHeight * GUIState->FontScale);
+
+				rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
+
+
+				v4 ResTextColor = TextColor;
+				if (MouseInRect(GUIState->Input, TxtRc)) {
+					ResTextColor = TextHighColor;
+					//RENDERPushRect(GUIState->RenderStack, TxtRc, GUIGetColor(GUIState, Color_PrettyBlue));
+					//RENDERPushRectInnerOutline(GUIState->RenderStack, TxtRc, 2, GUIGetColor(GUIState, Color_White));
+				}
+				GUIPrintText(GUIState, TextBuf, TextPrintAt, GUIState->FontScale, ResTextColor);
+
 				AtY += RowAdvance;
 			}
 			else {

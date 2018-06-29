@@ -8,22 +8,8 @@
 
 #include <intrin.h>
 
-#define PLATFORM_COMPILER_BARRIER()
-#define PLATFORM_COMPILER_READ_BARRIER()
-#define PLATFORM_COMPILER_WRITE_BARRIER()
-
 #if defined(_WIN32) || defined(_WIN64)
 #define PLATFORM_WINDA
-
-#undef PLATFORM_COMPILER_BARRIER
-#define PLATFORM_COMPILER_BARRIER() _ReadWriteBarrier()
-
-#undef PLATFORM_COMPILER_READ_BARRIER
-#define PLATFORM_COMPILER_READ_BARRIER() _ReadBarrier()
-
-#undef PLATFORM_COMPILER_WRITE_BARRIER
-#define PLATFORM_COMPILER_WRITE_BARRIER() _WriteBarrier()
-
 #endif
 
 #define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
@@ -110,6 +96,9 @@ typedef PLATFORM_COMPLETE_THREAD_WORKS(platform_complete_thread_works);
 
 #define PLATFORM_GET_THREAD_ID(name) u32 name()
 typedef PLATFORM_GET_THREAD_ID(platform_get_thread_id);
+
+#define PLATFORM_COMPILER_BARRIER_TYPE(name) void name()
+typedef PLATFROM_COMPILER_BARRIER_TYPE(platform_compiler_barrier_type);
 
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
@@ -220,6 +209,10 @@ struct platform_api {
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
 	platform_get_thread_queue_info* GetThreadQueueInfo;
+
+	platform_compiler_barrier_type* ReadWriteBarrier;
+	platform_compiler_barrier_type* ReadBarrier;
+	platform_compiler_barrier_type* WriteBarrier;
 
 	platform_thread_queue* VoxelQueue;
 	platform_thread_queue* HighPriorityQueue;

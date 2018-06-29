@@ -1206,6 +1206,7 @@ void VoxelChunksGenerationUpdate(
 		}
 	}
 	
+	BEGIN_TIMING("VoxelListWalkaround");
 	for (voxworld_table_entry* At = Generation->WorkTableEntrySentinel->NextBro;
 		At != Generation->WorkTableEntrySentinel;)
 	{
@@ -1248,6 +1249,7 @@ void VoxelChunksGenerationUpdate(
 
 		At = NextTableEntry;
 	}
+	END_TIMING();
 
 	VoxelRegenerateSetatistics(Generation, CameraPos);
 

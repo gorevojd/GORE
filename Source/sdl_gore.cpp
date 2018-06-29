@@ -515,6 +515,7 @@ PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicIncRef((SDL_atomic_
 PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
 
 #if defined(PLATFORM_WINDA)
+
 PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
 	int EntryIndex = Queue->AddIndex;
 	int NewToSet = (EntryIndex + 1) % Queue->EntriesCount;
@@ -635,6 +636,18 @@ PLATFORM_GET_THREAD_QUEUE_INFO(WindaGetThreadQueueInfo) {
 	Result.EntriesBusy = EntriesBusy;
 
 	return(Result);
+}
+
+PLATFORM_COMPILER_BARRIER_TYPE(WindaReadWriteBarrier) {
+	_ReadWriteBarrier();
+}
+
+PLATFORM_COMPILER_BARRIER_TYPE(WindaWriteBarrier) {
+	_WriteBarrier();
+}
+
+PLATFORM_COMPILER_BARRIER_TYPE(WindaReadBarrier) {
+	_ReadBarrier();
 }
 
 #else
@@ -786,6 +799,10 @@ PLATFORM_GET_THREAD_QUEUE_INFO(SDLGetThreadQueueInfo) {
 
 	return(Result);
 }
+
+PLATFORM_COMPILER_BARRIER_TYPE(SDLCompilerBarrier) {
+	SDL_CompilerBarrier();
+}
 #endif
 
 int main(int ArgsCount, char** Args) {
@@ -867,11 +884,20 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.CompleteThreadWorks = WindaCompleteThreadWorks;
 	PlatformApi.GetThreadID = WindaGetThreadID;
 	PlatformApi.GetThreadQueueInfo = WindaGetThreadQueueInfo;
+
+	PlatformApi.ReadWriteBarrier = WindaReadWriteBarrier;
+	PlatformApi.ReadBarrier = WindaReadBarrier;
+	PlatformApi.WriteBarrier = WindaWriteBarrier;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
 	PlatformApi.GetThreadID = SDLGetThreadID;
 	PlatformApi.GetThreadQueueInfo = SDLGetThreadQueueInfo;
+
+
+	PlatformApi.ReadWriteBarrier = SDLCompilerBarrier;
+	PlatformApi.ReadBarrier = SDLCompilerBarrier;
+	PlatformApi.WriteBarrier = SDLCompilerBarrier;
 #endif
 
 	PlatformApi.AtomicCAS_I32 = SDLAtomicCAS_I32;
@@ -1106,7 +1132,7 @@ int main(int ArgsCount, char** Args) {
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 15);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 10);
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
