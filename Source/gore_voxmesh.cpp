@@ -1130,6 +1130,7 @@ void VoxelChunksGenerationUpdate(
 	int MaxCellZ = CamChunkIndexZ + Generation->ChunksViewDistance;
 #endif
 
+	BEGIN_TIMING("VoxelCellsWalkaround");
 	int CellY = 0;
 	for (int CellX = MinCellX; CellX <= MaxCellX; CellX++) {
 		for (int CellZ = MinCellZ; CellZ <= MaxCellZ; CellZ++) {
@@ -1207,6 +1208,7 @@ void VoxelChunksGenerationUpdate(
 			}
 		}
 	}
+	END_TIMING();
 	
 	BEGIN_TIMING("VoxelListWalkaround");
 	for (voxworld_table_entry* At = Generation->WorkTableEntrySentinel->NextBro;

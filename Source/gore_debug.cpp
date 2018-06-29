@@ -1412,8 +1412,8 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 
 				v2 TextPrintAt = V2(Layout->CurrentX, AtY);
 
-				rect2 TextRect = GUITextBase(GUIState, TextBuf, TextPrintAt, TextColor, 
-					GUIState->FontScale, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
+				//rect2 TextRect = GUITextBase(GUIState, TextBuf, TextPrintAt, TextColor, 
+				//	GUIState->FontScale, TextHighColor, V4(0.0f, 0.0f, 0.0f, 0.0f), 0);
 		
 				v2 TxtDim = GUIGetTextSize(GUIState, TextBuf, GUIState->FontScale);
 

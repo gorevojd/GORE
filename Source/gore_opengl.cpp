@@ -1,15 +1,26 @@
 #include "gore_opengl.h"
 
-GLuint OpenGLAllocateTexture(bitmap_info* Buffer) {
+enum texture_allocation_flag {
+	TextureAllocation_LinearFiltering,
+	TextureAllocation_NearestFiltering
+};
+
+GLuint OpenGLAllocateTexture(bitmap_info* Buffer, u32 TextureAllocationFlag) {
 	GLuint TextureHandle;
 	glGenTextures(1, &TextureHandle);
 
 	glBindTexture(GL_TEXTURE_2D, TextureHandle);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	switch (TextureAllocationFlag) {
+		case TextureAllocation_LinearFiltering: {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		}break;
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		case TextureAllocation_NearestFiltering: {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		}break;
+	}
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -177,7 +188,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info);
+				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
 			}
 		}
 
@@ -195,7 +206,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info);
+				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
 			}
 		}
 
@@ -214,7 +225,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info);
+				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
 			}
 		}
 
@@ -237,7 +248,7 @@ void OpenGLRenderBitmap(bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1
 	rect2 Rect = Rect2MinDim(P, Dim);
 
 	if (!Buffer->TextureHandle) {
-		OpenGLAllocateTexture(Buffer);
+		OpenGLAllocateTexture(Buffer, TextureAllocation_LinearFiltering);
 	}
 
 	glBindTexture(GL_TEXTURE_2D, (size_t)Buffer->TextureHandle);
@@ -412,7 +423,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				bitmap_info* Buffer = &CurrentFontInfo->FontAtlasImage;
 
 				if (!Buffer->TextureHandle) {
-					OpenGLAllocateTexture(Buffer);
+					OpenGLAllocateTexture(Buffer, TextureAllocation_LinearFiltering);
 				}
 				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
 				glBegin(GL_TRIANGLES);
@@ -524,7 +535,9 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 						TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
 					}
 					else {
-						TextureToBind = OpenGLAllocateTexture(EntryVoxelMesh->VoxelAtlasBitmap);
+						TextureToBind = OpenGLAllocateTexture(
+							EntryVoxelMesh->VoxelAtlasBitmap, 
+							TextureAllocation_NearestFiltering);
 					}
 				}
 
