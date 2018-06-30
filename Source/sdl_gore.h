@@ -79,6 +79,11 @@ MYPFNGLACTIVETEXTURE _glActiveTexture;
 
 #if defined(PLATFORM_WINDA)
 
+struct platform_order_mutex {
+	volatile unsigned long long Ticket;
+	volatile unsigned long long ServingTicket;
+};
+
 struct platform_thread_queue {
 	platform_threadwork* Entries;
 	u32 EntriesCount;
@@ -103,6 +108,11 @@ struct winda_thread_worker {
 };
 
 #else
+
+struct platform_order_mutex {
+	SDL_atomic_t Ticket;
+	SDL_atomic_t ServingTicket;
+};
 
 struct platform_thread_queue {
 	platform_threadwork* Entries;

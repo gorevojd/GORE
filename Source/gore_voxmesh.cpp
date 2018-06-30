@@ -459,7 +459,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
 
 #if 0
-			float NoiseScale1 = 3.0f;
+			float NoiseScale1 = 3.0f;&
 			float NoiseScale2 = 20.0f;
 			float NoiseScale3 = 120.0f;
 
@@ -982,6 +982,13 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
 		while (MeshInfo->State == VoxelMeshState_InProcess) {
+			/*NOTE(dima): Reaching this point means that
+			when we are about to unload the chunk the mesh 
+			is still generating..
+
+			So what I do here is that I just wait until 
+			mesh becomes generated.
+			*/
 			int a = 1;
 		}
 
@@ -994,6 +1001,8 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		PlatformApi.WriteBarrier();
 
 		MeshInfo->State = VoxelMeshState_None;
+
+		//PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_None);
 
 		//NOTE(dima): Close threadwork that contains chunk data
 		VoxelEndThreadwork(
@@ -1222,12 +1231,6 @@ void VoxelChunksGenerationUpdate(
 		if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
 			NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
 		{
-			VoxelDeleteFromTable(
-				Generation,
-				NeededChunk->IndexX,
-				NeededChunk->IndexY,
-				NeededChunk->IndexZ);
-
 			voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(
 				Generation->GenFreeSentinel, 
 				Generation->GenUseSentinel,
@@ -1248,6 +1251,16 @@ void VoxelChunksGenerationUpdate(
 				PlatformApi.VoxelQueue,
 				UnloadData,
 				UnloadVoxelChunkThreadwork);
+
+		/*	if(NeededChunk->MeshInfo.State == VoxelMeshState_None &&
+				NeededChunk->State == VoxelChunkState_None)
+			{*/
+				VoxelDeleteFromTable(
+					Generation,
+					NeededChunk->IndexX,
+					NeededChunk->IndexY,
+					NeededChunk->IndexZ);
+			//}
 		}
 #endif
 

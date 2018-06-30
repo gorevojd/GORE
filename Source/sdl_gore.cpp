@@ -494,25 +494,6 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
-PLATFORM_ATOMIC_CAS_I32(SDLAtomicCAS_I32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
-PLATFORM_ATOMIC_CAS_U32(SDLAtomicCAS_U32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
-PLATFORM_ATOMIC_CAS_I64(SDLAtomicCAS_I64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
-PLATFORM_ATOMIC_CAS_U64(SDLAtomicCAS_U64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
-
-PLATFORM_ATOMIC_ADD_I32(SDLAtomicAdd_I32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
-PLATFORM_ATOMIC_ADD_U32(SDLAtomicAdd_U32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
-PLATFORM_ATOMIC_ADD_I64(SDLAtomicAdd_I64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
-PLATFORM_ATOMIC_ADD_U64(SDLAtomicAdd_U64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
-
-PLATFORM_ATOMIC_SET_I32(SDLAtomicSet_I32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
-PLATFORM_ATOMIC_SET_U32(SDLAtomicSet_U32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
-PLATFORM_ATOMIC_SET_I64(SDLAtomicSet_I64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
-PLATFORM_ATOMIC_SET_U64(SDLAtomicSet_U64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
-
-PLATFORM_ATOMIC_INC_I32(SDLAtomicInc_I32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
 
 #if defined(PLATFORM_WINDA)
 
@@ -648,6 +629,38 @@ PLATFORM_COMPILER_BARRIER_TYPE(WindaWriteBarrier) {
 
 PLATFORM_COMPILER_BARRIER_TYPE(WindaReadBarrier) {
 	_ReadBarrier();
+}
+
+#include <intrin.h>
+PLATFORM_ATOMIC_CAS_I32(WindaAtomicCAS_I32) { _InterlockedCompareExchange((platform_atomic_type_i32*)Value, New, Old); return(*Value == New); }
+PLATFORM_ATOMIC_CAS_U32(WindaAtomicCAS_U32) { _InterlockedCompareExchange((platform_atomic_type_u32*)Value, New, Old); return(*Value == New); }
+PLATFORM_ATOMIC_CAS_I64(WindaAtomicCAS_I64) { _InterlockedCompareExchange((platform_atomic_type_u64*)Value, New, Old); return(*Value == New); }
+PLATFORM_ATOMIC_CAS_U64(WindaAtomicCAS_U64) { _InterlockedCompareExchange((platform_atomic_type_u64*)Value, New, Old); return(*Value == New); }
+
+PLATFORM_ATOMIC_ADD_I32(WindaAtomicAdd_I32) { platform_atomic_type_i32 PrevValue = *Value; _InterlockedAdd((platform_atomic_type_i32*)Value, Addend);  return(PrevValue); }
+PLATFORM_ATOMIC_ADD_U32(WindaAtomicAdd_U32) { platform_atomic_type_u32 PrevValue = *Value; _InterlockedAdd((platform_atomic_type_i32*)Value, Addend);  return(PrevValue); }
+PLATFORM_ATOMIC_ADD_I64(WindaAtomicAdd_I64) { platform_atomic_type_u64 PrevValue = *Value; _InterlockedAdd64((platform_atomic_type_i64*)Value, Addend); return(PrevValue); }
+PLATFORM_ATOMIC_ADD_U64(WindaAtomicAdd_U64) { platform_atomic_type_u64 PrevValue = *Value; _InterlockedAdd64((platform_atomic_type_i64*)Value, Addend); return(PrevValue); }
+
+PLATFORM_ATOMIC_SET_I32(WindaAtomicSet_I32) { return(_InterlockedExchange((platform_atomic_type_i32*)Value, New)); }
+PLATFORM_ATOMIC_SET_U32(WindaAtomicSet_U32) { return(_InterlockedExchange((platform_atomic_type_u32*)Value, New)); }
+PLATFORM_ATOMIC_SET_I64(WindaAtomicSet_I64) { return(_InterlockedExchange((platform_atomic_type_u64*)Value, New)); }
+PLATFORM_ATOMIC_SET_U64(WindaAtomicSet_U64) { return(_InterlockedExchange((platform_atomic_type_u64*)Value, New)); }
+
+PLATFORM_ATOMIC_INC_I32(WindaAtomicInc_I32) { return(_InterlockedIncrement((platform_atomic_type_i32*)Value)) - 1; }
+PLATFORM_ATOMIC_INC_U32(WindaAtomicInc_U32) { return(_InterlockedIncrement((platform_atomic_type_u32*)Value)) - 1; }
+PLATFORM_ATOMIC_INC_I64(WindaAtomicInc_I64) { return(_InterlockedIncrement((platform_atomic_type_u64*)Value)) - 1; }
+PLATFORM_ATOMIC_INC_U64(WindaAtomicInc_U64) { return(_InterlockedIncrement((platform_atomic_type_u64*)Value)) - 1; }
+
+PLATFORM_BEGIN_ORDER_MUTEX(WindaBeginOrderMutex) {
+	unsigned long long Ticket = _InterlockedIncrement((volatile unsigned long long*)&Mutex->Ticket);
+	while (Ticket != Mutex->ServingTicket) {
+		_mm_pause();
+	}
+}
+
+PLATFORM_END_ORDER_MUTEX(WindaEndOrderMutex) {
+	_InterlockedIncrement((volatile unsigned long long*)&Mutex->ServingTicket);
 }
 
 #else
@@ -803,6 +816,35 @@ PLATFORM_GET_THREAD_QUEUE_INFO(SDLGetThreadQueueInfo) {
 PLATFORM_COMPILER_BARRIER_TYPE(SDLCompilerBarrier) {
 	SDL_CompilerBarrier();
 }
+
+PLATFORM_ATOMIC_CAS_I32(SDLAtomicCAS_I32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_U32(SDLAtomicCAS_U32) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_I64(SDLAtomicCAS_I64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+PLATFORM_ATOMIC_CAS_U64(SDLAtomicCAS_U64) { return(SDL_AtomicCAS((SDL_atomic_t*)Value, Old, New)); }
+
+PLATFORM_ATOMIC_ADD_I32(SDLAtomicAdd_I32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_U32(SDLAtomicAdd_U32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_I64(SDLAtomicAdd_I64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+PLATFORM_ATOMIC_ADD_U64(SDLAtomicAdd_U64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, Addend)); }
+
+PLATFORM_ATOMIC_SET_I32(SDLAtomicSet_I32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_U32(SDLAtomicSet_U32) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_I64(SDLAtomicSet_I64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+PLATFORM_ATOMIC_SET_U64(SDLAtomicSet_U64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
+
+PLATFORM_ATOMIC_INC_I32(SDLAtomicInc_I32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+
+PLATFORM_BEGIN_ORDER_MUTEX(SDLBeginOrderMutex) {
+
+}
+
+PLATFORM_END_ORDER_MUTEX(SDLEndOrderMutex) {
+
+}
+
 #endif
 
 int main(int ArgsCount, char** Args) {
@@ -888,6 +930,29 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.ReadWriteBarrier = WindaReadWriteBarrier;
 	PlatformApi.ReadBarrier = WindaReadBarrier;
 	PlatformApi.WriteBarrier = WindaWriteBarrier;
+
+	PlatformApi.AtomicCAS_I32 = WindaAtomicCAS_I32;
+	PlatformApi.AtomicCAS_U32 = WindaAtomicCAS_U32;
+	PlatformApi.AtomicCAS_I64 = WindaAtomicCAS_I64;
+	PlatformApi.AtomicCAS_U64 = WindaAtomicCAS_U64;
+
+	PlatformApi.AtomicInc_I32 = WindaAtomicInc_I32;
+	PlatformApi.AtomicInc_U32 = WindaAtomicInc_U32;
+	PlatformApi.AtomicInc_I64 = WindaAtomicInc_I64;
+	PlatformApi.AtomicInc_U64 = WindaAtomicInc_U64;
+
+	PlatformApi.AtomicAdd_I32 = WindaAtomicAdd_I32;
+	PlatformApi.AtomicAdd_U32 = WindaAtomicAdd_U32;
+	PlatformApi.AtomicAdd_I64 = WindaAtomicAdd_I64;
+	PlatformApi.AtomicAdd_U64 = WindaAtomicAdd_U64;
+
+	PlatformApi.AtomicSet_I32 = WindaAtomicSet_I32;
+	PlatformApi.AtomicSet_U32 = WindaAtomicSet_U32;
+	PlatformApi.AtomicSet_I64 = WindaAtomicSet_I64;
+	PlatformApi.AtomicSet_U64 = WindaAtomicSet_U64;
+
+	PlatformApi.BeginOrderMutex = WindaBeginOrderMutex;
+	PlatformApi.EndOrderMutex = WindaEndOrderMutex;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
@@ -898,7 +963,6 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.ReadWriteBarrier = SDLCompilerBarrier;
 	PlatformApi.ReadBarrier = SDLCompilerBarrier;
 	PlatformApi.WriteBarrier = SDLCompilerBarrier;
-#endif
 
 	PlatformApi.AtomicCAS_I32 = SDLAtomicCAS_I32;
 	PlatformApi.AtomicCAS_U32 = SDLAtomicCAS_U32;
@@ -919,6 +983,10 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_U32 = SDLAtomicSet_U32;
 	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
+
+	PlatformApi.BeginOrderMutex = SDLBeginOrderMutex;
+	PlatformApi.EndOrderMutex = SDLEndOrderMutex;
+#endif
 
 	PlatformApi.VoxelQueue = &VoxelQueue;
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
@@ -1132,7 +1200,7 @@ int main(int ArgsCount, char** Args) {
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 10);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 15);
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 

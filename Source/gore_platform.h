@@ -29,6 +29,13 @@ struct platform_threadwork {
 //NOTE(dima): Platform thread queue structure defined in platform dependent code
 //#define PLATFORM_THREAD_QUEUE_SIZE 4086
 struct platform_thread_queue;
+struct platform_order_mutex;
+
+#define PLATFORM_BEGIN_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
+typedef PLATFORM_BEGIN_ORDER_MUTEX(platform_begin_order_mutex);
+
+#define PLATFORM_END_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
+typedef PLATFORM_END_ORDER_MUTEX(platform_end_order_mutex);
 
 struct platform_thread_queue_info {
 	int WorkingThreadsCount;
@@ -39,16 +46,21 @@ struct platform_thread_queue_info {
 #define PLATFORM_GET_THREAD_QUEUE_INFO(name) platform_thread_queue_info name(platform_thread_queue* Queue)
 typedef PLATFORM_GET_THREAD_QUEUE_INFO(platform_get_thread_queue_info);
 
-typedef volatile i32 platform_atomic_type_i32;
-typedef volatile u32 platform_atomic_type_u32;
-typedef volatile i64 platform_atomic_type_i64;
-typedef volatile u64 platform_atomic_type_u64;
+typedef long platform_type_i32;
+typedef unsigned long platform_type_u32;
+typedef __int64 platform_type_i64;
+typedef unsigned long long platform_type_u64;
 
-//NOTE(dima): Atomic CAS operations macros
-#define PLATFORM_ATOMIC_CAS_I32(name) i32 name(platform_atomic_type_i32* Value, i32 New, i32 Old)
-#define PLATFORM_ATOMIC_CAS_U32(name) u32 name(platform_atomic_type_u32* Value, u32 New, u32 Old)
-#define PLATFORM_ATOMIC_CAS_I64(name) i64 name(platform_atomic_type_i64* Value, i64 New, i64 Old)
-#define PLATFORM_ATOMIC_CAS_U64(name) u64 name(platform_atomic_type_u64* Value, u64 New, u64 Old)
+typedef platform_type_i32 platform_atomic_type_i32;
+typedef platform_type_u32 platform_atomic_type_u32;
+typedef platform_type_i64 platform_atomic_type_i64;
+typedef platform_type_u64 platform_atomic_type_u64;
+
+//NOTE(dima): Atomic CAS operations macros. Must return true if value being set, or false othervise
+#define PLATFORM_ATOMIC_CAS_I32(name) platform_type_i32 name(platform_atomic_type_i32* Value, platform_type_i32 New, platform_type_i32 Old)
+#define PLATFORM_ATOMIC_CAS_U32(name) platform_type_u32 name(platform_atomic_type_u32* Value, platform_type_u32 New, platform_type_u32 Old)
+#define PLATFORM_ATOMIC_CAS_I64(name) platform_type_i64 name(platform_atomic_type_i64* Value, platform_type_i64 New, platform_type_i64 Old)
+#define PLATFORM_ATOMIC_CAS_U64(name) platform_type_u64 name(platform_atomic_type_u64* Value, platform_type_u64 New, platform_type_u64 Old)
 
 typedef PLATFORM_ATOMIC_CAS_I32(platform_atomic_cas_i32);
 typedef PLATFORM_ATOMIC_CAS_U32(platform_atomic_cas_u32);
@@ -56,32 +68,32 @@ typedef PLATFORM_ATOMIC_CAS_I64(platform_atomic_cas_i64);
 typedef PLATFORM_ATOMIC_CAS_U64(platform_atomic_cas_u64);
 
 //NOTE(dima) Atomic increment operations macros
-#define PLATFORM_ATOMIC_INC_I32(name) i32 name(platform_atomic_type_i32* Value)
-#define PLATFORM_ATOMIC_INC_U32(name) u32 name(platform_atomic_type_u32* Value)
-#define PLATFORM_ATOMIC_INC_I64(name) i64 name(platform_atomic_type_i64* Value)
-#define PLATFORM_ATOMIC_INC_U64(name) u64 name(platform_atomic_type_u64* Value)
+#define PLATFORM_ATOMIC_INC_I32(name) platform_type_i32 name(platform_atomic_type_i32* Value)
+#define PLATFORM_ATOMIC_INC_U32(name) platform_type_u32 name(platform_atomic_type_u32* Value)
+#define PLATFORM_ATOMIC_INC_I64(name) platform_type_i64 name(platform_atomic_type_i64* Value)
+#define PLATFORM_ATOMIC_INC_U64(name) platform_type_u64 name(platform_atomic_type_u64* Value)
 
 typedef PLATFORM_ATOMIC_INC_I32(platform_atomic_inc_i32);
 typedef PLATFORM_ATOMIC_INC_U32(platform_atomic_inc_u32);
 typedef PLATFORM_ATOMIC_INC_I64(platform_atomic_inc_i64);
 typedef PLATFORM_ATOMIC_INC_U64(platform_atomic_inc_u64);
 
-//NOTE(dima): Atomic add operations macros
-#define PLATFORM_ATOMIC_ADD_I32(name) i32 name(platform_atomic_type_i32* Value, i32 Addend)
-#define PLATFORM_ATOMIC_ADD_U32(name) u32 name(platform_atomic_type_u32* Value, u32 Addend)
-#define PLATFORM_ATOMIC_ADD_I64(name) i64 name(platform_atomic_type_i64* Value, i64 Addend)
-#define PLATFORM_ATOMIC_ADD_U64(name) u64 name(platform_atomic_type_u64* Value, u64 Addend)
+//NOTE(dima): Atomic add operations macros. Must return previous value
+#define PLATFORM_ATOMIC_ADD_I32(name) platform_type_i32 name(platform_atomic_type_i32* Value, platform_type_i32 Addend)
+#define PLATFORM_ATOMIC_ADD_U32(name) platform_type_u32 name(platform_atomic_type_u32* Value, platform_type_u32 Addend)
+#define PLATFORM_ATOMIC_ADD_I64(name) platform_type_i64 name(platform_atomic_type_i64* Value, platform_type_i64 Addend)
+#define PLATFORM_ATOMIC_ADD_U64(name) platform_type_u64 name(platform_atomic_type_u64* Value, platform_type_u64 Addend)
 
 typedef PLATFORM_ATOMIC_ADD_I32(platform_atomic_add_i32);
 typedef PLATFORM_ATOMIC_ADD_U32(platform_atomic_add_u32);
 typedef PLATFORM_ATOMIC_ADD_I64(platform_atomic_add_i64);
 typedef PLATFORM_ATOMIC_ADD_U64(platform_atomic_add_u64);
 
-//NOTE(dima): Atomic set operations macros
-#define PLATFORM_ATOMIC_SET_I32(name) i32 name(platform_atomic_type_i32* Value, i32 New)
-#define PLATFORM_ATOMIC_SET_U32(name) u32 name(platform_atomic_type_u32* Value, u32 New)
-#define PLATFORM_ATOMIC_SET_I64(name) i64 name(platform_atomic_type_i64* Value, i64 New)
-#define PLATFORM_ATOMIC_SET_U64(name) u64 name(platform_atomic_type_u64* Value, u64 New)
+//NOTE(dima): Atomic set operations macros. Must return previous value
+#define PLATFORM_ATOMIC_SET_I32(name) platform_type_i32 name(platform_atomic_type_i32* Value, platform_type_i32 New)
+#define PLATFORM_ATOMIC_SET_U32(name) platform_type_u32 name(platform_atomic_type_u32* Value, platform_type_u32 New)
+#define PLATFORM_ATOMIC_SET_I64(name) platform_type_i64 name(platform_atomic_type_i64* Value, platform_type_i64 New)
+#define PLATFORM_ATOMIC_SET_U64(name) platform_type_u64 name(platform_atomic_type_u64* Value, platform_type_u64 New)
 
 typedef PLATFORM_ATOMIC_SET_I32(platform_atomic_set_i32);
 typedef PLATFORM_ATOMIC_SET_U32(platform_atomic_set_u32);
@@ -209,6 +221,9 @@ struct platform_api {
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
 	platform_get_thread_queue_info* GetThreadQueueInfo;
+
+	platform_begin_order_mutex* BeginOrderMutex;
+	platform_end_order_mutex* EndOrderMutex;
 
 	platform_compiler_barrier_type* ReadWriteBarrier;
 	platform_compiler_barrier_type* ReadBarrier;
