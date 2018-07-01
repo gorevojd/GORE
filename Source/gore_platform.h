@@ -12,6 +12,55 @@
 #define PLATFORM_WINDA
 #endif
 
+struct platform_order_mutex;
+#define PLATFORM_BEGIN_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
+typedef PLATFORM_BEGIN_ORDER_MUTEX(platform_begin_order_mutex);
+
+#define PLATFORM_END_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
+typedef PLATFORM_END_ORDER_MUTEX(platform_end_order_mutex);
+
+#if defined(PLATFORM_WINDA)
+
+#include <Windows.h>
+
+struct platform_order_mutex {
+	volatile long long Ticket;
+	volatile long long ServingTicket;
+};
+
+inline PLATFORM_BEGIN_ORDER_MUTEX(BeginOrderMutex) {
+	long long Ticket = _InterlockedExchangeAdd64((volatile long long*)&Mutex->Ticket, 1);
+	while (Ticket != Mutex->ServingTicket) {
+		_mm_pause();
+	}
+}
+
+inline PLATFORM_END_ORDER_MUTEX(EndOrderMutex) {
+	_InterlockedExchangeAdd64((volatile long long*)&Mutex->ServingTicket, 1);
+}
+
+#else
+
+#include <SDL_atomic.h>
+
+struct platform_order_mutex {
+	SDL_atomic_t Ticket;
+	SDL_atomic_t ServingTicket;
+};
+
+
+inline PLATFORM_BEGIN_ORDER_MUTEX(BeginOrderMutex) {
+	int Ticket = SDL_AtomicAdd((SDL_atomic_t*)&Mutex->Ticket, 1);
+	while (Ticket != Mutex->ServingTicket.value) {}
+}
+
+inline PLATFORM_END_ORDER_MUTEX(EndOrderMutex) {
+	SDL_AtomicAdd((SDL_atomic_t*)&Mutex->ServingTicket, 1);
+}
+
+
+#endif
+
 #define PLATFORM_THREADWORK_CALLBACK(name) void name(void* Data)
 typedef PLATFORM_THREADWORK_CALLBACK(platform_threadwork_callback);
 
@@ -29,13 +78,6 @@ struct platform_threadwork {
 //NOTE(dima): Platform thread queue structure defined in platform dependent code
 //#define PLATFORM_THREAD_QUEUE_SIZE 4086
 struct platform_thread_queue;
-struct platform_order_mutex;
-
-#define PLATFORM_BEGIN_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
-typedef PLATFORM_BEGIN_ORDER_MUTEX(platform_begin_order_mutex);
-
-#define PLATFORM_END_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
-typedef PLATFORM_END_ORDER_MUTEX(platform_end_order_mutex);
 
 struct platform_thread_queue_info {
 	int WorkingThreadsCount;
@@ -221,9 +263,6 @@ struct platform_api {
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
 	platform_get_thread_queue_info* GetThreadQueueInfo;
-
-	platform_begin_order_mutex* BeginOrderMutex;
-	platform_end_order_mutex* EndOrderMutex;
 
 	platform_compiler_barrier_type* ReadWriteBarrier;
 	platform_compiler_barrier_type* ReadBarrier;

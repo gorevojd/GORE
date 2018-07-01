@@ -592,14 +592,22 @@ static void VoxelInsertThreadworkAfter(
 }
 
 static voxworld_threadwork* VoxelBeginThreadwork(
-	voxworld_threadwork* FreeSentinel, 
+	voxworld_threadwork* FreeSentinel,
 	voxworld_threadwork* UseSentinel,
-	std::mutex* ThreadworksMutex,
-	int* FreeWorkCount) 
+#if defined(VOXEL_USE_STD_MUTEXES)
+	std::mutex* Mutex,
+#else
+	platform_order_mutex* Mutex,
+#endif
+	int* FreeWorkCount)
 {
 	voxworld_threadwork* Result = 0;
 
-	ThreadworksMutex->lock();
+#if defined(VOXEL_USE_STD_MUTEXES)
+	Mutex->lock();
+#else
+	BeginOrderMutex(Mutex);
+#endif
 
 	if (FreeSentinel->Next != FreeSentinel) {
 		//NOTE(dima): Putting threadwork list entry to use list
@@ -623,7 +631,11 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 		(*FreeWorkCount)--;
 	}
 
-	ThreadworksMutex->unlock();
+#if defined(VOXEL_USE_STD_MUTEXES)
+	Mutex->unlock();
+#else
+	EndOrderMutex(Mutex);
+#endif
 
 	return(Result);
 }
@@ -631,10 +643,18 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 static void VoxelEndThreadwork(
 	voxworld_threadwork* Threadwork,
 	voxworld_threadwork* FreeSentinel,
-	std::mutex* ThreadworksMutex,
+#if defined(VOXEL_USE_STD_MUTEXES)
+	std::mutex* Mutex,
+#else
+	platform_order_mutex* Mutex,
+#endif
 	int* FreeWorkCount)
 {
-	ThreadworksMutex->lock();
+#if defined(VOXEL_USE_STD_MUTEXES)
+	Mutex->lock();
+#else
+	BeginOrderMutex(Mutex);
+#endif
 
 	//NOTE(dima): Putting threadwork list entry to free list
 	Threadwork->Prev->Next = Threadwork->Next;
@@ -651,7 +671,11 @@ static void VoxelEndThreadwork(
 
 	(*FreeWorkCount)++;
 
-	ThreadworksMutex->unlock();
+#if defined(VOXEL_USE_STD_MUTEXES)
+	Mutex->unlock();
+#else
+	EndOrderMutex(Mutex);
+#endif
 }
 
 inline u32 GetKeyFromIndices(int X, int Y, int Z) {
@@ -870,27 +894,16 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 			MeshInfo->Vertices,
 			MeshInfo->VerticesCount * 4);
 
-		PlatformApi.WriteBarrier();
+		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Ready);
 
-		MeshInfo->State = VoxelMeshState_Ready;
-
-		VoxelEndThreadwork(
-			GenData->MeshGenThreadwork,
-			GenData->Generation->GenFreeSentinel,
-			&GenData->Generation->GenMutex,
-			&GenData->Generation->FreeGenThreadworksCount);
-
-		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);
-		
+		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
-	else if (MeshInfo->State == VoxelMeshState_InProcess) {
-		while (MeshInfo->State == VoxelMeshState_InProcess) {
 
-		}
-	}
-	else {
-
-	}
+	VoxelEndThreadwork(
+		GenData->MeshGenThreadwork,
+		GenData->Generation->GenFreeSentinel,
+		&GenData->Generation->GenMutex,
+		&GenData->Generation->FreeGenThreadworksCount);
 }
 
 struct generate_voxel_chunk_data {
@@ -923,9 +936,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	{
 		GenerateRandomChunk(WorkChunk);
 
-		PlatformApi.WriteBarrier();
-
-		WorkChunk->State = VoxelChunkState_Ready;
+		PlatformApi.AtomicSet_U32(&WorkChunk->State, VoxelChunkState_Ready);
 
 		voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(
 			GenData->Generation->GenFreeSentinel,
@@ -944,25 +955,19 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
 		MeshGenerationData->VoxelAtlasInfo = GenData->VoxelAtlasInfo;
 
+		CopyStrings(MeshGenThreadwork->DEBUGData, "MeshGeneration");
+
 		PlatformApi.AddThreadworkEntry(
 			PlatformApi.VoxelQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
-
-		VoxelEndThreadwork(
-			GenData->ChunkGenThreadwork,
-			GenData->Generation->GenFreeSentinel,
-			&GenData->Generation->GenMutex,
-			&GenData->Generation->FreeGenThreadworksCount);
 	}
-	else if (WorkChunk->State == VoxelChunkState_InProcess) {
-		while (WorkChunk->State == VoxelChunkState_InProcess) {
 
-		}
-	}
-	else {
-
-	}
+	VoxelEndThreadwork(
+		GenData->ChunkGenThreadwork,
+		GenData->Generation->GenFreeSentinel,
+		&GenData->Generation->GenMutex,
+		&GenData->Generation->FreeGenThreadworksCount);
 }
 
 PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
@@ -980,17 +985,20 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		VoxelChunkState_Ready))
 	{
 		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
+
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
 		while (MeshInfo->State == VoxelMeshState_InProcess) {
 			/*NOTE(dima): Reaching this point means that
-			when we are about to unload the chunk the mesh 
+			when we are about to unload the chunk the mesh
 			is still generating..
 
-			So what I do here is that I just wait until 
+			So what I do here is that I just wait until
 			mesh becomes generated.
 			*/
 			int a = 1;
 		}
+
+		//Assert(MeshInfo->State == VoxelMeshState_Ready);
 
 		if (MeshInfo->Vertices) {
 			free(MeshInfo->Vertices);
@@ -998,11 +1006,7 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		MeshInfo->Vertices = 0;
 		MeshInfo->VerticesCount = 0;
 
-		PlatformApi.WriteBarrier();
-
-		MeshInfo->State = VoxelMeshState_None;
-
-		//PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_None);
+		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_None);
 
 		//NOTE(dima): Close threadwork that contains chunk data
 		VoxelEndThreadwork(
@@ -1010,14 +1014,14 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			UnloadData->Generation->WorkFreeSentinel,
 			&UnloadData->Generation->WorkMutex,
 			&UnloadData->Generation->FreeWorkThreadworksCount);
-
-		//NOTE(dima): Close threadwork that contains data for this function(thread)
-		VoxelEndThreadwork(
-			UnloadData->ChunkUnloadThreadwork,
-			UnloadData->Generation->GenFreeSentinel,
-			&UnloadData->Generation->GenMutex,
-			&UnloadData->Generation->FreeGenThreadworksCount);
 	}
+
+	//NOTE(dima): Close threadwork that contains data for this function(thread)
+	VoxelEndThreadwork(
+		UnloadData->ChunkUnloadThreadwork,
+		UnloadData->Generation->GenFreeSentinel,
+		&UnloadData->Generation->GenMutex,
+		&UnloadData->Generation->FreeGenThreadworksCount);
 }
 
 void VoxelChunksGenerationInit(
@@ -1042,6 +1046,11 @@ void VoxelChunksGenerationInit(
 		NOTE(dima): Initialization of work threadworks.
 		They are used to store loaded chunk data;
 	*/
+#if defined(VOXEL_USE_STD_MUTEXES)
+
+#else
+	Generation->WorkMutex = {};
+#endif
 	Generation->WorkUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
@@ -1064,6 +1073,11 @@ void VoxelChunksGenerationInit(
 	*/
 	int GenThreadworksCount = 10000;
 
+#if defined(VOXEL_USE_STD_MUTEXES)
+
+#else
+	Generation->GenMutex = {};
+#endif
 	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
@@ -1151,20 +1165,19 @@ void VoxelChunksGenerationUpdate(
 					/*
 						NOTE(dima): It was interesting to see this
 						but if I delete this check then some meshes
-						will be visible partially. This is because 
-						they wasn't generated at this time and when 
+						will be visible partially. This is because
+						they wasn't generated at this time and when
 						time came to generating VAOs in the renderer
 						they were generated partially too. :D
 					*/
 					if (NeededChunk->MeshInfo.State == VoxelMeshState_Ready) {
 
-						
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
 						RENDERPushVoxelMesh(
-							RenderState, 
-							&NeededChunk->MeshInfo, 
-							ChunkPos, 
+							RenderState,
+							&NeededChunk->MeshInfo,
+							ChunkPos,
 							&VoxelAtlas->Bitmap);
 
 						Generation->ChunksPushedToRender++;
@@ -1184,6 +1197,8 @@ void VoxelChunksGenerationUpdate(
 						Generation->GenUseSentinel,
 						&Generation->GenMutex,
 						&Generation->FreeGenThreadworksCount);
+
+					CopyStrings(ChunkGenThreadwork->DEBUGData, "ChunkGeneration");
 
 					Assert(ChunkGenThreadwork);
 
@@ -1239,6 +1254,8 @@ void VoxelChunksGenerationUpdate(
 
 			Assert(UnloadThreadwork);
 
+			CopyStrings(UnloadThreadwork->DEBUGData, "UnloadThreadwork");
+
 			unload_voxel_chunk_data* UnloadData = PushStruct(
 				&UnloadThreadwork->Memory,
 				unload_voxel_chunk_data);
@@ -1252,15 +1269,13 @@ void VoxelChunksGenerationUpdate(
 				UnloadData,
 				UnloadVoxelChunkThreadwork);
 
-		/*	if(NeededChunk->MeshInfo.State == VoxelMeshState_None &&
-				NeededChunk->State == VoxelChunkState_None)
-			{*/
-				VoxelDeleteFromTable(
-					Generation,
-					NeededChunk->IndexX,
-					NeededChunk->IndexY,
-					NeededChunk->IndexZ);
-			//}
+			voxel_mesh_info* MeshInfo = &NeededChunk->MeshInfo;
+
+			VoxelDeleteFromTable(
+				Generation,
+				NeededChunk->IndexX,
+				NeededChunk->IndexY,
+				NeededChunk->IndexZ);
 		}
 #endif
 

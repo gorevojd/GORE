@@ -49,6 +49,10 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	if (ButtonIsDown(Input, KeyType_LShift)) {
 		CameraSpeed *= 10.0f;
 	}
+	if (ButtonIsDown(Input, KeyType_Space)) {
+		CameraSpeed *= 5.0f;
+	}
+
 	MoveVector = MoveVector * CameraSpeed * Input->DeltaTime;
 	State->Camera.Position += State->Camera.Front * MoveVector.z;
 	State->Camera.Position -= State->Camera.Left * MoveVector.x;

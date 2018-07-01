@@ -637,31 +637,20 @@ PLATFORM_ATOMIC_CAS_U32(WindaAtomicCAS_U32) { _InterlockedCompareExchange((platf
 PLATFORM_ATOMIC_CAS_I64(WindaAtomicCAS_I64) { _InterlockedCompareExchange((platform_atomic_type_u64*)Value, New, Old); return(*Value == New); }
 PLATFORM_ATOMIC_CAS_U64(WindaAtomicCAS_U64) { _InterlockedCompareExchange((platform_atomic_type_u64*)Value, New, Old); return(*Value == New); }
 
-PLATFORM_ATOMIC_ADD_I32(WindaAtomicAdd_I32) { platform_atomic_type_i32 PrevValue = *Value; _InterlockedAdd((platform_atomic_type_i32*)Value, Addend);  return(PrevValue); }
-PLATFORM_ATOMIC_ADD_U32(WindaAtomicAdd_U32) { platform_atomic_type_u32 PrevValue = *Value; _InterlockedAdd((platform_atomic_type_i32*)Value, Addend);  return(PrevValue); }
-PLATFORM_ATOMIC_ADD_I64(WindaAtomicAdd_I64) { platform_atomic_type_u64 PrevValue = *Value; _InterlockedAdd64((platform_atomic_type_i64*)Value, Addend); return(PrevValue); }
-PLATFORM_ATOMIC_ADD_U64(WindaAtomicAdd_U64) { platform_atomic_type_u64 PrevValue = *Value; _InterlockedAdd64((platform_atomic_type_i64*)Value, Addend); return(PrevValue); }
+PLATFORM_ATOMIC_ADD_I32(WindaAtomicAdd_I32) { return(_InterlockedExchangeAdd((platform_atomic_type_i32*)Value, Addend));  }
+PLATFORM_ATOMIC_ADD_U32(WindaAtomicAdd_U32) { return(_InterlockedExchangeAdd((platform_atomic_type_u32*)Value, Addend));  }
+PLATFORM_ATOMIC_ADD_I64(WindaAtomicAdd_I64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, Addend));}
+PLATFORM_ATOMIC_ADD_U64(WindaAtomicAdd_U64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, Addend));}
 
 PLATFORM_ATOMIC_SET_I32(WindaAtomicSet_I32) { return(_InterlockedExchange((platform_atomic_type_i32*)Value, New)); }
 PLATFORM_ATOMIC_SET_U32(WindaAtomicSet_U32) { return(_InterlockedExchange((platform_atomic_type_u32*)Value, New)); }
 PLATFORM_ATOMIC_SET_I64(WindaAtomicSet_I64) { return(_InterlockedExchange((platform_atomic_type_u64*)Value, New)); }
 PLATFORM_ATOMIC_SET_U64(WindaAtomicSet_U64) { return(_InterlockedExchange((platform_atomic_type_u64*)Value, New)); }
 
-PLATFORM_ATOMIC_INC_I32(WindaAtomicInc_I32) { return(_InterlockedIncrement((platform_atomic_type_i32*)Value)) - 1; }
-PLATFORM_ATOMIC_INC_U32(WindaAtomicInc_U32) { return(_InterlockedIncrement((platform_atomic_type_u32*)Value)) - 1; }
-PLATFORM_ATOMIC_INC_I64(WindaAtomicInc_I64) { return(_InterlockedIncrement((platform_atomic_type_u64*)Value)) - 1; }
-PLATFORM_ATOMIC_INC_U64(WindaAtomicInc_U64) { return(_InterlockedIncrement((platform_atomic_type_u64*)Value)) - 1; }
-
-PLATFORM_BEGIN_ORDER_MUTEX(WindaBeginOrderMutex) {
-	unsigned long long Ticket = _InterlockedIncrement((volatile unsigned long long*)&Mutex->Ticket);
-	while (Ticket != Mutex->ServingTicket) {
-		_mm_pause();
-	}
-}
-
-PLATFORM_END_ORDER_MUTEX(WindaEndOrderMutex) {
-	_InterlockedIncrement((volatile unsigned long long*)&Mutex->ServingTicket);
-}
+PLATFORM_ATOMIC_INC_I32(WindaAtomicInc_I32) { return(_InterlockedExchangeAdd((platform_atomic_type_i32*)Value, 1)); }
+PLATFORM_ATOMIC_INC_U32(WindaAtomicInc_U32) { return(_InterlockedExchangeAdd((platform_atomic_type_u32*)Value, 1)); }
+PLATFORM_ATOMIC_INC_I64(WindaAtomicInc_I64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, 1)); }
+PLATFORM_ATOMIC_INC_U64(WindaAtomicInc_U64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, 1)); }
 
 #else
 
@@ -832,18 +821,11 @@ PLATFORM_ATOMIC_SET_U32(SDLAtomicSet_U32) { return(SDL_AtomicSet((SDL_atomic_t*)
 PLATFORM_ATOMIC_SET_I64(SDLAtomicSet_I64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
 PLATFORM_ATOMIC_SET_U64(SDLAtomicSet_U64) { return(SDL_AtomicSet((SDL_atomic_t*)Value, New)); }
 
-PLATFORM_ATOMIC_INC_I32(SDLAtomicInc_I32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
-PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicIncRef((SDL_atomic_t*)Value)); }
+PLATFORM_ATOMIC_INC_I32(SDLAtomicInc_I32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
+PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
+PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
+PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
 
-PLATFORM_BEGIN_ORDER_MUTEX(SDLBeginOrderMutex) {
-
-}
-
-PLATFORM_END_ORDER_MUTEX(SDLEndOrderMutex) {
-
-}
 
 #endif
 
@@ -950,9 +932,6 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_U32 = WindaAtomicSet_U32;
 	PlatformApi.AtomicSet_I64 = WindaAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = WindaAtomicSet_U64;
-
-	PlatformApi.BeginOrderMutex = WindaBeginOrderMutex;
-	PlatformApi.EndOrderMutex = WindaEndOrderMutex;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
@@ -983,9 +962,6 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_U32 = SDLAtomicSet_U32;
 	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
-
-	PlatformApi.BeginOrderMutex = SDLBeginOrderMutex;
-	PlatformApi.EndOrderMutex = SDLEndOrderMutex;
 #endif
 
 	PlatformApi.VoxelQueue = &VoxelQueue;
