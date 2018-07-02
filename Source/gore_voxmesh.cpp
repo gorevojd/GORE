@@ -37,6 +37,15 @@ static inline void VoxmeshWriteFace(
 	u32 Value2 = GetEncodedVertexData32(P2, TextureIndex, VoxelTextureVertType_DownRight, NormalIndex);
 	u32 Value3 = GetEncodedVertexData32(P3, TextureIndex, VoxelTextureVertType_DownLeft, NormalIndex);
 
+#if USE_STD_VECTOR_FOR_VOXEL_MESH
+	Mesh->Vertices.push_back(Value0);
+	Mesh->Vertices.push_back(Value1);
+	Mesh->Vertices.push_back(Value2);
+	
+	Mesh->Vertices.push_back(Value0);
+	Mesh->Vertices.push_back(Value2);
+	Mesh->Vertices.push_back(Value3);
+#else
 	Mesh->Vertices[Index] = Value0;
 	Mesh->Vertices[Index + 1] = Value1;
 	Mesh->Vertices[Index + 2] = Value2;
@@ -44,6 +53,7 @@ static inline void VoxmeshWriteFace(
 	Mesh->Vertices[Index + 3] = Value0;
 	Mesh->Vertices[Index + 4] = Value2;
 	Mesh->Vertices[Index + 5] = Value3;
+#endif
 
 	Mesh->VerticesCount += 6;
 }
@@ -138,8 +148,13 @@ static inline void WriteFaceAtBottom(
 		VoxelNormalIndex_Down);
 }
 
+#if 0
 #define GET_VOXEL_INDEX(width_index, depth_index, height_index)	\
 	(height_index + VOXEL_CHUNK_HEIGHT * (width_index) + VOXEL_CHUNK_VERT_LAYER_VOXEL_COUNT * (depth_index))
+#else
+#define GET_VOXEL_INDEX(width_index, depth_index, height_index)	\
+	(VOXEL_CHUNK_HORZ_LAYER_VOXEL_COUNT * (height_index) + VOXEL_CHUNK_WIDTH * (depth_index) + width_index)
+#endif
 
 
 static inline b32 NeighbourVoxelExistAndAir(
@@ -594,20 +609,12 @@ static void VoxelInsertThreadworkAfter(
 static voxworld_threadwork* VoxelBeginThreadwork(
 	voxworld_threadwork* FreeSentinel,
 	voxworld_threadwork* UseSentinel,
-#if defined(VOXEL_USE_STD_MUTEXES)
-	std::mutex* Mutex,
-#else
 	platform_order_mutex* Mutex,
-#endif
 	int* FreeWorkCount)
 {
 	voxworld_threadwork* Result = 0;
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-	Mutex->lock();
-#else
 	BeginOrderMutex(Mutex);
-#endif
 
 	if (FreeSentinel->Next != FreeSentinel) {
 		//NOTE(dima): Putting threadwork list entry to use list
@@ -631,11 +638,7 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 		(*FreeWorkCount)--;
 	}
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-	Mutex->unlock();
-#else
 	EndOrderMutex(Mutex);
-#endif
 
 	return(Result);
 }
@@ -643,18 +646,10 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 static void VoxelEndThreadwork(
 	voxworld_threadwork* Threadwork,
 	voxworld_threadwork* FreeSentinel,
-#if defined(VOXEL_USE_STD_MUTEXES)
-	std::mutex* Mutex,
-#else
 	platform_order_mutex* Mutex,
-#endif
 	int* FreeWorkCount)
 {
-#if defined(VOXEL_USE_STD_MUTEXES)
-	Mutex->lock();
-#else
 	BeginOrderMutex(Mutex);
-#endif
 
 	//NOTE(dima): Putting threadwork list entry to free list
 	Threadwork->Prev->Next = Threadwork->Next;
@@ -671,11 +666,7 @@ static void VoxelEndThreadwork(
 
 	(*FreeWorkCount)++;
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-	Mutex->unlock();
-#else
 	EndOrderMutex(Mutex);
-#endif
 }
 
 inline u32 GetKeyFromIndices(int X, int Y, int Z) {
@@ -864,6 +855,11 @@ static void VoxelRegenerateSetatistics(
 
 	Result->ChunksPushedToRender = Generation->ChunksPushedToRender;
 	Generation->ChunksPushedToRender = 0;
+
+	Result->TrianglesPushed = Generation->TrianglesPushed;
+	Result->TrianglesLoaded = Generation->TrianglesLoaded;
+	Generation->TrianglesLoaded = 0;
+	Generation->TrianglesPushed = 0;
 }
 
 struct generate_voxel_mesh_data {
@@ -881,23 +877,33 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	voxel_chunk_info* ChunkInfo = GenData->Chunk;
 	voxel_mesh_info* MeshInfo = &GenData->Chunk->MeshInfo;
 
+	BeginOrderMutex(&MeshInfo->MeshUseMutex);
+
 	if (PlatformApi.AtomicCAS_U32(
 		&MeshInfo->State,
 		VoxelMeshState_InProcess,
 		VoxelMeshState_None))
 	{
 		//TODO(dima): Better memory management here
+#if USE_STD_VECTOR_FOR_VOXEL_MESH
+		MeshInfo->Vertices = std::vector<u32>();
+		//MeshInfo->Vertices.reserve(65536);
+		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
+#else
 		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
 		MeshInfo->Vertices = (u32*)malloc(65536 * 6 + 30000);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 		MeshInfo->Vertices = (u32*)realloc(
 			MeshInfo->Vertices,
 			MeshInfo->VerticesCount * 4);
+#endif
 
-		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Ready);
+		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Generated);
 
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
+
+	EndOrderMutex(&MeshInfo->MeshUseMutex);
 
 	VoxelEndThreadwork(
 		GenData->MeshGenThreadwork,
@@ -918,7 +924,7 @@ struct generate_voxel_chunk_data {
 
 struct unload_voxel_chunk_data {
 	voxworld_generation_state* Generation;
-
+	
 	voxel_chunk_info* Chunk;
 
 	voxworld_threadwork* ChunkUnloadThreadwork;
@@ -998,15 +1004,30 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			int a = 1;
 		}
 
-		//Assert(MeshInfo->State == VoxelMeshState_Ready);
+		//Assert(MeshInfo->State == VoxelMeshState_Generated);
 
-		if (MeshInfo->Vertices) {
-			free(MeshInfo->Vertices);
+		BeginOrderMutex(&MeshInfo->MeshUseMutex);
+		
+		if (MeshInfo->State == VoxelMeshState_Generated) {
+#if USE_STD_VECTOR_FOR_VOXEL_MESH
+			MeshInfo->Vertices.clear();
+#else
+			if (MeshInfo->Vertices) {
+				free(MeshInfo->Vertices);
+			}
+			MeshInfo->Vertices = 0;
+#endif
+			MeshInfo->VerticesCount = 0;
+
+			dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
+			AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
+			AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
+			PlatformInsertDellocEntry(AllocEntry);
 		}
-		MeshInfo->Vertices = 0;
-		MeshInfo->VerticesCount = 0;
 
-		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_None);
+		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Unloaded);
+
+		EndOrderMutex(&MeshInfo->MeshUseMutex);
 
 		//NOTE(dima): Close threadwork that contains chunk data
 		VoxelEndThreadwork(
@@ -1046,11 +1067,7 @@ void VoxelChunksGenerationInit(
 		NOTE(dima): Initialization of work threadworks.
 		They are used to store loaded chunk data;
 	*/
-#if defined(VOXEL_USE_STD_MUTEXES)
-
-#else
 	Generation->WorkMutex = {};
-#endif
 	Generation->WorkUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
@@ -1073,11 +1090,7 @@ void VoxelChunksGenerationInit(
 	*/
 	int GenThreadworksCount = 10000;
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-
-#else
 	Generation->GenMutex = {};
-#endif
 	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
 
@@ -1170,9 +1183,11 @@ void VoxelChunksGenerationUpdate(
 						time came to generating VAOs in the renderer
 						they were generated partially too. :D
 					*/
-					if (NeededChunk->MeshInfo.State == VoxelMeshState_Ready) {
+					if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
 
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
+
+						Assert(NeededChunk->MeshInfo.VerticesCount != 0);
 
 						RENDERPushVoxelMesh(
 							RenderState,
@@ -1181,6 +1196,8 @@ void VoxelChunksGenerationUpdate(
 							&VoxelAtlas->Bitmap);
 
 						Generation->ChunksPushedToRender++;
+						Generation->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
+						Generation->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
 					}
 				}
 			}

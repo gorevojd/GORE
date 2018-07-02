@@ -4,9 +4,6 @@
 #include "gore_asset.h"
 #include "gore_voxshared.h"
 #include "gore_render_state.h"
-#include <mutex>
-
-#define VOXEL_USE_STD_MUTEXES 0
 
 enum voxel_normal_type_index{
 	VoxelNormalIndex_Up,
@@ -45,11 +42,7 @@ struct voxworld_generation_state {
 	int FreeWorkThreadworksCount;
 	int TotalWorkThreadworksCount;
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-	std::mutex WorkMutex;
-#else
 	platform_order_mutex WorkMutex;
-#endif
 	voxworld_threadwork* WorkUseSentinel;
 	voxworld_threadwork* WorkFreeSentinel;
 
@@ -60,11 +53,7 @@ struct voxworld_generation_state {
 	int FreeGenThreadworksCount;
 	int TotalGenThreadworksCount;
 
-#if defined(VOXEL_USE_STD_MUTEXES)
-	std::mutex GenMutex;
-#else
 	platform_order_mutex GenMutex;
-#endif
 	voxworld_threadwork* GenUseSentinel;
 	voxworld_threadwork* GenFreeSentinel;
 
@@ -73,6 +62,8 @@ struct voxworld_generation_state {
 	int ChunksViewDistance;
 
 	int ChunksPushedToRender;
+	int TrianglesLoaded;
+	int TrianglesPushed;
 
 	platform_atomic_type_i32 MeshGenerationsStartedThisFrame;
 	

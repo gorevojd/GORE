@@ -22,6 +22,8 @@ struct voxel_generation_statistics{
 	int MeshGenerationsStartedThisFrame;
 
 	int ChunksPushedToRender;
+	int TrianglesPushed;
+	int TrianglesLoaded;
 
 	platform_thread_queue* Queue;
 };

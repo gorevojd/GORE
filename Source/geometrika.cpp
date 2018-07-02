@@ -119,7 +119,6 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 #if 1
 	RENDERPushVoxelLighting(RenderStack);
-	RENDERPushVoxelMesh(RenderStack, &State->TestChunk.MeshInfo, V3(0.0f, 0.0f, 0.0f), State->VoxelAtalsBitmap);
 #endif
 
 	game_camera_setup CameraSetup = GAMECameraSetup(

@@ -2129,6 +2129,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 		char ThisFrameMeshStartStat[64];
 		char ChunksStat[128];
 		char HashTableStat[128];
+		char TrianglesStatp[64];
 
 		stbsp_sprintf(QueueStat, "%d entries busy; %d total; %d working threads active",
 			QueueInfo.EntriesBusy,
@@ -2166,8 +2167,12 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->MeshGenerationsStartedThisFrame);
 
 		stbsp_sprintf(ChunksStat,
-			"Chunks: %d sent to render; hahaha",
+			"Chunks: %d pushed",
 			GenerationStat->ChunksPushedToRender);
+
+		stbsp_sprintf(TrianglesStatp, "Triagnles pushed %d; loaded %d",
+			GenerationStat->TrianglesPushed,
+			GenerationStat->TrianglesLoaded);
 
 		char* ToPrintStatistics0[] = {
 			QueueStat,
@@ -2176,6 +2181,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			ChunkIDsStr,
 			ViewDistStat,
 			ChunksStat,
+			TrianglesStatp,
 			0
 		};
 

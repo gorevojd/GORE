@@ -146,6 +146,7 @@ extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 typedef void (GLAPIENTRY *MYPFNGLACTIVETEXTURE)(GLenum texture);
 extern MYPFNGLACTIVETEXTURE _glActiveTexture;
 
+extern void OpenGLProcessAllocationQueue();
 extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
 
 extern void OpenGLInitState(gl_state* State);

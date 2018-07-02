@@ -238,6 +238,31 @@ typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 #define PLATFORM_TERMINATE_PROGRAM(name) void name()
 typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 
+struct dealloc_queue_bitmap_data {
+	struct bitmap_info* BitmapInfo;
+};
+
+struct dealloc_queue_voxelmesh_data {
+	struct voxel_mesh_info* MeshInfo;
+};
+
+enum dealloc_queue_entry_type {
+	DeallocQueueEntry_Bitmap,
+	DeallocQueueEntry_VoxelMesh,
+};
+
+struct dealloc_queue_entry {
+	dealloc_queue_entry* Prev;
+	dealloc_queue_entry* Next;
+
+	u32 EntryType;
+
+	union {
+		dealloc_queue_bitmap_data BitmapData;
+		dealloc_queue_voxelmesh_data VoxelMeshData;
+	} Data;
+};
+
 struct platform_api {
 	platform_atomic_cas_i32* AtomicCAS_I32;
 	platform_atomic_cas_u32* AtomicCAS_U32;
@@ -282,9 +307,43 @@ struct platform_api {
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;
+
+	platform_order_mutex DeallocQueueMutex;
+	dealloc_queue_entry* FirstUseAllocQueueEntry;
+	dealloc_queue_entry* FirstFreeAllocQueueEntry;
 };
 
 extern platform_api PlatformApi;
+
+inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
+	dealloc_queue_entry* Result = 0;
+
+	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+
+	Assert(PlatformApi.FirstFreeAllocQueueEntry->Next != PlatformApi.FirstFreeAllocQueueEntry);
+
+	Result = PlatformApi.FirstFreeAllocQueueEntry->Next;
+
+	Result->Next->Prev = Result->Prev;
+	Result->Prev->Next = Result->Next;
+
+	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+
+	return(Result);
+}
+
+inline void PlatformInsertDellocEntry(dealloc_queue_entry* Entry) {
+	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+
+	Entry->Next = PlatformApi.FirstUseAllocQueueEntry->Next;
+	Entry->Prev = PlatformApi.FirstUseAllocQueueEntry;
+
+	Entry->Next->Prev = Entry;
+	Entry->Prev->Next = Entry;
+
+	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+}
+
 
 #include "gore_debug_layer.h"
 

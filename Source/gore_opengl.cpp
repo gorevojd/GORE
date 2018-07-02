@@ -553,7 +553,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
 					glBufferData(GL_ARRAY_BUFFER,
 						Mesh->VerticesCount * sizeof(u32),
-						Mesh->Vertices, GL_DYNAMIC_DRAW);
+						&Mesh->Vertices[0], GL_DYNAMIC_DRAW);
 
 					if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
 						glEnableVertexAttribArray(Shader->VertexDataIndex);
@@ -563,10 +563,8 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					glBindBuffer(GL_ARRAY_BUFFER, 0);
 					glBindVertexArray(0);
 
-					//glDeleteVertexArrays(1, &MeshVAO);
-					//glDeleteBuffers(1, &MeshVBO);
-
 					Mesh->MeshHandle = (void*)MeshVAO;
+					Mesh->MeshHandle2 = (void*)MeshVBO;
 				}
 
 				glUseProgram((u32)Shader->Program.Handle);
@@ -643,4 +641,77 @@ void OpenGLInitState(gl_state* State) {
 
 	State->WtfShader = OpenGLLoadWtfShader();
 	State->VoxelShader = OpenGLLoadVoxelShader();
+}
+
+void OpenGLProcessAllocationQueue() {
+
+	FUNCTION_TIMING();
+
+	dealloc_queue_entry* FirstEntry = 0;
+	dealloc_queue_entry* LastEntry = 0;
+
+	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+	
+	//NOTE(dima): If there is something to allocate...
+	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) {
+		FirstEntry = PlatformApi.FirstUseAllocQueueEntry->Next;
+		LastEntry = PlatformApi.FirstUseAllocQueueEntry->Prev;
+
+#if 0
+		FirstEntry->Prev->Next = PlatformApi.FirstUseAllocQueueEntry;
+		LastEntry->Next->Prev = PlatformApi.FirstUseAllocQueueEntry;
+		
+		FirstEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
+		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
+		
+		FirstEntry->Prev->Next = FirstEntry;
+		LastEntry->Next->Prev = LastEntry;
+#endif
+	}
+
+	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+
+	for (dealloc_queue_entry* Entry = FirstEntry;
+		Entry;)
+	{
+		dealloc_queue_entry* NextEntry = Entry->Next;
+
+		switch (Entry->EntryType) {
+			case DeallocQueueEntry_Bitmap: {
+
+			}break;
+
+			case DeallocQueueEntry_VoxelMesh: {
+				GLuint MeshVBO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2;
+				GLuint MeshVAO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle;
+
+				glDeleteBuffers(1, &MeshVBO);
+				glDeleteVertexArrays(1, &MeshVAO);
+
+				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle = 0;
+				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2 = 0;
+			}break;
+		}
+
+#if 1
+		BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+		
+		Entry->Next->Prev = Entry->Prev;
+		Entry->Prev->Next = Entry->Next;
+
+		Entry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
+		Entry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
+
+		Entry->Next->Prev = Entry;
+		Entry->Prev->Next = Entry;
+
+		EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+#endif
+
+		if (Entry == LastEntry) {
+			break;
+		}
+
+		Entry = NextEntry;
+	}
 }

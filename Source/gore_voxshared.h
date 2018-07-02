@@ -2,6 +2,7 @@
 #define GORE_VOXEL_SHARED_H_INCLUDED
 
 #include "gore_math.h"
+#include <vector>
 
 #define VOXEL_CHUNK_HEIGHT 256
 #define VOXEL_CHUNK_WIDTH 16
@@ -9,6 +10,8 @@
 #define VOXEL_CHUNK_HORZ_LAYER_VOXEL_COUNT 256
 #define VOXEL_CHUNK_VERT_LAYER_VOXEL_COUNT 4096
 #define VOXEL_MAX_MESH_BYTE_SIZE 9437184
+
+#define USE_STD_VECTOR_FOR_VOXEL_MESH 0
 
 enum voxel_chunk_state {
 	VoxelChunkState_None,
@@ -19,16 +22,25 @@ enum voxel_chunk_state {
 enum voxel_mesh_state {
 	VoxelMeshState_None,
 	VoxelMeshState_InProcess,
-	VoxelMeshState_Ready,
+	VoxelMeshState_Generated,
+	VoxelMeshState_Unloaded,
 };
 
 struct voxel_mesh_info {
 	platform_atomic_type_u32 State;
 
 	void* MeshHandle;
+	//NOTE(dima): MeshHandle2 used to store VBO in openGL
+	void* MeshHandle2;
 
+#if USE_STD_VECTOR_FOR_VOXEL_MESH
+	std::vector<u32> Vertices;
+#else
 	u32* Vertices;
+#endif
 	u32 VerticesCount;
+
+	platform_order_mutex MeshUseMutex;
 };
 
 struct voxworld_threadwork {

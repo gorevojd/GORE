@@ -973,6 +973,36 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
 	PlatformApi.TerminateProgram = SDLTerminateProgram;
 
+	//NOTE(dima): Allocation of alloc queue entries
+	int PlatformAllocEntriesCount = 1 << 14;
+	int MemoryForAllocEntriesRequired = PlatformAllocEntriesCount * sizeof(dealloc_queue_entry);
+	int AllocQueueEntryIndex = 0;
+	dealloc_queue_entry* Entries = (dealloc_queue_entry*)malloc(MemoryForAllocEntriesRequired);
+
+	PlatformApi.FirstUseAllocQueueEntry = Entries + AllocQueueEntryIndex++;
+	PlatformApi.FirstUseAllocQueueEntry->Next = PlatformApi.FirstUseAllocQueueEntry;
+	PlatformApi.FirstUseAllocQueueEntry->Prev = PlatformApi.FirstUseAllocQueueEntry;
+
+	PlatformApi.FirstFreeAllocQueueEntry = Entries + AllocQueueEntryIndex++;
+	PlatformApi.FirstFreeAllocQueueEntry->Next = PlatformApi.FirstFreeAllocQueueEntry;
+	PlatformApi.FirstFreeAllocQueueEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
+
+	for (AllocQueueEntryIndex;
+		AllocQueueEntryIndex < PlatformAllocEntriesCount;
+		AllocQueueEntryIndex++)
+	{
+		dealloc_queue_entry* Entry = Entries + AllocQueueEntryIndex;
+
+		Entry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
+		Entry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
+
+		Entry->Next->Prev = Entry;
+		Entry->Prev->Next = Entry;
+
+		Entry->EntryType = 0;
+		Entry->Data = {};
+	}
+
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
 	DEBUGSetLogRecording(1);
@@ -1277,6 +1307,7 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
+		OpenGLProcessAllocationQueue();
 		OpenGLRenderStackToOutput(GLState, Stack);
 		END_TIMING();
 
