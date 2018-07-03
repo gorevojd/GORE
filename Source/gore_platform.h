@@ -327,6 +327,9 @@ inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
 	Result->Next->Prev = Result->Prev;
 	Result->Prev->Next = Result->Next;
 
+	Result->Data = {};
+	Result->EntryType = {};
+
 	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
 
 	return(Result);

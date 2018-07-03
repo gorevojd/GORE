@@ -653,13 +653,17 @@ void OpenGLProcessAllocationQueue() {
 	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
 	
 	//NOTE(dima): If there is something to allocate...
-	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) {
+	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) 
+	{
 		FirstEntry = PlatformApi.FirstUseAllocQueueEntry->Next;
 		LastEntry = PlatformApi.FirstUseAllocQueueEntry->Prev;
 
 #if 0
-		FirstEntry->Prev->Next = PlatformApi.FirstUseAllocQueueEntry;
-		LastEntry->Next->Prev = PlatformApi.FirstUseAllocQueueEntry;
+		PlatformApi.FirstUseAllocQueueEntry->Next = PlatformApi.FirstUseAllocQueueEntry;
+		PlatformApi.FirstUseAllocQueueEntry->Prev = PlatformApi.FirstUseAllocQueueEntry;
+
+ 		//FirstEntry->Prev->Next = PlatformApi.FirstUseAllocQueueEntry;
+		//LastEntry->Next->Prev = PlatformApi.FirstUseAllocQueueEntry;
 		
 		FirstEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
 		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;

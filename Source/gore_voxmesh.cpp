@@ -46,7 +46,7 @@ static inline void VoxmeshWriteFace(
 	Mesh->Vertices.push_back(Value2);
 	Mesh->Vertices.push_back(Value3);
 #else
-	Mesh->Vertices[Index] = Value0;
+  	Mesh->Vertices[Index] = Value0;
 	Mesh->Vertices[Index + 1] = Value1;
 	Mesh->Vertices[Index + 2] = Value2;
 
@@ -257,7 +257,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtLeft(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Left]);
+								//WriteFaceAtLeft(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Left]);
 							}
 						}
 						if (WidthIndex == (VOXEL_CHUNK_WIDTH - 1)) {
@@ -269,7 +269,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtRight(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Right]);
+								//WriteFaceAtRight(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Right]);
 							}
 						}
 						if (DepthIndex == 0) {
@@ -281,7 +281,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtFront(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Front]);
+								//WriteFaceAtFront(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Front]);
 							}
 						}
 
@@ -294,7 +294,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtBack(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Back]);
+								//WriteFaceAtBack(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Back]);
 							}
 						}
 
@@ -307,7 +307,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtBottom(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Bottom]);
+								//WriteFaceAtBottom(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Bottom]);
 							}
 						}
 
@@ -320,7 +320,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 								}
 							}
 							else {
-								WriteFaceAtTop(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Top]);
+								//WriteFaceAtTop(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Top]);
 							}
 						}
 
@@ -582,9 +582,12 @@ inline void GetVoxelChunkPosForCamera(
 
 static voxworld_threadwork* VoxelAllocateThreadwork(
 	stacked_memory* Memory, 
-	u32 ThreadworkMemorySize) 
+	u32 ThreadworkMemorySize, 
+	int* MemoryCounter) 
 {
 	voxworld_threadwork* Result = PushStruct(Memory, voxworld_threadwork);
+
+	*MemoryCounter += sizeof(voxworld_threadwork) + ThreadworkMemorySize;
 
 	Result->Next = Result;
 	Result->Prev = Result;
@@ -704,6 +707,7 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	if (Generation->FreeTableEntrySentinel->NextBro == Generation->FreeTableEntrySentinel) {
 		//NOTE(dima): Allocate element
 		NewEntry = PushStruct(Generation->TotalMemory, voxworld_table_entry);
+		Generation->HashTableMemUsed += sizeof(voxworld_table_entry);
 	}
 	else {
 		//NOTE(dima): Get the element from free list and remove it from there
@@ -860,6 +864,11 @@ static void VoxelRegenerateSetatistics(
 	Result->TrianglesLoaded = Generation->TrianglesLoaded;
 	Generation->TrianglesLoaded = 0;
 	Generation->TrianglesPushed = 0;
+
+	Result->HashTableMemUsed = Generation->HashTableMemUsed;
+	Result->GenTasksMemUsed = Generation->GenTasksMemUsed;
+	Result->WorkTasksMemUsed = Generation->WorkTasksMemUsed;
+	Result->GenerationMem = Generation->TotalMemory;
 }
 
 struct generate_voxel_mesh_data {
@@ -884,19 +893,23 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		VoxelMeshState_InProcess,
 		VoxelMeshState_None))
 	{
+		Assert(MeshInfo->State == VoxelMeshState_InProcess);
+
 		//TODO(dima): Better memory management here
 #if USE_STD_VECTOR_FOR_VOXEL_MESH
 		MeshInfo->Vertices = std::vector<u32>();
 		//MeshInfo->Vertices.reserve(65536);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 #else
-		//WorkChunk->MeshInfo.Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		MeshInfo->Vertices = (u32*)malloc(65536 * 6 + 30000);
+		//MeshInfo->Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
+		MeshInfo->Vertices = (u32*)malloc(65536);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 		MeshInfo->Vertices = (u32*)realloc(
 			MeshInfo->Vertices,
 			MeshInfo->VerticesCount * 4);
 #endif
+
+		PlatformApi.WriteBarrier();
 
 		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Generated);
 
@@ -942,6 +955,8 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	{
 		GenerateRandomChunk(WorkChunk);
 
+		PlatformApi.WriteBarrier();
+
 		PlatformApi.AtomicSet_U32(&WorkChunk->State, VoxelChunkState_Ready);
 
 		voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(
@@ -984,6 +999,10 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 	//TODO(dima): Deallocate mesh from VAO in opengl
 	//TODO(dima): Fix waiting for mesh bug??? IMPORTANT
 
+	while (WorkChunk->State == VoxelChunkState_InProcess) {
+		int a = 1;
+	}
+
 	//NOTE(dima): Chunk is out of range and should be deallocated
 	if (PlatformApi.AtomicCAS_U32(
 		&WorkChunk->State,
@@ -1025,6 +1044,7 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			PlatformInsertDellocEntry(AllocEntry);
 		}
 
+		PlatformApi.WriteBarrier();
 		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Unloaded);
 
 		EndOrderMutex(&MeshInfo->MeshUseMutex);
@@ -1035,6 +1055,9 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			UnloadData->Generation->WorkFreeSentinel,
 			&UnloadData->Generation->WorkMutex,
 			&UnloadData->Generation->FreeWorkThreadworksCount);
+	}
+	else {
+		Assert(!"Chunk state must be READY");
 	}
 
 	//NOTE(dima): Close threadwork that contains data for this function(thread)
@@ -1068,18 +1091,30 @@ void VoxelChunksGenerationInit(
 		They are used to store loaded chunk data;
 	*/
 	Generation->WorkMutex = {};
-	Generation->WorkUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
-	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+	Generation->WorkTasksMemUsed = 0;
+
+	Generation->WorkUseSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->WorkTasksMemUsed);
+
+	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->WorkTasksMemUsed);
 
 	Generation->FreeWorkThreadworksCount = TotalChunksCount;
 	Generation->TotalWorkThreadworksCount = TotalChunksCount;
+
+	int SizeForOneWorkThreadwork = KILOBYTES(70);
 
 	for (int NewWorkIndex = 0;
 		NewWorkIndex < TotalChunksCount;
 		NewWorkIndex++) 
 	{
 		voxworld_threadwork* NewThreadwork = 
-			VoxelAllocateThreadwork(Generation->TotalMemory, KILOBYTES(70));
+			VoxelAllocateThreadwork(
+				Generation->TotalMemory, 
+				SizeForOneWorkThreadwork,
+				&Generation->WorkTasksMemUsed);
 		VoxelInsertThreadworkAfter(NewThreadwork, Generation->WorkFreeSentinel);
 	}
 
@@ -1091,8 +1126,14 @@ void VoxelChunksGenerationInit(
 	int GenThreadworksCount = 10000;
 
 	Generation->GenMutex = {};
-	Generation->GenUseSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
-	Generation->GenFreeSentinel = VoxelAllocateThreadwork(Generation->TotalMemory, 0);
+
+	Generation->GenUseSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->GenTasksMemUsed);
+
+	Generation->GenFreeSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->GenTasksMemUsed);
 
 	Generation->FreeGenThreadworksCount = GenThreadworksCount;
 	Generation->TotalGenThreadworksCount = GenThreadworksCount;
@@ -1105,13 +1146,17 @@ void VoxelChunksGenerationInit(
 
 	SizeForGenThreadwork += 16;
 
+	Generation->GenTasksMemUsed = 0;
 	for (int GenThreadworkIndex = 0;
 		GenThreadworkIndex < GenThreadworksCount;
 		GenThreadworkIndex++)
 	{
 		//NOTE(dima): 16 bytes added here because of the alignment problems that may arrive
 		voxworld_threadwork* NewThreadwork =
-			VoxelAllocateThreadwork(Generation->TotalMemory, SizeForGenThreadwork);
+			VoxelAllocateThreadwork(
+				Generation->TotalMemory, 
+				SizeForGenThreadwork,
+				&Generation->GenTasksMemUsed);
 		VoxelInsertThreadworkAfter(NewThreadwork, Generation->GenFreeSentinel);
 	}
 
@@ -1125,16 +1170,19 @@ void VoxelChunksGenerationInit(
 
 	Generation->HashTableCollisionCount = 0;
 	Generation->HashTableTotalInsertedEntries = 0;
+	Generation->HashTableMemUsed = 0;
 
 	//NOTE(dima): Initialization of free sentinel for table entries
 	Generation->FreeTableEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
 	Generation->FreeTableEntrySentinel->NextBro = Generation->FreeTableEntrySentinel;
 	Generation->FreeTableEntrySentinel->PrevBro = Generation->FreeTableEntrySentinel;
+	Generation->HashTableMemUsed += sizeof(voxworld_table_entry);
 
 	//NOTE(dima): Initialization of work sentinel for table entries
 	Generation->WorkTableEntrySentinel = PushStruct(Generation->TotalMemory, voxworld_table_entry);
 	Generation->WorkTableEntrySentinel->NextBro = Generation->WorkTableEntrySentinel;
 	Generation->WorkTableEntrySentinel->PrevBro = Generation->WorkTableEntrySentinel;
+	Generation->HashTableMemUsed += sizeof(voxworld_table_entry);
 }
 
 void VoxelChunksGenerationUpdate(
@@ -1187,7 +1235,7 @@ void VoxelChunksGenerationUpdate(
 
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
-						Assert(NeededChunk->MeshInfo.VerticesCount != 0);
+						//Assert(NeededChunk->MeshInfo.VerticesCount != 0);
 
 						RENDERPushVoxelMesh(
 							RenderState,

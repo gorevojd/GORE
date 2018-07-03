@@ -2058,11 +2058,15 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-static void DEBUGVoxelThreadQueueInfoElement(debug_state* State, platform_thread_queue_info* QueueInfo) 
+static void DEBUGVoxelGenerationGraphElement(
+	debug_state* State, 
+	voxel_generation_statistics* Stat) 
 {
 	gui_state* GUIState = State->GUIState;
 
-	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, "VoxelThreadQueueOverlay", 0, 1, 1);
+	platform_thread_queue_info* QueueInfo = &PlatformApi.GetThreadQueueInfo(Stat->Queue);
+
+	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, "VoxelOverlay", 0, 1, 1);
 
 	if (GUIElementShouldBeUpdated(Elem)) {
 		GUIPreAdvanceCursor(GUIState);
@@ -2084,14 +2088,88 @@ static void DEBUGVoxelThreadQueueInfoElement(debug_state* State, platform_thread
 		v2 RectMin = V2(Layout->CurrentX, Layout->CurrentY - AscByScale);
 		rect2 WorkRect = Rect2MinDim(RectMin, *WorkDim);
 
+		//NOTE(dima): Voxel thread queue info
 		float BusyPercentage = (float)QueueInfo->EntriesBusy / (float)QueueInfo->TotalEntriesCount;
 
-		rect2 BusyRect = Rect2MinDim(RectMin, V2(BusyPercentage * WorkDim->x, WorkDim->y));
-		rect2 FreeRect = Rect2MinMax(V2(BusyRect.Max.x, BusyRect.Min.y), WorkRect.Max);
+		rect2 BusyRect = Rect2MinDim(RectMin, V2(BusyPercentage * WorkDim->x, WorkDim->y / 2));
+		rect2 FreeRect = Rect2MinMax(V2(BusyRect.Max.x, BusyRect.Min.y), V2(WorkRect.Max.x, BusyRect.Max.y));
 
 		RENDERPushRect(GUIState->RenderStack, BusyRect, GUIGetColor(GUIState, ColorExt_OrangeRed2));
 		RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, ColorExt_DarkGreen));
+
+		//NOTE(dima): Voxel generation memory occupation
+		float GenTasksPercentage = (float)Stat->GenTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
+		float WorkTasksPercentage = (float)Stat->WorkTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
+		float HashTablePercentage = (float)Stat->HashTableMemUsed / (float)Stat->GenerationMem->MaxSize;
+		float FreePercentage = (float)(Stat->GenerationMem->MaxSize - Stat->GenerationMem->Used) / (float)Stat->GenerationMem->MaxSize;
+
+		float GenTasksWidth = WorkDim->x * GenTasksPercentage;
+		float WorkTasksWidth = WorkDim->x * WorkTasksPercentage;
+		float HashTableWidth = WorkDim->x * HashTablePercentage;
+		float FreeWidth = WorkDim->x * FreePercentage;
+
+		struct voxel_mem_info_entry{
+			char* Name;
+			float MbOccupied;
+			float Width;
+			v4 Color;
+		};
+
+		voxel_mem_info_entry GenTasksEntry = { 
+			"Generation tasks memory", 
+			(float)Stat->GenTasksMemUsed / (float)MEGABYTES(1), 
+			GenTasksWidth, 
+			GUIGetColor(GUIState, Color_Yellow) };
+
+		voxel_mem_info_entry WorkTasksEntry = { 
+			"Work tasks memory", 
+			(float)Stat->WorkTasksMemUsed / (float)MEGABYTES(1), 
+			WorkTasksWidth, 
+			GUIGetColor(GUIState, Color_Cyan) };
+
+		voxel_mem_info_entry HashTableEntry = { 
+			"Hash table memory", 
+			(float)Stat->HashTableMemUsed / (float)MEGABYTES(1), 
+			HashTableWidth, 
+			GUIGetColor(GUIState, Color_Red) };
+
+		voxel_mem_info_entry FreeTableEntry = {
+			"Free",
+			(float)(Stat->GenerationMem->MaxSize - Stat->GenerationMem->Used) / (float)MEGABYTES(1),
+			FreeWidth,
+			GUIGetColor(GUIState, Color_Green) };
+
+		voxel_mem_info_entry Entries[] = {
+			GenTasksEntry,
+			WorkTasksEntry,
+			HashTableEntry,
+			FreeTableEntry,
+		};
+
 		RENDERPushRectOutline(GUIState->RenderStack, WorkRect, 2, GUIGetColor(GUIState, GUIState->ColorTheme.OutlineColor));
+
+		v2 AtSecond = V2(RectMin.x, BusyRect.Max.y);
+		float RcHeight = WorkDim->y / 2;
+		for (int MemInfoIndex = 0;
+			MemInfoIndex < ArrayCount(Entries);
+			MemInfoIndex++)
+		{
+			voxel_mem_info_entry* Entry = Entries + MemInfoIndex;
+
+			rect2 EntryRc = Rect2MinDim(AtSecond, V2(Entry->Width, RcHeight));
+
+			RENDERPushRect(GUIState->RenderStack, EntryRc, Entry->Color);
+
+			if (MouseInRect(GUIState->Input, EntryRc)) {
+				char LabelTxt[64];
+				stbsp_sprintf(LabelTxt, "%s: %.2fmb occupied", Entry->Name, Entry->MbOccupied);
+				GUITooltip(GUIState, LabelTxt);
+
+				RENDERPushRectInnerOutline(GUIState->RenderStack, EntryRc, 2, GUIGetColor(GUIState, Color_Magenta));
+			}
+
+			AtSecond.x += Entry->Width;
+		}
 
 		gui_interaction ResizeInteraction = GUIResizeInteraction(RectMin, WorkDim, GUIResizeInteraction_Default);
 		GUIAnchor(GUIState, "Anchor0", WorkRect.Max, V2(10, 10), &ResizeInteraction);
@@ -2106,10 +2184,10 @@ static void DEBUGVoxelThreadQueueInfoElement(debug_state* State, platform_thread
 static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_statistics* GenerationStat) {
 
 	gui_state* GUI = State->GUIState;
-
+	
 	platform_thread_queue_info QueueInfo = PlatformApi.GetThreadQueueInfo(GenerationStat->Queue);
 
-	DEBUGVoxelThreadQueueInfoElement(State, &QueueInfo);
+	DEBUGVoxelGenerationGraphElement(State, GenerationStat);
 
 	gui_element* Elem = GUIBeginElement(
 		GUI, GUIElement_CachedItem, "VoxelStat",
@@ -2120,7 +2198,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 
 		GUIPreAdvanceCursor(GUI);
 
-		char QueueStat[64];
+		char QueueStat[128];
 		char Stat0Str[128];
 		char ChunkIDsStr[64];
 		char Stat1Str[64];
@@ -2131,10 +2209,10 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 		char HashTableStat[128];
 		char TrianglesStatp[64];
 
-		stbsp_sprintf(QueueStat, "%d entries busy; %d total; %d working threads active",
-			QueueInfo.EntriesBusy,
+		stbsp_sprintf(QueueStat, "%d working threads active; %d total; %d entries busy",
+			QueueInfo.WorkingThreadsCount,
 			QueueInfo.TotalEntriesCount,
-			QueueInfo.WorkingThreadsCount);
+			QueueInfo.EntriesBusy);
 
 		stbsp_sprintf(Stat0Str, "CamP: (X)%.2f (Y)%.2f (Z)%.2f",
 			GenerationStat->CameraPos.x,
@@ -2163,11 +2241,11 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->HashTableCollisionCount);
 
 		stbsp_sprintf(ThisFrameMeshStartStat,
-			"%d mesh gens started this frame",
+			"Mesh gens started this frame: %d",
 			GenerationStat->MeshGenerationsStartedThisFrame);
 
 		stbsp_sprintf(ChunksStat,
-			"Chunks: %d pushed",
+			"Chunks pushed %d",
 			GenerationStat->ChunksPushedToRender);
 
 		stbsp_sprintf(TrianglesStatp, "Triagnles pushed %d; loaded %d",

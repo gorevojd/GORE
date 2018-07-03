@@ -42,6 +42,7 @@ struct voxworld_generation_state {
 	int FreeWorkThreadworksCount;
 	int TotalWorkThreadworksCount;
 
+	int WorkTasksMemUsed;
 	platform_order_mutex WorkMutex;
 	voxworld_threadwork* WorkUseSentinel;
 	voxworld_threadwork* WorkFreeSentinel;
@@ -53,6 +54,7 @@ struct voxworld_generation_state {
 	int FreeGenThreadworksCount;
 	int TotalGenThreadworksCount;
 
+	int GenTasksMemUsed;
 	platform_order_mutex GenMutex;
 	voxworld_threadwork* GenUseSentinel;
 	voxworld_threadwork* GenFreeSentinel;
@@ -69,6 +71,7 @@ struct voxworld_generation_state {
 	
 	stacked_memory* TotalMemory;
 
+	int HashTableMemUsed;
 #define VOXWORLD_TABLE_SIZE 2048
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];
 	int HashTableCollisionCount;

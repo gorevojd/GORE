@@ -26,6 +26,11 @@ struct voxel_generation_statistics{
 	int TrianglesLoaded;
 
 	platform_thread_queue* Queue;
+
+	int HashTableMemUsed;
+	int GenTasksMemUsed;
+	int WorkTasksMemUsed;
+	stacked_memory* GenerationMem;
 };
 
 #endif
