@@ -586,7 +586,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	Result.GraphColor3 = ColorExt_red3;
 	Result.GraphColor4 = ColorExt_blue1;
 	Result.GraphColor5 = ColorExt_orange2;
-	Result.GraphColor6 = ColorExt_magenta;
+	Result.GraphColor6 = Color_PrettyBlue;
 	Result.GraphColor7 = ColorExt_DarkGoldenrod3;
 	Result.GraphColor8 = ColorExt_chartreuse3;
 

@@ -682,8 +682,6 @@ inline u32 GetKeyFromIndices(int X, int Y, int Z) {
 
 static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
 {
-	FUNCTION_TIMING();
-
 	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
@@ -1316,6 +1314,7 @@ void VoxelChunksGenerationUpdate(
 				}
 			}
 			else {
+				BEGIN_TIMING("Insertion and starting generation");
 				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(
 					Generation->WorkFreeSentinel,
 					Generation->WorkUseSentinel,
@@ -1360,6 +1359,7 @@ void VoxelChunksGenerationUpdate(
 
 					VoxelInsertToTable(Generation, ChunkInfo);
 				}
+				END_TIMING();
 			}
 		}
 	}

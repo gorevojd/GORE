@@ -1258,7 +1258,7 @@ int main(int ArgsCount, char** Args) {
 		}
 		END_TIMING();
 
-		BEGIN_REPEATED_TIMING("Other...");
+		BEGIN_TIMING("Other...");
 		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets);
 		render_state* Stack = &Stack_;
 
@@ -1309,7 +1309,7 @@ int main(int ArgsCount, char** Args) {
 		DEBUGUpdate(DEBUGState);
 		END_TIMING();
 
-		BEGIN_REPEATED_TIMING("Other...");
+		BEGIN_TIMING("FramePreparing");
 		GUIPrepareFrame(GUIState);
 		END_TIMING();
 
@@ -1347,7 +1347,7 @@ int main(int ArgsCount, char** Args) {
 		SDL_FreeSurface(Surf);
 #endif
 
-		BEGIN_REPEATED_TIMING("Other...");
+		BEGIN_TIMING("FrameEnding");
 		GUIEndFrame(GUIState);
 		RENDEREndStack(Stack);
 		END_TIMING();

@@ -673,6 +673,7 @@ static void DEBUGProcessRecords(debug_state* State) {
 				//NOTE(dima): difference between start and end clocks
 				u64 ClocksElapsedForThisTiming = Record->Clocks - TimingSnapshot->BeginClocks;
 				TimingSnapshot->ClocksElapsed += ClocksElapsedForThisTiming;
+				//TimingSnapshot->HitCount++;
 
 				//TODO(dima): think about not going through children.. Instead of it
 				//TODO(dima): I might just change parent childrenSumCLocks
@@ -1957,6 +1958,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					}
 				}
 
+				b32 FirstLane = 1;
 				b32 PutLanesOnStack = 0;
 				float LastMaxX = 0.0f;
 
@@ -1965,22 +1967,47 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					AtChildren != View->ChildrenSentinel;
 					AtChildren = AtChildren->NextBro) 
 				{
+					b32 TimingStatisticWasAllocated;
+					debug_timing_statistic* TimingStatistic = DEBUGInitDebugStatistic(
+						&Frame->FrameMemory,
+						Frame->TimingStatistics,
+						Frame->TimingStatisticSentinel,
+						AtChildren->UniqueName,
+						&TimingStatisticWasAllocated);
 
+					/*
+						NOTE(dima): Some assumptions made here. If we have
+						timing that has HitCount greater than 1 I would put
+						this lane as a whole. NOT BY PIECES. It means that 
+						order of lanes might change and this means that they
+						would overlap.
+					*/
 					float TempCalc = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.FirstEntryBeginClocks - FrameStartTime) * OneOverTotalClocks);
 					float TargetX = TempCalc;
+
 					if (PutLanesOnStack) {
 						TargetX = LastMaxX;
+						PutLanesOnStack = 0;
 					}
 
-					if (AtChildren->TimingSnapshot.HitCount > 1) {
+					if (TimingStatistic->Timing.HitCount > 1) {
 						PutLanesOnStack = 1;
+					}
+
+					if (FirstLane) {
 						TargetX = TempCalc;
 					}
 
+#if 0
 					float TargetFramePercentage = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks;
 					float TargetWidth = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks * WorkDim->x;
+#else
+					float TargetFramePercentage = (float)TimingStatistic->Timing.ClocksElapsed * OneOverTotalClocks;
+					float TargetWidth = TargetFramePercentage * WorkDim->x;
+#endif
 					float ThisMaxX = TargetX + TargetWidth;
 					LastMaxX = ThisMaxX;
+					FirstLane = 0;
 
 					int ColorIndex = AtChildren->ID % DEBUG_GRAPH_COLORS_TABLE_SIZE;
 
@@ -1990,7 +2017,6 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					LaneColor.a = 0.3f;
 					RENDERPushRect(GUIState->RenderStack, LaneRect, LaneColor);
 					RENDERPushRectOutline(GUIState->RenderStack, LaneRect, 1, OutlineColor);
-
 
 					if (MouseInRect(GUIState->Input, LaneRect)) {
 						HotOulineShouldBeDrawn = 1;
@@ -2015,7 +2041,6 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 							}
 						}
 					}
-
 				}
 
 				char ViewingTimingNodeName[128];
