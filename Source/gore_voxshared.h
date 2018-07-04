@@ -11,6 +11,9 @@
 #define VOXEL_CHUNK_VERT_LAYER_VOXEL_COUNT 4096
 #define VOXEL_MAX_MESH_BYTE_SIZE 9437184
 
+typedef u32 voxel_vert_t;
+#define VOXEL_VERTEX_SIZE sizeof(voxel_vert_t)
+
 #define USE_STD_VECTOR_FOR_VOXEL_MESH 0
 
 enum voxel_chunk_state {
@@ -34,9 +37,9 @@ struct voxel_mesh_info {
 	void* MeshHandle2;
 
 #if USE_STD_VECTOR_FOR_VOXEL_MESH
-	std::vector<u32> Vertices;
+	std::vector<voxel_vert_t> Vertices;
 #else
-	u32* Vertices;
+	voxel_vert_t* Vertices;
 #endif
 	u32 VerticesCount;
 

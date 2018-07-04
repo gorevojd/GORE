@@ -59,6 +59,20 @@ struct voxworld_generation_state {
 	voxworld_threadwork* GenUseSentinel;
 	voxworld_threadwork* GenFreeSentinel;
 
+	/*
+		NOTE(dima): Mesh threadworks are used to
+		store max possible memory for allocating 
+		the mesh.
+	*/
+	int FreeMeshThreadworks;
+	int TotalMeshThreadworks;
+
+	int MeshTasksMemUsed;
+	platform_order_mutex MeshMutex;
+	voxworld_threadwork* MeshUseSentinel;
+	voxworld_threadwork* MeshFreeSentinel;
+
+
 	int ChunksSideCount;
 	int ChunksCount;
 	int ChunksViewDistance;
@@ -91,7 +105,8 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
-	int ChunksViewDistanceCount);
+	int ChunksViewDistanceCount,
+	int VoxelThreadQueueSize);
 
 void VoxelChunksGenerationUpdate(
 	voxworld_generation_state* Generation,

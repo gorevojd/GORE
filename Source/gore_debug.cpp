@@ -2100,11 +2100,13 @@ static void DEBUGVoxelGenerationGraphElement(
 		//NOTE(dima): Voxel generation memory occupation
 		float GenTasksPercentage = (float)Stat->GenTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float WorkTasksPercentage = (float)Stat->WorkTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
+		float MeshTasksPercentage = (float)Stat->MeshTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float HashTablePercentage = (float)Stat->HashTableMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float FreePercentage = (float)(Stat->GenerationMem->MaxSize - Stat->GenerationMem->Used) / (float)Stat->GenerationMem->MaxSize;
 
 		float GenTasksWidth = WorkDim->x * GenTasksPercentage;
 		float WorkTasksWidth = WorkDim->x * WorkTasksPercentage;
+		float MeshTasksWidth = WorkDim->x * MeshTasksPercentage;
 		float HashTableWidth = WorkDim->x * HashTablePercentage;
 		float FreeWidth = WorkDim->x * FreePercentage;
 
@@ -2127,6 +2129,12 @@ static void DEBUGVoxelGenerationGraphElement(
 			WorkTasksWidth, 
 			GUIGetColor(GUIState, Color_Cyan) };
 
+		voxel_mem_info_entry MeshTasksEntry = {
+			"Mesh tasks memory",
+			(float)Stat->MeshTasksMemUsed / (float)MEGABYTES(1),
+			MeshTasksWidth,
+			GUIGetColor(GUIState, Color_Purple)};
+
 		voxel_mem_info_entry HashTableEntry = { 
 			"Hash table memory", 
 			(float)Stat->HashTableMemUsed / (float)MEGABYTES(1), 
@@ -2142,6 +2150,7 @@ static void DEBUGVoxelGenerationGraphElement(
 		voxel_mem_info_entry Entries[] = {
 			GenTasksEntry,
 			WorkTasksEntry,
+			MeshTasksEntry,
 			HashTableEntry,
 			FreeTableEntry,
 		};

@@ -868,6 +868,7 @@ static void VoxelRegenerateSetatistics(
 	Result->HashTableMemUsed = Generation->HashTableMemUsed;
 	Result->GenTasksMemUsed = Generation->GenTasksMemUsed;
 	Result->WorkTasksMemUsed = Generation->WorkTasksMemUsed;
+	Result->MeshTasksMemUsed = Generation->MeshTasksMemUsed;
 	Result->GenerationMem = Generation->TotalMemory;
 }
 
@@ -885,6 +886,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 
 	voxel_chunk_info* ChunkInfo = GenData->Chunk;
 	voxel_mesh_info* MeshInfo = &GenData->Chunk->MeshInfo;
+	voxworld_generation_state* Generation = GenData->Generation;
 
 	BeginOrderMutex(&MeshInfo->MeshUseMutex);
 
@@ -901,12 +903,31 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		//MeshInfo->Vertices.reserve(65536);
 		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
 #else
-		//MeshInfo->Vertices = (u32*)malloc(65536 * 6 * 6 * 4);
-		MeshInfo->Vertices = (u32*)malloc(65536);
-		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
-		MeshInfo->Vertices = (u32*)realloc(
-			MeshInfo->Vertices,
-			MeshInfo->VerticesCount * 4);
+		voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
+			Generation->MeshFreeSentinel,
+			Generation->MeshUseSentinel,
+			&Generation->MeshMutex,
+			&Generation->FreeMeshThreadworks);
+
+		voxel_mesh_info TempMeshInfo = {};
+		TempMeshInfo.Vertices = (voxel_vert_t*)MeshThreadwork->Memory.BaseAddress;
+
+		//NOTE(dima): Generate mesh to temp buffer
+		VoxmeshGenerate(&TempMeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
+
+		//NOTE(dima): Allocated buffer with needed size
+		int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
+		MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
+		MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
+
+		//NOTE(dima): Copy generated mesh into new buffer
+		CopyMemory(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
+
+		VoxelEndThreadwork(
+			MeshThreadwork,
+			Generation->MeshFreeSentinel,
+			&Generation->MeshMutex,
+			&Generation->FreeMeshThreadworks);
 #endif
 
 		PlatformApi.WriteBarrier();
@@ -1071,7 +1092,8 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
-	int ChunksViewDistanceCount)
+	int ChunksViewDistanceCount,
+	int VoxelThreadQueueSize)
 {
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
 	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
@@ -1085,6 +1107,43 @@ void VoxelChunksGenerationInit(
 	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->TotalMemory = Memory;
+
+	/* 
+		NOTE(dima): Initialization of mesh threadworks.
+		They are used to store mesh data for generating mesh.
+	*/
+	Generation->MeshMutex = {};
+	Generation->MeshTasksMemUsed = 0;
+
+	Generation->MeshUseSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->MeshTasksMemUsed);
+
+	Generation->MeshFreeSentinel = VoxelAllocateThreadwork(
+		Generation->TotalMemory, 0,
+		&Generation->MeshTasksMemUsed);
+
+	Generation->FreeMeshThreadworks = VoxelThreadQueueSize;
+	Generation->TotalMeshThreadworks = VoxelThreadQueueSize;
+
+	/*
+		NOTE(dima): 65536 possible cubes in chunk by 6 sides
+		by 6 verts per side. The worst case will be when every
+		second cube is filled so I divided by 2 here
+	*/
+	int SizeForOneMeshThreadwork = 65536 * 6 * 6 * 4 / 2;
+
+	for (int MeshThreadworkIndex = 0;
+		MeshThreadworkIndex < VoxelThreadQueueSize;
+		MeshThreadworkIndex++)
+	{
+		voxworld_threadwork* Threadwork = VoxelAllocateThreadwork(
+			Generation->TotalMemory,
+			SizeForOneMeshThreadwork,
+			&Generation->MeshTasksMemUsed);
+
+		VoxelInsertThreadworkAfter(Threadwork, Generation->MeshFreeSentinel);
+	}
 
 	/*
 		NOTE(dima): Initialization of work threadworks.

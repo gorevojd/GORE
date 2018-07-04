@@ -30,6 +30,7 @@ struct voxel_generation_statistics{
 	int HashTableMemUsed;
 	int GenTasksMemUsed;
 	int WorkTasksMemUsed;
+	int MeshTasksMemUsed;
 	stacked_memory* GenerationMem;
 };
 
