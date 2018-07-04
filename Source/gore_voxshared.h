@@ -4,6 +4,8 @@
 #include "gore_math.h"
 #include <vector>
 
+#define VOXEL_WORLD_ENABLED 1
+
 #define VOXEL_CHUNK_HEIGHT 256
 #define VOXEL_CHUNK_WIDTH 16
 #define VOXEL_CHUNK_TOTAL_VOXELS_COUNT 65536

@@ -682,6 +682,8 @@ inline u32 GetKeyFromIndices(int X, int Y, int Z) {
 
 static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
 {
+	FUNCTION_TIMING();
+
 	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
@@ -1024,6 +1026,8 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		int a = 1;
 	}
 
+	u32 TempChunkState = WorkChunk->State;
+
 	//NOTE(dima): Chunk is out of range and should be deallocated
 	if (PlatformApi.AtomicCAS_U32(
 		&WorkChunk->State,
@@ -1054,6 +1058,9 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 #else
 			if (MeshInfo->Vertices) {
 				free(MeshInfo->Vertices);
+			}
+			else {
+				int a = 1;
 			}
 			MeshInfo->Vertices = 0;
 #endif

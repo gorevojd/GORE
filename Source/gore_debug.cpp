@@ -1957,15 +1957,30 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 					}
 				}
 
+				b32 PutLanesOnStack = 0;
+				float LastMaxX = 0.0f;
+
 				debug_tree_node* AtChildren = View->ChildrenSentinel->NextBro;
 				for (AtChildren;
 					AtChildren != View->ChildrenSentinel;
 					AtChildren = AtChildren->NextBro) 
 				{
 
-					float TargetX = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.FirstEntryBeginClocks - FrameStartTime) * OneOverTotalClocks);
+					float TempCalc = WorkRect.Min.x + WorkDim->x * ((float)(AtChildren->TimingSnapshot.FirstEntryBeginClocks - FrameStartTime) * OneOverTotalClocks);
+					float TargetX = TempCalc;
+					if (PutLanesOnStack) {
+						TargetX = LastMaxX;
+					}
+
+					if (AtChildren->TimingSnapshot.HitCount > 1) {
+						PutLanesOnStack = 1;
+						TargetX = TempCalc;
+					}
+
 					float TargetFramePercentage = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks;
 					float TargetWidth = (float)AtChildren->TimingSnapshot.ClocksElapsed * OneOverTotalClocks * WorkDim->x;
+					float ThisMaxX = TargetX + TargetWidth;
+					LastMaxX = ThisMaxX;
 
 					int ColorIndex = AtChildren->ID % DEBUG_GRAPH_COLORS_TABLE_SIZE;
 

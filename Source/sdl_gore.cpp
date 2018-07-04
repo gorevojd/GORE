@@ -1017,7 +1017,7 @@ int main(int ArgsCount, char** Args) {
 
 	//NOTE(dima): Initialization of the memory
 	u32 GameModeMemorySize = MEGABYTES(128);
-	u32 GeneralPurposeMemorySize = MEGABYTES(512);
+	u32 GeneralPurposeMemorySize = MEGABYTES(256);
 	u32 DEBUGMemorySize = MEGABYTES(128);
 
 	u64 TotalMemoryBlockSize =
@@ -1030,6 +1030,13 @@ int main(int ArgsCount, char** Args) {
 	void* GameModeMemPointer = PlatformMemoryBlock;
 	void* GeneralPurposeMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
 	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
+
+#if VOXEL_WORLD_ENABLED
+	u32 VoxelMemorySize = MEGABYTES(1000);
+
+	void* VoxelMemory = calloc(VoxelMemorySize, 1);
+	stacked_memory VoxelMemoryStack = InitStackedMemory(VoxelMemory, VoxelMemorySize);
+#endif
 
 	PlatformApi.GameModeMemoryBlock = InitStackedMemory(PlatformMemoryBlock, GameModeMemorySize);
 	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
@@ -1200,13 +1207,14 @@ int main(int ArgsCount, char** Args) {
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
 	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
-	stacked_memory VoxelMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(256));
 
 	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
+#if VOXEL_WORLD_ENABLED
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemory, 20, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 40, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
+#endif
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
@@ -1283,7 +1291,9 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
+#if VOXEL_WORLD_ENABLED
 		VoxelChunksGenerationUpdate(&VoxelGeneration, Stack, GameState.Camera.Position);
+#endif
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);
