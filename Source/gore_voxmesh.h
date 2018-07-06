@@ -85,6 +85,8 @@ struct voxworld_generation_state {
 	
 	stacked_memory* TotalMemory;
 
+	platform_order_mutex MemoryAllocatorMutex;
+
 	int HashTableMemUsed;
 #define VOXWORLD_TABLE_SIZE 2048
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];

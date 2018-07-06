@@ -1032,7 +1032,7 @@ int main(int ArgsCount, char** Args) {
 	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
 
 #if VOXEL_WORLD_ENABLED
-	u32 VoxelMemorySize = MEGABYTES(1000);
+	u32 VoxelMemorySize = MEGABYTES(700);
 
 	void* VoxelMemory = calloc(VoxelMemorySize, 1);
 	stacked_memory VoxelMemoryStack = InitStackedMemory(VoxelMemory, VoxelMemorySize);
@@ -1213,7 +1213,7 @@ int main(int ArgsCount, char** Args) {
 
 #if VOXEL_WORLD_ENABLED
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 40, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 20, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
 #endif
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);

@@ -574,7 +574,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				_glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, TextureToBind);
 				glUniform1i(Shader->DiffuseMapLocation, 0);
-
+				 
 				glUniformMatrix4fv(
 					Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
 

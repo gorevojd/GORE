@@ -533,9 +533,9 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 			int SetHeight = (int)RandHeight;
 			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
 
-			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_SnowGround;
+			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_GrassyGround;
 
-			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_WinterGround);
+			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_Ground);
 		}
 	}
 }
@@ -909,6 +909,8 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 			&Generation->MeshMutex,
 			&Generation->FreeMeshThreadworks);
 
+		Assert(MeshThreadwork);
+
 		voxel_mesh_info TempMeshInfo = {};
 		TempMeshInfo.Vertices = (voxel_vert_t*)MeshThreadwork->Memory.BaseAddress;
 
@@ -917,11 +919,15 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 
 		//NOTE(dima): Allocated buffer with needed size
 		int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
+
+		BeginOrderMutex(&Generation->MemoryAllocatorMutex);
 		MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
+		EndOrderMutex(&Generation->MemoryAllocatorMutex);
+
 		MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
 
 		//NOTE(dima): Copy generated mesh into new buffer
-		CopyMemory(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
+		memcpy(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
 
 		VoxelEndThreadwork(
 			MeshThreadwork,
@@ -1112,6 +1118,8 @@ void VoxelChunksGenerationInit(
 	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->TotalMemory = Memory;
+
+	Generation->MemoryAllocatorMutex = {};
 
 	/* 
 		NOTE(dima): Initialization of mesh threadworks.
