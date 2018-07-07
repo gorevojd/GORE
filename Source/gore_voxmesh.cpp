@@ -37,15 +37,6 @@ static inline void VoxmeshWriteFace(
 	u32 Value2 = GetEncodedVertexData32(P2, TextureIndex, VoxelTextureVertType_DownRight, NormalIndex);
 	u32 Value3 = GetEncodedVertexData32(P3, TextureIndex, VoxelTextureVertType_DownLeft, NormalIndex);
 
-#if USE_STD_VECTOR_FOR_VOXEL_MESH
-	Mesh->Vertices.push_back(Value0);
-	Mesh->Vertices.push_back(Value1);
-	Mesh->Vertices.push_back(Value2);
-	
-	Mesh->Vertices.push_back(Value0);
-	Mesh->Vertices.push_back(Value2);
-	Mesh->Vertices.push_back(Value3);
-#else
   	Mesh->Vertices[Index] = Value0;
 	Mesh->Vertices[Index + 1] = Value1;
 	Mesh->Vertices[Index + 2] = Value2;
@@ -53,7 +44,6 @@ static inline void VoxmeshWriteFace(
 	Mesh->Vertices[Index + 3] = Value0;
 	Mesh->Vertices[Index + 4] = Value2;
 	Mesh->Vertices[Index + 5] = Value3;
-#endif
 
 	Mesh->VerticesCount += 6;
 }
@@ -472,32 +462,6 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 
 	for (int j = 0; j < VOXEL_CHUNK_WIDTH; j++) {
 		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
-
-#if 0
-			float NoiseScale1 = 3.0f;&
-			float NoiseScale2 = 20.0f;
-			float NoiseScale3 = 120.0f;
-
-			float Noise1Scale = 16.0f;
-			float Noise1 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / Noise1Scale,
-				(float)ChunkPos.y / Noise1Scale,
-				(float)(ChunkPos.z + j) / Noise1Scale, 0, 0, 0);
-
-			float Noise2Scale = 32.0f;
-			float Noise2 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / Noise2Scale,
-				(float)ChunkPos.y / Noise2Scale,
-				(float)(ChunkPos.z + j) / Noise2Scale, 0, 0, 0);
-
-			float Noise3Scale = 64.0f;
-			float Noise3 = stb_perlin_noise3(
-				(float)(ChunkPos.x + i) / Noise3Scale,
-				(float)ChunkPos.y / Noise3Scale,
-				(float)(ChunkPos.z + j) / Noise3Scale, 0, 0, 0);
-		
-			float RandHeight = (Noise1 * NoiseScale1 + Noise2 * NoiseScale2 + Noise3 * NoiseScale3) + StartHeight;
-#else
 			int Octaves = 6;
 			float Lacunarity = 2.0f;
 			float Gain = 0.5f;
@@ -527,7 +491,6 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 #endif
 
 			float RandHeight = StartHeight + Noise * 127;
-#endif
 
 
 			int SetHeight = (int)RandHeight;
@@ -685,6 +648,8 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
+	BeginOrderMutex(&Generation->HashTableOpMutex);
+
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
 
 	voxworld_table_entry* PrevEntry = 0;
@@ -737,6 +702,8 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	}
 
 	Generation->HashTableTotalInsertedEntries++;
+
+	EndOrderMutex(&Generation->HashTableOpMutex);
 }
 
 static void VoxelDeleteFromTable(
@@ -748,6 +715,7 @@ static void VoxelDeleteFromTable(
 	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
+	BeginOrderMutex(&Generation->HashTableOpMutex);
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
 
 	//NOTE(dima): This element MUST exist
@@ -790,6 +758,7 @@ static void VoxelDeleteFromTable(
 		PrevEntry = At;
 		At = At->NextInHash;
 	}
+	EndOrderMutex(&Generation->HashTableOpMutex);
 }
 
 static voxel_chunk_info* VoxelFindChunk(
@@ -803,6 +772,7 @@ static voxel_chunk_info* VoxelFindChunk(
 	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
+	BeginOrderMutex(&Generation->HashTableOpMutex);
 	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
 	
 	voxworld_table_entry* At = FirstEntry;
@@ -822,6 +792,8 @@ static voxel_chunk_info* VoxelFindChunk(
 
 		At = At->NextInHash;
 	}
+
+	EndOrderMutex(&Generation->HashTableOpMutex);
 
 	return(Result);
 }
@@ -898,11 +870,6 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		Assert(MeshInfo->State == VoxelMeshState_InProcess);
 
 		//TODO(dima): Better memory management here
-#if USE_STD_VECTOR_FOR_VOXEL_MESH
-		MeshInfo->Vertices = std::vector<u32>();
-		//MeshInfo->Vertices.reserve(65536);
-		VoxmeshGenerate(MeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
-#else
 		voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
 			Generation->MeshFreeSentinel,
 			Generation->MeshUseSentinel,
@@ -934,11 +901,10 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 			Generation->MeshFreeSentinel,
 			&Generation->MeshMutex,
 			&Generation->FreeMeshThreadworks);
-#endif
 
 		PlatformApi.WriteBarrier();
 
-		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Generated);
+		MeshInfo->State = VoxelMeshState_Generated;
 
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
@@ -1023,73 +989,71 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 
 	voxel_chunk_info* WorkChunk = UnloadData->Chunk;
 
-	//TODO(dima): Deallocate mesh from VAO in opengl
-	//TODO(dima): Fix waiting for mesh bug??? IMPORTANT
-
-	while (WorkChunk->State == VoxelChunkState_InProcess) {
-		int a = 1;
-	}
-
-	u32 TempChunkState = WorkChunk->State;
+	PlatformApi.ReadBarrier();
 
 	//NOTE(dima): Chunk is out of range and should be deallocated
-	if (PlatformApi.AtomicCAS_U32(
-		&WorkChunk->State,
-		VoxelChunkState_None,
-		VoxelChunkState_Ready))
+	if(WorkChunk->State == VoxelChunkState_Ready)
 	{
 		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
 
-		//NOTE(dima): Infinite loop to wait for the mesh to become generated
-		while (MeshInfo->State == VoxelMeshState_InProcess) {
-			/*NOTE(dima): Reaching this point means that
-			when we are about to unload the chunk the mesh
-			is still generating..
+		PlatformApi.ReadBarrier();
 
-			So what I do here is that I just wait until
-			mesh becomes generated.
-			*/
-			int a = 1;
-		}
+		if (MeshInfo->State != VoxelMeshState_None) {
 
-		//Assert(MeshInfo->State == VoxelMeshState_Generated);
+			//NOTE(dima): Infinite loop to wait for the mesh to become generated
+			while (MeshInfo->State == VoxelMeshState_InProcess) {
+				/*NOTE(dima): Reaching this point means that
+				when we are about to unload the chunk the mesh
+				is still generating..
 
-		BeginOrderMutex(&MeshInfo->MeshUseMutex);
-		
-		if (MeshInfo->State == VoxelMeshState_Generated) {
-#if USE_STD_VECTOR_FOR_VOXEL_MESH
-			MeshInfo->Vertices.clear();
-#else
-			if (MeshInfo->Vertices) {
-				free(MeshInfo->Vertices);
-			}
-			else {
+				So what I do here is that I just wait until
+				mesh becomes generated.
+				*/
 				int a = 1;
 			}
+
+			PlatformApi.ReadBarrier();
+
+			Assert(MeshInfo->State == VoxelMeshState_Generated);
+
+			BeginOrderMutex(&MeshInfo->MeshUseMutex);
+
+			if (MeshInfo->Vertices) {
+				BeginOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
+				free(MeshInfo->Vertices);
+				EndOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
+			}
+
 			MeshInfo->Vertices = 0;
-#endif
 			MeshInfo->VerticesCount = 0;
 
 			dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
 			AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
 			AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
 			PlatformInsertDellocEntry(AllocEntry);
+
+			PlatformApi.WriteBarrier();
+			MeshInfo->State = VoxelMeshState_Unloaded;
+
+			EndOrderMutex(&MeshInfo->MeshUseMutex);
+
+			//NOTE(dima): Close threadwork that contains chunk data
+			VoxelEndThreadwork(
+				WorkChunk->Threadwork,
+				UnloadData->Generation->WorkFreeSentinel,
+				&UnloadData->Generation->WorkMutex,
+				&UnloadData->Generation->FreeWorkThreadworksCount);
+
+			//NOTE(dima): Updating chunk state to unloaded
+			PlatformApi.WriteBarrier();
+			WorkChunk->State = VoxelChunkState_None;
 		}
 
-		PlatformApi.WriteBarrier();
-		PlatformApi.AtomicSet_U32(&MeshInfo->State, VoxelMeshState_Unloaded);
-
-		EndOrderMutex(&MeshInfo->MeshUseMutex);
-
-		//NOTE(dima): Close threadwork that contains chunk data
-		VoxelEndThreadwork(
-			WorkChunk->Threadwork,
-			UnloadData->Generation->WorkFreeSentinel,
-			&UnloadData->Generation->WorkMutex,
-			&UnloadData->Generation->FreeWorkThreadworksCount);
-	}
-	else {
-		Assert(!"Chunk state must be READY");
+		VoxelDeleteFromTable(
+			UnloadData->Generation,
+			WorkChunk->IndexX,
+			WorkChunk->IndexY,
+			WorkChunk->IndexZ);
 	}
 
 	//NOTE(dima): Close threadwork that contains data for this function(thread)
@@ -1233,6 +1197,7 @@ void VoxelChunksGenerationInit(
 	}
 
 	//NOTE(dima): Initializing of world chunks hash table
+	Generation->HashTableOpMutex = {};
 	for (int EntryIndex = 0;
 		EntryIndex < VOXWORLD_TABLE_SIZE;
 		EntryIndex++)
@@ -1408,13 +1373,8 @@ void VoxelChunksGenerationUpdate(
 				UnloadData,
 				UnloadVoxelChunkThreadwork);
 
-			voxel_mesh_info* MeshInfo = &NeededChunk->MeshInfo;
-
-			VoxelDeleteFromTable(
-				Generation,
-				NeededChunk->IndexX,
-				NeededChunk->IndexY,
-				NeededChunk->IndexZ);
+			/* NOTE(dima): Now hash table operations are syncronous
+			and deletion from hash table happens on the other thread*/
 		}
 #endif
 

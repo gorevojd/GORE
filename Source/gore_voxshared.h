@@ -16,8 +16,6 @@
 typedef u32 voxel_vert_t;
 #define VOXEL_VERTEX_SIZE sizeof(voxel_vert_t)
 
-#define USE_STD_VECTOR_FOR_VOXEL_MESH 0
-
 enum voxel_chunk_state {
 	VoxelChunkState_None,
 	VoxelChunkState_InProcess,
@@ -38,11 +36,7 @@ struct voxel_mesh_info {
 	//NOTE(dima): MeshHandle2 used to store VBO in openGL
 	void* MeshHandle2;
 
-#if USE_STD_VECTOR_FOR_VOXEL_MESH
-	std::vector<voxel_vert_t> Vertices;
-#else
 	voxel_vert_t* Vertices;
-#endif
 	u32 VerticesCount;
 
 	platform_order_mutex MeshUseMutex;
