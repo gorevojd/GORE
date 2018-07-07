@@ -39,13 +39,13 @@ struct voxworld_generation_state {
 		NOTE(dima): Work threadworks are used to 
 		store loaded chunks data.
 	*/
-	int FreeWorkThreadworksCount;
-	int TotalWorkThreadworksCount;
+	int FreeChunkThreadworksCount;
+	int TotalChunkThreadworksCount;
 
-	int WorkTasksMemUsed;
-	platform_order_mutex WorkMutex;
-	voxworld_threadwork* WorkUseSentinel;
-	voxworld_threadwork* WorkFreeSentinel;
+	int ChunkTasksMemUsed;
+	platform_order_mutex ChunksThreadworksMutex;
+	voxworld_threadwork* ChunkUseSentinel;
+	voxworld_threadwork* ChunkFreeSentinel;
 
 	/*
 		NOTE(dima): Gen threadworks are used to 
@@ -72,7 +72,6 @@ struct voxworld_generation_state {
 	voxworld_threadwork* MeshUseSentinel;
 	voxworld_threadwork* MeshFreeSentinel;
 
-
 	int ChunksSideCount;
 	int ChunksCount;
 	int ChunksViewDistance;
@@ -89,7 +88,7 @@ struct voxworld_generation_state {
 
 	platform_order_mutex HashTableOpMutex;
 	int HashTableMemUsed;
-#define VOXWORLD_TABLE_SIZE 2048
+#define VOXWORLD_TABLE_SIZE 8192
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];
 	int HashTableCollisionCount;
 	int HashTableTotalInsertedEntries;

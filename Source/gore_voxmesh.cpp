@@ -807,8 +807,8 @@ static void VoxelRegenerateSetatistics(
 	Result->HashTableCollisionCount = Generation->HashTableCollisionCount;
 	Result->HashTableInsertedElements = Generation->HashTableTotalInsertedEntries;
 
-	Result->FreeWorkThreadworksCount = Generation->FreeWorkThreadworksCount;
-	Result->TotalWorkThreadworksCount = Generation->TotalWorkThreadworksCount;
+	Result->FreeChunkThreadworksCount = Generation->FreeChunkThreadworksCount;
+	Result->TotalChunkThreadworksCount = Generation->TotalChunkThreadworksCount;
 
 	Result->FreeGenThreadworksCount = Generation->FreeGenThreadworksCount;
 	Result->TotalGenThreadworksCount = Generation->TotalGenThreadworksCount;
@@ -839,7 +839,7 @@ static void VoxelRegenerateSetatistics(
 
 	Result->HashTableMemUsed = Generation->HashTableMemUsed;
 	Result->GenTasksMemUsed = Generation->GenTasksMemUsed;
-	Result->WorkTasksMemUsed = Generation->WorkTasksMemUsed;
+	Result->ChunkTasksMemUsed = Generation->ChunkTasksMemUsed;
 	Result->MeshTasksMemUsed = Generation->MeshTasksMemUsed;
 	Result->GenerationMem = Generation->TotalMemory;
 }
@@ -1040,9 +1040,9 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			//NOTE(dima): Close threadwork that contains chunk data
 			VoxelEndThreadwork(
 				WorkChunk->Threadwork,
-				UnloadData->Generation->WorkFreeSentinel,
-				&UnloadData->Generation->WorkMutex,
-				&UnloadData->Generation->FreeWorkThreadworksCount);
+				UnloadData->Generation->ChunkFreeSentinel,
+				&UnloadData->Generation->ChunksThreadworksMutex,
+				&UnloadData->Generation->FreeChunkThreadworksCount);
 
 			//NOTE(dima): Updating chunk state to unloaded
 			PlatformApi.WriteBarrier();
@@ -1126,19 +1126,19 @@ void VoxelChunksGenerationInit(
 		NOTE(dima): Initialization of work threadworks.
 		They are used to store loaded chunk data;
 	*/
-	Generation->WorkMutex = {};
-	Generation->WorkTasksMemUsed = 0;
+	Generation->ChunksThreadworksMutex = {};
+	Generation->ChunkTasksMemUsed = 0;
 
-	Generation->WorkUseSentinel = VoxelAllocateThreadwork(
+	Generation->ChunkUseSentinel = VoxelAllocateThreadwork(
 		Generation->TotalMemory, 0,
-		&Generation->WorkTasksMemUsed);
+		&Generation->ChunkTasksMemUsed);
 
-	Generation->WorkFreeSentinel = VoxelAllocateThreadwork(
+	Generation->ChunkFreeSentinel = VoxelAllocateThreadwork(
 		Generation->TotalMemory, 0,
-		&Generation->WorkTasksMemUsed);
+		&Generation->ChunkTasksMemUsed);
 
-	Generation->FreeWorkThreadworksCount = TotalChunksCount;
-	Generation->TotalWorkThreadworksCount = TotalChunksCount;
+	Generation->FreeChunkThreadworksCount = TotalChunksCount;
+	Generation->TotalChunkThreadworksCount = TotalChunksCount;
 
 	int SizeForOneWorkThreadwork = KILOBYTES(70);
 
@@ -1150,8 +1150,8 @@ void VoxelChunksGenerationInit(
 			VoxelAllocateThreadwork(
 				Generation->TotalMemory, 
 				SizeForOneWorkThreadwork,
-				&Generation->WorkTasksMemUsed);
-		VoxelInsertThreadworkAfter(NewThreadwork, Generation->WorkFreeSentinel);
+				&Generation->ChunkTasksMemUsed);
+		VoxelInsertThreadworkAfter(NewThreadwork, Generation->ChunkFreeSentinel);
 	}
 
 	/*
@@ -1289,10 +1289,10 @@ void VoxelChunksGenerationUpdate(
 			else {
 				BEGIN_TIMING("Insertion and starting generation");
 				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(
-					Generation->WorkFreeSentinel,
-					Generation->WorkUseSentinel,
-					&Generation->WorkMutex,
-					&Generation->FreeWorkThreadworksCount);
+					Generation->ChunkFreeSentinel,
+					Generation->ChunkUseSentinel,
+					&Generation->ChunksThreadworksMutex,
+					&Generation->FreeChunkThreadworksCount);
 
 				if (Threadwork) {
 					voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(
@@ -1325,12 +1325,12 @@ void VoxelChunksGenerationUpdate(
 					ChunkGenerationData->Generation = Generation;
 					ChunkGenerationData->ChunkGenThreadwork = ChunkGenThreadwork;
 
+					VoxelInsertToTable(Generation, ChunkInfo);
+
 					PlatformApi.AddThreadworkEntry(
 						PlatformApi.VoxelQueue,
 						ChunkGenerationData,
 						GenerateVoxelChunkThreadwork);
-
-					VoxelInsertToTable(Generation, ChunkInfo);
 				}
 				END_TIMING();
 			}
@@ -1372,7 +1372,7 @@ void VoxelChunksGenerationUpdate(
 				PlatformApi.VoxelQueue,
 				UnloadData,
 				UnloadVoxelChunkThreadwork);
-
+			
 			/* NOTE(dima): Now hash table operations are syncronous
 			and deletion from hash table happens on the other thread*/
 		}

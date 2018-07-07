@@ -2139,7 +2139,7 @@ static void DEBUGVoxelGenerationGraphElement(
 
 		//NOTE(dima): Voxel generation memory occupation
 		float GenTasksPercentage = (float)Stat->GenTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
-		float WorkTasksPercentage = (float)Stat->WorkTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
+		float WorkTasksPercentage = (float)Stat->ChunkTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float MeshTasksPercentage = (float)Stat->MeshTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float HashTablePercentage = (float)Stat->HashTableMemUsed / (float)Stat->GenerationMem->MaxSize;
 		float FreePercentage = (float)(Stat->GenerationMem->MaxSize - Stat->GenerationMem->Used) / (float)Stat->GenerationMem->MaxSize;
@@ -2164,8 +2164,8 @@ static void DEBUGVoxelGenerationGraphElement(
 			GUIGetColor(GUIState, Color_Yellow) };
 
 		voxel_mem_info_entry WorkTasksEntry = { 
-			"Work tasks memory", 
-			(float)Stat->WorkTasksMemUsed / (float)MEGABYTES(1), 
+			"Chunk tasks memory", 
+			(float)Stat->ChunkTasksMemUsed / (float)MEGABYTES(1), 
 			WorkTasksWidth, 
 			GUIGetColor(GUIState, Color_Cyan) };
 
@@ -2278,8 +2278,8 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->TotalGenThreadworksCount);
 
 		stbsp_sprintf(Stat2Str, "Work tasks: %d free; %d total",
-			GenerationStat->FreeWorkThreadworksCount,
-			GenerationStat->TotalWorkThreadworksCount);
+			GenerationStat->FreeChunkThreadworksCount,
+			GenerationStat->TotalChunkThreadworksCount);
 
 		stbsp_sprintf(ViewDistStat, "View dist: %d chunks; %d blocks",
 			GenerationStat->ChunksViewDistance,

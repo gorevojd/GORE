@@ -5,8 +5,8 @@ struct voxel_generation_statistics{
 	int HashTableCollisionCount;
 	int HashTableInsertedElements;
 
-	int FreeWorkThreadworksCount;
-	int TotalWorkThreadworksCount;
+	int FreeChunkThreadworksCount;
+	int TotalChunkThreadworksCount;
 
 	int FreeGenThreadworksCount;
 	int TotalGenThreadworksCount;
@@ -29,7 +29,7 @@ struct voxel_generation_statistics{
 
 	int HashTableMemUsed;
 	int GenTasksMemUsed;
-	int WorkTasksMemUsed;
+	int ChunkTasksMemUsed;
 	int MeshTasksMemUsed;
 	stacked_memory* GenerationMem;
 };

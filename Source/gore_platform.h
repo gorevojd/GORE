@@ -31,7 +31,7 @@ struct platform_order_mutex {
 inline PLATFORM_BEGIN_ORDER_MUTEX(BeginOrderMutex) {
 	long long Ticket = _InterlockedExchangeAdd64((volatile long long*)&Mutex->Ticket, 1);
 	while (Ticket != Mutex->ServingTicket) {
-		_mm_pause();
+   		_mm_pause();
 	}
 }
 
