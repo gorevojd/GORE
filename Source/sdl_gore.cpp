@@ -1214,7 +1214,7 @@ int main(int ArgsCount, char** Args) {
 
 #if VOXEL_WORLD_ENABLED
 	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 40, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
+	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 20, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
 #endif
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);

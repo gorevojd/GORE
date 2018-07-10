@@ -758,6 +758,7 @@ static void VoxelDeleteFromTable(
 		PrevEntry = At;
 		At = At->NextInHash;
 	}
+
 	EndOrderMutex(&Generation->HashTableOpMutex);
 }
 
@@ -989,71 +990,59 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 
 	voxel_chunk_info* WorkChunk = UnloadData->Chunk;
 
+	voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
+
 	PlatformApi.ReadBarrier();
 
-	//NOTE(dima): Chunk is out of range and should be deallocated
-	if(WorkChunk->State == VoxelChunkState_Ready)
-	{
-		voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
+	if (MeshInfo->State != VoxelMeshState_None) {
+
+		//NOTE(dima): Infinite loop to wait for the mesh to become generated
+		while (MeshInfo->State == VoxelMeshState_InProcess) {
+			/*NOTE(dima): Reaching this point means that
+			when we are about to unload the chunk the mesh
+			is still generating..
+
+			So what I do here is that I just wait until
+			mesh becomes generated.
+			*/
+			int a = 1;
+		}
 
 		PlatformApi.ReadBarrier();
 
-		if (MeshInfo->State != VoxelMeshState_None) {
+		Assert(MeshInfo->State == VoxelMeshState_Generated);
 
-			//NOTE(dima): Infinite loop to wait for the mesh to become generated
-			while (MeshInfo->State == VoxelMeshState_InProcess) {
-				/*NOTE(dima): Reaching this point means that
-				when we are about to unload the chunk the mesh
-				is still generating..
+		BeginOrderMutex(&MeshInfo->MeshUseMutex);
 
-				So what I do here is that I just wait until
-				mesh becomes generated.
-				*/
-				int a = 1;
-			}
-
-			PlatformApi.ReadBarrier();
-
-			Assert(MeshInfo->State == VoxelMeshState_Generated);
-
-			BeginOrderMutex(&MeshInfo->MeshUseMutex);
-
-			if (MeshInfo->Vertices) {
-				BeginOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
-				free(MeshInfo->Vertices);
-				EndOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
-			}
-
-			MeshInfo->Vertices = 0;
-			MeshInfo->VerticesCount = 0;
-
-			dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
-			AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
-			AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
-			PlatformInsertDellocEntry(AllocEntry);
-
-			PlatformApi.WriteBarrier();
-			MeshInfo->State = VoxelMeshState_Unloaded;
-
-			EndOrderMutex(&MeshInfo->MeshUseMutex);
-
-			//NOTE(dima): Close threadwork that contains chunk data
-			VoxelEndThreadwork(
-				WorkChunk->Threadwork,
-				UnloadData->Generation->ChunkFreeSentinel,
-				&UnloadData->Generation->ChunksThreadworksMutex,
-				&UnloadData->Generation->FreeChunkThreadworksCount);
-
-			//NOTE(dima): Updating chunk state to unloaded
-			PlatformApi.WriteBarrier();
-			WorkChunk->State = VoxelChunkState_None;
+		if (MeshInfo->Vertices) {
+			BeginOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
+			free(MeshInfo->Vertices);
+			EndOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
 		}
 
-		VoxelDeleteFromTable(
-			UnloadData->Generation,
-			WorkChunk->IndexX,
-			WorkChunk->IndexY,
-			WorkChunk->IndexZ);
+		MeshInfo->Vertices = 0;
+		MeshInfo->VerticesCount = 0;
+
+		dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
+		AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
+		AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
+		PlatformInsertDellocEntry(AllocEntry);
+
+		PlatformApi.WriteBarrier();
+		MeshInfo->State = VoxelMeshState_Unloaded;
+
+		EndOrderMutex(&MeshInfo->MeshUseMutex);
+
+		//NOTE(dima): Close threadwork that contains chunk data
+		VoxelEndThreadwork(
+			WorkChunk->Threadwork,
+			UnloadData->Generation->ChunkFreeSentinel,
+			&UnloadData->Generation->ChunksThreadworksMutex,
+			&UnloadData->Generation->FreeChunkThreadworksCount);
+
+		//NOTE(dima): Updating chunk state to unloaded
+		PlatformApi.WriteBarrier();
+		WorkChunk->State = VoxelChunkState_None;
 	}
 
 	//NOTE(dima): Close threadwork that contains data for this function(thread)
@@ -1259,6 +1248,7 @@ void VoxelChunksGenerationUpdate(
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
 
 			if (NeededChunk) {
+				PlatformApi.ReadBarrier();
 				if (NeededChunk->State == VoxelChunkState_Ready) {
 					/*
 						NOTE(dima): It was interesting to see this
@@ -1268,6 +1258,7 @@ void VoxelChunksGenerationUpdate(
 						time came to generating VAOs in the renderer
 						they were generated partially too. :D
 					*/
+					PlatformApi.ReadBarrier();
 					if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
 
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
@@ -1342,39 +1333,47 @@ void VoxelChunksGenerationUpdate(
 	for (voxworld_table_entry* At = Generation->WorkTableEntrySentinel->NextBro;
 		At != Generation->WorkTableEntrySentinel;)
 	{
-		voxworld_table_entry* NextTableEntry = At->NextBro;
-
 		voxel_chunk_info* NeededChunk = At->ValueChunk;
 
+		voxworld_table_entry* NextTableEntry = At->NextBro;
+
 #if 1
-		if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
-			NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
+		PlatformApi.ReadBarrier();
+		//NOTE(dima): Chunk is out of range and should be deallocated
+		if (NeededChunk->State == VoxelChunkState_Ready)
 		{
-			voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(
-				Generation->GenFreeSentinel, 
-				Generation->GenUseSentinel,
-				&Generation->GenMutex,
-				&Generation->FreeGenThreadworksCount);
+			if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
+				NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
+			{
+				voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(
+					Generation->GenFreeSentinel,
+					Generation->GenUseSentinel,
+					&Generation->GenMutex,
+					&Generation->FreeGenThreadworksCount);
 
-			Assert(UnloadThreadwork);
+				Assert(UnloadThreadwork);
 
-			CopyStrings(UnloadThreadwork->DEBUGData, "UnloadThreadwork");
+				CopyStrings(UnloadThreadwork->DEBUGData, "UnloadThreadwork");
 
-			unload_voxel_chunk_data* UnloadData = PushStruct(
-				&UnloadThreadwork->Memory,
-				unload_voxel_chunk_data);
+				unload_voxel_chunk_data* UnloadData = PushStruct(
+					&UnloadThreadwork->Memory,
+					unload_voxel_chunk_data);
 
-			UnloadData->Chunk = NeededChunk;
-			UnloadData->ChunkUnloadThreadwork = UnloadThreadwork;
-			UnloadData->Generation = Generation;
+				UnloadData->Chunk = NeededChunk;
+				UnloadData->ChunkUnloadThreadwork = UnloadThreadwork;
+				UnloadData->Generation = Generation;
 
-			PlatformApi.AddThreadworkEntry(
-				PlatformApi.VoxelQueue,
-				UnloadData,
-				UnloadVoxelChunkThreadwork);
-			
-			/* NOTE(dima): Now hash table operations are syncronous
-			and deletion from hash table happens on the other thread*/
+				PlatformApi.AddThreadworkEntry(
+					PlatformApi.VoxelQueue,
+					UnloadData,
+					UnloadVoxelChunkThreadwork);
+
+				VoxelDeleteFromTable(
+					UnloadData->Generation,
+					NeededChunk->IndexX,
+					NeededChunk->IndexY,
+					NeededChunk->IndexZ);
+			}
 		}
 #endif
 
