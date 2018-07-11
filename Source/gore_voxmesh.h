@@ -35,6 +35,9 @@ struct voxworld_table_entry {
 };
 
 struct voxworld_generation_state {
+
+	b32 Initialized;
+
 	/*
 		NOTE(dima): Work threadworks are used to 
 		store loaded chunks data.
@@ -104,15 +107,10 @@ struct voxworld_generation_state {
 void GenerateTestChunk(voxel_chunk_info* Chunk);
 void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atlas_info* Atlas);
 
-void VoxelChunksGenerationInit(
-	voxworld_generation_state* Generation,
-	stacked_memory* Memory,
-	int ChunksViewDistanceCount,
-	int VoxelThreadQueueSize);
-
 void VoxelChunksGenerationUpdate(
-	voxworld_generation_state* Generation,
+	stacked_memory* Memory,
 	render_state* RenderState,
+	int VoxelThreadQueueSize,
 	v3 CameraPos);
 
 #endif

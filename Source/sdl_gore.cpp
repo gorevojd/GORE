@@ -1211,11 +1211,6 @@ int main(int ArgsCount, char** Args) {
 	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
 	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
 
-
-#if VOXEL_WORLD_ENABLED
-	voxworld_generation_state VoxelGeneration;
-	VoxelChunksGenerationInit(&VoxelGeneration, &VoxelMemoryStack, 20, PLATFORM_VOXEL_QUEUE_THREADS_COUNT);
-#endif
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
@@ -1292,8 +1287,13 @@ int main(int ArgsCount, char** Args) {
 		//
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
+
 #if VOXEL_WORLD_ENABLED
-		VoxelChunksGenerationUpdate(&VoxelGeneration, Stack, GameState.Camera.Position);
+		VoxelChunksGenerationUpdate(
+			&VoxelMemoryStack, 
+			Stack, 
+			PLATFORM_VOXEL_QUEUE_THREADS_COUNT, 
+			GameState.Camera.Position);
 #endif
 		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 

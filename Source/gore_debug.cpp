@@ -2135,7 +2135,9 @@ static void DEBUGVoxelGenerationGraphElement(
 		rect2 FreeRect = Rect2MinMax(V2(BusyRect.Max.x, BusyRect.Min.y), V2(WorkRect.Max.x, BusyRect.Max.y));
 
 		RENDERPushRect(GUIState->RenderStack, BusyRect, GUIGetColor(GUIState, ColorExt_OrangeRed2));
+		RENDERPushRectOutline(GUIState->RenderStack, BusyRect, 1, V4(0.0f, 0.0f, 0.0f, 1.0f));
 		RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, ColorExt_DarkGreen));
+		RENDERPushRectOutline(GUIState->RenderStack, FreeRect, 1, V4(0.0f, 0.0f, 0.0f, 1.0f));
 
 		//NOTE(dima): Voxel generation memory occupation
 		float GenTasksPercentage = (float)Stat->GenTasksMemUsed / (float)Stat->GenerationMem->MaxSize;
@@ -2208,6 +2210,7 @@ static void DEBUGVoxelGenerationGraphElement(
 			rect2 EntryRc = Rect2MinDim(AtSecond, V2(Entry->Width, RcHeight));
 
 			RENDERPushRect(GUIState->RenderStack, EntryRc, Entry->Color);
+			RENDERPushRectOutline(GUIState->RenderStack, EntryRc, 1, V4(0.0f, 0.0f, 0.0f, 1.0f));
 
 			if (MouseInRect(GUIState->Input, EntryRc)) {
 				char LabelTxt[64];

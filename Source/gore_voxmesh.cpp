@@ -1053,12 +1053,12 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		&UnloadData->Generation->FreeGenThreadworksCount);
 }
 
-void VoxelChunksGenerationInit(
+static void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
-	int ChunksViewDistanceCount,
 	int VoxelThreadQueueSize)
 {
+	int ChunksViewDistanceCount = 20;
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
 	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
 
@@ -1148,7 +1148,7 @@ void VoxelChunksGenerationInit(
 		They are used to store temporary data( for chunk
 		generation threads.
 	*/
-	int GenThreadworksCount = 10000;
+	int GenThreadworksCount = 65536;
 
 	Generation->GenMutex = {};
 
@@ -1209,14 +1209,28 @@ void VoxelChunksGenerationInit(
 	Generation->WorkTableEntrySentinel->NextBro = Generation->WorkTableEntrySentinel;
 	Generation->WorkTableEntrySentinel->PrevBro = Generation->WorkTableEntrySentinel;
 	Generation->HashTableMemUsed += sizeof(voxworld_table_entry);
+
+	Generation->Initialized = 1;
 }
 
 void VoxelChunksGenerationUpdate(
-	voxworld_generation_state* Generation,
+	stacked_memory* Memory,
 	render_state* RenderState,
+	int VoxelThreadQueueSize,
 	v3 CameraPos)
 {
 	FUNCTION_TIMING();
+
+	voxworld_generation_state* Generation = (voxworld_generation_state*)Memory->BaseAddress;
+
+	if (!Generation->Initialized) {
+
+		Generation = PushStruct(Memory, voxworld_generation_state);
+
+		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize);
+
+		Generation->Initialized = 1;
+	}
 
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(RenderState->AssetSystem, GameAsset_MyVoxelAtlas);
 	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(RenderState->AssetSystem, VoxelAtlasID);
