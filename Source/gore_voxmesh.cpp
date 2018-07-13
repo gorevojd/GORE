@@ -1032,18 +1032,18 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		MeshInfo->State = VoxelMeshState_Unloaded;
 
 		EndOrderMutex(&MeshInfo->MeshUseMutex);
-
-		//NOTE(dima): Close threadwork that contains chunk data
-		VoxelEndThreadwork(
-			WorkChunk->Threadwork,
-			UnloadData->Generation->ChunkFreeSentinel,
-			&UnloadData->Generation->ChunksThreadworksMutex,
-			&UnloadData->Generation->FreeChunkThreadworksCount);
-
-		//NOTE(dima): Updating chunk state to unloaded
-		PlatformApi.WriteBarrier();
-		WorkChunk->State = VoxelChunkState_None;
 	}
+
+	//NOTE(dima): Close threadwork that contains chunk data
+	VoxelEndThreadwork(
+		WorkChunk->Threadwork,
+		UnloadData->Generation->ChunkFreeSentinel,
+		&UnloadData->Generation->ChunksThreadworksMutex,
+		&UnloadData->Generation->FreeChunkThreadworksCount);
+
+	//NOTE(dima): Updating chunk state to unloaded
+	PlatformApi.WriteBarrier();
+	WorkChunk->State = VoxelChunkState_None;
 
 	//NOTE(dima): Close threadwork that contains data for this function(thread)
 	VoxelEndThreadwork(

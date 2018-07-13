@@ -93,6 +93,8 @@ struct platform_thread_queue {
 
 	HANDLE Semaphore;
 
+	platform_order_mutex AddMutex;
+
 	char* QueueName;
 };
 

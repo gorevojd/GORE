@@ -498,35 +498,47 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 #if defined(PLATFORM_WINDA)
 
 PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
+	BeginOrderMutex(&Queue->AddMutex);
+
+	_ReadBarrier();
+	int NewToSet = (Queue->AddIndex + 1) % Queue->EntriesCount;
 	int EntryIndex = Queue->AddIndex;
-	int NewToSet = (EntryIndex + 1) % Queue->EntriesCount;
+
 	platform_threadwork* Entry = Queue->Entries + EntryIndex;
 
 	Entry->Callback = Callback;
 	Entry->Data = Data;
 
-	Queue->StartedEntries++;
+	InterlockedIncrement((volatile unsigned int*)&Queue->StartedEntries);
 
-	_ReadWriteBarrier();
+	_WriteBarrier();
 
-	_InterlockedExchange((volatile unsigned int*)&Queue->AddIndex, NewToSet);
+	InterlockedExchange((volatile unsigned int*)&Queue->AddIndex, NewToSet);
 	
 	ReleaseSemaphore(Queue->Semaphore, 1, 0);
+
+	EndOrderMutex(&Queue->AddMutex);
 }
 
 b32 WindaDoNextThreadwork(platform_thread_queue* Queue) {
 	b32 NoWorkLeft = 0;
 
+	_ReadBarrier();
+
 	int OriginalToDoIndex = Queue->DoIndex;
 	int NewToSet = (OriginalToDoIndex + 1) % Queue->EntriesCount;
 
 	if (Queue->DoIndex != Queue->AddIndex) {
-		if (InterlockedCompareExchange((volatile unsigned int*)&Queue->DoIndex, NewToSet, OriginalToDoIndex) == OriginalToDoIndex) {
+		if (InterlockedCompareExchange(
+			(volatile unsigned int*)&Queue->DoIndex, 
+			NewToSet, 
+			OriginalToDoIndex) == OriginalToDoIndex) 
+		{
 			platform_threadwork* Work = Queue->Entries + OriginalToDoIndex;
 
 			Work->Callback(Work->Data);
 
-			_ReadWriteBarrier();
+			_WriteBarrier();
 
 			InterlockedIncrement((volatile unsigned int*)&Queue->FinishedEntries);
 		}
@@ -577,6 +589,7 @@ void WindaInitThreadQueue(
 	Queue->Entries = Entries;
 	Queue->EntriesCount = EntriesCount;
 	Queue->WorkingThreadsCount = WorkersCount;
+	Queue->AddMutex = {};
 
 	char SemaphoreNameBuf[256];
 	stbsp_sprintf(SemaphoreNameBuf, "%s_Sem", QueueName);

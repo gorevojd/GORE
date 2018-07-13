@@ -125,7 +125,8 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->Camera,
 		RenderStack->RenderWidth,
 		RenderStack->RenderHeight,
-		CameraProjection_Perspective);
+		CameraProjection_Perspective,
+		2000.0f);
 
 	RENDERSetCameraSetup(RenderStack, CameraSetup);
 }
