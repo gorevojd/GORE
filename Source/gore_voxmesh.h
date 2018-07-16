@@ -91,7 +91,7 @@ struct voxworld_generation_state {
 
 	platform_order_mutex HashTableOpMutex;
 	int HashTableMemUsed;
-#define VOXWORLD_TABLE_SIZE 16000
+#define VOXWORLD_TABLE_SIZE 65536
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];
 	int HashTableCollisionCount;
 	int HashTableTotalInsertedEntries;

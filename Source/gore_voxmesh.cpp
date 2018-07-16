@@ -854,6 +854,80 @@ struct generate_voxel_mesh_data {
 	voxworld_generation_state* Generation;
 };
 
+static void GenerateMeshInternal(
+	voxel_mesh_info* MeshInfo,
+	voxel_chunk_info* ChunkInfo, 
+	voxworld_generation_state* Generation,
+	voxel_atlas_info* AtlasInfo) 
+{
+	//TODO(dima): Better memory management here
+	voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
+		Generation->MeshFreeSentinel,
+		Generation->MeshUseSentinel,
+		&Generation->MeshMutex,
+		&Generation->FreeMeshThreadworks);
+
+	Assert(MeshThreadwork);
+
+	voxel_mesh_info TempMeshInfo = {};
+	TempMeshInfo.Vertices = (voxel_vert_t*)MeshThreadwork->Memory.BaseAddress;
+
+	//NOTE(dima): Generate mesh to temp buffer
+	VoxmeshGenerate(&TempMeshInfo, ChunkInfo, AtlasInfo);
+
+	//NOTE(dima): Allocated buffer with needed size
+	int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
+
+	BeginOrderMutex(&Generation->MemoryAllocatorMutex);
+	MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
+	EndOrderMutex(&Generation->MemoryAllocatorMutex);
+
+	MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
+
+	//NOTE(dima): Copy generated mesh into new buffer
+	memcpy(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
+
+	VoxelEndThreadwork(
+		MeshThreadwork,
+		Generation->MeshFreeSentinel,
+		&Generation->MeshMutex,
+		&Generation->FreeMeshThreadworks);
+
+	PlatformApi.WriteBarrier();
+
+	MeshInfo->State = VoxelMeshState_Generated;
+}
+
+static void UnloadMeshInternal(
+	voxel_mesh_info* MeshInfo,
+	voxworld_generation_state* Generation)
+{
+	PlatformApi.ReadBarrier();
+
+	Assert(MeshInfo->State == VoxelMeshState_Generated);
+
+	BeginOrderMutex(&MeshInfo->MeshUseMutex);
+
+	if (MeshInfo->Vertices) {
+		BeginOrderMutex(&Generation->MemoryAllocatorMutex);
+		free(MeshInfo->Vertices);
+		EndOrderMutex(&Generation->MemoryAllocatorMutex);
+	}
+
+	MeshInfo->Vertices = 0;
+	MeshInfo->VerticesCount = 0;
+
+	dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
+	AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
+	AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
+	PlatformInsertDellocEntry(AllocEntry);
+
+	PlatformApi.WriteBarrier();
+	MeshInfo->State = VoxelMeshState_Unloaded;
+
+	EndOrderMutex(&MeshInfo->MeshUseMutex);
+}
+
 PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	generate_voxel_mesh_data* GenData = (generate_voxel_mesh_data*)Data;
 
@@ -868,44 +942,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		VoxelMeshState_InProcess,
 		VoxelMeshState_None))
 	{
-		Assert(MeshInfo->State == VoxelMeshState_InProcess);
-
-		//TODO(dima): Better memory management here
-		voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
-			Generation->MeshFreeSentinel,
-			Generation->MeshUseSentinel,
-			&Generation->MeshMutex,
-			&Generation->FreeMeshThreadworks);
-
-		Assert(MeshThreadwork);
-
-		voxel_mesh_info TempMeshInfo = {};
-		TempMeshInfo.Vertices = (voxel_vert_t*)MeshThreadwork->Memory.BaseAddress;
-
-		//NOTE(dima): Generate mesh to temp buffer
-		VoxmeshGenerate(&TempMeshInfo, ChunkInfo, GenData->VoxelAtlasInfo);
-
-		//NOTE(dima): Allocated buffer with needed size
-		int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
-
-		BeginOrderMutex(&Generation->MemoryAllocatorMutex);
-		MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
-		EndOrderMutex(&Generation->MemoryAllocatorMutex);
-
-		MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
-
-		//NOTE(dima): Copy generated mesh into new buffer
-		memcpy(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
-
-		VoxelEndThreadwork(
-			MeshThreadwork,
-			Generation->MeshFreeSentinel,
-			&Generation->MeshMutex,
-			&Generation->FreeMeshThreadworks);
-
-		PlatformApi.WriteBarrier();
-
-		MeshInfo->State = VoxelMeshState_Generated;
+		GenerateMeshInternal(MeshInfo, ChunkInfo, Generation, GenData->VoxelAtlasInfo);
 
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
@@ -985,6 +1022,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		&GenData->Generation->FreeGenThreadworksCount);
 }
 
+
 PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 	unload_voxel_chunk_data* UnloadData = (unload_voxel_chunk_data*)Data;
 
@@ -1008,30 +1046,7 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			int a = 1;
 		}
 
-		PlatformApi.ReadBarrier();
-
-		Assert(MeshInfo->State == VoxelMeshState_Generated);
-
-		BeginOrderMutex(&MeshInfo->MeshUseMutex);
-
-		if (MeshInfo->Vertices) {
-			BeginOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
-			free(MeshInfo->Vertices);
-			EndOrderMutex(&UnloadData->Generation->MemoryAllocatorMutex);
-		}
-
-		MeshInfo->Vertices = 0;
-		MeshInfo->VerticesCount = 0;
-
-		dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
-		AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
-		AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
-		PlatformInsertDellocEntry(AllocEntry);
-
-		PlatformApi.WriteBarrier();
-		MeshInfo->State = VoxelMeshState_Unloaded;
-
-		EndOrderMutex(&MeshInfo->MeshUseMutex);
+		UnloadMeshInternal(MeshInfo, UnloadData->Generation);
 	}
 
 	//NOTE(dima): Close threadwork that contains chunk data
@@ -1279,6 +1294,7 @@ void VoxelChunksGenerationUpdate(
 
 						//Assert(NeededChunk->MeshInfo.VerticesCount != 0);
 
+						//IMPORTANT(dima): add mutex here if multithread this code
 						RENDERPushVoxelMesh(
 							RenderState,
 							&NeededChunk->MeshInfo,
