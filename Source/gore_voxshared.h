@@ -43,8 +43,6 @@ struct voxel_mesh_info {
 };
 
 struct voxworld_threadwork {
-	char DEBUGData[64];
-
 	voxworld_threadwork* Next;
 	voxworld_threadwork* Prev;
 

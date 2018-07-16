@@ -440,6 +440,7 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
+
 void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 
 	Chunk->BackChunk = 0;
@@ -491,7 +492,6 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 #endif
 
 			float RandHeight = StartHeight + Noise * 127;
-
 
 			int SetHeight = (int)RandHeight;
 			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
@@ -645,6 +645,8 @@ inline u32 GetKeyFromIndices(int X, int Y, int Z) {
 
 static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chunk_info* Info) 
 {
+	FUNCTION_TIMING();
+
 	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
@@ -710,6 +712,8 @@ static void VoxelDeleteFromTable(
 	voxworld_generation_state* Generation,
 	int X, int Y, int Z)
 {
+	FUNCTION_TIMING();
+
 	voxel_chunk_info* Result = 0;
 
 	u32 Key = GetKeyFromIndices(X, Y, Z);
@@ -1006,8 +1010,6 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->Generation = GenData->Generation;
 		MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
 		MeshGenerationData->VoxelAtlasInfo = GenData->VoxelAtlasInfo;
-
-		CopyStrings(MeshGenThreadwork->DEBUGData, "MeshGeneration");
 
 		PlatformApi.AddThreadworkEntry(
 			PlatformApi.VoxelQueue,
@@ -1309,11 +1311,13 @@ void VoxelChunksGenerationUpdate(
 			}
 			else {
 				BEGIN_TIMING("Insertion and starting generation");
+				BEGIN_TIMING("Finding threadwork");
 				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(
 					Generation->ChunkFreeSentinel,
 					Generation->ChunkUseSentinel,
 					&Generation->ChunksThreadworksMutex,
 					&Generation->FreeChunkThreadworksCount);
+				END_TIMING();
 
 				if (Threadwork) {
 					voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(
@@ -1321,8 +1325,6 @@ void VoxelChunksGenerationUpdate(
 						Generation->GenUseSentinel,
 						&Generation->GenMutex,
 						&Generation->FreeGenThreadworksCount);
-
-					CopyStrings(ChunkGenThreadwork->DEBUGData, "ChunkGeneration");
 
 					Assert(ChunkGenThreadwork);
 
@@ -1348,10 +1350,12 @@ void VoxelChunksGenerationUpdate(
 
 					VoxelInsertToTable(Generation, ChunkInfo);
 
+					BEGIN_TIMING("Pushing work to thread queue");
 					PlatformApi.AddThreadworkEntry(
 						PlatformApi.VoxelQueue,
 						ChunkGenerationData,
 						GenerateVoxelChunkThreadwork);
+					END_TIMING();
 				}
 				END_TIMING();
 			}
@@ -1382,8 +1386,6 @@ void VoxelChunksGenerationUpdate(
 					&Generation->FreeGenThreadworksCount);
 
 				Assert(UnloadThreadwork);
-
-				CopyStrings(UnloadThreadwork->DEBUGData, "UnloadThreadwork");
 
 				unload_voxel_chunk_data* UnloadData = PushStruct(
 					&UnloadThreadwork->Memory,
