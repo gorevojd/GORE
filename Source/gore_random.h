@@ -3,6 +3,7 @@
 
 #define MIN_RANDOM_NUMBER 0x00037bf8
 #define MAX_RANDOM_NUMBER 0x3b94079c
+#define RANDOM_ONE_OVER_RANGE 0.0000000010006718
 
 static u32 RandomNumberTable[] = {
 	0x24daf517, 0x27fac783, 0x215fc545, 0x1b4ff29e, 0x0d4f1f81, 0x293121db, 0x209dc429, 0x140dd29e,
@@ -521,7 +522,7 @@ static u32 RandomNumberTable[] = {
 
 struct random_state {
 	u32 RandomStack;
-	u32 RandomArrayIndex;
+	volatile u32 RandomArrayIndex;
 };
 
 inline random_state InitRandomStateWithSeed(u32 Seed) {
@@ -545,6 +546,18 @@ XORShift32(random_state* State) {
 	return(x);
 }
 
+inline float RandomBetween01(random_state* Random) {
+	float Result = 
+		((float)RandomNumberTable[Random->RandomArrayIndex++ % ArrayCount(RandomNumberTable)]
+		- (float)MIN_RANDOM_NUMBER) * RANDOM_ONE_OVER_RANGE;
 
+	return(Result);
+}
+
+inline float RandomBetween11(random_state* Random) {
+	float Result = RandomBetween01(Random) * 2.0f - 1.0f;
+
+	return(Result);
+}
 
 #endif

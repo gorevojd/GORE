@@ -442,10 +442,18 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 	}
 }
 
+inline float GetNextRandomSmoothFloat(voxworld_generation_state* Generation) {
+	float Result = VoxelSmoothRandoms[Generation->SmoothRandomIndex % ArrayCount(VoxelSmoothRandoms)];
+
+	PlatformApi.AtomicAdd_U32((platform_atomic_type_u32*)&Generation->SmoothRandomIndex, 1);
+
+	return(Result);
+}
+
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
-void GenerateRandomChunk(voxel_chunk_info* Chunk) {
+void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Generation) {
 
 	for (int BlockIndex = 0;
 		BlockIndex < VOXEL_CHUNK_TOTAL_VOXELS_COUNT;
@@ -464,12 +472,47 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 			float Lacunarity = 2.0f;
 			float Gain = 0.5f;
 
-			float NoiseS = 256.0f;
+			float BiomeNoiseScale = 1024.0f;
+			float BiomeNoise = stb_perlin_noise3(
+				(float)(ChunkPos.x + i) / BiomeNoiseScale,
+				(float)ChunkPos.y / BiomeNoiseScale,
+				(float)(ChunkPos.z + j) / BiomeNoiseScale,
+				0, 0, 0);
+
+			BiomeNoise = BiomeNoise * 2.0f + 1.0f;
+
+			float SmoothRandomValue = GetNextRandomSmoothFloat(Generation);
+			SmoothRandomValue = 1.0f - Cos(SmoothRandomValue * GORE_PI * 0.5f);
+			SmoothRandomValue *= 0.03f;
+
+
+			BiomeNoise += SmoothRandomValue;
+			BiomeNoise = Clamp01(BiomeNoise);
+
+			u8 GrassMaterial = VoxelMaterial_GrassyGround;
+			u8 GroundMaterial = VoxelMaterial_Ground;
+
+			float BiomeNoiseDivisor = 384.0f;
+
+			if (BiomeNoise < 0.6f && BiomeNoise >= 0.0f) {
+				GrassMaterial = VoxelMaterial_GrassyGround;
+				GroundMaterial = VoxelMaterial_Ground;
+				BiomeNoiseDivisor = 384.0f;
+			}
+			else if (BiomeNoise >= 0.6f && BiomeNoise <= 1.0f) {
+				GrassMaterial = VoxelMaterial_SnowGround;
+				GroundMaterial = VoxelMaterial_WinterGround;
+				BiomeNoiseDivisor = 512.0f;
+			}
+			else {
+ 				Assert(!"INVALID");
+			}
+
 #if 1
 			float Noise = stb_perlin_fbm_noise3(
-				(float)(ChunkPos.x + i) / NoiseS,
-				(float)ChunkPos.y / NoiseS,
-				(float)(ChunkPos.z + j) / NoiseS,
+				(float)(ChunkPos.x + i) / BiomeNoiseDivisor,
+				(float)ChunkPos.y / BiomeNoiseDivisor,
+				(float)(ChunkPos.z + j) / BiomeNoiseDivisor,
 				Lacunarity, Gain, Octaves, 0, 0, 0);
 #else
 #if 0
@@ -493,9 +536,9 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 			int SetHeight = (int)RandHeight;
 			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
 
-			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = VoxelMaterial_GrassyGround;
+			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = GrassMaterial;
 
-			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_Ground);
+			BuildColumn(Chunk, i, j, 0, SetHeight - 1, GroundMaterial);
 		}
 	}
 }
@@ -1072,7 +1115,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		VoxelChunkState_InProcess,
 		VoxelChunkState_None))
 	{
-		GenerateRandomChunk(WorkChunk);
+		GenerateRandomChunk(WorkChunk, GenData->Generation);
 
 		PlatformApi.WriteBarrier();
 
@@ -1168,7 +1211,7 @@ static void VoxelChunksGenerationInit(
 	stacked_memory* Memory,
 	int VoxelThreadQueueSize)
 {
-	int ChunksViewDistanceCount = 20;
+	int ChunksViewDistanceCount = 40;
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
 	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
 
@@ -1320,6 +1363,9 @@ static void VoxelChunksGenerationInit(
 	Generation->WorkTableEntrySentinel->PrevBro = Generation->WorkTableEntrySentinel;
 	Generation->HashTableMemUsed += sizeof(voxworld_table_entry);
 
+	//NOTE(dima): Initialization of random state
+	Generation->SmoothRandomIndex = 0;
+
 	Generation->Initialized = 1;
 }
 
@@ -1366,7 +1412,7 @@ void VoxelChunksGenerationUpdate(
 
 	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
-	int testviewdist = 10;
+	int testviewdist = 40;
 #if 0
 	int MinCellX = -testviewdist;
 	int MaxCellX = testviewdist;

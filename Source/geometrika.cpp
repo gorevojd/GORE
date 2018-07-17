@@ -29,23 +29,23 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	}
 
 	//NOTE(dima): Camera movement
-	v3 MoveVector = V3(0.0f, 0.0f, 0.0f);
+	v3 RawMoveVector = V3(0.0f, 0.0f, 0.0f);
 	if (ButtonIsDown(Input, KeyType_A)) {
-		MoveVector += V3(1.0f, 0.0f, 0.0f);
+		RawMoveVector += V3(1.0f, 0.0f, 0.0f);
 	}
 	if (ButtonIsDown(Input, KeyType_D)) {
-		MoveVector -= V3(1.0f, 0.0f, 0.0f);
+		RawMoveVector -= V3(1.0f, 0.0f, 0.0f);
 	}
 	if (ButtonIsDown(Input, KeyType_W)) {
-		MoveVector += V3(0.0f, 0.0f, 1.0f);
+		RawMoveVector += V3(0.0f, 0.0f, 1.0f);
 	}
 	if (ButtonIsDown(Input, KeyType_S)) {
-		MoveVector -= V3(0.0f, 0.0f, 1.0f);
+		RawMoveVector -= V3(0.0f, 0.0f, 1.0f);
 	}
 
-	MoveVector = NOZ(MoveVector);
+	RawMoveVector = NOZ(RawMoveVector);
 
-	float CameraSpeed = 10.0f;
+	float CameraSpeed = 30.0f;
 	if (ButtonIsDown(Input, KeyType_LShift)) {
 		CameraSpeed *= 10.0f;
 	}
@@ -53,10 +53,24 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		CameraSpeed *= 5.0f;
 	}
 
-	MoveVector = MoveVector * CameraSpeed * Input->DeltaTime;
+	RawMoveVector = RawMoveVector * CameraSpeed;
+#if 0
 	State->Camera.Position += State->Camera.Front * MoveVector.z;
 	State->Camera.Position -= State->Camera.Left * MoveVector.x;
 	State->Camera.Position += State->Camera.Up * MoveVector.y;
+#else
+	v3 MoveVector = {};
+	MoveVector += State->Camera.Front * RawMoveVector.z;
+	MoveVector += (-State->Camera.Left * RawMoveVector.x);
+	MoveVector += State->Camera.Up * RawMoveVector.y;
+
+	State->Camera.Position +=
+		State->Camera.dPosition * Input->DeltaTime * 1.2f +
+		MoveVector * Input->DeltaTime * Input->DeltaTime * 0.5f;
+
+	State->Camera.dPosition = (State->Camera.dPosition + MoveVector * Input->DeltaTime) * 0.9f;
+#endif
+
 
 	if (ButtonWentDown(Input, KeyType_Backquote)) {
 		State->CapturingMouse = !State->CapturingMouse;

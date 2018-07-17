@@ -1254,6 +1254,43 @@ int main(int ArgsCount, char** Args) {
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
 	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 3, VoxelAtlas);
 
+#if 1
+	int FloatsPerRow = 8;
+	
+	int NumOfFloatsToGen = 2048;
+
+	FILE* fp = fopen("RandomFloats.txt", "w");
+
+	if (fp) {
+
+		float* RandomFloatArray = (float*)malloc(NumOfFloatsToGen * sizeof(float));
+
+		int CurrentRowFillCount = 0;
+		for (int RandomFloatIndex = 0;
+			RandomFloatIndex < NumOfFloatsToGen;
+			RandomFloatIndex++)
+		{
+			RandomFloatArray[RandomFloatIndex] = RandomBetween11(&CellRandom);
+
+			char ThisFloatString[64];
+
+			stbsp_sprintf(ThisFloatString, "%.5f, ", RandomFloatArray[RandomFloatIndex]);
+
+			fputs(ThisFloatString, fp);
+			CurrentRowFillCount++;
+
+			if (CurrentRowFillCount >= FloatsPerRow) {
+				fputc('\n', fp);
+
+				CurrentRowFillCount = 0;
+			}
+		}
+
+		free(RandomFloatArray);
+		fclose(fp);
+	}
+#endif
+
 	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
 	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
 	//bitmap_info PotImage = LoadIMG("../Data/Images/pot.png");

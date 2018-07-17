@@ -14,6 +14,7 @@ struct game_camera {
 	v3 Up;
 
 	v3 Position;
+	v3 dPosition;
 };
 
 struct game_camera_setup {
@@ -40,6 +41,7 @@ inline game_camera GAMECreateCamera() {
 	Result.Left = V3(1.0f, 0.0f, 0.0f);
 	Result.Up = V3(0.0f, 1.0f, 0.0f);
 	Result.Position = V3(0.0f, 0.0f, 0.0f);
+	Result.dPosition = V3(0.0f, 0.0f, 0.0f);
 
 	return(Result);
 }
