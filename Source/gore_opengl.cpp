@@ -529,7 +529,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 				mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
 
-				BeginOrderMutex(&Mesh->MeshUseMutex);
+				BeginMutexAccess(&Mesh->MeshUseMutex);
 
 				if (Mesh->State == VoxelMeshState_Generated) {
 
@@ -551,7 +551,6 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 						glGenVertexArrays(1, &MeshVAO);
 						glGenBuffers(1, &MeshVBO);
-
 
 						glBindVertexArray(MeshVAO);
 
@@ -592,7 +591,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					glUseProgram(0);
 				}
 
-				EndOrderMutex(&Mesh->MeshUseMutex);
+				EndMutexAccess(&Mesh->MeshUseMutex);
 			}break;
 
 			case RenderEntry_Lighting: {
@@ -658,7 +657,7 @@ void OpenGLProcessAllocationQueue() {
 	dealloc_queue_entry* FirstEntry = 0;
 	dealloc_queue_entry* LastEntry = 0;
 
-	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
 	
 	//NOTE(dima): If there is something to allocate...
 	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) 
@@ -681,7 +680,7 @@ void OpenGLProcessAllocationQueue() {
 #endif
 	}
 
-	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
 
 	for (dealloc_queue_entry* Entry = FirstEntry;
 		Entry;)
@@ -697,8 +696,8 @@ void OpenGLProcessAllocationQueue() {
 				GLuint MeshVBO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2;
 				GLuint MeshVAO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle;
 
-				glDeleteBuffers(1, &MeshVBO);
 				glDeleteVertexArrays(1, &MeshVAO);
+				glDeleteBuffers(1, &MeshVBO);
 
 				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle = 0;
 				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2 = 0;
@@ -706,7 +705,7 @@ void OpenGLProcessAllocationQueue() {
 		}
 
 #if 1
-		BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+		BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
 		
 		Entry->Next->Prev = Entry->Prev;
 		Entry->Prev->Next = Entry->Next;
@@ -717,7 +716,7 @@ void OpenGLProcessAllocationQueue() {
 		Entry->Next->Prev = Entry;
 		Entry->Prev->Next = Entry;
 
-		EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+		EndMutexAccess(&PlatformApi.DeallocQueueMutex);
 #endif
 
 		if (Entry == LastEntry) {

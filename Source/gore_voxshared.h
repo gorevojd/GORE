@@ -39,7 +39,7 @@ struct voxel_mesh_info {
 	voxel_vert_t* Vertices;
 	u32 VerticesCount;
 
-	platform_order_mutex MeshUseMutex;
+	platform_mutex MeshUseMutex;
 };
 
 struct voxworld_threadwork {

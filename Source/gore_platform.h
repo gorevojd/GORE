@@ -12,30 +12,23 @@
 #define PLATFORM_WINDA
 #endif
 
-struct platform_order_mutex;
-#define PLATFORM_BEGIN_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
-typedef PLATFORM_BEGIN_ORDER_MUTEX(platform_begin_order_mutex);
-
-#define PLATFORM_END_ORDER_MUTEX(name) void name(platform_order_mutex* Mutex)
-typedef PLATFORM_END_ORDER_MUTEX(platform_end_order_mutex);
-
 #if defined(PLATFORM_WINDA)
 
 #include <Windows.h>
 
-struct platform_order_mutex {
+struct platform_mutex {
 	volatile long long Ticket;
 	volatile long long ServingTicket;
 };
 
-inline PLATFORM_BEGIN_ORDER_MUTEX(BeginOrderMutex) {
+inline void BeginMutexAccess(platform_mutex* Mutex) {
 	long long Ticket = _InterlockedExchangeAdd64((volatile long long*)&Mutex->Ticket, 1);
 	while (Ticket != Mutex->ServingTicket) {
    		_mm_pause();
 	}
 }
 
-inline PLATFORM_END_ORDER_MUTEX(EndOrderMutex) {
+inline void EndMutexAccess(platform_mutex* Mutex) {
 	_InterlockedExchangeAdd64((volatile long long*)&Mutex->ServingTicket, 1);
 }
 
@@ -43,21 +36,19 @@ inline PLATFORM_END_ORDER_MUTEX(EndOrderMutex) {
 
 #include <SDL_atomic.h>
 
-struct platform_order_mutex {
+struct platform_mutex {
 	SDL_atomic_t Ticket;
 	SDL_atomic_t ServingTicket;
 };
 
-
-inline PLATFORM_BEGIN_ORDER_MUTEX(BeginOrderMutex) {
+inline void BeginMutexAccess(platform_mutex* Mutex) {
 	int Ticket = SDL_AtomicAdd((SDL_atomic_t*)&Mutex->Ticket, 1);
 	while (Ticket != Mutex->ServingTicket.value) {}
 }
 
-inline PLATFORM_END_ORDER_MUTEX(EndOrderMutex) {
+inline void EndMutexAccess(platform_mutex* Mutex) {
 	SDL_AtomicAdd((SDL_atomic_t*)&Mutex->ServingTicket, 1);
 }
-
 
 #endif
 
@@ -153,6 +144,12 @@ typedef PLATFORM_GET_THREAD_ID(platform_get_thread_id);
 
 #define PLATFORM_COMPILER_BARRIER_TYPE(name) void name()
 typedef PLATFORM_COMPILER_BARRIER_TYPE(platform_compiler_barrier_type);
+
+#define PLATFORM_ALLOCATE_MEMORY(name) void* name(u32 Size)
+typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
+
+#define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
+typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
 
 inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	for (int i = 0; i < Size; i++) {
@@ -284,6 +281,10 @@ struct platform_api {
 	platform_atomic_set_i64* AtomicSet_I64;
 	platform_atomic_set_u64* AtomicSet_U64;
 
+	platform_mutex NativeMemoryAllocatorMutex;
+	platform_allocate_memory* AllocateMemory;
+	platform_deallocate_memory* DeallocateMemory;
+
 	platform_add_threadwork_entry* AddThreadworkEntry;
 	platform_complete_thread_works* CompleteThreadWorks;
 	platform_get_thread_id* GetThreadID;
@@ -308,7 +309,7 @@ struct platform_api {
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;
 
-	platform_order_mutex DeallocQueueMutex;
+	platform_mutex DeallocQueueMutex;
 	dealloc_queue_entry* FirstUseAllocQueueEntry;
 	dealloc_queue_entry* FirstFreeAllocQueueEntry;
 };
@@ -318,7 +319,7 @@ extern platform_api PlatformApi;
 inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
 	dealloc_queue_entry* Result = 0;
 
-	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
 
 	Assert(PlatformApi.FirstFreeAllocQueueEntry->Next != PlatformApi.FirstFreeAllocQueueEntry);
 
@@ -330,13 +331,13 @@ inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
 	Result->Data = {};
 	Result->EntryType = {};
 
-	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
 
 	return(Result);
 }
 
 inline void PlatformInsertDellocEntry(dealloc_queue_entry* Entry) {
-	BeginOrderMutex(&PlatformApi.DeallocQueueMutex);
+	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
 
 	Entry->Next = PlatformApi.FirstUseAllocQueueEntry->Next;
 	Entry->Prev = PlatformApi.FirstUseAllocQueueEntry;
@@ -344,7 +345,7 @@ inline void PlatformInsertDellocEntry(dealloc_queue_entry* Entry) {
 	Entry->Next->Prev = Entry;
 	Entry->Prev->Next = Entry;
 
-	EndOrderMutex(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
 }
 
 

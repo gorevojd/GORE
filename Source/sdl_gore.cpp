@@ -498,7 +498,7 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 #if defined(PLATFORM_WINDA)
 
 PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
-	BeginOrderMutex(&Queue->AddMutex);
+	BeginMutexAccess(&Queue->AddMutex);
 
 	_ReadBarrier();
 	int NewToSet = (Queue->AddIndex + 1) % Queue->EntriesCount;
@@ -517,7 +517,7 @@ PLATFORM_ADD_THREADWORK_ENTRY(WindaAddThreadworkEntry) {
 	
 	ReleaseSemaphore(Queue->Semaphore, 1, 0);
 
-	EndOrderMutex(&Queue->AddMutex);
+	EndMutexAccess(&Queue->AddMutex);
 }
 
 b32 WindaDoNextThreadwork(platform_thread_queue* Queue) {
@@ -665,10 +665,40 @@ PLATFORM_ATOMIC_INC_U32(WindaAtomicInc_U32) { return(_InterlockedExchangeAdd((pl
 PLATFORM_ATOMIC_INC_I64(WindaAtomicInc_I64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, 1)); }
 PLATFORM_ATOMIC_INC_U64(WindaAtomicInc_U64) { return(_InterlockedExchangeAdd64((platform_atomic_type_i64*)Value, 1)); }
 
+PLATFORM_ALLOCATE_MEMORY(WindaAllocateMemory) {
+#if 1
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	void* Result = malloc(Size);
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+#else
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	void* Result = VirtualAlloc(0, Size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+#endif
+	return(Result);
+}
+
+PLATFORM_DEALLOCATE_MEMORY(WindaDeallocateMemory) {
+#if 1
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	if (Memory) {
+		free(Memory);
+	}
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+#else
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	if (Memory) {
+		VirtualFree(Memory, 0, MEM_RELEASE);
+	}
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+#endif
+}
+
 #else
 
 PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 
+	BeginMutexAccess(&Queue->AddMutex);
 	int NewToSet = (Queue->AddIndex.value + 1) % Queue->EntriesCount;
 
 	/*
@@ -698,6 +728,7 @@ PLATFORM_ADD_THREADWORK_ENTRY(SDLAddThreadworkEntry) {
 	SDL_CompilerBarrier();
 
 	SDL_SemPost(Queue->Semaphore);
+	EndMutexAccess(&Queue->AddMutex);
 }
 
 b32 SDLPerformNextThreadwork(platform_thread_queue* Queue) {
@@ -766,6 +797,7 @@ void SDLInitThreadQueue(
 	platform_threadwork* Entries,
 	u32 EntriesCount)
 {
+	Queue->AddMutex = {};
 	Queue->AddIndex.value = 0;
 	Queue->DoIndex.value = 0;
 	Queue->StartedEntries.value = 0;
@@ -839,6 +871,21 @@ PLATFORM_ATOMIC_INC_U32(SDLAtomicInc_U32) { return(SDL_AtomicAdd((SDL_atomic_t*)
 PLATFORM_ATOMIC_INC_I64(SDLAtomicInc_I64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
 PLATFORM_ATOMIC_INC_U64(SDLAtomicInc_U64) { return(SDL_AtomicAdd((SDL_atomic_t*)Value, 1)); }
 
+PLATFORM_ALLOCATE_MEMORY(SDLAllocateMemory) {
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	void* Result = malloc(Size);
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+
+	return(Result);
+}
+
+PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory) {
+	BeginMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+	if (Memory) {
+		free(Memory);
+	}
+	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
+}
 
 #endif
 
@@ -945,6 +992,10 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_U32 = WindaAtomicSet_U32;
 	PlatformApi.AtomicSet_I64 = WindaAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = WindaAtomicSet_U64;
+
+	PlatformApi.NativeMemoryAllocatorMutex = {};
+	PlatformApi.AllocateMemory = WindaAllocateMemory;
+	PlatformApi.DeallocateMemory = WindaDeallocateMemory;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
@@ -975,6 +1026,10 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.AtomicSet_U32 = SDLAtomicSet_U32;
 	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
 	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
+
+	PlatformApi.NativeMemoryAllocatorMutex = {};
+	PlatformApi.AllocateMemory = SDLAllocateMemory;
+	PlatformApi.DeallocateMemory = SDLDeallocateMemory;
 #endif
 
 	PlatformApi.VoxelQueue = &VoxelQueue;

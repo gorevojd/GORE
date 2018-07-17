@@ -46,7 +46,7 @@ struct voxworld_generation_state {
 	int TotalChunkThreadworksCount;
 
 	int ChunkTasksMemUsed;
-	platform_order_mutex ChunksThreadworksMutex;
+	platform_mutex ChunksThreadworksMutex;
 	voxworld_threadwork* ChunkUseSentinel;
 	voxworld_threadwork* ChunkFreeSentinel;
 
@@ -58,7 +58,7 @@ struct voxworld_generation_state {
 	int TotalGenThreadworksCount;
 
 	int GenTasksMemUsed;
-	platform_order_mutex GenMutex;
+	platform_mutex GenMutex;
 	voxworld_threadwork* GenUseSentinel;
 	voxworld_threadwork* GenFreeSentinel;
 
@@ -71,7 +71,7 @@ struct voxworld_generation_state {
 	int TotalMeshThreadworks;
 
 	int MeshTasksMemUsed;
-	platform_order_mutex MeshMutex;
+	platform_mutex MeshMutex;
 	voxworld_threadwork* MeshUseSentinel;
 	voxworld_threadwork* MeshFreeSentinel;
 
@@ -87,9 +87,9 @@ struct voxworld_generation_state {
 	
 	stacked_memory* TotalMemory;
 
-	platform_order_mutex MemoryAllocatorMutex;
+	platform_mutex MemoryAllocatorMutex;
 
-	platform_order_mutex HashTableOpMutex;
+	platform_mutex HashTableOpMutex;
 	int HashTableMemUsed;
 #define VOXWORLD_TABLE_SIZE 65536
 	voxworld_table_entry* HashTable[VOXWORLD_TABLE_SIZE];

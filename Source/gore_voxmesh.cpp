@@ -575,12 +575,12 @@ static void VoxelInsertThreadworkAfter(
 static voxworld_threadwork* VoxelBeginThreadwork(
 	voxworld_threadwork* FreeSentinel,
 	voxworld_threadwork* UseSentinel,
-	platform_order_mutex* Mutex,
+	platform_mutex* Mutex,
 	int* FreeWorkCount)
 {
 	voxworld_threadwork* Result = 0;
 
-	BeginOrderMutex(Mutex);
+	BeginMutexAccess(Mutex);
 
 	if (FreeSentinel->Next != FreeSentinel) {
 		//NOTE(dima): Putting threadwork list entry to use list
@@ -604,7 +604,7 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 		(*FreeWorkCount)--;
 	}
 
-	EndOrderMutex(Mutex);
+	EndMutexAccess(Mutex);
 
 	return(Result);
 }
@@ -612,10 +612,10 @@ static voxworld_threadwork* VoxelBeginThreadwork(
 static void VoxelEndThreadwork(
 	voxworld_threadwork* Threadwork,
 	voxworld_threadwork* FreeSentinel,
-	platform_order_mutex* Mutex,
+	platform_mutex* Mutex,
 	int* FreeWorkCount)
 {
-	BeginOrderMutex(Mutex);
+	BeginMutexAccess(Mutex);
 
 	//NOTE(dima): Putting threadwork list entry to free list
 	Threadwork->Prev->Next = Threadwork->Next;
@@ -632,7 +632,7 @@ static void VoxelEndThreadwork(
 
 	(*FreeWorkCount)++;
 
-	EndOrderMutex(Mutex);
+	EndMutexAccess(Mutex);
 }
 
 inline u32 GetKeyFromIndices(int X, int Y, int Z) {
@@ -650,7 +650,7 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 	u32 Key = GetKeyFromIndices(Info->IndexX, Info->IndexY, Info->IndexZ);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
-	BeginOrderMutex(&Generation->HashTableOpMutex);
+	BeginMutexAccess(&Generation->HashTableOpMutex);
 
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
 
@@ -705,7 +705,7 @@ static void VoxelInsertToTable(voxworld_generation_state* Generation, voxel_chun
 
 	Generation->HashTableTotalInsertedEntries++;
 
-	EndOrderMutex(&Generation->HashTableOpMutex);
+	EndMutexAccess(&Generation->HashTableOpMutex);
 }
 
 static void VoxelDeleteFromTable(
@@ -719,7 +719,7 @@ static void VoxelDeleteFromTable(
 	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
-	BeginOrderMutex(&Generation->HashTableOpMutex);
+	BeginMutexAccess(&Generation->HashTableOpMutex);
 	voxworld_table_entry** FirstEntry = &Generation->HashTable[InTableIndex];
 
 	//NOTE(dima): This element MUST exist
@@ -763,7 +763,7 @@ static void VoxelDeleteFromTable(
 		At = At->NextInHash;
 	}
 
-	EndOrderMutex(&Generation->HashTableOpMutex);
+	EndMutexAccess(&Generation->HashTableOpMutex);
 }
 
 static voxel_chunk_info* VoxelFindChunk(
@@ -777,7 +777,7 @@ static voxel_chunk_info* VoxelFindChunk(
 	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
-	BeginOrderMutex(&Generation->HashTableOpMutex);
+	BeginMutexAccess(&Generation->HashTableOpMutex);
 	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
 	
 	voxworld_table_entry* At = FirstEntry;
@@ -798,7 +798,7 @@ static voxel_chunk_info* VoxelFindChunk(
 		At = At->NextInHash;
 	}
 
-	EndOrderMutex(&Generation->HashTableOpMutex);
+	EndMutexAccess(&Generation->HashTableOpMutex);
 
 	return(Result);
 }
@@ -881,10 +881,8 @@ static void GenerateMeshInternal(
 
 	//NOTE(dima): Allocated buffer with needed size
 	int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
-
-	BeginOrderMutex(&Generation->MemoryAllocatorMutex);
-	MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
-	EndOrderMutex(&Generation->MemoryAllocatorMutex);
+	MeshInfo->Vertices = (voxel_vert_t*)PlatformApi.AllocateMemory(SizeForNewMesh);
+	Assert(MeshInfo->Vertices);
 
 	MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
 
@@ -910,12 +908,13 @@ static void UnloadMeshInternal(
 
 	Assert(MeshInfo->State == VoxelMeshState_Generated);
 
-	BeginOrderMutex(&MeshInfo->MeshUseMutex);
+	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 
 	if (MeshInfo->Vertices) {
-		BeginOrderMutex(&Generation->MemoryAllocatorMutex);
-		free(MeshInfo->Vertices);
-		EndOrderMutex(&Generation->MemoryAllocatorMutex);
+		PlatformApi.DeallocateMemory(MeshInfo->Vertices);
+	}
+	else {
+		Assert(!"Vertices should be allocated");
 	}
 
 	MeshInfo->Vertices = 0;
@@ -929,7 +928,7 @@ static void UnloadMeshInternal(
 	PlatformApi.WriteBarrier();
 	MeshInfo->State = VoxelMeshState_Unloaded;
 
-	EndOrderMutex(&MeshInfo->MeshUseMutex);
+	EndMutexAccess(&MeshInfo->MeshUseMutex);
 }
 
 PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
@@ -939,7 +938,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	voxel_mesh_info* MeshInfo = &GenData->Chunk->MeshInfo;
 	voxworld_generation_state* Generation = GenData->Generation;
 
-	BeginOrderMutex(&MeshInfo->MeshUseMutex);
+	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 
 	if (PlatformApi.AtomicCAS_U32(
 		&MeshInfo->State,
@@ -951,7 +950,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
 
-	EndOrderMutex(&MeshInfo->MeshUseMutex);
+	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
 	VoxelEndThreadwork(
 		GenData->MeshGenThreadwork,

@@ -93,7 +93,7 @@ struct platform_thread_queue {
 
 	HANDLE Semaphore;
 
-	platform_order_mutex AddMutex;
+	platform_mutex AddMutex;
 
 	char* QueueName;
 };
@@ -119,6 +119,8 @@ struct platform_thread_queue {
 	u32 WorkingThreadsCount;
 
 	SDL_sem* Semaphore;
+
+	platform_mutex AddMutex;
 
 	char* QueueName;
 };
