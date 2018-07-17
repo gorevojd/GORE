@@ -240,7 +240,8 @@ struct dealloc_queue_bitmap_data {
 };
 
 struct dealloc_queue_voxelmesh_data {
-	struct voxel_mesh_info* MeshInfo;
+	void* Handle1;
+	void* Handle2;
 };
 
 enum dealloc_queue_entry_type {

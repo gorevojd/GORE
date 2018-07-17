@@ -693,14 +693,11 @@ void OpenGLProcessAllocationQueue() {
 			}break;
 
 			case DeallocQueueEntry_VoxelMesh: {
-				GLuint MeshVBO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2;
-				GLuint MeshVAO = (GLuint)Entry->Data.VoxelMeshData.MeshInfo->MeshHandle;
+				GLuint MeshVBO = (GLuint)Entry->Data.VoxelMeshData.Handle2;
+				GLuint MeshVAO = (GLuint)Entry->Data.VoxelMeshData.Handle1;
 
 				glDeleteVertexArrays(1, &MeshVAO);
 				glDeleteBuffers(1, &MeshVBO);
-
-				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle = 0;
-				Entry->Data.VoxelMeshData.MeshInfo->MeshHandle2 = 0;
 			}break;
 		}
 

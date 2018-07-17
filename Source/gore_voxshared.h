@@ -53,6 +53,22 @@ struct voxworld_threadwork {
 	stacked_memory MemoryInternal;
 };
 
+struct neighbours_chunks {
+	struct voxel_chunk_info* LeftChunk;
+	struct voxel_chunk_info* RightChunk;
+	struct voxel_chunk_info* TopChunk;
+	struct voxel_chunk_info* BottomChunk;
+	struct voxel_chunk_info* FrontChunk;
+	struct voxel_chunk_info* BackChunk;
+
+	u32 LeftChunkState;
+	u32 RightChunkState;
+	u32 TopChunkState;
+	u32 BottomChunkState;
+	u32 FrontChunkState;
+	u32 BackChunkState;
+};
+
 struct voxel_chunk_info {
 	platform_atomic_type_u32 State;
 
@@ -63,18 +79,25 @@ struct voxel_chunk_info {
 	//u8* Voxels;
 	u8 Voxels[VOXEL_CHUNK_TOTAL_VOXELS_COUNT];
 
-	voxel_chunk_info* LeftChunk;
-	voxel_chunk_info* RightChunk;
-	voxel_chunk_info* FrontChunk;
-	voxel_chunk_info* BackChunk;
-	voxel_chunk_info* TopChunk;
-	voxel_chunk_info* BottomChunk;
-
 	voxel_mesh_info MeshInfo;
+
+	neighbours_chunks OldNeighbours;
 
 	//NOTE(dima): Used to store loaded chunk data
 	voxworld_threadwork* Threadwork;
 };
+
+inline b32 ChunkNotZeroAndGenerated(voxel_chunk_info* Chunk) {
+	b32 Result = 0;
+
+	if (Chunk) {
+		if (Chunk->State == VoxelChunkState_Ready) {
+			Result = 1;
+		}
+	}
+
+	return(Result);
+}
 
 enum voxel_material_type {
 	VoxelMaterial_None,

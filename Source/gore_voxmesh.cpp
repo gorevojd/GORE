@@ -173,18 +173,29 @@ static inline b32 NeighbourVoxelExistAndAir(
 		is stored from bottom to top
 */
 
-void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atlas_info* Atlas){
+struct voxmesh_generate_data {
+	voxel_chunk_info* Chunk;
+	voxel_atlas_info* Atlas;
+	
+	neighbours_chunks Neighbours;
+};
+
+void VoxmeshGenerate(
+	voxel_mesh_info* Result,
+	voxmesh_generate_data* Data)
+{
+	voxel_chunk_info* Chunk = Data->Chunk;
+	voxel_atlas_info* Atlas = Data->Atlas;
 
 	Result->MeshHandle = 0;
-
-	voxel_chunk_info* LeftChunk = Chunk->LeftChunk;
-	voxel_chunk_info* RightChunk = Chunk->RightChunk;
-	voxel_chunk_info* TopChunk = Chunk->TopChunk;
-	voxel_chunk_info* BottomChunk = Chunk->BottomChunk;
-	voxel_chunk_info* BackChunk = Chunk->BackChunk;
-	voxel_chunk_info* FrontChunk = Chunk->FrontChunk;
-
 	Result->VerticesCount = 0;
+
+	voxel_chunk_info* LeftChunk = Data->Neighbours.LeftChunk;
+	voxel_chunk_info* RightChunk = Data->Neighbours.RightChunk;
+	voxel_chunk_info* TopChunk = Data->Neighbours.TopChunk;
+	voxel_chunk_info* BottomChunk = Data->Neighbours.BottomChunk;
+	voxel_chunk_info* FrontChunk = Data->Neighbours.FrontChunk;
+	voxel_chunk_info* BackChunk = Data->Neighbours.BackChunk;
 
 	for (int DepthIndex = 0; DepthIndex < VOXEL_CHUNK_WIDTH; DepthIndex++) {
 		for (int WidthIndex = 0; WidthIndex < VOXEL_CHUNK_WIDTH; WidthIndex++) {
@@ -239,7 +250,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 						int IndexInNeighbourChunk = 0;
 
 						if (WidthIndex == 0) {
-							if (LeftChunk) {
+							if (ChunkNotZeroAndGenerated(LeftChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(VOXEL_CHUNK_WIDTH - 1, DepthIndex, HeightIndex);
 
 								if (LeftChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -251,7 +262,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 							}
 						}
 						if (WidthIndex == (VOXEL_CHUNK_WIDTH - 1)) {
-							if (RightChunk) {
+							if (ChunkNotZeroAndGenerated(RightChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(0, DepthIndex, HeightIndex);
 
 								if (RightChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -263,7 +274,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 							}
 						}
 						if (DepthIndex == 0) {
-							if (FrontChunk) {
+							if (ChunkNotZeroAndGenerated(FrontChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, VOXEL_CHUNK_WIDTH - 1, HeightIndex);
 
 								if (FrontChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -276,7 +287,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 						}
 
 						if (DepthIndex == (VOXEL_CHUNK_WIDTH - 1)) {
-							if (BackChunk) {
+							if (ChunkNotZeroAndGenerated(BackChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, 0, HeightIndex);
 
 								if (BackChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -289,7 +300,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 						}
 
 						if (HeightIndex == 0) {
-							if (BottomChunk) {
+							if (ChunkNotZeroAndGenerated(BottomChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, DepthIndex, VOXEL_CHUNK_HEIGHT - 1);
 
 								if (BottomChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -302,7 +313,7 @@ void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atl
 						}
 
 						if (HeightIndex == (VOXEL_CHUNK_HEIGHT - 1)) {
-							if (TopChunk) {
+							if (ChunkNotZeroAndGenerated(TopChunk)) {
 								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, DepthIndex, VOXEL_CHUNK_HEIGHT - 1);
 
 								if (TopChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
@@ -419,13 +430,6 @@ inline v3 GetPosForVoxelChunk(voxel_chunk_info* Chunk) {
 
 void GenerateTestChunk(voxel_chunk_info* Chunk) {
 
-	Chunk->BackChunk = 0;
-	Chunk->FrontChunk = 0;
-	Chunk->TopChunk = 0;
-	Chunk->BottomChunk = 0;
-	Chunk->LeftChunk = 0;
-	Chunk->RightChunk = 0;
-
 	int TestStartHeight = 100;
 
 	for (int j = 0; j < VOXEL_CHUNK_WIDTH; j++) {
@@ -442,13 +446,6 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 #include "stb_perlin.h"
 
 void GenerateRandomChunk(voxel_chunk_info* Chunk) {
-
-	Chunk->BackChunk = 0;
-	Chunk->FrontChunk = 0;
-	Chunk->TopChunk = 0;
-	Chunk->BottomChunk = 0;
-	Chunk->LeftChunk = 0;
-	Chunk->RightChunk = 0;
 
 	for (int BlockIndex = 0;
 		BlockIndex < VOXEL_CHUNK_TOTAL_VOXELS_COUNT;
@@ -501,6 +498,17 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk) {
 			BuildColumn(Chunk, i, j, 0, SetHeight - 1, VoxelMaterial_Ground);
 		}
 	}
+}
+
+static inline b32 VoxelChunkNeighboursChanged(
+	voxel_chunk_info* Chunk, 
+	neighbours_chunks* Neighbours) 
+{
+	b32 Result = 0;
+
+
+
+	return(Result);
 }
 
 #include "stb_sprintf.h"
@@ -636,9 +644,16 @@ static void VoxelEndThreadwork(
 }
 
 inline u32 GetKeyFromIndices(int X, int Y, int Z) {
+#if 0
 	char KeyStr[64];
 	stbsp_sprintf(KeyStr, "%d|%d|%d", X, Y, Z);
 	u32 Result = StringHashFNV(KeyStr);
+#else
+	u32 Result = 0xAAAAAAAA;
+	Result = Result * 1000003351 ^ (X + 16777619);
+	Result = Result * 1000010233 ^ (Y + 16777619);
+	Result = Result * 1000008899 ^ (Z + 16777619);
+#endif
 
 	return(Result);
 }
@@ -770,7 +785,7 @@ static voxel_chunk_info* VoxelFindChunk(
 	voxworld_generation_state* Generation,
 	int X, int Y, int Z) 
 {
-	FUNCTION_TIMING();
+	//FUNCTION_TIMING();
 
 	voxel_chunk_info* Result = 0;
 
@@ -799,6 +814,46 @@ static voxel_chunk_info* VoxelFindChunk(
 	}
 
 	EndMutexAccess(&Generation->HashTableOpMutex);
+
+	return(Result);
+}
+
+static neighbours_chunks VoxelFindNeighboursChunks(
+	voxworld_generation_state* Generation,
+	int X, int Y, int Z)
+{
+	neighbours_chunks Result = {};
+
+	Result.LeftChunk = VoxelFindChunk(Generation, X - 1, Y, Z);
+	Result.RightChunk = VoxelFindChunk(Generation, X + 1, Y, Z);
+	Result.TopChunk = VoxelFindChunk(Generation, X, Y + 1, Z);
+	Result.BottomChunk = VoxelFindChunk(Generation, X, Y - 1, Z);
+	Result.FrontChunk = VoxelFindChunk(Generation, X, Y, Z - 1);
+	Result.BackChunk = VoxelFindChunk(Generation, X, Y, Z + 1);
+
+	if (Result.LeftChunk) {
+		Result.LeftChunkState = Result.LeftChunk->State;
+	}
+
+	if (Result.RightChunk) {
+		Result.RightChunkState = Result.RightChunk->State;
+	}
+
+	if (Result.TopChunk) {
+		Result.TopChunkState = Result.TopChunk->State;
+	}
+
+	if (Result.BottomChunk) {
+		Result.BottomChunkState = Result.BottomChunk->State;
+	}
+
+	if (Result.FrontChunk) {
+		Result.FrontChunkState = Result.FrontChunk->State;
+	}
+
+	if (Result.BackChunk) {
+		Result.BackChunkState = Result.BackChunk->State;
+	}
 
 	return(Result);
 }
@@ -849,9 +904,8 @@ static void VoxelRegenerateSetatistics(
 	Result->GenerationMem = Generation->TotalMemory;
 }
 
-struct generate_voxel_mesh_data {
-	voxel_chunk_info* Chunk;
-	voxel_atlas_info* VoxelAtlasInfo;
+struct generate_voxel_mesh_threadwork_data {
+	voxmesh_generate_data MeshGenerateData;
 
 	voxworld_threadwork* MeshGenThreadwork;
 
@@ -860,10 +914,11 @@ struct generate_voxel_mesh_data {
 
 static void GenerateMeshInternal(
 	voxel_mesh_info* MeshInfo,
-	voxel_chunk_info* ChunkInfo, 
-	voxworld_generation_state* Generation,
-	voxel_atlas_info* AtlasInfo) 
+	voxmesh_generate_data* MeshGenerateData,
+	voxworld_generation_state* Generation) 
 {
+	BeginMutexAccess(&MeshInfo->MeshUseMutex);
+
 	//TODO(dima): Better memory management here
 	voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
 		Generation->MeshFreeSentinel,
@@ -876,8 +931,7 @@ static void GenerateMeshInternal(
 	voxel_mesh_info TempMeshInfo = {};
 	TempMeshInfo.Vertices = (voxel_vert_t*)MeshThreadwork->Memory.BaseAddress;
 
-	//NOTE(dima): Generate mesh to temp buffer
-	VoxmeshGenerate(&TempMeshInfo, ChunkInfo, AtlasInfo);
+	VoxmeshGenerate(&TempMeshInfo, MeshGenerateData);
 
 	//NOTE(dima): Allocated buffer with needed size
 	int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
@@ -898,6 +952,8 @@ static void GenerateMeshInternal(
 	PlatformApi.WriteBarrier();
 
 	MeshInfo->State = VoxelMeshState_Generated;
+
+	EndMutexAccess(&MeshInfo->MeshUseMutex);
 }
 
 static void UnloadMeshInternal(
@@ -922,8 +978,12 @@ static void UnloadMeshInternal(
 
 	dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
 	AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
-	AllocEntry->Data.VoxelMeshData.MeshInfo = MeshInfo;
+	AllocEntry->Data.VoxelMeshData.Handle1 = MeshInfo->MeshHandle;
+	AllocEntry->Data.VoxelMeshData.Handle2 = MeshInfo->MeshHandle2;
 	PlatformInsertDellocEntry(AllocEntry);
+
+	MeshInfo->MeshHandle = 0;
+	MeshInfo->MeshHandle2 = 0;
 
 	PlatformApi.WriteBarrier();
 	MeshInfo->State = VoxelMeshState_Unloaded;
@@ -931,26 +991,51 @@ static void UnloadMeshInternal(
 	EndMutexAccess(&MeshInfo->MeshUseMutex);
 }
 
+//NOTE(dima): Mesh generation threadwork
 PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
-	generate_voxel_mesh_data* GenData = (generate_voxel_mesh_data*)Data;
+	generate_voxel_mesh_threadwork_data* GenData = (generate_voxel_mesh_threadwork_data*)Data;
 
-	voxel_chunk_info* ChunkInfo = GenData->Chunk;
-	voxel_mesh_info* MeshInfo = &GenData->Chunk->MeshInfo;
+	voxel_chunk_info* ChunkInfo = GenData->MeshGenerateData.Chunk;
+	voxel_mesh_info* MeshInfo = &ChunkInfo->MeshInfo;
 	voxworld_generation_state* Generation = GenData->Generation;
-
-	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 
 	if (PlatformApi.AtomicCAS_U32(
 		&MeshInfo->State,
 		VoxelMeshState_InProcess,
 		VoxelMeshState_None))
 	{
-		GenerateMeshInternal(MeshInfo, ChunkInfo, Generation, GenData->VoxelAtlasInfo);
+		GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
 
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
 
-	EndMutexAccess(&MeshInfo->MeshUseMutex);
+	VoxelEndThreadwork(
+		GenData->MeshGenThreadwork,
+		GenData->Generation->GenFreeSentinel,
+		&GenData->Generation->GenMutex,
+		&GenData->Generation->FreeGenThreadworksCount);
+}
+
+//NOTE(dima): Mesh REgeneration threadwork
+PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
+	generate_voxel_mesh_threadwork_data* GenData = (generate_voxel_mesh_threadwork_data*)Data;
+
+	voxel_chunk_info* ChunkInfo = GenData->MeshGenerateData.Chunk;
+	voxel_mesh_info* MeshInfo = &ChunkInfo->MeshInfo;
+	voxworld_generation_state* Generation = GenData->Generation;
+
+	PlatformApi.ReadBarrier();
+
+	if (MeshInfo->State != VoxelMeshState_None) {
+		//NOTE(dima): Infinite loop to wait for the mesh to become generated
+		while (MeshInfo->State == VoxelMeshState_InProcess) {
+			int a = 1;
+		}
+
+		UnloadMeshInternal(MeshInfo, Generation);
+	}
+
+	GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
 
 	VoxelEndThreadwork(
 		GenData->MeshGenThreadwork,
@@ -1001,14 +1086,23 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 
 		Assert(MeshGenThreadwork);
 
-		generate_voxel_mesh_data* MeshGenerationData = PushStruct(
+		generate_voxel_mesh_threadwork_data* MeshGenerationData = PushStruct(
 			&MeshGenThreadwork->Memory,
-			generate_voxel_mesh_data);
+			generate_voxel_mesh_threadwork_data);
 
-		MeshGenerationData->Chunk = WorkChunk;
 		MeshGenerationData->Generation = GenData->Generation;
 		MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
-		MeshGenerationData->VoxelAtlasInfo = GenData->VoxelAtlasInfo;
+
+		MeshGenerationData->MeshGenerateData.Chunk = WorkChunk;
+		MeshGenerationData->MeshGenerateData.Atlas = GenData->VoxelAtlasInfo;
+
+		neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
+			GenData->Generation,
+			WorkChunk->IndexX,
+			WorkChunk->IndexY,
+			WorkChunk->IndexZ);
+
+		MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
 
 		PlatformApi.AddThreadworkEntry(
 			PlatformApi.VoxelQueue,
@@ -1181,7 +1275,7 @@ static void VoxelChunksGenerationInit(
 
 	int SizeForGenThreadwork = Max(
 		sizeof(generate_voxel_chunk_data), 
-		sizeof(generate_voxel_mesh_data));
+		sizeof(generate_voxel_mesh_threadwork_data));
 
 	SizeForGenThreadwork = Max(SizeForGenThreadwork, sizeof(unload_voxel_chunk_data));
 
@@ -1236,6 +1330,21 @@ void VoxelChunksGenerationUpdate(
 	v3 CameraPos)
 {
 	FUNCTION_TIMING();
+
+	/*
+		NOTE(dima): Some ideas to optimize all this stuff
+
+		1) Create read-copy table. It means that i might 
+		create copy of the hash table at the end of each 
+		frame and make all reads from it but not from the 
+		table that i write to.
+
+		2) Create insertion, deletion lists. It means that
+		i might want to make linked lists that i will insert 
+		or delete instantly. Not one-by-one.
+
+		3) Multithread cells walkaround and list walkaround
+	*/
 
 	voxworld_generation_state* Generation = (voxworld_generation_state*)Memory->BaseAddress;
 
@@ -1292,8 +1401,6 @@ void VoxelChunksGenerationUpdate(
 					if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
 
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
-
-						//Assert(NeededChunk->MeshInfo.VerticesCount != 0);
 
 						//IMPORTANT(dima): add mutex here if multithread this code
 						RENDERPushVoxelMesh(
@@ -1378,6 +1485,8 @@ void VoxelChunksGenerationUpdate(
 			if (NeededChunk->IndexX < MinCellX || NeededChunk->IndexX > MaxCellX ||
 				NeededChunk->IndexZ < MinCellZ || NeededChunk->IndexZ > MaxCellZ)
 			{
+				//NOTE(dima): Loaded chunk is out of range and we should deallocate it
+
 				voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(
 					Generation->GenFreeSentinel,
 					Generation->GenUseSentinel,
@@ -1404,6 +1513,49 @@ void VoxelChunksGenerationUpdate(
 					NeededChunk->IndexX,
 					NeededChunk->IndexY,
 					NeededChunk->IndexZ);
+			}
+			else {
+				/*NOTE(dima): Loaded chunk is in range. And some 
+				additional checks will be made here*/
+
+				BEGIN_TIMING("Finding neighbours");
+				neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
+					Generation,
+					NeededChunk->IndexX,
+					NeededChunk->IndexY,
+					NeededChunk->IndexZ);
+				END_TIMING();
+
+				/*NOTE(dima): If neighbours of chunk were changed
+				it means that we should regenerate */
+				if (VoxelChunkNeighboursChanged(NeededChunk, &Neighbours)) {
+
+					voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(
+						Generation->GenFreeSentinel,
+						Generation->GenUseSentinel,
+						&Generation->GenMutex,
+						&Generation->FreeGenThreadworksCount);
+
+					Assert(MeshGenThreadwork);
+
+					generate_voxel_mesh_threadwork_data* MeshGenerationData = PushStruct(
+						&MeshGenThreadwork->Memory,
+						generate_voxel_mesh_threadwork_data);
+
+					MeshGenerationData->Generation = Generation;
+					MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
+
+					//NOTE(dima): Generate mesh to temp buffer
+					MeshGenerationData->MeshGenerateData.Atlas = Generation->VoxelAtlas;
+					MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
+
+					MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
+
+					PlatformApi.AddThreadworkEntry(
+						PlatformApi.VoxelQueue,
+						MeshGenerationData,
+						RegenerateVoxelMeshThreadwork);
+				}
 			}
 		}
 #endif

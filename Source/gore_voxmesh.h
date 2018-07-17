@@ -104,9 +104,6 @@ struct voxworld_generation_state {
 	voxel_generation_statistics DEBUGStat;
 };
 
-void GenerateTestChunk(voxel_chunk_info* Chunk);
-void VoxmeshGenerate(voxel_mesh_info* Result, voxel_chunk_info* Chunk, voxel_atlas_info* Atlas);
-
 void VoxelChunksGenerationUpdate(
 	stacked_memory* Memory,
 	render_state* RenderState,
