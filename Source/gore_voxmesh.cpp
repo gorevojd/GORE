@@ -479,7 +479,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				(float)(ChunkPos.z + j) / BiomeNoiseScale,
 				0, 0, 0);
 
-			BiomeNoise = BiomeNoise * 2.0f + 1.0f;
+			BiomeNoise = BiomeNoise * 0.5f + 0.5f;
 
 			float SmoothRandomValue = GetNextRandomSmoothFloat(Generation);
 			SmoothRandomValue = 1.0f - Cos(SmoothRandomValue * GORE_PI * 0.5f);
@@ -502,7 +502,8 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			else if (BiomeNoise >= 0.6f && BiomeNoise <= 1.0f) {
 				GrassMaterial = VoxelMaterial_SnowGround;
 				GroundMaterial = VoxelMaterial_WinterGround;
-				BiomeNoiseDivisor = 512.0f;
+				//BiomeNoiseDivisor = 512.0f;
+				BiomeNoiseDivisor = 384.0f;
 			}
 			else {
  				Assert(!"INVALID");
