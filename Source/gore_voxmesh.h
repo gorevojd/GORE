@@ -293,8 +293,6 @@ static float VoxelSmoothRandoms[] = {
 	-0.78683, 0.95303, 0.17718, -0.48229, -0.14995, -0.30178, 0.96008, 0.54672,
 };
 
-
-
 struct voxworld_generation_state {
 
 	b32 Initialized;
@@ -360,7 +358,7 @@ struct voxworld_generation_state {
 	voxworld_table_entry* FreeTableEntrySentinel;
 	voxworld_table_entry* WorkTableEntrySentinel;
 
-	voxel_atlas_info* VoxelAtlas;
+	//voxel_atlas_info* VoxelAtlas;
 
 	volatile u32 SmoothRandomIndex;
 

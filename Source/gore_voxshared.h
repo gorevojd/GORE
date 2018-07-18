@@ -54,19 +54,29 @@ struct voxworld_threadwork {
 };
 
 struct neighbours_chunks {
-	struct voxel_chunk_info* LeftChunk;
-	struct voxel_chunk_info* RightChunk;
-	struct voxel_chunk_info* TopChunk;
-	struct voxel_chunk_info* BottomChunk;
-	struct voxel_chunk_info* FrontChunk;
-	struct voxel_chunk_info* BackChunk;
+	union {
+		struct {
+			struct voxel_chunk_info* LeftChunk;
+			struct voxel_chunk_info* RightChunk;
+			struct voxel_chunk_info* TopChunk;
+			struct voxel_chunk_info* BottomChunk;
+			struct voxel_chunk_info* FrontChunk;
+			struct voxel_chunk_info* BackChunk;
+		};
+		struct voxel_chunk_info* ChunksPointers[6];
+	};
 
-	u32 LeftChunkState;
-	u32 RightChunkState;
-	u32 TopChunkState;
-	u32 BottomChunkState;
-	u32 FrontChunkState;
-	u32 BackChunkState;
+	union {
+		struct {
+			u32 LeftChunkState;
+			u32 RightChunkState;
+			u32 TopChunkState;
+			u32 BottomChunkState;
+			u32 FrontChunkState;
+			u32 BackChunkState;
+		};
+		u32 ChunksStates[6];
+	};
 };
 
 struct voxel_chunk_info {

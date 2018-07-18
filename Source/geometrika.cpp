@@ -54,10 +54,11 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	}
 
 	RawMoveVector = RawMoveVector * CameraSpeed;
-#if 0
-	State->Camera.Position += State->Camera.Front * MoveVector.z;
-	State->Camera.Position -= State->Camera.Left * MoveVector.x;
-	State->Camera.Position += State->Camera.Up * MoveVector.y;
+#if 1
+	RawMoveVector *= Input->DeltaTime;
+	State->Camera.Position += State->Camera.Front * RawMoveVector.z;
+	State->Camera.Position -= State->Camera.Left * RawMoveVector.x;
+	State->Camera.Position += State->Camera.Up * RawMoveVector.y;
 #else
 	v3 MoveVector = {};
 	MoveVector += State->Camera.Front * RawMoveVector.z;

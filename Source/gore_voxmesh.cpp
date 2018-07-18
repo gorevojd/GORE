@@ -479,14 +479,32 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				(float)(ChunkPos.z + j) / BiomeNoiseScale,
 				0, 0, 0);
 
-			BiomeNoise = BiomeNoise * 0.5f + 0.5f;
+
+			float BiomeTransitionNoiseScale = 128.0f;
+#if 1
+			float BiomeTransitionNoise = stb_perlin_noise3(
+				(float)(ChunkPos.x + i) / BiomeTransitionNoiseScale,
+				(float)ChunkPos.y / BiomeTransitionNoiseScale,
+				(float)(ChunkPos.z + j) / BiomeTransitionNoiseScale,
+				0, 0, 0);
+#else
+			float BiomeTransitionNoise = stb_perlin_fbm_noise3(
+				(float)(ChunkPos.x + i) / BiomeTransitionNoiseScale,
+				(float)ChunkPos.y / BiomeTransitionNoiseScale,
+				(float)(ChunkPos.z + j) / BiomeTransitionNoiseScale,
+				Lacunarity, Gain, Octaves, 0, 0, 0);
+#endif
 
 			float SmoothRandomValue = GetNextRandomSmoothFloat(Generation);
-			SmoothRandomValue = 1.0f - Cos(SmoothRandomValue * GORE_PI * 0.5f);
-			SmoothRandomValue *= 0.03f;
+			float TransitionValue = 0.0f;
 
+			TransitionValue = BiomeTransitionNoise * 0.02f;
+			//TransitionValue += (1.0f - Cos(SmoothRandomValue * GORE_PI * 0.5f)) * 0.02f;
+			TransitionValue += SmoothRandomValue * 0.0025f;
 
-			BiomeNoise += SmoothRandomValue;
+			BiomeNoise = BiomeNoise * 0.5f + 0.5f;
+
+			BiomeNoise += TransitionValue;
 			BiomeNoise = Clamp01(BiomeNoise);
 
 			u8 GrassMaterial = VoxelMaterial_GrassyGround;
@@ -548,11 +566,35 @@ static inline b32 VoxelChunkNeighboursChanged(
 	voxel_chunk_info* Chunk, 
 	neighbours_chunks* Neighbours) 
 {
-	b32 Result = 0;
+#if 0
+	//NOTE(dima): Checking chunks pointers
+	for (int ChunkPointerIndex = 0;
+		ChunkPointerIndex < 6;
+		ChunkPointerIndex++)
+	{
+		if (Chunk->OldNeighbours.ChunksPointers[ChunkPointerIndex] != 
+			Neighbours->ChunksPointers[ChunkPointerIndex]) 
+		{
+			return(1);
+		}
+	}
 
+	//NOTE(dima): Checking chunk states
+	for (int ChunkStateIndex = 0;
+		ChunkStateIndex < 6;
+		ChunkStateIndex++) 
+	{
+		if (Neighbours->ChunksStates[ChunkStateIndex] == VoxelChunkState_Ready) {
+			if (Neighbours->ChunksStates[ChunkStateIndex] !=
+				Chunk->OldNeighbours.ChunksStates[ChunkStateIndex])
+			{
+				return(1);
+			}
+		}
+	}
+#endif
 
-
-	return(Result);
+	return(0);
 }
 
 #include "stb_sprintf.h"
@@ -831,12 +873,14 @@ static voxel_chunk_info* VoxelFindChunk(
 {
 	//FUNCTION_TIMING();
 
+	/* NOTE(dima): Mutexes deleted from here. They must
+	be used in caller code. */
+
 	voxel_chunk_info* Result = 0;
 
 	u32 Key = GetKeyFromIndices(X, Y, Z);
 	u32 InTableIndex = Key % VOXWORLD_TABLE_SIZE;
 
-	BeginMutexAccess(&Generation->HashTableOpMutex);
 	voxworld_table_entry* FirstEntry = Generation->HashTable[InTableIndex];
 	
 	voxworld_table_entry* At = FirstEntry;
@@ -857,8 +901,6 @@ static voxel_chunk_info* VoxelFindChunk(
 		At = At->NextInHash;
 	}
 
-	EndMutexAccess(&Generation->HashTableOpMutex);
-
 	return(Result);
 }
 
@@ -868,12 +910,14 @@ static neighbours_chunks VoxelFindNeighboursChunks(
 {
 	neighbours_chunks Result = {};
 
+	BeginMutexAccess(&Generation->HashTableOpMutex);
 	Result.LeftChunk = VoxelFindChunk(Generation, X - 1, Y, Z);
 	Result.RightChunk = VoxelFindChunk(Generation, X + 1, Y, Z);
 	Result.TopChunk = VoxelFindChunk(Generation, X, Y + 1, Z);
 	Result.BottomChunk = VoxelFindChunk(Generation, X, Y - 1, Z);
 	Result.FrontChunk = VoxelFindChunk(Generation, X, Y, Z - 1);
 	Result.BackChunk = VoxelFindChunk(Generation, X, Y, Z + 1);
+	EndMutexAccess(&Generation->HashTableOpMutex);
 
 	if (Result.LeftChunk) {
 		Result.LeftChunkState = Result.LeftChunk->State;
@@ -961,8 +1005,6 @@ static void GenerateMeshInternal(
 	voxmesh_generate_data* MeshGenerateData,
 	voxworld_generation_state* Generation) 
 {
-	BeginMutexAccess(&MeshInfo->MeshUseMutex);
-
 	//TODO(dima): Better memory management here
 	voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(
 		Generation->MeshFreeSentinel,
@@ -996,8 +1038,6 @@ static void GenerateMeshInternal(
 	PlatformApi.WriteBarrier();
 
 	MeshInfo->State = VoxelMeshState_Generated;
-
-	EndMutexAccess(&MeshInfo->MeshUseMutex);
 }
 
 static void UnloadMeshInternal(
@@ -1007,8 +1047,6 @@ static void UnloadMeshInternal(
 	PlatformApi.ReadBarrier();
 
 	Assert(MeshInfo->State == VoxelMeshState_Generated);
-
-	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 
 	if (MeshInfo->Vertices) {
 		PlatformApi.DeallocateMemory(MeshInfo->Vertices);
@@ -1031,8 +1069,6 @@ static void UnloadMeshInternal(
 
 	PlatformApi.WriteBarrier();
 	MeshInfo->State = VoxelMeshState_Unloaded;
-
-	EndMutexAccess(&MeshInfo->MeshUseMutex);
 }
 
 //NOTE(dima): Mesh generation threadwork
@@ -1048,7 +1084,9 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		VoxelMeshState_InProcess,
 		VoxelMeshState_None))
 	{
+		BeginMutexAccess(&MeshInfo->MeshUseMutex);
 		GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+		EndMutexAccess(&MeshInfo->MeshUseMutex);
 
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
@@ -1070,6 +1108,7 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 
 	PlatformApi.ReadBarrier();
 
+	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 	if (MeshInfo->State != VoxelMeshState_None) {
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
 		while (MeshInfo->State == VoxelMeshState_InProcess) {
@@ -1080,6 +1119,7 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 	}
 
 	GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
 	VoxelEndThreadwork(
 		GenData->MeshGenThreadwork,
@@ -1212,7 +1252,7 @@ static void VoxelChunksGenerationInit(
 	stacked_memory* Memory,
 	int VoxelThreadQueueSize)
 {
-	int ChunksViewDistanceCount = 40;
+	int ChunksViewDistanceCount = 20;
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
 	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
 
@@ -1386,11 +1426,19 @@ void VoxelChunksGenerationUpdate(
 		frame and make all reads from it but not from the 
 		table that i write to.
 
+		!!! It means that we will not need to have mutex
+		in hash table lookup(VoxelFindChunk). It would be 
+		instant!)!)!)!)!))!((!0101)!)!)!!!)!)!)!)11!11!!10
+
 		2) Create insertion, deletion lists. It means that
 		i might want to make linked lists that i will insert 
 		or delete instantly. Not one-by-one.
 
 		3) Multithread cells walkaround and list walkaround
+
+		4) Frustum culling. First - try to make frustum culling
+		by checking all 16 16x16x16 mini-chunks. Then second - 
+		try to check if all vertices are outside at least one plane
 	*/
 
 	voxworld_generation_state* Generation = (voxworld_generation_state*)Memory->BaseAddress;
@@ -1431,7 +1479,9 @@ void VoxelChunksGenerationUpdate(
 	for (int CellX = MinCellX; CellX <= MaxCellX; CellX++) {
 		for (int CellZ = MinCellZ; CellZ <= MaxCellZ; CellZ++) {
 			
+			BeginMutexAccess(&Generation->HashTableOpMutex);
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(Generation, CellX, CellY, CellZ);
+			EndMutexAccess(&Generation->HashTableOpMutex);
 
 			if (NeededChunk) {
 				PlatformApi.ReadBarrier();
@@ -1593,7 +1643,7 @@ void VoxelChunksGenerationUpdate(
 					MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
 
 					//NOTE(dima): Generate mesh to temp buffer
-					MeshGenerationData->MeshGenerateData.Atlas = Generation->VoxelAtlas;
+					MeshGenerationData->MeshGenerateData.Atlas = VoxelAtlas;
 					MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
 
 					MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
