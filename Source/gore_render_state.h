@@ -109,9 +109,7 @@ struct render_stack_entry_header {
 inline void* RENDERPushToStack(render_state* Stack, u32 Size) {
 	void* Result = 0;
 
-	BeginMutexAccess(&Stack->RenderPushMutex);
 	void* MemPushed = PushSomeMemory(&Stack->Data, Size);
-	EndMutexAccess(&Stack->RenderPushMutex);
 	if (MemPushed) {
 		Result = MemPushed;
 	}

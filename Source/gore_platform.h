@@ -22,7 +22,7 @@ struct platform_mutex {
 };
 
 inline void BeginMutexAccess(platform_mutex* Mutex) {
-	long long Ticket = _InterlockedExchangeAdd64((volatile long long*)&Mutex->Ticket, 1);
+ 	long long Ticket = _InterlockedExchangeAdd64((volatile long long*)&Mutex->Ticket, 1);
 	while (Ticket != Mutex->ServingTicket) {
    		_mm_pause();
 	}

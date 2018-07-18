@@ -2131,10 +2131,15 @@ static void DEBUGVoxelGenerationGraphElement(
 		//NOTE(dima): Voxel thread queue info
 		float BusyPercentage = (float)QueueInfo->EntriesBusy / (float)QueueInfo->TotalEntriesCount;
 
+		v4 FineColor = GUIGetColor(GUIState, Color_Green);
+		v4 AlmostCrashColor = GUIGetColor(GUIState, Color_Red);
+
+		v4 BusyBarColor = Lerp(FineColor, AlmostCrashColor, BusyPercentage);
+
 		rect2 BusyRect = Rect2MinDim(RectMin, V2(BusyPercentage * WorkDim->x, WorkDim->y / 2));
 		rect2 FreeRect = Rect2MinMax(V2(BusyRect.Max.x, BusyRect.Min.y), V2(WorkRect.Max.x, BusyRect.Max.y));
 
-		RENDERPushRect(GUIState->RenderStack, BusyRect, GUIGetColor(GUIState, ColorExt_OrangeRed2));
+		RENDERPushRect(GUIState->RenderStack, BusyRect, BusyBarColor);
 		RENDERPushRectOutline(GUIState->RenderStack, BusyRect, 1, V4(0.0f, 0.0f, 0.0f, 1.0f));
 		RENDERPushRect(GUIState->RenderStack, FreeRect, GUIGetColor(GUIState, ColorExt_DarkGreen));
 		RENDERPushRectOutline(GUIState->RenderStack, FreeRect, 1, V4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -2297,8 +2302,9 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			GenerationStat->MeshGenerationsStartedThisFrame);
 
 		stbsp_sprintf(ChunksStat,
-			"Chunks pushed %d",
-			GenerationStat->ChunksPushedToRender);
+			"Chunks pushed %d; loaded %d",
+			GenerationStat->ChunksPushed,
+			GenerationStat->ChunksLoaded);
 
 		stbsp_sprintf(TrianglesStatp, "Triagnles pushed %d; loaded %d",
 			GenerationStat->TrianglesPushed,

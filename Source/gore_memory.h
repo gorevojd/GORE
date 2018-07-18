@@ -115,8 +115,14 @@ inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 
 	Assert(Mem->Used + ByteSize + AlignOffset <= Mem->MaxSize);
 
+#if 1
 	u8* Result = (u8*)Mem->BaseAddress + Mem->Used + AlignOffset;
 	Mem->Used = Mem->Used + ByteSize + AlignOffset;
+#else
+	u32 MemUsedPrev = PlatformApi.AtomicAdd_U32((platform_atomic_type_u32*)&Mem->Used, ByteSize + AlignOffset);
+	u8* Result = (u8*)Mem->BaseAddress + MemUsedPrev + AlignOffset;
+#endif
+
 	Mem->FragmentationBytesCount += AlignOffset;
 
 	return(Result);
