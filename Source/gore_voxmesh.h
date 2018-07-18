@@ -309,48 +309,10 @@ struct voxworld_generation_state {
 
 	b32 Initialized;
 
-#if 0
-	/*
-		NOTE(dima): Work threadworks are used to 
-		store loaded chunks data.
-	*/
-	int FreeChunkThreadworksCount;
-	int TotalChunkThreadworksCount;
-
-	int ChunkTasksMemUsed;
-	platform_mutex ChunksThreadworksMutex;
-	voxworld_threadwork* ChunkUseSentinel;
-	voxworld_threadwork* ChunkFreeSentinel;
-
-	/*
-		NOTE(dima): Gen threadworks are used to 
-		store temp information while generating chunks or meshes;
-	*/
-	int FreeGenThreadworksCount;
-	int TotalGenThreadworksCount;
-
-	int GenTasksMemUsed;
-	platform_mutex GenMutex;
-	voxworld_threadwork* GenUseSentinel;
-	voxworld_threadwork* GenFreeSentinel;
-
-	/*
-		NOTE(dima): Mesh threadworks are used to
-		store max possible memory for allocating 
-		the mesh.
-	*/
-	int FreeMeshThreadworks;
-	int TotalMeshThreadworks;
-
-	int MeshTasksMemUsed;
-	platform_mutex MeshMutex;
-	voxworld_threadwork* MeshUseSentinel;
-	voxworld_threadwork* MeshFreeSentinel;
-#else
 	voxel_threadwork_set ChunkSet;
 	voxel_threadwork_set MeshSet;
 	voxel_threadwork_set GenSet;
-#endif
+	voxel_threadwork_set CellWalkaroundSet;
 
 	int ChunksSideCount;
 	int ChunksCount;

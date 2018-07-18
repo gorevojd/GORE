@@ -1207,10 +1207,11 @@ struct voxel_cell_walkaround_threadwork_data {
 	int MaxZ;
 
 	voxworld_generation_state* Generation;
-
-	render_state* RenderState;
-
 	voxel_atlas_info* VoxelAtlas;
+
+	voxworld_threadwork* Threadwork;
+
+	render_state TempRenderState;
 
 	int TrianglesPushed;
 	int TrianglesLoaded;
@@ -1224,7 +1225,6 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 
 	voxworld_generation_state* Generation = ThreadworkData->Generation;
 	voxel_atlas_info* VoxelAtlas = ThreadworkData->VoxelAtlas;
-	render_state* RenderState = ThreadworkData->RenderState;
 
 	BEGIN_TIMING("VoxelCellsWalkaround");
 	int CellY = 0;
@@ -1252,13 +1252,11 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						BEGIN_TIMING("Pushing to the renderer");
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
-						//BeginMutexAccess(&Generation->RenderPushMutex);
 						RENDERPushVoxelMesh(
-							RenderState,
+							&ThreadworkData->TempRenderState,
 							&NeededChunk->MeshInfo,
 							ChunkPos,
 							&ThreadworkData->VoxelAtlas->Bitmap);
-						//EndMutexAccess(&Generation->RenderPushMutex);
 
 						ThreadworkData->ChunksPushed++;
 						ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
@@ -1460,6 +1458,20 @@ static void VoxelChunksGenerationInit(
 		GenThreadworksCount,
 		SizeForGenThreadwork);
 
+	/*
+		NOTE(dima): Initialization of cell walkaround
+		threadworks. They are used to store data for
+		cell walkarounds in update code every frame.
+	*/
+	int CellWalkaroundThreadsCount = 4;
+	int SizeForOneCellWalkaroundThreadwork = MEGABYTES(1);
+
+	InitVoxelThreadworkSet(
+		Generation,
+		&Generation->CellWalkaroundSet,
+		CellWalkaroundThreadsCount,
+		SizeForOneCellWalkaroundThreadwork);
+
 	//NOTE(dima): Initializing of world chunks hash table
 	Generation->HashTableOpMutex = {};
 	for (int EntryIndex = 0;
@@ -1555,7 +1567,7 @@ void VoxelChunksGenerationUpdate(
 	int MaxCellZ = CamChunkIndexZ + Generation->ChunksViewDistance;
 #endif
 
-#if 0
+#if 1
 	BEGIN_TIMING("VoxelCellsWalkaround");
 	voxel_cell_walkaround_threadwork_data CellWalkaroundDatas[4];
 
@@ -1568,8 +1580,18 @@ void VoxelChunksGenerationUpdate(
 		*CellData = {};
 
 		CellData->Generation = Generation;
-		CellData->RenderState = RenderState;
 		CellData->VoxelAtlas = VoxelAtlas;
+
+		CellData->Threadwork = VoxelBeginThreadwork(&Generation->CellWalkaroundSet);
+
+		Assert(CellData->Threadwork);
+
+		stacked_memory RenderMemory = SplitStackedMemory(&CellData->Threadwork->Memory, KILOBYTES(500));
+		CellData->TempRenderState = RENDERBeginStack(
+			&RenderMemory,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			RenderState->AssetSystem);
 	}
 
 	CellWalkaroundDatas[0].MinX = MinCellX;
@@ -1611,6 +1633,16 @@ void VoxelChunksGenerationUpdate(
 		CellDataIndex++)
 	{
 		voxel_cell_walkaround_threadwork_data* CellData = CellWalkaroundDatas + CellDataIndex;
+
+		//NOTE(dima): Copy entries from temp render stack to main stack
+		int CopyFromByteSize = CellData->TempRenderState.Data.Used;
+		void* CopyTo = PushSomeMemory(&RenderState->Data, CopyFromByteSize);
+		void* CopyFrom = (u8*)CellData->TempRenderState.Data.BaseAddress;
+
+		memcpy(CopyTo, CopyFrom, CopyFromByteSize);
+
+		RENDEREndStack(&CellData->TempRenderState);
+		VoxelEndThreadwork(CellData->Threadwork, &Generation->CellWalkaroundSet);
 
 		Generation->TrianglesLoaded += CellData->TrianglesLoaded;
 		Generation->TrianglesPushed += CellData->TrianglesPushed;

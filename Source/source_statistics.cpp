@@ -154,8 +154,9 @@ int main(int ArgCount, char** Args) {
 	//char CurrentDirectoryBuf[256];
 	//GetCurrentDirectoryA(256, CurrentDirectoryBuf);
 
-	CollateProjectSourceDirectoryInfo("E:/MyProjects/GORE/Source");
-	
+	//CollateProjectSourceDirectoryInfo("E:/MyProjects/GORE/Source");
+	CollateProjectSourceDirectoryInfo("D:/DIMA/Workout/Source");
+
 	system("pause");
 	return(0);
 }
