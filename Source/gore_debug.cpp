@@ -1327,7 +1327,7 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 		gui_element_cache* Cache = &Element->Cache;
 		if (!Cache->IsInitialized) {
 
-			Cache->Dimensional.Dim = V2(AscByScale * 60, AscByScale * 20);
+			Cache->Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, AscByScale * 10);
 
 			Cache->IsInitialized = 1;
 		}
@@ -1839,7 +1839,7 @@ static void DEBUGThreadsOverlay(debug_state* State) {
 
 		if (!Elem->Cache.IsInitialized) {
 
-			Elem->Cache.Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, 400);
+			Elem->Cache.Dimensional.Dim = V2((float)GUIState->ScreenWidth * 0.8f, 200);
 
 			Elem->Cache.IsInitialized = 1;
 		}

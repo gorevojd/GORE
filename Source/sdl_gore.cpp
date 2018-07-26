@@ -1100,7 +1100,7 @@ int main(int ArgsCount, char** Args) {
 	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
 
 #if VOXEL_WORLD_ENABLED
-	u32 VoxelMemorySize = MEGABYTES(700);
+	u32 VoxelMemorySize = MEGABYTES(500);
 
 	void* VoxelMemory = calloc(VoxelMemorySize, 1);
 	stacked_memory VoxelMemoryStack = InitStackedMemory(VoxelMemory, VoxelMemorySize);

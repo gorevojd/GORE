@@ -1226,10 +1226,18 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 	voxworld_generation_state* Generation = ThreadworkData->Generation;
 	voxel_atlas_info* VoxelAtlas = ThreadworkData->VoxelAtlas;
 
+	int MinX = ThreadworkData->MinX;
+	int MinZ = ThreadworkData->MinZ;
+	int MaxX = ThreadworkData->MaxX;
+	int MaxZ = ThreadworkData->MaxZ;
+
+	int IncrementX = 1;
+	int IncrementZ = 1;
+
 	BEGIN_TIMING("VoxelCellsWalkaround");
 	int CellY = 0;
-	for (int CellX = ThreadworkData->MinX; CellX <= ThreadworkData->MaxX; CellX++) {
-		for (int CellZ = ThreadworkData->MinZ; CellZ <= ThreadworkData->MaxZ; CellZ++) {
+	for (int CellX = MinX; CellX <= MaxX; CellX += IncrementX) {
+		for (int CellZ = MinZ; CellZ <= MaxZ; CellZ += IncrementZ) {
 
 			voxel_chunk_info* NeededChunk = VoxelFindChunk(
 				ThreadworkData->Generation, 

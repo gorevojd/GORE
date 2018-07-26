@@ -34,10 +34,20 @@ vec3 CalcDirLight(dir_light Lit, vec3 Normal, vec3 ViewDir){
 }
 
 void main(){
+	vec3 FogColor = vec3(0.5f, 0.5f, 0.5f);
+
+	float MinFog = 500.0f;
+	float MaxFog = 640.0f;
+
+	float FragmentDistLen = length(fs_in.FragPos - CameraP);
+	float f = clamp((MaxFog - FragmentDistLen) / (MaxFog - MinFog), 0.0f, 1.0f);
+
 	vec3 Result = vec3(0.0f, 0.0f, 0.0f);
 
 	vec3 ViewDir = normalize(fs_in.FragPos - CameraP);
 	Result += CalcDirLight(DirLight, fs_in.N, ViewDir);
+
+	Result = (1.0f - f) * FogColor + f * Result, 
 
 	OutColor = vec4(Result, 1.0f);
 	//OutColor = texture(DiffuseMap, fs_in.UV);
