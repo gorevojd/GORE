@@ -1393,6 +1393,8 @@ int main(int ArgsCount, char** Args) {
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
 
+		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
+
 #if VOXEL_WORLD_ENABLED
 		VoxelChunksGenerationUpdate(
 			&VoxelMemoryStack, 
@@ -1400,7 +1402,6 @@ int main(int ArgsCount, char** Args) {
 			PLATFORM_VOXEL_QUEUE_THREADS_COUNT, 
 			GameState.Camera.Position);
 #endif
-		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
 
 		GUIBeginFrame(GUIState, Stack);
 		END_TIMING();

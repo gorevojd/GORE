@@ -72,6 +72,14 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	State->Camera.dPosition = (State->Camera.dPosition + MoveVector * Input->DeltaTime) * 0.9f;
 #endif
 
+	game_camera_setup CameraSetup = GAMECameraSetup(
+		State->Camera,
+		RenderStack->RenderWidth,
+		RenderStack->RenderHeight,
+		CameraProjection_Perspective,
+		2000.0f);
+
+	RENDERSetCameraSetup(RenderStack, CameraSetup);
 
 	if (ButtonWentDown(Input, KeyType_Backquote)) {
 		State->CapturingMouse = !State->CapturingMouse;
@@ -91,14 +99,81 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
 #if 0
-	for (int i = -5; i < 5; i++) {
-		for (int j = -5; j < 5; j++) {
-			for (int k = -5; k < 5; k++) {
+	v4 FrustumPlanes[6];
+
+	mat4 TempProjection = PerspectiveProjection(
+		RenderStack->RenderWidth,
+		RenderStack->RenderHeight,
+		45.0f,
+		1000.0f,
+		0.1f);
+
+	mat4 PVM = TempProjection;
+	PVM = Transpose(PVM);
+
+	//NOTE(dima): Left plane
+	FrustumPlanes[0].A = PVM.E[3] + PVM.E[0];
+	FrustumPlanes[0].B = PVM.E[7] + PVM.E[4];
+	FrustumPlanes[0].C = PVM.E[11] + PVM.E[8];
+	FrustumPlanes[0].D = PVM.E[15] + PVM.E[12];
+
+	//NOTE(dima): Right plane
+	FrustumPlanes[1].A = PVM.E[3] - PVM.E[0];
+	FrustumPlanes[1].B = PVM.E[7] - PVM.E[4];
+	FrustumPlanes[1].C = PVM.E[11] - PVM.E[8];
+	FrustumPlanes[1].D = PVM.E[15] - PVM.E[12];
+
+	//NOTE(dima): Bottom plane
+	FrustumPlanes[2].A = PVM.E[3] + PVM.E[1];
+	FrustumPlanes[2].B = PVM.E[7] + PVM.E[5];
+	FrustumPlanes[2].C = PVM.E[11] + PVM.E[9];
+	FrustumPlanes[2].D = PVM.E[15] + PVM.E[13];
+
+	//NOTE(dima): Top plane
+	FrustumPlanes[3].A = PVM.E[3] - PVM.E[1];
+	FrustumPlanes[3].B = PVM.E[7] - PVM.E[5];
+	FrustumPlanes[3].C = PVM.E[11] - PVM.E[9];
+	FrustumPlanes[3].D = PVM.E[15] - PVM.E[13];
+
+	//NOTE(dima): Near plane
+	FrustumPlanes[4].A = PVM.E[3] + PVM.E[2];
+	FrustumPlanes[4].B = PVM.E[7] + PVM.E[6];
+	FrustumPlanes[4].C = PVM.E[11] + PVM.E[10];
+	FrustumPlanes[4].D = PVM.E[15] + PVM.E[14];
+
+	//NOTE(dima): Far plane
+	FrustumPlanes[5].A = PVM.E[3] - PVM.E[2];
+	FrustumPlanes[5].B = PVM.E[7] - PVM.E[6];
+	FrustumPlanes[5].C = PVM.E[11] - PVM.E[10];
+	FrustumPlanes[5].D = PVM.E[15] - PVM.E[14];
+
+	for (int PlaneIndex = 0;
+		PlaneIndex < 6;
+		PlaneIndex++)
+	{
+		FrustumPlanes[PlaneIndex] = NormalizePlane(FrustumPlanes[PlaneIndex]);
+	}
+
+	for (int i = -10; i < 10; i++) {
+		for (int j = -10; j < 10; j++) {
+			for (int k = -10; k < 10; k++) {
 
 				if (i != 0 && j != 0 && k != 0) {
-					mat4 Transform = TranslationMatrix(V3(i * 10, j * 10, k * 10));
+					v3 CubePos = V3(i * 5, j * 5, k * 5);
 
-					RENDERPushMesh(RenderStack, CubeID, Transform, &State->CubeMat);
+					int CullTestRes = 1;
+					for (int PlaneIndex = 0;
+						PlaneIndex < 6;
+						PlaneIndex++)
+					{
+						CullTestRes &= (PlanePointTest(FrustumPlanes[PlaneIndex], CubePos) > 0.0f);
+					}
+
+					if (CullTestRes > 0) {
+						mat4 Transform = TranslationMatrix(CubePos);
+
+						RENDERPushMesh(RenderStack, CubeID, Transform, &State->CubeMat);
+					}
 				}
 			}
 		}
@@ -135,13 +210,4 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 #if 1
 	RENDERPushVoxelLighting(RenderStack);
 #endif
-
-	game_camera_setup CameraSetup = GAMECameraSetup(
-		State->Camera,
-		RenderStack->RenderWidth,
-		RenderStack->RenderHeight,
-		CameraProjection_Perspective,
-		2000.0f);
-
-	RENDERSetCameraSetup(RenderStack, CameraSetup);
 }

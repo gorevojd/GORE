@@ -1217,6 +1217,8 @@ struct voxel_cell_walkaround_threadwork_data {
 	int TrianglesLoaded;
 	int ChunksPushed;
 	int ChunksLoaded;
+
+	v4* FrustumPlanes;
 };
 
 PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
@@ -1260,15 +1262,81 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						BEGIN_TIMING("Pushing to the renderer");
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
-						RENDERPushVoxelMesh(
-							&ThreadworkData->TempRenderState,
-							&NeededChunk->MeshInfo,
-							ChunkPos,
-							&ThreadworkData->VoxelAtlas->Bitmap);
+						//NOTE(dima): Frustum culling
+						int ChunkCullTest = 1;
 
-						ThreadworkData->ChunksPushed++;
+#if VOXEL_ENABLE_FRUSTUM_CULLING
+						v3 TestPs[8];
+						TestPs[0] = V3(
+							(float)CellX * (float)VOXEL_CHUNK_WIDTH,
+							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[1] = V3(
+							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[2] = V3(
+							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[3] = V3(
+							(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
+							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[4] = V3(
+							(float)CellX * (float)VOXEL_CHUNK_WIDTH,
+							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[5] = V3(
+							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[6] = V3(
+							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+
+						TestPs[7] = V3(
+							(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
+							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+						
+						for (int PlaneIndex = 0;
+							PlaneIndex < 6;
+							PlaneIndex++)
+						{
+							int PointTestRes = 1;
+							for (int TestPIndex = 0;
+								TestPIndex < 8;
+								TestPIndex++)
+							{
+								PointTestRes &= (PlanePointTest(
+									ThreadworkData->FrustumPlanes[PlaneIndex], 
+									TestPs[TestPIndex]) > 0.0f);
+							}
+
+							ChunkCullTest &= PointTestRes;
+						}
+#endif
+
+						if (ChunkCullTest > 0) {
+							RENDERPushVoxelMesh(
+								&ThreadworkData->TempRenderState,
+								&NeededChunk->MeshInfo,
+								ChunkPos,
+								&ThreadworkData->VoxelAtlas->Bitmap);
+
+							ThreadworkData->ChunksPushed++;
+							ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
+						}
+
 						ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
-						ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
 
 						END_TIMING();
 					}
@@ -1579,6 +1647,65 @@ void VoxelChunksGenerationUpdate(
 	BEGIN_TIMING("VoxelCellsWalkaround");
 	voxel_cell_walkaround_threadwork_data CellWalkaroundDatas[4];
 
+#if 1
+	v4 FrustumPlanes[6];
+
+#if 0
+	mat4 PVM = RenderState->CameraSetup.ProjectionViewMatrix;
+#else
+	mat4 PVM = PerspectiveProjection(
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		45.0f,
+		1000.0f,
+		0.1f);
+#endif
+	PVM = Transpose(PVM);
+
+	//NOTE(dima): Left plane
+	FrustumPlanes[0].A = PVM.E[3] + PVM.E[0];
+	FrustumPlanes[0].B = PVM.E[7] + PVM.E[4];
+	FrustumPlanes[0].C = PVM.E[11] + PVM.E[8];
+	FrustumPlanes[0].D = PVM.E[15] + PVM.E[12];
+
+	//NOTE(dima): Right plane
+	FrustumPlanes[1].A = PVM.E[3] - PVM.E[0];
+	FrustumPlanes[1].B = PVM.E[7] - PVM.E[4];
+	FrustumPlanes[1].C = PVM.E[11] - PVM.E[8];
+	FrustumPlanes[1].D = PVM.E[15] - PVM.E[12];
+
+	//NOTE(dima): Bottom plane
+	FrustumPlanes[2].A = PVM.E[3] + PVM.E[1];
+	FrustumPlanes[2].B = PVM.E[7] + PVM.E[5];
+	FrustumPlanes[2].C = PVM.E[11] + PVM.E[9];
+	FrustumPlanes[2].D = PVM.E[15] + PVM.E[13];
+
+	//NOTE(dima): Top plane
+	FrustumPlanes[3].A = PVM.E[3] - PVM.E[1];
+	FrustumPlanes[3].B = PVM.E[7] - PVM.E[5];
+	FrustumPlanes[3].C = PVM.E[11] - PVM.E[9];
+	FrustumPlanes[3].D = PVM.E[15] - PVM.E[13];
+
+	//NOTE(dima): Near plane
+	FrustumPlanes[4].A = PVM.E[3] + PVM.E[2];
+	FrustumPlanes[4].B = PVM.E[7] + PVM.E[6];
+	FrustumPlanes[4].C = PVM.E[11] + PVM.E[10];
+	FrustumPlanes[4].D = PVM.E[15] + PVM.E[14];
+
+	//NOTE(dima): Far plane
+	FrustumPlanes[5].A = PVM.E[3] - PVM.E[2];
+	FrustumPlanes[5].B = PVM.E[7] - PVM.E[6];
+	FrustumPlanes[5].C = PVM.E[11] - PVM.E[10];
+	FrustumPlanes[5].D = PVM.E[15] - PVM.E[14];
+
+	for (int PlaneIndex = 0;
+		PlaneIndex < 6;
+		PlaneIndex++)
+	{
+		FrustumPlanes[PlaneIndex] = NormalizePlane(FrustumPlanes[PlaneIndex]);
+	}
+#endif
+
 	for (int CellDataIndex = 0;
 		CellDataIndex < 4;
 		CellDataIndex++)
@@ -1600,6 +1727,8 @@ void VoxelChunksGenerationUpdate(
 			RenderState->RenderWidth,
 			RenderState->RenderHeight,
 			RenderState->AssetSystem);
+
+		CellData->FrustumPlanes = FrustumPlanes;
 	}
 
 	CellWalkaroundDatas[0].MinX = MinCellX;

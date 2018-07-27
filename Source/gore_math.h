@@ -824,6 +824,25 @@ inline mat4 OrthographicProjection(u32 Width, u32 Height) {
 	return(Result);
 }
 
+//NOTE(dima): Plane math
+inline v4 NormalizePlane(v4 Plane) {
+	float NormalLen = Magnitude(Plane.rgb);
+
+	v4 Result;
+	Result.A = Plane.A / NormalLen;
+	Result.B = Plane.B / NormalLen;
+	Result.C = Plane.C / NormalLen;
+	Result.D = Plane.D / NormalLen;
+
+	return(Result);
+}
+
+inline float PlanePointTest(v4 Plane, v3 Point) {
+	float Res = Dot(Plane.ABC, Point) + Plane.D;
+
+	return(Res);
+}
+
 //NOTE(dima): Color math
 inline u32 PackRGBA(v4 Color) {
 	u32 Result;
