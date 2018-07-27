@@ -1263,7 +1263,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
 						//NOTE(dima): Frustum culling
-						int ChunkCullTest = 1;
+						int ChunkCullTest = 0;
 
 #if VOXEL_ENABLE_FRUSTUM_CULLING
 						v3 TestPs[8];
@@ -1318,14 +1318,14 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 							{
 								PointTestRes &= (PlanePointTest(
 									ThreadworkData->FrustumPlanes[PlaneIndex], 
-									TestPs[TestPIndex]) > 0.0f);
+									TestPs[TestPIndex]) < 0.0f);
 							}
 
-							ChunkCullTest &= PointTestRes;
+							ChunkCullTest |= PointTestRes;
 						}
 #endif
 
-						if (ChunkCullTest > 0) {
+						if (ChunkCullTest == 0) {
 							RENDERPushVoxelMesh(
 								&ThreadworkData->TempRenderState,
 								&NeededChunk->MeshInfo,
@@ -1650,7 +1650,7 @@ void VoxelChunksGenerationUpdate(
 #if 1
 	v4 FrustumPlanes[6];
 
-#if 0
+#if 1
 	mat4 PVM = RenderState->CameraSetup.ProjectionViewMatrix;
 #else
 	mat4 PVM = PerspectiveProjection(
