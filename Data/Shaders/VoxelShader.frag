@@ -47,7 +47,7 @@ void main(){
 	vec3 ViewDir = normalize(fs_in.FragPos - CameraP);
 	Result += CalcDirLight(DirLight, fs_in.N, ViewDir);
 
-	Result = (1.0f - f) * FogColor + f * Result, 
+	//Result = (1.0f - f) * FogColor + f * Result, 
 
 	OutColor = vec4(Result, 1.0f);
 	//OutColor = texture(DiffuseMap, fs_in.UV);

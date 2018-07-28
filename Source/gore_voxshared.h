@@ -56,6 +56,7 @@ struct voxworld_threadwork {
 };
 
 struct neighbours_chunks {
+
 	union {
 		struct {
 			struct voxel_chunk_info* LeftChunk;
@@ -83,6 +84,8 @@ struct neighbours_chunks {
 
 struct voxel_chunk_info {
 	platform_atomic_type_u32 State;
+
+	platform_mutex ChunkUseMutex;
 
 	int IndexX;
 	int IndexY;

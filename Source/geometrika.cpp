@@ -5,6 +5,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 		State->Camera = GAMECreateCamera();
 		State->CapturingMouse = 1;
+		State->CameraAutoMove = 0;
 
 		State->CubeMat = LITCreateSurfaceMaterial(32.0f, V3(0.9f, 0.1f, 0.1f));
 		State->PlaneMat = LITCreateSurfaceMaterial(16.0f, V3(0.1f, 0.1f, 0.9f));
@@ -45,12 +46,15 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 	RawMoveVector = NOZ(RawMoveVector);
 
-	float CameraSpeed = 30.0f;
+	float CameraSpeed = 20.0f;
 	if (ButtonIsDown(Input, KeyType_LShift)) {
-		CameraSpeed *= 10.0f;
+		CameraSpeed *= 12.0f;
 	}
 	if (ButtonIsDown(Input, KeyType_Space)) {
-		CameraSpeed *= 5.0f;
+		CameraSpeed *= 7.0f;
+	}
+	if (ButtonWentDown(Input, KeyType_Q)) {
+		State->CameraAutoMove = !State->CameraAutoMove;
 	}
 
 	RawMoveVector = RawMoveVector * CameraSpeed;
@@ -60,16 +64,22 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	State->Camera.Position -= State->Camera.Left * RawMoveVector.x;
 	State->Camera.Position += State->Camera.Up * RawMoveVector.y;
 #else
+
 	v3 MoveVector = {};
 	MoveVector += State->Camera.Front * RawMoveVector.z;
 	MoveVector += (-State->Camera.Left * RawMoveVector.x);
 	MoveVector += State->Camera.Up * RawMoveVector.y;
 
+	if (State->CameraAutoMove) {
+		MoveVector = NOZ(V3(1.0f, 0.0f, 1.0f)) * 500.0f;
+	}
+
 	State->Camera.Position +=
 		State->Camera.dPosition * Input->DeltaTime * 1.2f +
 		MoveVector * Input->DeltaTime * Input->DeltaTime * 0.5f;
 
-	State->Camera.dPosition = (State->Camera.dPosition + MoveVector * Input->DeltaTime) * 0.9f;
+	State->Camera.dPosition = (State->Camera.dPosition + MoveVector * Input->DeltaTime) * (1.0f - Input->DeltaTime * 5.0f);
+
 #endif
 
 	game_camera_setup CameraSetup = GAMECameraSetup(

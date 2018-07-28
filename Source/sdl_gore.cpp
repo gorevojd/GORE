@@ -1363,7 +1363,7 @@ int main(int ArgsCount, char** Args) {
 		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets);
 		render_state* Stack = &Stack_;
 
-		RENDERPushClear(Stack, V3(0.3f, 0.3f, 0.3f));
+		RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
 		RENDERPushTest(Stack);
 
 #if 0

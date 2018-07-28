@@ -15,6 +15,7 @@ struct geometrika_state {
 	b32 CapturingMouse;
 
 	game_camera Camera;
+	b32 CameraAutoMove;
 
 #if 1
 	bitmap_info* VoxelAtalsBitmap;

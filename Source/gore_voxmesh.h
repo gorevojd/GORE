@@ -317,6 +317,7 @@ struct voxworld_generation_state {
 	int ChunksSideCount;
 	int ChunksCount;
 	int ChunksViewDistance;
+	int ChunksHeightCount;
 
 	platform_mutex RenderPushMutex;
 	int ChunksLoaded;

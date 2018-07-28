@@ -385,7 +385,7 @@ void VoxmeshGenerate(
 	}
 }
 
-static void BuildColumn(
+static void BuildColumnInChunk(
 	voxel_chunk_info* Chunk, 
 	int InChunkX, int InChunkY, 
 	int StartHeight, int EndHeight,
@@ -437,7 +437,7 @@ void GenerateTestChunk(voxel_chunk_info* Chunk) {
 			int SetHeightIndex = TestStartHeight + i + j;
 			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeightIndex)] = VoxelMaterial_GrassyGround;
 
-			BuildColumn(Chunk, i, j, 0, SetHeightIndex - 1, VoxelMaterial_Ground);
+			BuildColumnInChunk(Chunk, i, j, 0, SetHeightIndex - 1, VoxelMaterial_Ground);
 		}
 	}
 }
@@ -531,7 +531,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 #if 1
 			float Noise = stb_perlin_fbm_noise3(
 				(float)(ChunkPos.x + i) / BiomeNoiseDivisor,
-				(float)ChunkPos.y / BiomeNoiseDivisor,
+				(float)0.0f,
 				(float)(ChunkPos.z + j) / BiomeNoiseDivisor,
 				Lacunarity, Gain, Octaves, 0, 0, 0);
 #else
@@ -550,15 +550,35 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				Lacunarity, Gain, Octaves, 0, 0, 0);
 #endif
 #endif
+			int ChunkYRangeMin = VOXEL_CHUNK_HEIGHT * Chunk->IndexY;
+			int ChunkYRangeMax = VOXEL_CHUNK_HEIGHT * (Chunk->IndexY + 1);
 
-			float RandHeight = StartHeight + Noise * 127;
+			float RandHeight = StartHeight + Noise * 120.0f;
 
-			int SetHeight = (int)RandHeight;
-			SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
+			if (Chunk->IndexY == 1) {
 
-			Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = GrassMaterial;
+				int a = 1;
+			}
 
-			BuildColumn(Chunk, i, j, 0, SetHeight - 1, GroundMaterial);
+			int RandHeightInt = (int)(RandHeight + 0.5f);
+
+			if (RandHeightInt >= ChunkYRangeMin && RandHeightInt < ChunkYRangeMax) {
+				int SetHeight = RandHeightInt - Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
+
+				if (Chunk->IndexY == 1) {
+
+					int a = 1;
+				}
+
+				SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
+				Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = GrassMaterial;
+				if (SetHeight - 1 > 0) {
+					BuildColumnInChunk(Chunk, i, j, 0, SetHeight - 1, GroundMaterial);
+				}
+			}
+			else if (RandHeightInt >= ChunkYRangeMax) {
+				BuildColumnInChunk(Chunk, i, j, 0, VOXEL_CHUNK_HEIGHT - 1, GroundMaterial);
+			}
 		}
 	}
 }
@@ -567,7 +587,7 @@ static inline b32 VoxelChunkNeighboursChanged(
 	voxel_chunk_info* Chunk, 
 	neighbours_chunks* Neighbours) 
 {
-#if 0
+#if 1
 	//NOTE(dima): Checking chunks pointers
 	for (int ChunkPointerIndex = 0;
 		ChunkPointerIndex < 6;
@@ -585,13 +605,13 @@ static inline b32 VoxelChunkNeighboursChanged(
 		ChunkStateIndex < 6;
 		ChunkStateIndex++) 
 	{
-		if (Neighbours->ChunksStates[ChunkStateIndex] == VoxelChunkState_Ready) {
+		//if (Neighbours->ChunksStates[ChunkStateIndex] == VoxelChunkState_Ready) {
 			if (Neighbours->ChunksStates[ChunkStateIndex] !=
 				Chunk->OldNeighbours.ChunksStates[ChunkStateIndex])
 			{
 				return(1);
 			}
-		}
+		//}
 	}
 #endif
 
@@ -1086,10 +1106,13 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 			int a = 1;
 		}
 
-		UnloadMeshInternal(MeshInfo, Generation);
+		if (MeshInfo->State == VoxelMeshState_Generated) {
+			UnloadMeshInternal(MeshInfo, Generation);
+		}
 	}
 
 	GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+
 	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
 	VoxelEndThreadwork(GenData->MeshGenThreadwork, &Generation->GenSet);
@@ -1118,11 +1141,14 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 
 	voxel_chunk_info* WorkChunk = GenData->Chunk;
 
+
 	if (PlatformApi.AtomicCAS_U32(
 		&WorkChunk->State,
 		VoxelChunkState_InProcess,
 		VoxelChunkState_None))
 	{
+		BeginMutexAccess(&WorkChunk->ChunkUseMutex);
+		
 		GenerateRandomChunk(WorkChunk, GenData->Generation);
 
 		PlatformApi.WriteBarrier();
@@ -1143,19 +1169,16 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->MeshGenerateData.Chunk = WorkChunk;
 		MeshGenerationData->MeshGenerateData.Atlas = GenData->VoxelAtlasInfo;
 
-		neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
-			GenData->Generation,
-			WorkChunk->IndexX,
-			WorkChunk->IndexY,
-			WorkChunk->IndexZ);
-
-		MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
+		MeshGenerationData->MeshGenerateData.Neighbours = WorkChunk->OldNeighbours;
 
 		PlatformApi.AddThreadworkEntry(
 			PlatformApi.VoxelQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
+
+		EndMutexAccess(&WorkChunk->ChunkUseMutex);
 	}
+
 
 	VoxelEndThreadwork(GenData->ChunkGenThreadwork, &GenData->Generation->GenSet);
 }
@@ -1184,7 +1207,9 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 			int a = 1;
 		}
 
+		BeginMutexAccess(&MeshInfo->MeshUseMutex);
 		UnloadMeshInternal(MeshInfo, UnloadData->Generation);
+		EndMutexAccess(&MeshInfo->MeshUseMutex);
 	}
 
 	//NOTE(dima): Close threadwork that contains chunk data
@@ -1237,190 +1262,196 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 	int IncrementZ = 1;
 
 	BEGIN_TIMING("VoxelCellsWalkaround");
-	int CellY = 0;
-	for (int CellX = MinX; CellX <= MaxX; CellX += IncrementX) {
-		for (int CellZ = MinZ; CellZ <= MaxZ; CellZ += IncrementZ) {
+	for (int CellY = 0; CellY < Generation->ChunksHeightCount; CellY++) {
+		for (int CellX = MinX; CellX <= MaxX; CellX += IncrementX) {
+			for (int CellZ = MinZ; CellZ <= MaxZ; CellZ += IncrementZ) {
 
-			voxel_chunk_info* NeededChunk = VoxelFindChunk(
-				ThreadworkData->Generation, 
-				CellX, CellY, CellZ);
+				voxel_chunk_info* NeededChunk = VoxelFindChunk(
+					ThreadworkData->Generation,
+					CellX, CellY, CellZ);
 
-			if (NeededChunk) {
-				PlatformApi.ReadBarrier();
-				if (NeededChunk->State == VoxelChunkState_Ready) {
-					/*
-					NOTE(dima): It was interesting to see this
-					but if I delete this check then some meshes
-					will be visible partially. This is because
-					they wasn't generated at this time and when
-					time came to generating VAOs in the renderer
-					they were generated partially too. :D
-					*/
+				if (NeededChunk) {
 					PlatformApi.ReadBarrier();
-					if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
+					if (NeededChunk->State == VoxelChunkState_Ready) {
+						/*
+						NOTE(dima): It was interesting to see this
+						but if I delete this check then some meshes
+						will be visible partially. This is because
+						they wasn't generated at this time and when
+						time came to generating VAOs in the renderer
+						they were generated partially too. :D
+						*/
+						PlatformApi.ReadBarrier();
+						if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
 
-						BEGIN_TIMING("Pushing to the renderer");
-						v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
+							v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
 
-						//NOTE(dima): Frustum culling
-						int ChunkCullTest = 0;
+							//NOTE(dima): Frustum culling
+							int ChunkCullTest = 0;
 
-#if VOXEL_ENABLE_FRUSTUM_CULLING
-						v3 TestPs[8];
-						TestPs[0] = V3(
-							(float)CellX * (float)VOXEL_CHUNK_WIDTH,
-							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
-							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+							v3 TestPs[8];
+							//NOTE(dima): Chunk bottom corners
+							TestPs[0] = V3(
+								(float)CellX * (float)VOXEL_CHUNK_WIDTH,
+								(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+								(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[1] = V3(
-							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
-							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
-							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+							TestPs[1] = V3(
+								(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+								(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+								(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[2] = V3(
-							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
-							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
-							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+							TestPs[2] = V3(
+								(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+								(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+								(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[3] = V3(
-							(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
-							(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
-							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+							TestPs[3] = V3(
+								(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
+								(float)CellY * (float)VOXEL_CHUNK_HEIGHT,
+								(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[4] = V3(
-							(float)CellX * (float)VOXEL_CHUNK_WIDTH,
-							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
-							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+							//NOTE(dima): Chunk top corners
+							TestPs[4] = V3(
+								(float)CellX * (float)VOXEL_CHUNK_WIDTH,
+								(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+								(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[5] = V3(
-							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
-							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
-							(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
+							TestPs[5] = V3(
+								(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+								(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+								(float)CellZ * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[6] = V3(
-							(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
-							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
-							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+							TestPs[6] = V3(
+								(float)(CellX + 1) * (float)VOXEL_CHUNK_WIDTH,
+								(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+								(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
 
-						TestPs[7] = V3(
-							(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
-							(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
-							(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
-						
-						for (int PlaneIndex = 0;
-							PlaneIndex < 6;
-							PlaneIndex++)
-						{
-							int PointTestRes = 1;
-							for (int TestPIndex = 0;
-								TestPIndex < 8;
-								TestPIndex++)
+							TestPs[7] = V3(
+								(float)(CellX) * (float)VOXEL_CHUNK_WIDTH,
+								(float)(CellY + 1) * (float)VOXEL_CHUNK_HEIGHT,
+								(float)(CellZ + 1) * (float)VOXEL_CHUNK_WIDTH);
+
+							for (int PlaneIndex = 0;
+								PlaneIndex < 6;
+								PlaneIndex++)
 							{
-								PointTestRes &= (PlanePointTest(
-									ThreadworkData->FrustumPlanes[PlaneIndex], 
-									TestPs[TestPIndex]) < 0.0f);
+								int PointTestRes = 1;
+								for (int TestPIndex = 0;
+									TestPIndex < 8;
+									TestPIndex++)
+								{
+									PointTestRes &= (PlanePointTest(
+										ThreadworkData->FrustumPlanes[PlaneIndex],
+										TestPs[TestPIndex]) < 0.0f);
+								}
+
+								ChunkCullTest |= PointTestRes;
 							}
 
-							ChunkCullTest |= PointTestRes;
+							if (ChunkCullTest == 0) {
+								RENDERPushVoxelMesh(
+									&ThreadworkData->TempRenderState,
+									&NeededChunk->MeshInfo,
+									ChunkPos,
+									&ThreadworkData->VoxelAtlas->Bitmap);
+
+								ThreadworkData->ChunksPushed++;
+								ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
+							}
+
+							ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
 						}
-#endif
 
-						if (ChunkCullTest == 0) {
-							RENDERPushVoxelMesh(
-								&ThreadworkData->TempRenderState,
-								&NeededChunk->MeshInfo,
-								ChunkPos,
-								&ThreadworkData->VoxelAtlas->Bitmap);
-
-							ThreadworkData->ChunksPushed++;
-							ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
-						}
-
-						ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
-
-						END_TIMING();
+						ThreadworkData->ChunksLoaded++;
 					}
 
-					ThreadworkData->ChunksLoaded++;
+					/*NOTE(dima): Loaded chunk is in range. And some
+					additional checks will be made here*/
+
+					//BEGIN_TIMING("Finding neighbours");
+					neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
+						Generation,
+						NeededChunk->IndexX,
+						NeededChunk->IndexY,
+						NeededChunk->IndexZ);
+					//END_TIMING();
+
+					if (VoxelChunkNeighboursChanged(NeededChunk, &Neighbours)) {
+						//NOTE(dima): Updating neighbours
+						NeededChunk->OldNeighbours = Neighbours;
+
+#if 0
+						voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
+
+						Assert(MeshGenThreadwork);
+
+						generate_voxel_mesh_threadwork_data* MeshGenerationData = PushStruct(
+							&MeshGenThreadwork->Memory,
+							generate_voxel_mesh_threadwork_data);
+
+						MeshGenerationData->Generation = Generation;
+						MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
+
+						MeshGenerationData->MeshGenerateData.Atlas = VoxelAtlas;
+						MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
+
+						MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
+
+						PlatformApi.AddThreadworkEntry(
+							PlatformApi.VoxelQueue,
+							MeshGenerationData,
+							RegenerateVoxelMeshThreadwork);
+#endif
+					}
 				}
+				else {
+					BEGIN_TIMING("Insertion and starting generation");
+					BEGIN_TIMING("Finding threadwork");
+					voxworld_threadwork* Threadwork = VoxelBeginThreadwork(&Generation->ChunkSet);
+					END_TIMING();
 
-				/*NOTE(dima): Loaded chunk is in range. And some
-				additional checks will be made here*/
-				BEGIN_TIMING("Finding neighbours");
-				neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
-					Generation,
-					NeededChunk->IndexX,
-					NeededChunk->IndexY,
-					NeededChunk->IndexZ);
-				END_TIMING();
+					if (Threadwork) {
+						voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
 
-				/*NOTE(dima): If neighbours of chunk were changed
-				it means that we should regenerate */
-				if (VoxelChunkNeighboursChanged(NeededChunk, &Neighbours)) {
+						Assert(ChunkGenThreadwork);
 
-					voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
+						generate_voxel_chunk_data* ChunkGenerationData = PushStruct(
+							&ChunkGenThreadwork->Memory,
+							generate_voxel_chunk_data);
 
-					Assert(MeshGenThreadwork);
+						voxel_chunk_info* ChunkInfo = PushStruct(
+							&Threadwork->Memory,
+							voxel_chunk_info);
 
-					generate_voxel_mesh_threadwork_data* MeshGenerationData = PushStruct(
-						&MeshGenThreadwork->Memory,
-						generate_voxel_mesh_threadwork_data);
+						ChunkGenerationData->Chunk = ChunkInfo;
+						ChunkGenerationData->Chunk->IndexX = CellX;
+						ChunkGenerationData->Chunk->IndexY = CellY;
+						ChunkGenerationData->Chunk->IndexZ = CellZ;
+						ChunkGenerationData->Chunk->State = VoxelChunkState_None;
+						ChunkGenerationData->Chunk->Threadwork = Threadwork;
+						ChunkGenerationData->Chunk->MeshInfo = {};
+						ChunkGenerationData->Chunk->OldNeighbours = VoxelFindNeighboursChunks(
+							Generation,
+							CellX,
+							CellY,
+							CellZ);
 
-					MeshGenerationData->Generation = Generation;
-					MeshGenerationData->MeshGenThreadwork = MeshGenThreadwork;
+						ChunkGenerationData->VoxelAtlasInfo = VoxelAtlas;
+						ChunkGenerationData->Generation = Generation;
+						ChunkGenerationData->ChunkGenThreadwork = ChunkGenThreadwork;
 
-					MeshGenerationData->MeshGenerateData.Atlas = VoxelAtlas;
-					MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
+						VoxelInsertToTable(Generation, ChunkInfo);
 
-					MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
-
-					PlatformApi.AddThreadworkEntry(
-						PlatformApi.VoxelQueue,
-						MeshGenerationData,
-						RegenerateVoxelMeshThreadwork);
-				}
-			}
-			else {
-				BEGIN_TIMING("Insertion and starting generation");
-				BEGIN_TIMING("Finding threadwork");
-				voxworld_threadwork* Threadwork = VoxelBeginThreadwork(&Generation->ChunkSet);
-				END_TIMING();
-
-				if (Threadwork) {
-					voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
-
-					Assert(ChunkGenThreadwork);
-
-					generate_voxel_chunk_data* ChunkGenerationData = PushStruct(
-						&ChunkGenThreadwork->Memory,
-						generate_voxel_chunk_data);
-
-					voxel_chunk_info* ChunkInfo = PushStruct(
-						&Threadwork->Memory,
-						voxel_chunk_info);
-
-					ChunkGenerationData->Chunk = ChunkInfo;
-					ChunkGenerationData->Chunk->IndexX = CellX;
-					ChunkGenerationData->Chunk->IndexY = CellY;
-					ChunkGenerationData->Chunk->IndexZ = CellZ;
-					ChunkGenerationData->Chunk->State = VoxelChunkState_None;
-					ChunkGenerationData->Chunk->Threadwork = Threadwork;
-					ChunkGenerationData->Chunk->MeshInfo = {};
-
-					ChunkGenerationData->VoxelAtlasInfo = VoxelAtlas;
-					ChunkGenerationData->Generation = Generation;
-					ChunkGenerationData->ChunkGenThreadwork = ChunkGenThreadwork;
-
-					VoxelInsertToTable(Generation, ChunkInfo);
-
-					BEGIN_TIMING("Pushing work to thread queue");
-					PlatformApi.AddThreadworkEntry(
-						PlatformApi.VoxelQueue,
-						ChunkGenerationData,
-						GenerateVoxelChunkThreadwork);
+						BEGIN_TIMING("Pushing work to thread queue");
+						PlatformApi.AddThreadworkEntry(
+							PlatformApi.VoxelQueue,
+							ChunkGenerationData,
+							GenerateVoxelChunkThreadwork);
+						END_TIMING();
+					}
 					END_TIMING();
 				}
-				END_TIMING();
 			}
 		}
 	}
@@ -1467,12 +1498,15 @@ static void VoxelChunksGenerationInit(
 	int VoxelThreadQueueSize)
 {
 	int ChunksViewDistanceCount = 40;
+	int ChunksHeightCount = 1;
+
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
-	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount;
+	int TotalChunksCount = TotalChunksSideCount * TotalChunksSideCount * ChunksHeightCount;
 
 	Generation->ChunksViewDistance = ChunksViewDistanceCount;
 	Generation->ChunksSideCount = TotalChunksSideCount;
 	Generation->ChunksCount = TotalChunksCount;
+	Generation->ChunksHeightCount = ChunksHeightCount;
 	
 	Generation->RenderPushMutex = {};
 	Generation->ChunksPushed = 0;
@@ -1647,7 +1681,6 @@ void VoxelChunksGenerationUpdate(
 	BEGIN_TIMING("VoxelCellsWalkaround");
 	voxel_cell_walkaround_threadwork_data CellWalkaroundDatas[4];
 
-#if 1
 	v4 FrustumPlanes[6];
 
 #if 1
@@ -1704,7 +1737,6 @@ void VoxelChunksGenerationUpdate(
 	{
 		FrustumPlanes[PlaneIndex] = NormalizePlane(FrustumPlanes[PlaneIndex]);
 	}
-#endif
 
 	for (int CellDataIndex = 0;
 		CellDataIndex < 4;
