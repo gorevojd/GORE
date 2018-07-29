@@ -472,11 +472,15 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			float Lacunarity = 2.0f;
 			float Gain = 0.5f;
 
+			int TreeMinHeight = 6;
+			int TreeMaxHeight = 9;
+
 			u8 GrassMaterial = VoxelMaterial_GrassyGround;
 			u8 GroundMaterial = VoxelMaterial_Ground;
-			float BiomeNoiseDivisor = 384.0f;
+			u8 TreeMaterial = VoxelMaterial_Birch;
+			float BiomeNoiseDivisor = 1000.0f;
 
-#if 0
+#if 1
 			float BiomeNoiseScale = 1024.0f;
 			float BiomeNoise = stb_perlin_noise3(
 				(float)(ChunkPos.x + i) / BiomeNoiseScale,
@@ -515,13 +519,21 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			if (BiomeNoise < 0.6f && BiomeNoise >= 0.0f) {
 				GrassMaterial = VoxelMaterial_GrassyGround;
 				GroundMaterial = VoxelMaterial_Ground;
-				BiomeNoiseDivisor = 384.0f;
+				TreeMaterial = VoxelMaterial_Birch;
+				BiomeNoiseDivisor = BiomeNoiseDivisor;
+
+				TreeMinHeight = 6;
+				TreeMinHeight = 9;
 			}
 			else if (BiomeNoise >= 0.6f && BiomeNoise <= 1.0f) {
 				GrassMaterial = VoxelMaterial_SnowGround;
 				GroundMaterial = VoxelMaterial_WinterGround;
+				TreeMaterial = VoxelMaterial_Tree;
 				//BiomeNoiseDivisor = 512.0f;
-				BiomeNoiseDivisor = 384.0f;
+				BiomeNoiseDivisor  = BiomeNoiseDivisor;
+
+				TreeMinHeight = 8;
+				TreeMaxHeight = 17;
 			}
 			else {
  				Assert(!"INVALID");
@@ -562,8 +574,8 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 
 			int RandHeightInt = (int)(RandHeight + 0.5f);
 
+			int SetHeight = RandHeightInt - Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
 			if (RandHeightInt >= ChunkYRangeMin && RandHeightInt < ChunkYRangeMax) {
-				int SetHeight = RandHeightInt - Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
 
 				if (Chunk->IndexY == 1) {
 
@@ -578,6 +590,15 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			}
 			else if (RandHeightInt >= ChunkYRangeMax) {
 				BuildColumnInChunk(Chunk, i, j, 0, VOXEL_CHUNK_HEIGHT - 1, GroundMaterial);
+			}
+
+			if (i == 8 && j == 8) {
+				float NextRandom = GetNextRandomSmoothFloat(Generation);
+				NextRandom = NextRandom * 0.5f + 0.5f;
+
+				int RandomTreeHeight = (int)((float)TreeMinHeight + (float)(TreeMaxHeight - TreeMinHeight) * NextRandom);
+
+				BuildColumnInChunk(Chunk, 8, 8, SetHeight, SetHeight + RandomTreeHeight - 1, TreeMaterial);
 			}
 		}
 	}

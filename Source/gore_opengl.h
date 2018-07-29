@@ -80,6 +80,7 @@ struct gl_state {
 //	
 //};
 
+extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
 extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
@@ -139,6 +140,7 @@ extern PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
 extern PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
 extern PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
 extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
+
 
 typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
 extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;

@@ -14,6 +14,7 @@
 #include <Windows.h>
 #endif
 
+PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
 PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
