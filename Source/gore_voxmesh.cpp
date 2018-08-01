@@ -1443,11 +1443,11 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 					RENDERPushVolumeOutline(&ThreadworkData->TempRenderState, V3(0.0f, 0.0f, 0.0f), V3(16.0f, 256.0f, 16.0f), V3(1.0f, 1.0f, 1.0f), 1.0f);
 				}
 
-				BEGIN_TIMING("Finding");
+				//BEGIN_TIMING("Finding");
 				voxel_chunk_info* NeededChunk = VoxelFindChunk(
 					ThreadworkData->Generation,
 					CellX, CellY, CellZ);
-				END_TIMING();
+				//END_TIMING();
 
 				if (NeededChunk) {
 					PlatformApi.ReadBarrier();
@@ -1971,9 +1971,9 @@ void VoxelChunksGenerationUpdate(
 				int ChunkCullTest = 0;
 
 				v3 ChunkSetOffset = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)(ChunkSetIndexX + MinCellX / CHUNKS_IN_CHUNK_SET_WIDTH) * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)(ChunkSetIndexY + MinCellY / CHUNKS_IN_CHUNK_SET_HEIGHT) * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)(ChunkSetIndexZ + MinCellZ / CHUNKS_IN_CHUNK_SET_WIDTH)* (float)CHUNKS_IN_CHUNK_SET_WIDTH);
+					(float)VOXEL_CHUNK_WIDTH * (float)(MinCellX + ChunkSetIndexX * (float)CHUNKS_IN_CHUNK_SET_WIDTH),
+					(float)VOXEL_CHUNK_HEIGHT * (float)(MinCellY + ChunkSetIndexY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT),
+					(float)VOXEL_CHUNK_WIDTH * (float)(MinCellZ + ChunkSetIndexZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH));
 
 #if 0
 				v3 TestPts[8];
@@ -2027,7 +2027,7 @@ void VoxelChunksGenerationUpdate(
 					TestPts[PIndex] = ChunkSetCornersP[PIndex] + ChunkSetOffset;
 				}
 
-				RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
+				//RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
 #endif
 
 				for (int PlaneIndex = 0;
