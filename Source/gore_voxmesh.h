@@ -313,6 +313,7 @@ struct voxworld_generation_state {
 	voxel_threadwork_set MeshSet;
 	voxel_threadwork_set GenSet;
 	voxel_threadwork_set CellWalkaroundSet;
+	voxel_threadwork_set NeighboursSidesSet;
 
 	int ChunksSideCount;
 	int ChunksCount;
@@ -328,6 +329,8 @@ struct voxworld_generation_state {
 	platform_atomic_type_i32 MeshGenerationsStartedThisFrame;
 	
 	stacked_memory* TotalMemory;
+	//NOTE(dima): FCP - frustum culling precomputation
+	stacked_memory FCPMemoryBlock;
 
 	platform_mutex MemoryAllocatorMutex;
 

@@ -52,6 +52,10 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	}
 	if (ButtonIsDown(Input, KeyType_Space)) {
 		CameraSpeed *= 7.0f;
+
+		if (ButtonIsDown(Input, KeyType_E)) {
+			CameraSpeed *= 5.0f;
+		}
 	}
 	if (ButtonWentDown(Input, KeyType_Q)) {
 		State->CameraAutoMove = !State->CameraAutoMove;
@@ -209,13 +213,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	v3 CubePos = V3(-5.0f, 2.0f, 3.0f);
 	mat4 CubeMat = TranslationMatrix(CubePos) * RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
 
-	RENDERPushMesh(RenderStack, SphereID, SphereMat1, &State->CubeMat);
+	RENDERPushMesh(RenderStack, SphereID, SphereMat1, State->CubeMat);
 	//RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
-	RENDERPushMesh(RenderStack, CubeID, CubeMat, &State->CubeMat);
+	RENDERPushMesh(RenderStack, CubeID, CubeMat, State->CubeMat);
 
-	RENDERPushMesh(RenderStack, CylID, CylMat1, &State->CubeMat);
+	RENDERPushMesh(RenderStack, CylID, CylMat1, State->CubeMat);
 
-	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), &State->PlaneMat);
+	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
 
 #if 1
 	RENDERPushVoxelLighting(RenderStack);

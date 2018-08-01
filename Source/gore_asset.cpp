@@ -1650,6 +1650,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 		20, 22, 23
 	};
 
+	mesh_info CylMeshSuperLow = ASSETGenerateCylynder(1.0f, 0.5f, 6);
 	mesh_info CylMeshLow = ASSETGenerateCylynder(1.0f, 0.5f, 12);
 	mesh_info CylMeshAvg = ASSETGenerateCylynder(1.0f, 0.5f, 24);
 	mesh_info CylMeshHig = ASSETGenerateCylynder(1.0f, 0.5f, 48);
@@ -1685,8 +1686,10 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_Cylynder);
-	AddMeshAsset(System, &CylMeshLow);
+	AddMeshAsset(System, &CylMeshSuperLow);
 	AddFloatTag(System, GameAssetTag_LOD, 0.0f);
+	AddMeshAsset(System, &CylMeshLow);
+	AddFloatTag(System, GameAssetTag_LOD, 0.25f);
 	AddMeshAsset(System, &CylMeshAvg);
 	AddFloatTag(System, GameAssetTag_LOD, 0.5f);
 	AddMeshAsset(System, &CylMeshHig);
@@ -1694,17 +1697,18 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	EndAssetGroup(System);
 
 	voxel_atlas_info* Atlas = LoadVoxelAtlas("../Data/Images/VoxelAtlas/VoxelAtlas.png", 16);
-	DescribeByIndex(Atlas, 0, 0, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Top);
-	DescribeByIndex(Atlas, 1, 0, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 2, 0, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Bottom);
-	DescribeByIndex(Atlas, 2, 0, VoxelMaterial_Ground, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 3, 0, VoxelMaterial_Tree, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 0, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Top);
+	DescribeByIndex(Atlas, 1, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Bottom);
+	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_Ground, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 3, 1, VoxelMaterial_Tree, VoxelFaceTypeIndex_Side);
 	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Tree, VoxelFaceTypeIndex_TopBottom);
 	DescribeByIndex(Atlas, 5, 0, VoxelMaterial_Stone, VoxelFaceTypeIndex_All);
 	DescribeByIndex(Atlas, 6, 0, VoxelMaterial_Sand, VoxelFaceTypeIndex_All);
 	DescribeByIndex(Atlas, 7, 0, VoxelMaterial_Leaves, VoxelFaceTypeIndex_All);
 	DescribeByIndex(Atlas, 8, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_Side);
 	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_TopBottom);
+	DescribeByIndex(Atlas, 15, 15, VoxelMaterial_Lava, VoxelFaceTypeIndex_All);
 
 	DescribeByIndex(Atlas, 0, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Top);
 	DescribeByIndex(Atlas, 1, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Side);

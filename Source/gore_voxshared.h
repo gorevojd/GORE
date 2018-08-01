@@ -15,6 +15,8 @@
 #define VOXEL_CHUNK_VERT_LAYER_VOXEL_COUNT 4096
 #define VOXEL_MAX_MESH_BYTE_SIZE 9437184
 
+#define VOXEL_WATER_LEVEL 100
+
 typedef u32 voxel_vert_t;
 #define VOXEL_VERTEX_SIZE sizeof(voxel_vert_t)
 
@@ -53,6 +55,15 @@ struct voxworld_threadwork {
 
 	stacked_memory Memory;
 	stacked_memory MemoryInternal;
+};
+
+struct neighbours_set_info {
+	u8 Left[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
+	u8 Right[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
+	u8 Front[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
+	u8 Back[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
+	u8 Top[VOXEL_CHUNK_WIDTH * VOXEL_CHUNK_WIDTH / 8];
+	u8 Bottom[VOXEL_CHUNK_WIDTH * VOXEL_CHUNK_WIDTH / 8];
 };
 
 struct neighbours_chunks {

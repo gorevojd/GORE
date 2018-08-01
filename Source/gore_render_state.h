@@ -17,6 +17,8 @@ struct render_state {
 
 	u32 EntryCount;
 
+	mesh_id LowPolyCylMeshID;
+
 	game_camera_setup CameraSetup;
 };
 
@@ -74,7 +76,7 @@ struct render_stack_entry_mesh {
 	mesh_info* MeshInfo;
 
 	mat4 TransformMatrix;
-	surface_material* Material;
+	surface_material Material;
 };
 
 struct render_stack_entry_voxel_mesh {
@@ -196,7 +198,7 @@ inline void RENDERPushClear(render_state* Stack, v3 Clear) {
 }
 
 
-inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material* Material) {
+inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material Material) {
 	render_stack_entry_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_mesh, RenderEntry_Mesh);
 
 	Entry->MeshInfo = Mesh;
@@ -204,7 +206,7 @@ inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformM
 	Entry->Material = Material;
 }
 
-inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMatrix, surface_material* Material) {
+inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMatrix, surface_material Material) {
 	mesh_info* MeshInfo = GetMeshFromID(State->AssetSystem, MeshID);
 
 	if (MeshInfo) {
@@ -223,6 +225,37 @@ inline void RENDERPushVoxelMesh(render_state* State, voxel_mesh_info* Mesh, v3 P
 	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
 }
 
+inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Color, float Diameter) {
+	v3 Diff = Max - Min;
+
+	surface_material OutlineMat = LITCreateSurfaceMaterial(1.0f, Color);
+
+	mat4 InitTran = TranslationMatrix(V3(0.0f, 0.5f, 1.0f));
+	mat4 VertTran = ScalingMatrix(V3(Diameter, Diff.y, Diameter)) * InitTran;
+
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, Diff.z)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
+
+	VertTran = ScalingMatrix(V3(Diameter, Diff.x, Diameter)) * InitTran;
+	mat4 RotationMat = RotationZ(-GORE_PI / 2.0f);
+	VertTran = RotationMat * VertTran;
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, Diff.z)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
+
+
+	VertTran = ScalingMatrix(V3(Diameter, Diff.x, Diameter)) * InitTran;
+	RotationMat = RotationX(GORE_PI / 2.0f);
+	VertTran = RotationMat * VertTran;
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, Diff.y, 0.0f)), OutlineMat);
+	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
+
+}
 
 inline void RENDERPushLighting(render_state* State) {
 	render_stack_entry_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lighting, RenderEntry_Lighting);

@@ -902,7 +902,7 @@ int main(int ArgsCount, char** Args) {
 	platform_threadwork HighQueueEntries[512];
 	platform_threadwork LowQueueEntries[512];
 
-#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 4
+#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 6
 #define PLATFORM_HIGH_QUEUE_THREADS_COUNT 4
 #define PLATFORM_LOW_QUEUE_THREADS_COUNT 2
 

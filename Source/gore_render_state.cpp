@@ -12,6 +12,8 @@ render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int
 	Result.RenderHeight = RenderHeight;
 	Result.AssetSystem = AssetSystem;
 
+	Result.LowPolyCylMeshID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Cylynder, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
+
 	return(Result);
 }
 

@@ -511,7 +511,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 				glEnable(GL_DEPTH_TEST);
 
-				OpenGLUniformSurfaceMaterial(RenderState, &GLState->WtfShader, EntryMesh->Material);
+				OpenGLUniformSurfaceMaterial(RenderState, &GLState->WtfShader, &EntryMesh->Material);
 
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
