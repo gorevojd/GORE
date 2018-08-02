@@ -46,16 +46,7 @@ struct voxel_mesh_info {
 	platform_mutex MeshUseMutex;
 };
 
-struct voxworld_threadwork {
-	voxworld_threadwork* Next;
-	voxworld_threadwork* Prev;
 
-	//NOTE(dima): 1 - in use; 0 - free;
-	platform_atomic_type_u32 UseState;
-
-	stacked_memory Memory;
-	stacked_memory MemoryInternal;
-};
 
 inline b32 IsVoxelSetInNeighbour(u8* Array, int Index) {
 	int TargetByte = Index >> 3;
@@ -125,7 +116,7 @@ struct voxel_chunk_info {
 	neighbours_chunks OldNeighbours;
 
 	//NOTE(dima): Used to store loaded chunk data
-	voxworld_threadwork* Threadwork;
+	struct threadwork_data* Threadwork;
 };
 
 inline b32 ChunkNotZeroAndGenerated(voxel_chunk_info* Chunk) {

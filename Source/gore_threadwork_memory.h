@@ -3,21 +3,36 @@
 
 #include "gore_platform.h"
 
-enum threadwork_memory_use_state {
-	ThreadworkUseState_None,
-	ThreadworkUseState_InUse,
-};
+struct threadwork_data {
+	threadwork_data* Next;
+	threadwork_data* Prev;
 
-struct threadwork_memory {
-	stacked_memory Memory;
-	stacked_memory MemoryInternal_;
-
+	//NOTE(dima): 1 - in use; 0 - free;
 	platform_atomic_type_u32 UseState;
+
+	stacked_memory Memory;
+	stacked_memory MemoryInternal;
 };
 
-extern void InitThreadworkMemories(stacked_memory* Alloc, threadwork_memory* Memories, int Count, int MemorySizePerOne);
-extern threadwork_memory* BeginThreadworkMemory(threadwork_memory* Memories, int Count);
-extern void EndThreadworkMemory(threadwork_memory* Memory);
+struct threadwork_data_set {
+	int FreeThreadworksCount;
+	int TotalThreadworksCount;
 
+	int MemUsed;
+
+	platform_mutex ThreadworksMutex;
+
+	threadwork_data* UseSentinel;
+	threadwork_data* FreeSentinel;
+};
+
+threadwork_data* BeginThreadworkData(threadwork_data_set* Set);
+void EndThreadworkData(threadwork_data* Threadwork, threadwork_data_set* Set);
+
+void InitThreadworkDataSet(
+	stacked_memory* InitMemory,
+	threadwork_data_set* Set,
+	int ThreadworksCount,
+	int OneThreadworkSize);
 #endif
 

@@ -881,91 +881,7 @@ inline void GetVoxelChunkPosForCamera(
 	*IDChunkZ = ResZ;
 }
 
-static voxworld_threadwork* VoxelAllocateThreadwork(
-	stacked_memory* Memory, 
-	u32 ThreadworkMemorySize, 
-	int* MemoryCounter) 
-{
-	voxworld_threadwork* Result = PushStruct(Memory, voxworld_threadwork);
 
-	*MemoryCounter += sizeof(voxworld_threadwork) + ThreadworkMemorySize;
-
-	Result->Next = Result;
-	Result->Prev = Result;
-
-	Result->UseState = 0;
-	Result->MemoryInternal = SplitStackedMemory(Memory, ThreadworkMemorySize);
-
-	return(Result);
-}
-
-static void VoxelInsertThreadworkAfter(
-	voxworld_threadwork* ToInsert,
-	voxworld_threadwork* Sentinel)
-{
-	ToInsert->Next = Sentinel->Next;
-	ToInsert->Prev = Sentinel;
-
-	ToInsert->Next->Prev = ToInsert;
-	ToInsert->Prev->Next = ToInsert;
-}
-
-static voxworld_threadwork* VoxelBeginThreadwork(voxel_threadwork_set* Set)
-{
-	voxworld_threadwork* Result = 0;
-
-	BeginMutexAccess(&Set->ThreadworksMutex);
-
-	if (Set->FreeSentinel->Next != Set->FreeSentinel) {
-		//NOTE(dima): Putting threadwork list entry to use list
-		Result = Set->FreeSentinel->Next;
-
-		Result->Prev->Next = Result->Next;
-		Result->Next->Prev = Result->Prev;
-
-		Result->Next = Set->UseSentinel->Next;
-		Result->Prev = Set->UseSentinel;
-
-		Result->Next->Prev = Result;
-		Result->Prev->Next = Result;
-
-		//NOTE(dima): Beginning temp memory
-		Result->Memory = BeginTempStackedMemory(
-			&Result->MemoryInternal,
-			Result->MemoryInternal.MaxSize,
-			MemAllocFlag_Align16);
-
-		Set->FreeThreadworksCount--;
-	}
-
-	EndMutexAccess(&Set->ThreadworksMutex);
-
-	return(Result);
-}
-
-static void VoxelEndThreadwork(
-	voxworld_threadwork* Threadwork,
-	voxel_threadwork_set* Set)
-{
-	BeginMutexAccess(&Set->ThreadworksMutex);
-
-	//NOTE(dima): Putting threadwork list entry to free list
-	Threadwork->Prev->Next = Threadwork->Next;
-	Threadwork->Next->Prev = Threadwork->Prev;
-
-	Threadwork->Next = Set->FreeSentinel->Next;
-	Threadwork->Prev = Set->FreeSentinel;
-
-	Threadwork->Next->Prev = Threadwork;
-	Threadwork->Prev->Next = Threadwork;
-
-	//NOTE(dima): Freing temp memory
-	EndTempStackedMemory(&Threadwork->MemoryInternal, &Threadwork->Memory);
-
-	Set->FreeThreadworksCount++;
-
-	EndMutexAccess(&Set->ThreadworksMutex);
-}
 
 inline u32 GetKeyFromIndices(int X, int Y, int Z) {
 #if 0
@@ -1221,8 +1137,8 @@ struct generate_voxel_mesh_threadwork_data {
 
 	voxworld_generation_state* Generation;
 
-	voxworld_threadwork* MeshGenThreadwork;
-	voxworld_threadwork* NeighboursSidesThreadwork;
+	threadwork_data* MeshGenThreadwork;
+	threadwork_data* NeighboursSidesThreadwork;
 };
 
 static void GenerateMeshInternal(
@@ -1231,7 +1147,7 @@ static void GenerateMeshInternal(
 	voxworld_generation_state* Generation) 
 {
 	//TODO(dima): Better memory management here
-	voxworld_threadwork* MeshThreadwork = VoxelBeginThreadwork(&Generation->MeshSet);
+	threadwork_data* MeshThreadwork = BeginThreadworkData(&Generation->MeshSet);
 
 	Assert(MeshThreadwork);
 
@@ -1250,7 +1166,7 @@ static void GenerateMeshInternal(
 	//NOTE(dima): Copy generated mesh into new buffer
 	memcpy(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
 
-	VoxelEndThreadwork(MeshThreadwork, &Generation->MeshSet);
+	EndThreadworkData(MeshThreadwork, &Generation->MeshSet);
 
 	PlatformApi.WriteBarrier();
 
@@ -1308,8 +1224,8 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
 
-	VoxelEndThreadwork(GenData->NeighboursSidesThreadwork, &Generation->NeighboursSidesSet);
-	VoxelEndThreadwork(GenData->MeshGenThreadwork, &Generation->GenSet);
+	EndThreadworkData(GenData->NeighboursSidesThreadwork, &Generation->NeighboursSidesSet);
+	EndThreadworkData(GenData->MeshGenThreadwork, &Generation->GenSet);
 }
 
 //NOTE(dima): Mesh REgeneration threadwork
@@ -1344,13 +1260,13 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 
 	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
-	VoxelEndThreadwork(GenData->NeighboursSidesThreadwork, &GenData->Generation->NeighboursSidesSet);
-	VoxelEndThreadwork(GenData->MeshGenThreadwork, &Generation->GenSet);
+	EndThreadworkData(GenData->NeighboursSidesThreadwork, &GenData->Generation->NeighboursSidesSet);
+	EndThreadworkData(GenData->MeshGenThreadwork, &Generation->GenSet);
 }
 
 struct generate_voxel_chunk_data {
 	//NOTE(dima): Used to store temporary generation work data while generating chunk
-	voxworld_threadwork* ChunkGenThreadwork;
+	threadwork_data* ChunkGenThreadwork;
 
 	voxworld_generation_state* Generation;
 
@@ -1363,7 +1279,7 @@ struct unload_voxel_chunk_data {
 	
 	voxel_chunk_info* Chunk;
 
-	voxworld_threadwork* ChunkUnloadThreadwork;
+	threadwork_data* ChunkUnloadThreadwork;
 };
 
 PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
@@ -1386,7 +1302,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		WorkChunk->State = VoxelChunkState_Ready;
 		//PlatformApi.AtomicSet_U32(&WorkChunk->State, VoxelChunkState_Ready);
 
-		voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&GenData->Generation->GenSet);
+		threadwork_data* MeshGenThreadwork = BeginThreadworkData(&GenData->Generation->GenSet);
 
 		Assert(MeshGenThreadwork);
 
@@ -1400,7 +1316,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->MeshGenerateData.Chunk = WorkChunk;
 		MeshGenerationData->MeshGenerateData.Atlas = GenData->VoxelAtlasInfo;
 
-		MeshGenerationData->NeighboursSidesThreadwork = VoxelBeginThreadwork(&GenData->Generation->NeighboursSidesSet);
+		MeshGenerationData->NeighboursSidesThreadwork = BeginThreadworkData(&GenData->Generation->NeighboursSidesSet);
 		MeshGenerationData->MeshGenerateData.NeighboursSetInfo = PushStruct(
 			&MeshGenerationData->NeighboursSidesThreadwork->Memory,
 			neighbours_set_info);
@@ -1415,7 +1331,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 			GenerateVoxelMeshThreadwork);
 	}
 
-	VoxelEndThreadwork(GenData->ChunkGenThreadwork, &GenData->Generation->GenSet);
+	EndThreadworkData(GenData->ChunkGenThreadwork, &GenData->Generation->GenSet);
 }
 
 
@@ -1448,14 +1364,14 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 	}
 
 	//NOTE(dima): Close threadwork that contains chunk data
-	VoxelEndThreadwork(WorkChunk->Threadwork, &UnloadData->Generation->ChunkSet);
+	EndThreadworkData(WorkChunk->Threadwork, &UnloadData->Generation->ChunkSet);
 
 	//NOTE(dima): Updating chunk state to unloaded
 	PlatformApi.WriteBarrier();
 	WorkChunk->State = VoxelChunkState_None;
 
 	//NOTE(dima): Close threadwork that contains data for this function(thread)
-	VoxelEndThreadwork(
+	EndThreadworkData(
 		UnloadData->ChunkUnloadThreadwork,
 		&UnloadData->Generation->GenSet);
 }
@@ -1482,7 +1398,7 @@ struct voxel_cell_walkaround_threadwork_data {
 	voxworld_generation_state* Generation;
 	voxel_atlas_info* VoxelAtlas;
 
-	voxworld_threadwork* Threadwork;
+	threadwork_data* Threadwork;
 
 	render_state TempRenderState;
 
@@ -1589,7 +1505,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						//NOTE(dima): Updating neighbours
 						NeededChunk->OldNeighbours = Neighbours;
 
-						voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
+						threadwork_data* MeshGenThreadwork = BeginThreadworkData(&Generation->GenSet);
 
 						Assert(MeshGenThreadwork);
 
@@ -1603,7 +1519,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						MeshGenerationData->MeshGenerateData.Atlas = VoxelAtlas;
 						MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
 
-						MeshGenerationData->NeighboursSidesThreadwork = VoxelBeginThreadwork(&Generation->NeighboursSidesSet);
+						MeshGenerationData->NeighboursSidesThreadwork = BeginThreadworkData(&Generation->NeighboursSidesSet);
 						MeshGenerationData->MeshGenerateData.NeighboursSetInfo = PushStruct(
 							&MeshGenerationData->NeighboursSidesThreadwork->Memory,
 							neighbours_set_info);
@@ -1622,11 +1538,11 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 				else {
 					BEGIN_TIMING("Insertion and starting generation");
 					BEGIN_TIMING("Finding threadwork");
-					voxworld_threadwork* Threadwork = VoxelBeginThreadwork(&Generation->ChunkSet);
+					threadwork_data* Threadwork = BeginThreadworkData(&Generation->ChunkSet);
 					END_TIMING();
 
 					if (Threadwork) {
-						voxworld_threadwork* ChunkGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
+						threadwork_data* ChunkGenThreadwork = BeginThreadworkData(&Generation->GenSet);
 
 						Assert(ChunkGenThreadwork);
 
@@ -1676,40 +1592,6 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 	END_TIMING();
 }
 
-static void InitVoxelThreadworkSet(
-	voxworld_generation_state* Generation,
-	voxel_threadwork_set* Set,
-	int ThreadworksCount,
-	int OneThreadworkSize) 
-{
-	Set->ThreadworksMutex = {};
-	Set->MemUsed = 0;
-
-	Set->UseSentinel = VoxelAllocateThreadwork(
-		Generation->TotalMemory, 0,
-		&Set->MemUsed);
-
-	Set->FreeSentinel = VoxelAllocateThreadwork(
-		Generation->TotalMemory, 0,
-		&Set->MemUsed);
-
-	Set->FreeThreadworksCount = ThreadworksCount;
-	Set->TotalThreadworksCount = ThreadworksCount;
-
-	for (int NewWorkIndex = 0;
-		NewWorkIndex < ThreadworksCount;
-		NewWorkIndex++)
-	{
-		voxworld_threadwork* NewThreadwork =
-			VoxelAllocateThreadwork(
-				Generation->TotalMemory,
-				OneThreadworkSize,
-				&Set->MemUsed);
-
-		VoxelInsertThreadworkAfter(NewThreadwork, Set->FreeSentinel);
-	}
-}
-
 static void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
@@ -1752,8 +1634,8 @@ static void VoxelChunksGenerationInit(
 		second cube is filled so I divided by 2 here
 	*/
 	int SizeForOneMeshThreadwork = 65536 * 6 * 6 * 4 / 2;
-	InitVoxelThreadworkSet(
-		Generation, 
+	InitThreadworkDataSet(
+		Generation->TotalMemory, 
 		&Generation->MeshSet, 
 		VoxelThreadQueueSize, 
 		SizeForOneMeshThreadwork);
@@ -1764,8 +1646,8 @@ static void VoxelChunksGenerationInit(
 		They are used to store loaded chunk data;
 	*/
 	int SizeForOneWorkThreadwork = KILOBYTES(70);
-	InitVoxelThreadworkSet(
-		Generation,
+	InitThreadworkDataSet(
+		Generation->TotalMemory,
 		&Generation->ChunkSet,
 		TotalChunksCount,
 		SizeForOneWorkThreadwork);
@@ -1785,8 +1667,8 @@ static void VoxelChunksGenerationInit(
 
 	SizeForGenThreadwork += 16;
 
-	InitVoxelThreadworkSet(
-		Generation,
+	InitThreadworkDataSet(
+		Generation->TotalMemory,
 		&Generation->GenSet,
 		GenThreadworksCount,
 		SizeForGenThreadwork);
@@ -1799,8 +1681,8 @@ static void VoxelChunksGenerationInit(
 	int CellWalkaroundThreadsCount = 4;
 	int SizeForOneCellWalkaroundThreadwork = MEGABYTES(1);
 
-	InitVoxelThreadworkSet(
-		Generation,
+	InitThreadworkDataSet(
+		Generation->TotalMemory,
 		&Generation->CellWalkaroundSet,
 		CellWalkaroundThreadsCount,
 		SizeForOneCellWalkaroundThreadwork);
@@ -1810,8 +1692,8 @@ static void VoxelChunksGenerationInit(
 	threadworks. They hold information about chunk 
 	neighbours sides for if their set or not.
 	*/
-	InitVoxelThreadworkSet(
-		Generation,
+	InitThreadworkDataSet(
+		Generation->TotalMemory,
 		&Generation->NeighboursSidesSet,
 		Generation->ChunksCount * 10,
 		sizeof(neighbours_set_info) + 16);
@@ -2111,7 +1993,7 @@ void VoxelChunksGenerationUpdate(
 		CellData->Generation = Generation;
 		CellData->VoxelAtlas = VoxelAtlas;
 
-		CellData->Threadwork = VoxelBeginThreadwork(&Generation->CellWalkaroundSet);
+		CellData->Threadwork = BeginThreadworkData(&Generation->CellWalkaroundSet);
 
 		Assert(CellData->Threadwork);
 
@@ -2199,7 +2081,7 @@ void VoxelChunksGenerationUpdate(
 		memcpy(CopyTo, CopyFrom, CopyFromByteSize);
 
 		RENDEREndStack(&CellData->TempRenderState);
-		VoxelEndThreadwork(CellData->Threadwork, &Generation->CellWalkaroundSet);
+		EndThreadworkData(CellData->Threadwork, &Generation->CellWalkaroundSet);
 
 		Generation->TrianglesLoaded += CellData->TrianglesLoaded;
 		Generation->TrianglesPushed += CellData->TrianglesPushed;
@@ -2233,7 +2115,7 @@ void VoxelChunksGenerationUpdate(
 			{
 				//NOTE(dima): Loaded chunk is out of range and we should deallocate it
 
-				voxworld_threadwork* UnloadThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
+				threadwork_data* UnloadThreadwork = BeginThreadworkData(&Generation->GenSet);
 
 				Assert(UnloadThreadwork);
 

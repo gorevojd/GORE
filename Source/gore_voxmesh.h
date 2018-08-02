@@ -5,6 +5,7 @@
 #include "gore_voxshared.h"
 #include "gore_render_state.h"
 #include "gore_input.h"
+#include "gore_threadwork_memory.h"
 
 enum voxel_normal_type_index{
 	VoxelNormalIndex_Up,
@@ -294,18 +295,6 @@ static float VoxelSmoothRandoms[] = {
 	-0.78683, 0.95303, 0.17718, -0.48229, -0.14995, -0.30178, 0.96008, 0.54672,
 };
 
-struct voxel_threadwork_set {
-	int FreeThreadworksCount;
-	int TotalThreadworksCount;
-
-	int MemUsed;
-
-	platform_mutex ThreadworksMutex;
-
-	voxworld_threadwork* UseSentinel;
-	voxworld_threadwork* FreeSentinel;
-};
-
 struct voxworld_generation_state {
 
 	b32 Initialized;
@@ -314,11 +303,11 @@ struct voxworld_generation_state {
 	input_system* Input;
 	float MeshRegenTimeCounter;
 
-	voxel_threadwork_set ChunkSet;
-	voxel_threadwork_set MeshSet;
-	voxel_threadwork_set GenSet;
-	voxel_threadwork_set CellWalkaroundSet;
-	voxel_threadwork_set NeighboursSidesSet;
+	threadwork_data_set ChunkSet;
+	threadwork_data_set MeshSet;
+	threadwork_data_set GenSet;
+	threadwork_data_set CellWalkaroundSet;
+	threadwork_data_set NeighboursSidesSet;
 
 	int ChunksSideCount;
 	int ChunksCount;

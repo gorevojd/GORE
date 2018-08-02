@@ -5,11 +5,6 @@ struct voxel_generation_statistics{
 	int HashTableCollisionCount;
 	int HashTableInsertedElements;
 
-	int FreeChunkThreadworksCount;
-	int TotalChunkThreadworksCount;
-
-	int FreeGenThreadworksCount;
-	int TotalGenThreadworksCount;
 
 	v3 CameraPos;
 	int CurrentChunkX;
@@ -27,6 +22,13 @@ struct voxel_generation_statistics{
 	int TrianglesLoaded;
 
 	platform_thread_queue* Queue;
+
+
+	int FreeChunkThreadworksCount;
+	int TotalChunkThreadworksCount;
+
+	int FreeGenThreadworksCount;
+	int TotalGenThreadworksCount;
 
 	int HashTableMemUsed;
 	int GenTasksMemUsed;
