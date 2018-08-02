@@ -57,7 +57,22 @@ struct voxworld_threadwork {
 	stacked_memory MemoryInternal;
 };
 
+inline b32 IsVoxelSetInNeighbour(u8* Array, int Index) {
+	int TargetByte = Index >> 3;
+	int TargetBit = Index & 7;
+
+	int Res = Array[TargetByte] & (1 << TargetBit);
+	return(Res != 0);
+}
+
 struct neighbours_set_info {
+	b32 LeftExist;
+	b32 RightExist;
+	b32 FrontExist;
+	b32 BackExist;
+	b32 TopExist;
+	b32 BottomExist;
+
 	u8 Left[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
 	u8 Right[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];
 	u8 Front[VOXEL_CHUNK_HEIGHT * VOXEL_CHUNK_WIDTH / 8];

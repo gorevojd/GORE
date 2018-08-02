@@ -9,7 +9,7 @@
 #include <intrin.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-#define PLATFORM_WINDA
+//#define PLATFORM_WINDA
 #endif
 
 #if defined(PLATFORM_WINDA)
@@ -43,7 +43,9 @@ struct platform_mutex {
 
 inline void BeginMutexAccess(platform_mutex* Mutex) {
 	int Ticket = SDL_AtomicAdd((SDL_atomic_t*)&Mutex->Ticket, 1);
-	while (Ticket != Mutex->ServingTicket.value) {}
+	while (Ticket != Mutex->ServingTicket.value) {
+		int a = 1;
+	}
 }
 
 inline void EndMutexAccess(platform_mutex* Mutex) {

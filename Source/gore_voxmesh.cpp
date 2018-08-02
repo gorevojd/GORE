@@ -177,7 +177,7 @@ struct voxmesh_generate_data {
 	voxel_chunk_info* Chunk;
 	voxel_atlas_info* Atlas;
 	
-	neighbours_chunks Neighbours;
+	neighbours_set_info* NeighboursSetInfo;
 };
 
 void VoxmeshGenerate(
@@ -189,13 +189,6 @@ void VoxmeshGenerate(
 
 	Result->MeshHandle = 0;
 	Result->VerticesCount = 0;
-
-	voxel_chunk_info* LeftChunk = Data->Neighbours.LeftChunk;
-	voxel_chunk_info* RightChunk = Data->Neighbours.RightChunk;
-	voxel_chunk_info* TopChunk = Data->Neighbours.TopChunk;
-	voxel_chunk_info* BottomChunk = Data->Neighbours.BottomChunk;
-	voxel_chunk_info* FrontChunk = Data->Neighbours.FrontChunk;
-	voxel_chunk_info* BackChunk = Data->Neighbours.BackChunk;
 
 	for (int DepthIndex = 0; DepthIndex < VOXEL_CHUNK_WIDTH; DepthIndex++) {
 		for (int WidthIndex = 0; WidthIndex < VOXEL_CHUNK_WIDTH; WidthIndex++) {
@@ -250,10 +243,11 @@ void VoxmeshGenerate(
 						int IndexInNeighbourChunk = 0;
 
 						if (WidthIndex == 0) {
-							if (ChunkNotZeroAndGenerated(LeftChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(VOXEL_CHUNK_WIDTH - 1, DepthIndex, HeightIndex);
-
-								if (LeftChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->LeftExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Left,
+									(VOXEL_CHUNK_WIDTH - 1 - DepthIndex) + (HeightIndex * VOXEL_CHUNK_WIDTH)))
+								{
 									WriteFaceAtLeft(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Left]);
 								}
 							}
@@ -262,10 +256,11 @@ void VoxmeshGenerate(
 							}
 						}
 						if (WidthIndex == (VOXEL_CHUNK_WIDTH - 1)) {
-							if (ChunkNotZeroAndGenerated(RightChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(0, DepthIndex, HeightIndex);
-
-								if (RightChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->RightExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Right,
+									DepthIndex + HeightIndex * VOXEL_CHUNK_WIDTH))
+								{
 									WriteFaceAtRight(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Right]);
 								}
 							}
@@ -274,10 +269,11 @@ void VoxmeshGenerate(
 							}
 						}
 						if (DepthIndex == 0) {
-							if (ChunkNotZeroAndGenerated(FrontChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, VOXEL_CHUNK_WIDTH - 1, HeightIndex);
-
-								if (FrontChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->FrontExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Front,
+									(VOXEL_CHUNK_WIDTH - 1 - WidthIndex) + HeightIndex * VOXEL_CHUNK_WIDTH))
+								{
 									WriteFaceAtFront(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Front]);
 								}
 							}
@@ -287,10 +283,11 @@ void VoxmeshGenerate(
 						}
 
 						if (DepthIndex == (VOXEL_CHUNK_WIDTH - 1)) {
-							if (ChunkNotZeroAndGenerated(BackChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, 0, HeightIndex);
-
-								if (BackChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->BackExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Back,
+									WidthIndex + HeightIndex * VOXEL_CHUNK_WIDTH))
+								{
 									WriteFaceAtBack(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Back]);
 								}
 							}
@@ -300,10 +297,11 @@ void VoxmeshGenerate(
 						}
 
 						if (HeightIndex == 0) {
-							if (ChunkNotZeroAndGenerated(BottomChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, DepthIndex, VOXEL_CHUNK_HEIGHT - 1);
-
-								if (BottomChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->BottomExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Bottom,
+									WidthIndex + DepthIndex * VOXEL_CHUNK_WIDTH)) 
+								{
 									WriteFaceAtBottom(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Bottom]);
 								}
 							}
@@ -313,10 +311,11 @@ void VoxmeshGenerate(
 						}
 
 						if (HeightIndex == (VOXEL_CHUNK_HEIGHT - 1)) {
-							if (ChunkNotZeroAndGenerated(TopChunk)) {
-								IndexInNeighbourChunk = GET_VOXEL_INDEX(WidthIndex, DepthIndex, VOXEL_CHUNK_HEIGHT - 1);
-
-								if (TopChunk->Voxels[IndexInNeighbourChunk] == VoxelMaterial_None) {
+							if (Data->NeighboursSetInfo->TopExist) {
+								if (!IsVoxelSetInNeighbour(
+									Data->NeighboursSetInfo->Top,
+									WidthIndex + DepthIndex * VOXEL_CHUNK_WIDTH))
+								{
 									WriteFaceAtTop(Result, VoxelPos, TexSet->Sets[VoxelFaceTypeIndex_Top]);
 								}
 							}
@@ -540,98 +539,6 @@ inline float CalculateHeightForBiomeParams(
 	return(RandHeight);
 }
 
-float FindNoise1(int n, int seed)
-{
-	n += seed;
-	n = (n << 13) ^ n;
-	int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
-	return 1.0 - ((float)nn / 1073741824.0);
-}
-
-float FindNoise2(float x, float y, int seed)
-{
-	int n = (int)x + (int)y * 57;
-	return FindNoise1(n, seed);
-}
-float interpolate(float a, float b, float x)
-{
-	float ft = x * 3.1415927;
-	float f = (1.0 - cos(ft)) * 0.5;
-	return a * (1.0 - f) + b * f;
-}
-float noise(float x, float y, int seed)
-{
-	float floorx = (float)((int)x);//This is kinda a cheap way to floor a float integer.
-	float floory = (float)((int)y);
-	float s, t, u, v;//Integer declaration
-	s = FindNoise2(floorx, floory, seed);
-	t = FindNoise2(floorx + 1, floory, seed);
-	u = FindNoise2(floorx, floory + 1, seed);//Get the surrounding pixels to calculate the transition.
-	v = FindNoise2(floorx + 1, floory + 1, seed);
-	float int1 = interpolate(s, t, x - floorx);//Interpolate between the values.
-	float int2 = interpolate(u, v, x - floorx);//Here we use x-floorx, to get 1st dimension. Don't mind the x-floorx thingie, it's part of the cosine formula.
-	return interpolate(int1, int2, y - floory);//Here we use y-floory, to get the 2nd dimension.
-}
-
-// Here we get how terrain at X, Y is high. zoomget is only for some testing reasons.
-// Here you can edit maximum and minimum level of height.
-// Also here you pass seed. It's int.  
-
-int GetHeight(int x, int y, int seed, float zoomget = 150.0f)
-{
-	//x += 30; y -= 30;
-	//float p = 0.2 + ((findnoise2(x / 100.0, y / 100.0) + 1.0) / 2) * 0.3;
-	float p = 0.5;
-	//float zoom = 150;
-	float zoom = zoomget;
-	float getnoise = 0;
-	int octaves = 6;
-	for (int a = 0; a < octaves - 1; a++)//This loops trough the octaves.
-	{
-		float frequency = pow(2.0, a);//This increases the frequency with every loop of the octave.
-		float amplitude = pow(p, a);//This decreases the amplitude with every loop of the octave.
-		//getnoise += noise(((float)x) * frequency / zoom, ((float)y) / zoom * frequency, seed) * amplitude;//This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
-		//getnoise += noise(((float)x) * frequency / zoom, ((float)y) / zoom * frequency, seed) * amplitude;//This uses our perlin noise functions. It calculates all our zoom and frequency and amplitude
-		getnoise += stb_perlin_noise3(
-			(float)x * frequency / zoom,
-			0.0f,
-			(float)y * frequency / zoom,
-			0, 0, 0) * amplitude;
-	}
-	float maxheight = VOXEL_CHUNK_HEIGHT - 16;
-	int height = (int)(((getnoise + 1) / 2.0) * (maxheight - 5)) + 3;//(int)((getnoise * 128.0) + 128.0);
-	if (height > maxheight - 1) { height = (int)maxheight - 1; }
-
-	//if (height > maxheight - 1) { height = maxheight-(height-maxheight); }
-
-	if (height < 2) { height = 2; }
-	return height;
-}
-
-
-// Here we get what kind of block it is.
-// z is which block we are currently in column.
-// height is height of block at this collumn.
-
-int GetBlock(int z, int height)
-{
-	if (z > VOXEL_WATER_LEVEL)
-	{
-
-		if (z > height) { return 0; } // air
-		if (z == height) { return VoxelMaterial_GrassyGround; } // it's probably grass block
-		if (z > height - 7) { return VoxelMaterial_Ground; } // and it's probably dirt
-		return VoxelMaterial_Stone;// stone?
-	}
-	else
-	{
-		if ((z > height + 5)) { return VoxelMaterial_Lava; } // water?
-		if ((z > height - 5)) { return VoxelMaterial_Sand; } // sand?
-		if ((z > height - 10)) { return VoxelMaterial_Ground; } //dirt?
-		return VoxelMaterial_Stone; // stone?
-	}
-}
-
 void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Generation) {
 
 	for (int BlockIndex = 0;
@@ -663,7 +570,6 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			BiomeParams.BiomeNoiseDivisor = BiomeNoiseDivisor;
 			BiomeParams.BiomeNoiseEffect = 1.0f;
 
-
 			float Noise;
 			float RandHeight = CalculateHeightForBiomeParams(
 				&BiomeParams,
@@ -673,7 +579,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				&Noise);
 
 			int RandHeightInt = (int)(RandHeight + 0.5f);
-#if 1
+#if 0
 			float BiomeTransitionNoiseScale = 128.0f;
 			float BiomeTransitionNoise = stb_perlin_noise3(
 				(float)(ChunkPos.x + i) / BiomeTransitionNoiseScale,
@@ -726,15 +632,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				BuildColumnInChunk(Chunk, 8, 8, SetHeight, SetHeight + RandomTreeHeight - 1, BiomeParams.TreeMaterial);
 			}
 #else
-			int cheight = GetHeight(
-				Chunk->IndexX * (int)VOXEL_CHUNK_WIDTH + i,
-				Chunk->IndexZ * (int)VOXEL_CHUNK_WIDTH + j,
-				100, 600.0f);
-
-			for (int k = 0; k < VOXEL_CHUNK_HEIGHT; k++) {
-				u8 t = GetBlock(k, cheight);
-				Chunk->Voxels[GET_VOXEL_INDEX(i, j, k)] = t;
-			}
+			BuildColumnInChunk(Chunk, i, j, 0, GetNextRandomSmoothFloat(Generation) * 2.5f + 100, VoxelMaterial_Stone);
 #endif
 		}
 	}
@@ -773,6 +671,174 @@ static inline b32 VoxelChunkNeighboursChanged(
 #endif
 
 	return(0);
+}
+
+static void FillNeighbourSetBasedOnChunk(
+	u8* Array, b32* Exist,
+	voxel_chunk_info* Chunk,
+	int WidthStartIndex, int WidthEndIndex,
+	int DepthStartIndex, int DepthEndIndex,
+	int HeightStartIndex, int HeightEndIndex)
+{
+	if (Chunk) {
+		if (Chunk->State == VoxelChunkState_Ready) {
+			*Exist = 1;
+
+			int WidthInc = 1;
+			if (WidthStartIndex > WidthEndIndex) {
+				WidthInc = -1;
+			}
+
+			int DepthInc = 1;
+			if (DepthStartIndex > DepthEndIndex) {
+				DepthInc = -1;
+			}
+
+			int HeightInc = 1;
+			if (HeightStartIndex > HeightEndIndex) {
+				HeightInc = -1;
+			}
+
+			int CurrentBit = 0;
+			for (int HeightIndex = HeightStartIndex;
+				; HeightIndex += HeightInc)
+			{
+				for (int DepthIndex = DepthStartIndex;
+					; DepthIndex += DepthInc)
+				{
+					for (int WidthIndex = WidthStartIndex;
+						; WidthIndex += WidthInc)
+					{
+						u8 Src = Chunk->Voxels[GET_VOXEL_INDEX(WidthIndex, DepthIndex, HeightIndex)];
+
+						int TargetByte = CurrentBit / 8;
+						int TargetBit = CurrentBit & 7;
+
+						Array[TargetByte] = ((1 & (Src != 0)) << TargetBit) | Array[TargetByte];
+
+						CurrentBit++;
+
+						if (WidthIndex == WidthEndIndex) {
+							break;
+						}
+					}
+
+					if (DepthIndex == DepthEndIndex) {
+						break;
+					}
+				}
+
+				if (HeightIndex == HeightEndIndex) {
+					break;
+				}
+			}
+		}
+	}
+}
+
+void FillNeighboursSetInfoBasedOnNeighbours(
+	neighbours_set_info* SetInfo,
+	neighbours_chunks* Neighbours)
+{
+	*SetInfo = {};
+
+#if 0
+	//NOTE(dima): This is for left chunk
+	if (Neighbours->LeftChunk) {
+		if (Neighbours->LeftChunk->State == VoxelChunkState_Ready) {
+			SetInfo->LeftExist = 1;
+
+			int CurrentBit = 0;
+			for (int DepthIndex = VOXEL_CHUNK_WIDTH - 1;
+				DepthIndex >= 0;
+				DepthIndex--)
+			{
+				for (int HeightIndex = 0;
+					HeightIndex < VOXEL_CHUNK_HEIGHT;
+					HeightIndex++)
+				{
+					u8 Src = Neighbours->LeftChunk->Voxels[GET_VOXEL_INDEX(VOXEL_CHUNK_WIDTH - 1, DepthIndex, HeightIndex)];
+					
+					int TargetByte = CurrentBit / 8;
+					int TargetBit = CurrentBit & 7;
+
+					SetInfo->Left[TargetByte] = ((1 & (Src != 0)) << TargetBit) | SetInfo->Left[TargetByte];
+
+					CurrentBit++;
+				}
+			}
+		}
+	}
+
+	//NOTE(dima): This is for right chunk
+	if (Neighbours->RightChunk) {
+		if (Neighbours->RightChunk->State == VoxelChunkState_Ready) {
+			SetInfo->RightExist = 1;
+
+			int CurrentBit = 0;
+			for (int DepthIndex = 0;
+				DepthIndex < VOXEL_CHUNK_WIDTH;
+				DepthIndex++)
+			{
+				for (int HeightIndex = 0;
+					HeightIndex < VOXEL_CHUNK_HEIGHT;
+					HeightIndex++)
+				{
+					u8 Src = Neighbours->RightChunk->Voxels[GET_VOXEL_INDEX(0, DepthIndex, HeightIndex)];
+
+					int TargetByte = CurrentBit / 8;
+					int TargetBit = CurrentBit & 7;
+
+					SetInfo->Right[TargetByte] = ((1 & (Src != 0)) << TargetBit) | SetInfo->Right[TargetByte];
+
+					CurrentBit++;
+				}
+			}
+		}
+	}
+#else
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Left, &SetInfo->LeftExist,
+		Neighbours->LeftChunk,
+		VOXEL_CHUNK_WIDTH - 1, VOXEL_CHUNK_WIDTH - 1,
+		VOXEL_CHUNK_WIDTH - 1, 0,
+		0, VOXEL_CHUNK_HEIGHT - 1);
+
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Right, &SetInfo->RightExist,
+		Neighbours->RightChunk,
+		0, 0,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		0, VOXEL_CHUNK_HEIGHT - 1);
+
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Front, &SetInfo->FrontExist,
+		Neighbours->FrontChunk,
+		VOXEL_CHUNK_WIDTH - 1, 0,
+		VOXEL_CHUNK_WIDTH - 1, VOXEL_CHUNK_WIDTH - 1,
+		0, VOXEL_CHUNK_HEIGHT - 1);
+
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Back, &SetInfo->BackExist,
+		Neighbours->BackChunk,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		0, 0,
+		0, VOXEL_CHUNK_HEIGHT - 1);
+
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Top, &SetInfo->TopExist,
+		Neighbours->TopChunk,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		0, 0);
+
+	FillNeighbourSetBasedOnChunk(
+		SetInfo->Bottom, &SetInfo->BottomExist,
+		Neighbours->BottomChunk,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		0, VOXEL_CHUNK_WIDTH - 1,
+		VOXEL_CHUNK_HEIGHT - 1, VOXEL_CHUNK_HEIGHT - 1);
+#endif
 }
 
 #include "stb_sprintf.h"
@@ -1244,6 +1310,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 		PlatformApi.AtomicInc_I32(&GenData->Generation->MeshGenerationsStartedThisFrame);		
 	}
 
+	VoxelEndThreadwork(GenData->NeighboursSidesThreadwork, &Generation->NeighboursSidesSet);
 	VoxelEndThreadwork(GenData->MeshGenThreadwork, &Generation->GenSet);
 }
 
@@ -1273,6 +1340,7 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 
 	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
+	VoxelEndThreadwork(GenData->NeighboursSidesThreadwork, &GenData->Generation->NeighboursSidesSet);
 	VoxelEndThreadwork(GenData->MeshGenThreadwork, &Generation->GenSet);
 }
 
@@ -1306,12 +1374,13 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		VoxelChunkState_None))
 	{
 		BeginMutexAccess(&WorkChunk->ChunkUseMutex);
-		
 		GenerateRandomChunk(WorkChunk, GenData->Generation);
+		EndMutexAccess(&WorkChunk->ChunkUseMutex);
 
 		PlatformApi.WriteBarrier();
 
-		PlatformApi.AtomicSet_U32(&WorkChunk->State, VoxelChunkState_Ready);
+		WorkChunk->State = VoxelChunkState_Ready;
+		//PlatformApi.AtomicSet_U32(&WorkChunk->State, VoxelChunkState_Ready);
 
 		voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&GenData->Generation->GenSet);
 
@@ -1327,16 +1396,20 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 		MeshGenerationData->MeshGenerateData.Chunk = WorkChunk;
 		MeshGenerationData->MeshGenerateData.Atlas = GenData->VoxelAtlasInfo;
 
-		MeshGenerationData->MeshGenerateData.Neighbours = WorkChunk->OldNeighbours;
+		MeshGenerationData->NeighboursSidesThreadwork = VoxelBeginThreadwork(&GenData->Generation->NeighboursSidesSet);
+		MeshGenerationData->MeshGenerateData.NeighboursSetInfo = PushStruct(
+			&MeshGenerationData->NeighboursSidesThreadwork->Memory,
+			neighbours_set_info);
+
+		FillNeighboursSetInfoBasedOnNeighbours(
+			MeshGenerationData->MeshGenerateData.NeighboursSetInfo,
+			&WorkChunk->OldNeighbours);
 
 		PlatformApi.AddThreadworkEntry(
 			PlatformApi.VoxelQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
-
-		EndMutexAccess(&WorkChunk->ChunkUseMutex);
 	}
-
 
 	VoxelEndThreadwork(GenData->ChunkGenThreadwork, &GenData->Generation->GenSet);
 }
@@ -1440,7 +1513,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 			for (int CellZ = MinZ; CellZ <= MaxZ; CellZ += IncrementZ) {
 
 				if (CellX == 0 && CellZ == 0) {
-					RENDERPushVolumeOutline(&ThreadworkData->TempRenderState, V3(0.0f, 0.0f, 0.0f), V3(16.0f, 256.0f, 16.0f), V3(1.0f, 1.0f, 1.0f), 1.0f);
+					RENDERPushVolumeOutline(&ThreadworkData->TempRenderState, V3(0.0f, 0.0f, 0.0f), V3(16.0f, 256.0f, 16.0f), V3(1.0f, 1.0f, 1.0f), 0.5f);
 				}
 
 				//BEGIN_TIMING("Finding");
@@ -1464,7 +1537,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						if (NeededChunk->MeshInfo.State == VoxelMeshState_Generated) {
 
 							v3 ChunkPos = GetPosForVoxelChunk(NeededChunk);
-
+							  
 #define CHUNKS_IN_CHUNK_SET_WIDTH 8
 #define CHUNKS_IN_CHUNK_SET_HEIGHT 1
 
@@ -1511,7 +1584,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						//NOTE(dima): Updating neighbours
 						NeededChunk->OldNeighbours = Neighbours;
 
-#if 0
+#if 1
 						voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
 
 						Assert(MeshGenThreadwork);
@@ -1526,7 +1599,14 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						MeshGenerationData->MeshGenerateData.Atlas = VoxelAtlas;
 						MeshGenerationData->MeshGenerateData.Chunk = NeededChunk;
 
-						MeshGenerationData->MeshGenerateData.Neighbours = Neighbours;
+						MeshGenerationData->NeighboursSidesThreadwork = VoxelBeginThreadwork(&Generation->NeighboursSidesSet);
+						MeshGenerationData->MeshGenerateData.NeighboursSetInfo = PushStruct(
+							&MeshGenerationData->NeighboursSidesThreadwork->Memory,
+							neighbours_set_info);
+
+						FillNeighboursSetInfoBasedOnNeighbours(
+							MeshGenerationData->MeshGenerateData.NeighboursSetInfo,
+							&NeededChunk->OldNeighbours);
 
 						PlatformApi.AddThreadworkEntry(
 							PlatformApi.VoxelQueue,
@@ -1626,9 +1706,10 @@ static void InitVoxelThreadworkSet(
 static void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
-	int VoxelThreadQueueSize)
+	int VoxelThreadQueueSize,
+	input_system* Input)
 {
-	int ChunksViewDistanceCount = 40;
+	int ChunksViewDistanceCount = 20;
 	int ChunksHeightCount = 1;
 
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);
@@ -1645,6 +1726,8 @@ static void VoxelChunksGenerationInit(
 	Generation->TrianglesLoaded = 0;
 	Generation->TrianglesPushed = 0;
 	Generation->MeshGenerationsStartedThisFrame = 0;
+
+	Generation->Input = Input;
 
 	Generation->TotalMemory = Memory;
 	Generation->FCPMemoryBlock = SplitStackedMemory(Generation->TotalMemory, KILOBYTES(100));
@@ -1723,7 +1806,7 @@ static void VoxelChunksGenerationInit(
 		Generation,
 		&Generation->NeighboursSidesSet,
 		Generation->ChunksCount,
-		sizeof(neighbours_set_info));
+		sizeof(neighbours_set_info) + 16);
 
 	//NOTE(dima): Initializing of world chunks hash table
 	Generation->HashTableOpMutex = {};
@@ -1760,7 +1843,8 @@ void VoxelChunksGenerationUpdate(
 	stacked_memory* Memory,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	v3 CameraPos)
+	v3 CameraPos,
+	input_system* Input)
 {
 	FUNCTION_TIMING();
 
@@ -1793,7 +1877,7 @@ void VoxelChunksGenerationUpdate(
 
 		Generation = PushStruct(Memory, voxworld_generation_state);
 
-		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize);
+		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize, Input);
 
 		Generation->Initialized = 1;
 	}
@@ -2027,7 +2111,7 @@ void VoxelChunksGenerationUpdate(
 					TestPts[PIndex] = ChunkSetCornersP[PIndex] + ChunkSetOffset;
 				}
 
-				//RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
+				RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
 #endif
 
 				for (int PlaneIndex = 0;

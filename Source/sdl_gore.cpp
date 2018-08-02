@@ -902,9 +902,9 @@ int main(int ArgsCount, char** Args) {
 	platform_threadwork HighQueueEntries[512];
 	platform_threadwork LowQueueEntries[512];
 
-#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 6
-#define PLATFORM_HIGH_QUEUE_THREADS_COUNT 4
-#define PLATFORM_LOW_QUEUE_THREADS_COUNT 2
+#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 2
+#define PLATFORM_HIGH_QUEUE_THREADS_COUNT 2
+#define PLATFORM_LOW_QUEUE_THREADS_COUNT 1
 
 #if defined(PLATFORM_WINDA)
 	winda_thread_worker VoxelThreadWorkers[PLATFORM_VOXEL_QUEUE_THREADS_COUNT];
@@ -1100,7 +1100,7 @@ int main(int ArgsCount, char** Args) {
 	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
 
 #if VOXEL_WORLD_ENABLED
-	u32 VoxelMemorySize = MEGABYTES(500);
+	u32 VoxelMemorySize = MEGABYTES(300);
 
 	void* VoxelMemory = calloc(VoxelMemorySize, 1);
 	stacked_memory VoxelMemoryStack = InitStackedMemory(VoxelMemory, VoxelMemorySize);
@@ -1110,8 +1110,8 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
 	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
 
-#define GORE_WINDOW_WIDTH 1366
-#define GORE_WINDOW_HEIGHT 768
+#define GORE_WINDOW_WIDTH 640
+#define GORE_WINDOW_HEIGHT 480
 
 	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
@@ -1401,7 +1401,8 @@ int main(int ArgsCount, char** Args) {
 			&VoxelMemoryStack, 
 			Stack, 
 			PLATFORM_VOXEL_QUEUE_THREADS_COUNT, 
-			GameState.Camera.Position);
+			GameState.Camera.Position,
+			&GlobalInput);
 #endif
 
 		GUIBeginFrame(GUIState, Stack);

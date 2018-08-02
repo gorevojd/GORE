@@ -696,6 +696,7 @@ inline mat4 ScalingMatrix(v3 Scale) {
 	Result.E[0] = Scale.x;
 	Result.E[5] = Scale.y;
 	Result.E[10] = Scale.z;
+	Result.E[15] = 1.0f;
 
 	return(Result);
 }

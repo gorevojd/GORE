@@ -205,7 +205,7 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	static mat4 CylTranMat = TranslationMatrix(CylPos1);
 	mat4 CylMat1 = 
 		CylTranMat * 
-		RotationX(Input->Time * 10) *
+		RotationX(Input->Time) *
 		ScalingMatrix(V3(2.0f, 10.0f, 2.0f));
 	CylTranMat = Translate(CylTranMat, V3(1.0f, 0.0f, 1.0f) * Input->DeltaTime * 3);
 	

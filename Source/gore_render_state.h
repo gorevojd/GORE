@@ -230,7 +230,7 @@ inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Colo
 
 	surface_material OutlineMat = LITCreateSurfaceMaterial(1.0f, Color);
 
-	mat4 InitTran = TranslationMatrix(V3(0.0f, 0.5f, 1.0f));
+	mat4 InitTran = TranslationMatrix(V3(0.0f, 0.5f, 0.0f));
 	mat4 VertTran = ScalingMatrix(V3(Diameter, Diff.y, Diameter)) * InitTran;
 
 	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);

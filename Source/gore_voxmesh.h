@@ -4,6 +4,7 @@
 #include "gore_asset.h"
 #include "gore_voxshared.h"
 #include "gore_render_state.h"
+#include "gore_input.h"
 
 enum voxel_normal_type_index{
 	VoxelNormalIndex_Up,
@@ -309,6 +310,8 @@ struct voxworld_generation_state {
 
 	b32 Initialized;
 
+	input_system* Input;
+
 	voxel_threadwork_set ChunkSet;
 	voxel_threadwork_set MeshSet;
 	voxel_threadwork_set GenSet;
@@ -355,6 +358,7 @@ void VoxelChunksGenerationUpdate(
 	stacked_memory* Memory,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	v3 CameraPos);
+	v3 CameraPos,
+	input_system* Input);
 
 #endif
