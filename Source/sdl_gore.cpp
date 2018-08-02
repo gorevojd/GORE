@@ -1110,8 +1110,8 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
 	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
 
-#define GORE_WINDOW_WIDTH 640
-#define GORE_WINDOW_HEIGHT 480
+#define GORE_WINDOW_WIDTH 1366
+#define GORE_WINDOW_HEIGHT 768
 
 	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();

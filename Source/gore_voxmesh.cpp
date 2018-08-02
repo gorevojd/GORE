@@ -579,7 +579,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				&Noise);
 
 			int RandHeightInt = (int)(RandHeight + 0.5f);
-#if 0
+#if 1
 			float BiomeTransitionNoiseScale = 128.0f;
 			float BiomeTransitionNoise = stb_perlin_noise3(
 				(float)(ChunkPos.x + i) / BiomeTransitionNoiseScale,
@@ -660,13 +660,13 @@ static inline b32 VoxelChunkNeighboursChanged(
 		ChunkStateIndex < 6;
 		ChunkStateIndex++) 
 	{
-		//if (Neighbours->ChunksStates[ChunkStateIndex] == VoxelChunkState_Ready) {
+		if (Neighbours->ChunksStates[ChunkStateIndex] == VoxelChunkState_Ready) {
 			if (Neighbours->ChunksStates[ChunkStateIndex] !=
 				Chunk->OldNeighbours.ChunksStates[ChunkStateIndex])
 			{
 				return(1);
 			}
-		//}
+		}
 	}
 #endif
 
@@ -1134,14 +1134,12 @@ static neighbours_chunks VoxelFindNeighboursChunks(
 {
 	neighbours_chunks Result = {};
 
-	//BeginMutexAccess(&Generation->HashTableOpMutex);
 	Result.LeftChunk = VoxelFindChunk(Generation, X - 1, Y, Z);
 	Result.RightChunk = VoxelFindChunk(Generation, X + 1, Y, Z);
 	Result.TopChunk = VoxelFindChunk(Generation, X, Y + 1, Z);
 	Result.BottomChunk = VoxelFindChunk(Generation, X, Y - 1, Z);
 	Result.FrontChunk = VoxelFindChunk(Generation, X, Y, Z - 1);
 	Result.BackChunk = VoxelFindChunk(Generation, X, Y, Z + 1);
-	//EndMutexAccess(&Generation->HashTableOpMutex);
 
 	if (Result.LeftChunk) {
 		Result.LeftChunkState = Result.LeftChunk->State;
@@ -1325,6 +1323,7 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 	PlatformApi.ReadBarrier();
 
 	BeginMutexAccess(&MeshInfo->MeshUseMutex);
+#if 0
 	if (MeshInfo->State != VoxelMeshState_None) {
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
 		while (MeshInfo->State == VoxelMeshState_InProcess) {
@@ -1335,8 +1334,13 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 			UnloadMeshInternal(MeshInfo, Generation);
 		}
 	}
-
 	GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+#else
+	if (MeshInfo->State == VoxelMeshState_Generated) {
+		UnloadMeshInternal(MeshInfo, Generation);
+		GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+	}
+#endif
 
 	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
@@ -1571,7 +1575,8 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 					/*NOTE(dima): Loaded chunk is in range. And some
 					additional checks will be made here*/
 
-#if 0
+#if 1
+
 					//BEGIN_TIMING("Finding neighbours");
 					neighbours_chunks Neighbours = VoxelFindNeighboursChunks(
 						Generation,
@@ -1584,7 +1589,6 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 						//NOTE(dima): Updating neighbours
 						NeededChunk->OldNeighbours = Neighbours;
 
-#if 1
 						voxworld_threadwork* MeshGenThreadwork = VoxelBeginThreadwork(&Generation->GenSet);
 
 						Assert(MeshGenThreadwork);
@@ -1612,7 +1616,6 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 							PlatformApi.VoxelQueue,
 							MeshGenerationData,
 							RegenerateVoxelMeshThreadwork);
-#endif
 					}
 #endif
 				}
@@ -1654,12 +1657,16 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 
 						VoxelInsertToTable(Generation, ChunkInfo);
 
+#if 1
 						BEGIN_TIMING("Pushing work to thread queue");
 						PlatformApi.AddThreadworkEntry(
 							PlatformApi.VoxelQueue,
 							ChunkGenerationData,
 							GenerateVoxelChunkThreadwork);
 						END_TIMING();
+#else
+						GenerateVoxelChunkThreadwork(ChunkGenerationData);
+#endif
 					}
 					END_TIMING();
 				}
@@ -1728,6 +1735,7 @@ static void VoxelChunksGenerationInit(
 	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->Input = Input;
+	Generation->MeshRegenTimeCounter = 0.0f;
 
 	Generation->TotalMemory = Memory;
 	Generation->FCPMemoryBlock = SplitStackedMemory(Generation->TotalMemory, KILOBYTES(100));
@@ -1805,7 +1813,7 @@ static void VoxelChunksGenerationInit(
 	InitVoxelThreadworkSet(
 		Generation,
 		&Generation->NeighboursSidesSet,
-		Generation->ChunksCount,
+		Generation->ChunksCount * 10,
 		sizeof(neighbours_set_info) + 16);
 
 	//NOTE(dima): Initializing of world chunks hash table
@@ -2059,50 +2067,6 @@ void VoxelChunksGenerationUpdate(
 					(float)VOXEL_CHUNK_HEIGHT * (float)(MinCellY + ChunkSetIndexY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT),
 					(float)VOXEL_CHUNK_WIDTH * (float)(MinCellZ + ChunkSetIndexZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH));
 
-#if 0
-				v3 TestPts[8];
-				//NOTE(dima): Chunk bottom corners
-				TestPts[0] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)CellX * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)CellY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)CellZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[1] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellX + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)CellY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)CellZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[2] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellX + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)CellY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellZ + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[3] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)CellX * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)CellY * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellZ + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				//NOTE(dima): Chunk top corners
-				TestPts[4] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)CellX * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)(CellY + 1) * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)CellZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[5] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellX + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)(CellY + 1) * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)CellZ * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[6] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellX + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)(CellY + 1) * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellZ + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-
-				TestPts[7] = V3(
-					(float)VOXEL_CHUNK_WIDTH * (float)CellX * (float)CHUNKS_IN_CHUNK_SET_WIDTH,
-					(float)VOXEL_CHUNK_HEIGHT * (float)(CellY + 1) * (float)CHUNKS_IN_CHUNK_SET_HEIGHT,
-					(float)VOXEL_CHUNK_WIDTH * (float)(CellZ + 1) * (float)CHUNKS_IN_CHUNK_SET_WIDTH);
-#else
 				v3 TestPts[8];
 				for (int PIndex = 0;
 					PIndex < 8;
@@ -2111,8 +2075,7 @@ void VoxelChunksGenerationUpdate(
 					TestPts[PIndex] = ChunkSetCornersP[PIndex] + ChunkSetOffset;
 				}
 
-				RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
-#endif
+				//RENDERPushVolumeOutline(RenderState, TestPts[0], TestPts[6], V3(1.0f, 1.0f, 1.0f), 1.0f);
 
 				for (int PlaneIndex = 0;
 					PlaneIndex < 6;
@@ -2243,6 +2206,12 @@ void VoxelChunksGenerationUpdate(
 		Generation->ChunksPushed += CellData->ChunksPushed;
 		Generation->ChunksLoaded += CellData->ChunksLoaded;
 	}
+
+	if (Generation->MeshRegenTimeCounter > MESH_REGEN_FREQUENCY) {
+		Generation->MeshRegenTimeCounter -= MESH_REGEN_FREQUENCY;
+	}
+	Generation->MeshRegenTimeCounter += Input->DeltaTime;
+
 	END_TIMING();
 	END_TIMING();
 	

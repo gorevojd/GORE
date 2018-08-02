@@ -9,7 +9,7 @@
 #include <intrin.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-//#define PLATFORM_WINDA
+#define PLATFORM_WINDA
 #endif
 
 #if defined(PLATFORM_WINDA)
