@@ -46,8 +46,6 @@ struct voxel_mesh_info {
 	platform_mutex MeshUseMutex;
 };
 
-
-
 inline b32 IsVoxelSetInNeighbour(u8* Array, int Index) {
 	int TargetByte = Index >> 3;
 	int TargetBit = Index & 7;
@@ -145,6 +143,7 @@ enum voxel_material_type {
 	VoxelMaterial_Logs,
 	VoxelMaterial_Birch,
 	VoxelMaterial_Tree,
+	VoxelMaterial_Water,
 
 	VoxelMaterial_GrassyBigBrick,
 	VoxelMaterial_DecorateBrick,

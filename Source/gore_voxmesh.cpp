@@ -555,6 +555,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 	for (int j = 0; j < VOXEL_CHUNK_WIDTH; j++) {
 		for (int i = 0; i < VOXEL_CHUNK_WIDTH; i++) {
 #if 1
+
 			int Octaves = 6;
 			float Lacunarity = 2.0f;
 			float Gain = 0.5f;
@@ -567,7 +568,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 			BiomeParams.GrassMaterial = VoxelMaterial_GrassyGround;
 			BiomeParams.GroundMaterial = VoxelMaterial_Ground;
 			BiomeParams.TreeMaterial = VoxelMaterial_Birch;
-			BiomeParams.BiomeNoiseDivisor = BiomeNoiseDivisor;
+			BiomeParams.BiomeNoiseDivisor = BiomeNoiseDivisor / 3;
 			BiomeParams.BiomeNoiseEffect = 1.0f;
 
 			float Noise;
@@ -611,7 +612,6 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 
 			int SetHeight = RandHeightInt - Chunk->IndexY * VOXEL_CHUNK_HEIGHT;
 			if (RandHeightInt >= ChunkYRangeMin && RandHeightInt < ChunkYRangeMax) {
-
 
 				SetHeight = Clamp(SetHeight, 0, VOXEL_CHUNK_HEIGHT - 1);
 				Chunk->Voxels[GET_VOXEL_INDEX(i, j, SetHeight)] = BiomeParams.GrassMaterial;
@@ -1158,7 +1158,7 @@ static void GenerateMeshInternal(
 
 	//NOTE(dima): Allocated buffer with needed size
 	int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
-	MeshInfo->Vertices = (voxel_vert_t*)PlatformApi.AllocateMemory(SizeForNewMesh);
+	MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
 	Assert(MeshInfo->Vertices);
 
 	MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
@@ -1182,7 +1182,7 @@ static void UnloadMeshInternal(
 	Assert(MeshInfo->State == VoxelMeshState_Generated);
 
 	if (MeshInfo->Vertices) {
-		PlatformApi.DeallocateMemory(MeshInfo->Vertices);
+		free(MeshInfo->Vertices);
 	}
 	else {
 		Assert(!"Vertices should be allocated");
@@ -1238,7 +1238,6 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 
 	PlatformApi.ReadBarrier();
 
-	BeginMutexAccess(&MeshInfo->MeshUseMutex);
 #if 0
 	if (MeshInfo->State != VoxelMeshState_None) {
 		//NOTE(dima): Infinite loop to wait for the mesh to become generated
@@ -1253,12 +1252,13 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 	GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
 #else
 	if (MeshInfo->State == VoxelMeshState_Generated) {
+		BeginMutexAccess(&MeshInfo->MeshUseMutex);
 		UnloadMeshInternal(MeshInfo, Generation);
 		GenerateMeshInternal(MeshInfo, &GenData->MeshGenerateData, Generation);
+		EndMutexAccess(&MeshInfo->MeshUseMutex);
 	}
 #endif
 
-	EndMutexAccess(&MeshInfo->MeshUseMutex);
 
 	EndThreadworkData(GenData->NeighboursSidesThreadwork, &GenData->Generation->NeighboursSidesSet);
 	EndThreadworkData(GenData->MeshGenThreadwork, &Generation->GenSet);
@@ -1286,7 +1286,6 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 	generate_voxel_chunk_data* GenData = (generate_voxel_chunk_data*)Data;
 
 	voxel_chunk_info* WorkChunk = GenData->Chunk;
-
 
 	if (PlatformApi.AtomicCAS_U32(
 		&WorkChunk->State,
@@ -1376,6 +1375,13 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 		&UnloadData->Generation->GenSet);
 }
 
+struct voxel_cell_render_entry {
+	voxel_cell_render_entry* Next;
+
+	voxel_mesh_info* MeshInfo;
+	v3 Pos;
+};
+
 struct voxel_cell_walkaround_threadwork_data {
 	int MinX;
 	int MinZ;
@@ -1400,7 +1406,7 @@ struct voxel_cell_walkaround_threadwork_data {
 
 	threadwork_data* Threadwork;
 
-	render_state TempRenderState;
+	voxel_cell_render_entry* FirstRenderEntry;
 
 	int TrianglesPushed;
 	int TrianglesLoaded;
@@ -1431,10 +1437,6 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 	for (int CellY = MinY; CellY <= MaxY; CellY++) {
 		for (int CellX = MinX; CellX <= MaxX; CellX += IncrementX) {
 			for (int CellZ = MinZ; CellZ <= MaxZ; CellZ += IncrementZ) {
-
-				if (CellX == 0 && CellZ == 0) {
-					RENDERPushVolumeOutline(&ThreadworkData->TempRenderState, V3(0.0f, 0.0f, 0.0f), V3(16.0f, 256.0f, 16.0f), V3(1.0f, 1.0f, 1.0f), 0.5f);
-				}
 
 				//BEGIN_TIMING("Finding");
 				voxel_chunk_info* NeededChunk = VoxelFindChunk(
@@ -1472,11 +1474,14 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 							b32 ShouldBePushed = ThreadworkData->FCPrecomp[IndexInPrecompArray];
 							
 							if (ShouldBePushed) {
-								RENDERPushVoxelMesh(
-									&ThreadworkData->TempRenderState,
-									&NeededChunk->MeshInfo,
-									ChunkPos,
-									&ThreadworkData->VoxelAtlas->Bitmap);
+								voxel_cell_render_entry* RenderEntry = PushStruct(
+									&ThreadworkData->Threadwork->Memory,
+									voxel_cell_render_entry);
+
+								RenderEntry->Next = ThreadworkData->FirstRenderEntry;
+								ThreadworkData->FirstRenderEntry = RenderEntry;
+								RenderEntry->Pos = ChunkPos;
+								RenderEntry->MeshInfo = &NeededChunk->MeshInfo;
 
 								ThreadworkData->ChunksPushed++;
 								ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
@@ -1997,12 +2002,7 @@ void VoxelChunksGenerationUpdate(
 
 		Assert(CellData->Threadwork);
 
-		stacked_memory RenderMemory = SplitStackedMemory(&CellData->Threadwork->Memory, KILOBYTES(500));
-		CellData->TempRenderState = RENDERBeginStack(
-			&RenderMemory,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight,
-			RenderState->AssetSystem);
+		CellData->FirstRenderEntry = 0;
 
 		CellData->FCPrecomp = PrecompFrustumCullingArray;
 	}
@@ -2073,14 +2073,18 @@ void VoxelChunksGenerationUpdate(
 	{
 		voxel_cell_walkaround_threadwork_data* CellData = CellWalkaroundDatas + CellDataIndex;
 
-		//NOTE(dima): Copy entries from temp render stack to main stack
-		int CopyFromByteSize = CellData->TempRenderState.Data.Used;
-		void* CopyTo = PushSomeMemory(&RenderState->Data, CopyFromByteSize);
-		void* CopyFrom = (u8*)CellData->TempRenderState.Data.BaseAddress;
+		voxel_cell_render_entry* RenderEntryAt = CellData->FirstRenderEntry;
+		for (RenderEntryAt;
+			RenderEntryAt;
+			RenderEntryAt = RenderEntryAt->Next)
+		{
+			RENDERPushVoxelMesh(
+				RenderState,
+				RenderEntryAt->MeshInfo,
+				RenderEntryAt->Pos,
+				&CellData->VoxelAtlas->Bitmap);
+		}
 
-		memcpy(CopyTo, CopyFrom, CopyFromByteSize);
-
-		RENDEREndStack(&CellData->TempRenderState);
 		EndThreadworkData(CellData->Threadwork, &Generation->CellWalkaroundSet);
 
 		Generation->TrianglesLoaded += CellData->TrianglesLoaded;

@@ -116,6 +116,22 @@ gl_program OpenGLLoadShader(char* VertexPath, char* FragmentPath) {
 	return(Result);
 }
 
+gl_screen_shader OpenGLLoadScreenShader() {
+	gl_screen_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/ScreenShader.vert";
+	char* FragmentPath = "../Data/Shaders/ScreenShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PosIndex = glGetAttribLocation(Result.Program.Handle, "aPos");
+	Result.TexIndex = glGetAttribLocation(Result.Program.Handle, "aTexCoords");
+
+	Result.ScreenTextureLocation = glGetUniformLocation(Result.Program.Handle, "screenTexture");
+
+	return(Result);
+}
+
 gl_wtf_shader OpenGLLoadWtfShader() {
 	gl_wtf_shader Result = {};
 	
@@ -241,7 +257,7 @@ inline void OpenGLUseProgramBegin(gl_program* Program) {
 	glUseProgram(Program->Handle);
 }
 
-inline void OpenGLUseProgramEnd(gl_program* Program) {
+inline void OpenGLUseProgramEnd() {
 	glUseProgram(0);
 }
 
@@ -313,6 +329,8 @@ void OpenGLSetScreenspace(int Width, int Height) {
 void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	FUNCTION_TIMING();
 
+	glBindFramebuffer(GL_FRAMEBUFFER, GLState->MultisampleScreen.FBO);
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	//glEnable(GL_CULL_FACE);
@@ -320,7 +338,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 
-	glClearColor(0.08f, 0.08f, 0.15f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//NOTE(dima): Iteration through render stack
@@ -531,8 +549,6 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 				mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
 
-				BeginMutexAccess(&Mesh->MeshUseMutex);
-
 				if (Mesh->State == VoxelMeshState_Generated) {
 
 					u32 TextureToBind = 0;
@@ -548,6 +564,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 					}
 
 					if (!Mesh->MeshHandle) {
+						BeginMutexAccess(&Mesh->MeshUseMutex);
 						GLuint MeshVAO;
 						GLuint MeshVBO;
 
@@ -571,6 +588,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 						Mesh->MeshHandle = (void*)MeshVAO;
 						Mesh->MeshHandle2 = (void*)MeshVBO;
+						EndMutexAccess(&Mesh->MeshUseMutex);
 					}
 
 					glUseProgram((u32)Shader->Program.Handle);
@@ -592,8 +610,6 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 					glUseProgram(0);
 				}
-
-				EndMutexAccess(&Mesh->MeshUseMutex);
 			}break;
 
 			case RenderEntry_Lighting: {
@@ -643,13 +659,171 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 		At += Header->SizeOfEntryType;
 	}
+
+	glDisable(GL_DEPTH_TEST);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, GLState->MultisampleScreen.FBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState->Temp.FBO);
+	glBlitFramebuffer(
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		GL_COLOR_BUFFER_BIT,
+		GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+
+	OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
+	glBindVertexArray(GLState->ScreenQuadVAO);
+	_glActiveTexture(GL_TEXTURE0);
+	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+	glBindTexture(GL_TEXTURE_2D, GLState->Temp.Texture);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+	OpenGLUseProgramEnd();
+
+	//glDeleteFramebuffers(1, &FramebufferObject);
+	//glDeleteRenderbuffers(1, &DepthStencilRBO);
 }
 
-void OpenGLInitState(gl_state* State) {
+void OpenGLInitState(
+	gl_state* State, 
+	int RenderWidth, 
+	int RenderHeight) 
+{
 	*State = {};
 
 	State->WtfShader = OpenGLLoadWtfShader();
 	State->VoxelShader = OpenGLLoadVoxelShader();
+	State->ScreenShader = OpenGLLoadScreenShader();
+
+	//NOTE(dima): Initializing of screen quad. Pos + Tex
+	float ScreenQuadFloats[] = {
+		-1.0f, 1.0f, 0.0f, 1.0f,
+		1.0f, 1.0f, 1.0f, 1.0f,
+		1.0f, -1.0f, 1.0f, 0.0f,
+
+		-1.0f, 1.0f, 0.0f, 1.0f,
+		1.0f, -1.0f, 1.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f, 0.0f,
+	};
+
+	glGenVertexArrays(1, &State->ScreenQuadVAO);
+	glGenBuffers(1, &State->ScreenQuadVBO);
+
+	glBindVertexArray(State->ScreenQuadVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, State->ScreenQuadVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ScreenQuadFloats), ScreenQuadFloats, GL_STATIC_DRAW);
+	if (OpenGLArrayIsValid(State->ScreenShader.PosIndex)) {
+		glEnableVertexAttribArray(State->ScreenShader.PosIndex);
+		glVertexAttribPointer(State->ScreenShader.PosIndex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+	}
+	if (OpenGLArrayIsValid(State->ScreenShader.TexIndex)) {
+		glEnableVertexAttribArray(State->ScreenShader.TexIndex);
+		glVertexAttribPointer(State->ScreenShader.TexIndex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	}
+	glBindVertexArray(0);
+
+	//NOTE(dima): Initializing of multisample framebuffer
+	glGenFramebuffers(1, &State->MultisampleScreen.FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, State->MultisampleScreen.FBO);
+
+#define OPENGL_NUM_SAMPLES 4
+	glGenTextures(1, &State->MultisampleScreen.Texture);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, State->MultisampleScreen.Texture);
+	glTexImage2DMultisample(
+		GL_TEXTURE_2D_MULTISAMPLE,
+		OPENGL_NUM_SAMPLES,
+		GL_RGBA8,
+		RenderWidth,
+		RenderHeight,
+		GL_TRUE);
+	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D_MULTISAMPLE,
+		State->MultisampleScreen.Texture,
+		0);
+
+	glGenRenderbuffers(1, &State->MultisampleScreen.DepthStencilRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, State->MultisampleScreen.DepthStencilRBO);
+	glRenderbufferStorageMultisample(
+		GL_RENDERBUFFER,
+		OPENGL_NUM_SAMPLES,
+		GL_DEPTH24_STENCIL8,
+		RenderWidth,
+		RenderHeight);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferRenderbuffer(
+		GL_FRAMEBUFFER,
+		GL_DEPTH_STENCIL_ATTACHMENT,
+		GL_RENDERBUFFER,
+		State->MultisampleScreen.DepthStencilRBO);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(!"Framebuffer should be complete");
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	//NOTE(dima): Initializing internal framebuffer
+	glGenFramebuffers(1, &State->Temp.FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, State->Temp.FBO);
+
+	glGenTextures(1, &State->Temp.Texture);
+	glBindTexture(GL_TEXTURE_2D, State->Temp.Texture);
+	glTexImage2D(
+		GL_TEXTURE_2D, 0,
+		GL_RGBA,
+		RenderWidth,
+		RenderHeight,
+		0,
+		GL_ABGR_EXT,
+		GL_UNSIGNED_BYTE,
+		0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		State->Temp.Texture,
+		0);
+
+	glGenRenderbuffers(1, &State->Temp.DepthStencilRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, State->Temp.DepthStencilRBO);
+	glRenderbufferStorage(
+		GL_RENDERBUFFER,
+		GL_DEPTH24_STENCIL8,
+		RenderWidth,
+		RenderHeight);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferRenderbuffer(
+		GL_FRAMEBUFFER,
+		GL_DEPTH_STENCIL_ATTACHMENT,
+		GL_RENDERBUFFER,
+		State->Temp.DepthStencilRBO);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(!"Framebuffer should be complete");
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void OpenGLProcessAllocationQueue() {

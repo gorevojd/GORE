@@ -1129,6 +1129,8 @@ int main(int ArgsCount, char** Args) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+	//SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 
@@ -1228,6 +1230,21 @@ int main(int ArgsCount, char** Args) {
 	glUniformMatrix4x2fv = (PFNGLUNIFORMMATRIX4X2FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x2fv");
 	glUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)SDL_GL_GetProcAddress("glUniformMatrix3x4fv");
 	glUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)SDL_GL_GetProcAddress("glUniformMatrix4x3fv");
+
+	glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC)SDL_GL_GetProcAddress("glGenFramebuffers");
+	glDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteFramebuffers");
+	glCheckFramebufferStatus = (PFNGLCHECKFRAMEBUFFERSTATUSPROC)SDL_GL_GetProcAddress("glCheckFramebufferStatus");
+	glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC)SDL_GL_GetProcAddress("glBindFramebuffer");
+	glBlitFramebuffer = (PFNGLBLITFRAMEBUFFERPROC)SDL_GL_GetProcAddress("glBlitFramebuffer");
+	glGenRenderbuffers = (PFNGLGENRENDERBUFFERSPROC)SDL_GL_GetProcAddress("glGenRenderbuffers");
+	glBindRenderbuffer = (PFNGLBINDRENDERBUFFERPROC)SDL_GL_GetProcAddress("glBindRenderbuffer");
+	glDeleteRenderbuffers = (PFNGLDELETERENDERBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteRenderbuffers");
+	glTexImage2DMultisample = (PFNGLTEXIMAGE2DMULTISAMPLEPROC)SDL_GL_GetProcAddress("glTexImage2DMultisample");
+	glFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC)SDL_GL_GetProcAddress("glFramebufferTexture2D");
+	glRenderbufferStorage = (PFNGLRENDERBUFFERSTORAGEPROC)SDL_GL_GetProcAddress("glRenderbufferStorage");
+	glRenderbufferStorageMultisample = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC)SDL_GL_GetProcAddress("glRenderbufferStorageMultisample");
+	glFramebufferRenderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFERPROC)SDL_GL_GetProcAddress("glFramebufferRenderbuffer");
+
 	_glDrawElements = (MYPFNGLDRAWELEMENTSPROC)SDL_GL_GetProcAddress("glDrawElements");
 	_glActiveTexture = (MYPFNGLACTIVETEXTURE)SDL_GL_GetProcAddress("glActiveTexture");
 
@@ -1320,7 +1337,7 @@ int main(int ArgsCount, char** Args) {
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
-	OpenGLInitState(GLState);
+	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
 
 	float TempFloatForSlider = 4.0f;
@@ -1364,7 +1381,7 @@ int main(int ArgsCount, char** Args) {
 		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets);
 		render_state* Stack = &Stack_;
 
-		RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
+		//RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
 		RENDERPushTest(Stack);
 
 #if 0

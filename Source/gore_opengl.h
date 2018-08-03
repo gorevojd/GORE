@@ -57,10 +57,31 @@ struct gl_voxel_shader {
 	gl_program Program;
 };
 
+struct gl_screen_shader {
+	GLint PosIndex;
+	GLint TexIndex;
+
+	GLint ScreenTextureLocation;
+
+	gl_program Program;
+};
+
+struct opengl_framebuffer {
+	GLuint FBO;
+	GLuint Texture;
+	GLuint DepthStencilRBO;
+};
 
 struct gl_state {
 	gl_wtf_shader WtfShader;
 	gl_voxel_shader VoxelShader;
+	gl_screen_shader ScreenShader;
+
+	GLuint ScreenQuadVAO;
+	GLuint ScreenQuadVBO;
+
+	opengl_framebuffer MultisampleScreen;
+	opengl_framebuffer Temp;
 
 	//NOTE(dima): theese are temp values
 	GLuint CubeVAO;
@@ -141,6 +162,21 @@ extern PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
 extern PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
 extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
 
+extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
+extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
+extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
+extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
+extern PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
+
+extern PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers;
+extern PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
+extern PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
+
+extern PFNGLTEXIMAGE2DMULTISAMPLEPROC glTexImage2DMultisample;
+extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
+extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
+extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC glRenderbufferStorageMultisample;
+extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
 
 typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
 extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
@@ -151,7 +187,10 @@ extern MYPFNGLACTIVETEXTURE _glActiveTexture;
 extern void OpenGLProcessAllocationQueue();
 extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
 
-extern void OpenGLInitState(gl_state* State);
+extern void OpenGLInitState(
+	gl_state* State,
+	int RenderWidth,
+	int RenderHeight);
 
 inline b32 OpenGLArrayIsValid(GLint ArrayIndex) {
 	b32 Result = 0;
