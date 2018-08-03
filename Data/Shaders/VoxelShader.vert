@@ -46,23 +46,21 @@ void main(){
 	int ExtractedTextureIndex = int((VertexData1 >> 2u) & 255u);
 	int ExtractedTexVertType = int(VertexData1 & 3u);
 
-	float Epsilon = 0.005f;
-
 	vec2 TexCoord;
 	float OneTextureDelta = 1.0f / float(TEXTURES_PER_WIDTH);
-	TexCoord.x = ((TEXTURES_PER_WIDTH - 1) & ExtractedTextureIndex) * OneTextureDelta + Epsilon;
-	TexCoord.y = (ExtractedTextureIndex / TEXTURES_PER_WIDTH) * OneTextureDelta + Epsilon;
+	TexCoord.x = ((TEXTURES_PER_WIDTH - 1) & ExtractedTextureIndex) * OneTextureDelta;
+	TexCoord.y = (ExtractedTextureIndex / TEXTURES_PER_WIDTH) * OneTextureDelta;
 
 
 	if(ExtractedTexVertType == 1){
-		TexCoord.x += OneTextureDelta - 2.0f * Epsilon;
+		TexCoord.x += OneTextureDelta;
 	}
 	else if(ExtractedTexVertType == 2){
-		TexCoord.x += OneTextureDelta - 2.0f * Epsilon;
-		TexCoord.y += OneTextureDelta - 2.0f * Epsilon;
+		TexCoord.x += OneTextureDelta;
+		TexCoord.y += OneTextureDelta;
 	}
 	else if(ExtractedTexVertType == 3){
-		TexCoord.y += OneTextureDelta - 2.0f * Epsilon;
+		TexCoord.y += OneTextureDelta;
 	}
 
 	gl_Position = Projection * View * Model * vec4(Pos.xyz, 1.0f);

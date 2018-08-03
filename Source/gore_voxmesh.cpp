@@ -580,7 +580,7 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 				&Noise);
 
 			int RandHeightInt = (int)(RandHeight + 0.5f);
-#if 1
+#if 0
 			float BiomeTransitionNoiseScale = 128.0f;
 			float BiomeTransitionNoise = stb_perlin_noise3(
 				(float)(ChunkPos.x + i) / BiomeTransitionNoiseScale,

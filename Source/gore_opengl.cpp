@@ -694,6 +694,112 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	//glDeleteRenderbuffers(1, &DepthStencilRBO);
 }
 
+static void OpenGLInitMultisampleFramebuffer(
+	opengl_framebuffer* Framebuffer,
+	int RenderWidth,
+	int RenderHeight,
+	int NumberOfSamples)
+{
+	//NOTE(dima): Initializing of multisample framebuffer
+	glGenFramebuffers(1, &Framebuffer->FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
+
+#define OPENGL_NUM_SAMPLES 4
+	glGenTextures(1, &Framebuffer->Texture);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer->Texture);
+	glTexImage2DMultisample(
+		GL_TEXTURE_2D_MULTISAMPLE,
+		OPENGL_NUM_SAMPLES,
+		GL_RGBA8,
+		RenderWidth,
+		RenderHeight,
+		GL_TRUE);
+	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D_MULTISAMPLE,
+		Framebuffer->Texture,
+		0);
+
+	glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
+	glRenderbufferStorageMultisample(
+		GL_RENDERBUFFER,
+		OPENGL_NUM_SAMPLES,
+		GL_DEPTH24_STENCIL8,
+		RenderWidth,
+		RenderHeight);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferRenderbuffer(
+		GL_FRAMEBUFFER,
+		GL_DEPTH_STENCIL_ATTACHMENT,
+		GL_RENDERBUFFER,
+		Framebuffer->DepthStencilRBO);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(!"Framebuffer should be complete");
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+static void OpenGLInitFramebuffer(
+	opengl_framebuffer* Framebuffer,
+	int RenderWidth,
+	int RenderHeight) 
+{
+	//NOTE(dima): Initializing internal framebuffer
+	glGenFramebuffers(1, &Framebuffer->FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
+
+	glGenTextures(1, &Framebuffer->Texture);
+	glBindTexture(GL_TEXTURE_2D, Framebuffer->Texture);
+	glTexImage2D(
+		GL_TEXTURE_2D, 0,
+		GL_RGBA,
+		RenderWidth,
+		RenderHeight,
+		0,
+		GL_ABGR_EXT,
+		GL_UNSIGNED_BYTE,
+		0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		Framebuffer->Texture,
+		0);
+
+	glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
+	glRenderbufferStorage(
+		GL_RENDERBUFFER,
+		GL_DEPTH24_STENCIL8,
+		RenderWidth,
+		RenderHeight);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glFramebufferRenderbuffer(
+		GL_FRAMEBUFFER,
+		GL_DEPTH_STENCIL_ATTACHMENT,
+		GL_RENDERBUFFER,
+		Framebuffer->DepthStencilRBO);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(!"Framebuffer should be complete");
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void OpenGLInitState(
 	gl_state* State, 
 	int RenderWidth, 
@@ -732,98 +838,8 @@ void OpenGLInitState(
 	}
 	glBindVertexArray(0);
 
-	//NOTE(dima): Initializing of multisample framebuffer
-	glGenFramebuffers(1, &State->MultisampleScreen.FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, State->MultisampleScreen.FBO);
-
-#define OPENGL_NUM_SAMPLES 4
-	glGenTextures(1, &State->MultisampleScreen.Texture);
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, State->MultisampleScreen.Texture);
-	glTexImage2DMultisample(
-		GL_TEXTURE_2D_MULTISAMPLE,
-		OPENGL_NUM_SAMPLES,
-		GL_RGBA8,
-		RenderWidth,
-		RenderHeight,
-		GL_TRUE);
-	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-
-	glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D_MULTISAMPLE,
-		State->MultisampleScreen.Texture,
-		0);
-
-	glGenRenderbuffers(1, &State->MultisampleScreen.DepthStencilRBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, State->MultisampleScreen.DepthStencilRBO);
-	glRenderbufferStorageMultisample(
-		GL_RENDERBUFFER,
-		OPENGL_NUM_SAMPLES,
-		GL_DEPTH24_STENCIL8,
-		RenderWidth,
-		RenderHeight);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-	glFramebufferRenderbuffer(
-		GL_FRAMEBUFFER,
-		GL_DEPTH_STENCIL_ATTACHMENT,
-		GL_RENDERBUFFER,
-		State->MultisampleScreen.DepthStencilRBO);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(!"Framebuffer should be complete");
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	//NOTE(dima): Initializing internal framebuffer
-	glGenFramebuffers(1, &State->Temp.FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, State->Temp.FBO);
-
-	glGenTextures(1, &State->Temp.Texture);
-	glBindTexture(GL_TEXTURE_2D, State->Temp.Texture);
-	glTexImage2D(
-		GL_TEXTURE_2D, 0,
-		GL_RGBA,
-		RenderWidth,
-		RenderHeight,
-		0,
-		GL_ABGR_EXT,
-		GL_UNSIGNED_BYTE,
-		0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D,
-		State->Temp.Texture,
-		0);
-
-	glGenRenderbuffers(1, &State->Temp.DepthStencilRBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, State->Temp.DepthStencilRBO);
-	glRenderbufferStorage(
-		GL_RENDERBUFFER,
-		GL_DEPTH24_STENCIL8,
-		RenderWidth,
-		RenderHeight);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-	glFramebufferRenderbuffer(
-		GL_FRAMEBUFFER,
-		GL_DEPTH_STENCIL_ATTACHMENT,
-		GL_RENDERBUFFER,
-		State->Temp.DepthStencilRBO);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(!"Framebuffer should be complete");
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	OpenGLInitMultisampleFramebuffer(&State->MultisampleScreen, RenderWidth, RenderHeight, 4);
+	OpenGLInitFramebuffer(&State->Temp, RenderWidth, RenderHeight);
 }
 
 void OpenGLProcessAllocationQueue() {
