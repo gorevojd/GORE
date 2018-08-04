@@ -92,7 +92,7 @@ struct render_stack_entry_lighting {
 };
 
 struct render_stack_entry_voxel_lighting {
-
+	v3 FogColor;
 };
 
 struct render_stack_entry_begin_text {
@@ -263,9 +263,10 @@ inline void RENDERPushLighting(render_state* State) {
 
 }
 
-inline void RENDERPushVoxelLighting(render_state* State) {
+inline void RENDERPushVoxelLighting(render_state* State, v3 FogColor) {
 	render_stack_entry_voxel_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_lighting, RenderEntry_VoxelLighting);
 
+	Entry->FogColor = FogColor;
 }
 
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {

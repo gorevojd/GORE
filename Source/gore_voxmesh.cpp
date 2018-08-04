@@ -50,90 +50,90 @@ static inline void VoxmeshWriteFace(
 
 static inline void WriteFaceAtFront(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
+		V3((float)(Pos.x - 0), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y - 0), (float)(Pos.z - 0)),
+		V3((float)(Pos.x - 0), (float)(Pos.y - 0), (float)(Pos.z - 0)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Front);
 }
 
 static inline void WriteFaceAtBack(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z + 1)),
+		V3((float)(Pos.x - 0), (float)(Pos.y + 1), (float)(Pos.z + 1)),
+		V3((float)(Pos.x - 0), (float)(Pos.y - 0), (float)(Pos.z + 1)),
+		V3((float)(Pos.x + 1), (float)(Pos.y - 0), (float)(Pos.z + 1)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Back);
 }
 
 static inline void WriteFaceAtLeft(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
+		V3((float)(Pos.x), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x), (float)(Pos.y + 1), (float)(Pos.z + 1)),
+		V3((float)(Pos.x), (float)(Pos.y - 0), (float)(Pos.z + 1)),
+		V3((float)(Pos.x), (float)(Pos.y - 0), (float)(Pos.z - 0)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Left);
 }
 
 static inline void WriteFaceAtRight(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z + 1)),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y - 0), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y - 0), (float)(Pos.z + 1)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Right);
 }
 
 static inline void WriteFaceAtTop(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z - 0.5f),
-		V3(Pos.x + 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
-		V3(Pos.x - 0.5f, Pos.y + 0.5f, Pos.z + 0.5f),
+		V3((float)(Pos.x - 0), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z - 0)),
+		V3((float)(Pos.x + 1), (float)(Pos.y + 1), (float)(Pos.z + 1)),
+		V3((float)(Pos.x - 0), (float)(Pos.y + 1), (float)(Pos.z + 1)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Up);
 }
 
 static inline void WriteFaceAtBottom(
 	voxel_mesh_info* Mesh,
-	v3 Pos,
+	iv3 Pos,
 	u8 TextureIndexInAtlas)
 {
 	VoxmeshWriteFace(
 		Mesh,
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z + 0.5f),
-		V3(Pos.x + 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
-		V3(Pos.x - 0.5f, Pos.y - 0.5f, Pos.z - 0.5f),
+		V3((float)(Pos.x - 0), (float)(Pos.y), (float)(Pos.z + 1)),
+		V3((float)(Pos.x + 1), (float)(Pos.y), (float)(Pos.z + 1)),
+		V3((float)(Pos.x + 1), (float)(Pos.y), (float)(Pos.z - 0)),
+		V3((float)(Pos.x - 0), (float)(Pos.y), (float)(Pos.z - 0)),
 		TextureIndexInAtlas,
 		VoxelNormalIndex_Down);
 }
@@ -196,10 +196,10 @@ void VoxmeshGenerate(
 
 				u8 ToCheck = Chunk->Voxels[GET_VOXEL_INDEX(WidthIndex, DepthIndex, HeightIndex)];
 
-				v3 VoxelPos;
-				VoxelPos.x = WidthIndex + 0.5f;
-				VoxelPos.y = HeightIndex + 0.5f;
-				VoxelPos.z = DepthIndex + 0.5f;
+				iv3 VoxelPos;
+				VoxelPos.x = WidthIndex;
+				VoxelPos.y = HeightIndex;
+				VoxelPos.z = DepthIndex;
 
 				voxel_tex_coords_set* TexSet = &Atlas->Materials[ToCheck];
 

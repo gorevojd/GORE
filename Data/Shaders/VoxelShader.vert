@@ -8,11 +8,15 @@ out VS_OUT{
 	vec3 N;
 	vec2 UV;
 	vec3 FragPos;
+	float Visibility;
 }vs_out;
 
 uniform mat4 Projection;
 uniform mat4 View;
 uniform mat4 Model;
+
+float FogDensity = 0.002;
+float FogGradient = 3.0f;
 
 void main(){
 #if 0
@@ -25,7 +29,6 @@ void main(){
 	uint VertexData1 = VertexData;
 #endif
 
-
 	vec3 NormalTable[6];
 	NormalTable[0] = vec3(0.0f, 1.0f, 0.0f);
 	NormalTable[1] = vec3(0.0f, -1.0f, 0.0f);
@@ -33,7 +36,6 @@ void main(){
 	NormalTable[3] = vec3(1.0f, 0.0f, 0.0f);
 	NormalTable[4] = vec3(0.0f, 0.0f, -1.0f);
 	NormalTable[5] = vec3(0.0f, 0.0f, 1.0f);
-
 
 	vec3 Pos;
 	Pos.x = float((VertexData1 >> 27u) & 31u);
@@ -46,24 +48,32 @@ void main(){
 	int ExtractedTextureIndex = int((VertexData1 >> 2u) & 255u);
 	int ExtractedTexVertType = int(VertexData1 & 3u);
 
+	float Epsilon = 0.000f;
+	float TwoEpsilon = 2.0f * Epsilon;
+
 	vec2 TexCoord;
 	float OneTextureDelta = 1.0f / float(TEXTURES_PER_WIDTH);
-	TexCoord.x = ((TEXTURES_PER_WIDTH - 1) & ExtractedTextureIndex) * OneTextureDelta;
-	TexCoord.y = (ExtractedTextureIndex / TEXTURES_PER_WIDTH) * OneTextureDelta;
-
+	TexCoord.x = (ExtractedTextureIndex % TEXTURES_PER_WIDTH) * OneTextureDelta + Epsilon;
+	TexCoord.y = (ExtractedTextureIndex / TEXTURES_PER_WIDTH) * OneTextureDelta + Epsilon;
 
 	if(ExtractedTexVertType == 1){
-		TexCoord.x += OneTextureDelta;
+		TexCoord.x += OneTextureDelta - TwoEpsilon;
 	}
 	else if(ExtractedTexVertType == 2){
-		TexCoord.x += OneTextureDelta;
-		TexCoord.y += OneTextureDelta;
+		TexCoord.x += OneTextureDelta - TwoEpsilon;
+		TexCoord.y += OneTextureDelta - TwoEpsilon;
 	}
 	else if(ExtractedTexVertType == 3){
-		TexCoord.y += OneTextureDelta;
+		TexCoord.y += OneTextureDelta - TwoEpsilon;
 	}
 
-	gl_Position = Projection * View * Model * vec4(Pos.xyz, 1.0f);
+	vec4 WorldPosition = Model * vec4(Pos.xyz, 1.0f);
+	vec4 ViewPosition = View * WorldPosition;
+	float CamToVertexLen = length(ViewPosition.xyz);
+	vs_out.Visibility = exp(-pow((FogDensity * CamToVertexLen), FogGradient));
+	vs_out.Visibility = clamp(vs_out.Visibility, 0.0f, 1.0f);
+
+	gl_Position = Projection * ViewPosition;
 
 	mat3 NormalMatrix = mat3(transpose(inverse(Model)));
 	vs_out.N = NormalMatrix * Norm;

@@ -14,6 +14,7 @@
 #include <Windows.h>
 #endif
 
+PFNGLGETSTRINGIPROC glGetStringi;
 PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 PFNGLBINDVERTEXARRAYPROC glBindVertexArray;

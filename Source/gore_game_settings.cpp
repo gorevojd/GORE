@@ -1,0 +1,1 @@
+#include "gore_game_settings.h"

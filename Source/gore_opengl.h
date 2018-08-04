@@ -4,6 +4,7 @@
 #include "gore_render_state.h"
 #include "gore_lighting.h"
 #include "gore_voxshared.h"
+#include "gore_game_settings.h"
 
 #include <SDL_opengl.h>
 
@@ -45,6 +46,7 @@ struct gl_voxel_shader {
 	GLint ModelMatrixLocation;
 	GLint ViewMatrixLocation;
 	GLint ProjectionMatrixLocation;
+	GLint FogColorLocation;
 
 	GLint CameraPLocation;
 
@@ -80,12 +82,24 @@ struct gl_state {
 	GLuint ScreenQuadVAO;
 	GLuint ScreenQuadVBO;
 
-	opengl_framebuffer MultisampleScreen;
-	opengl_framebuffer Temp;
+	opengl_framebuffer Multisampled;
+	opengl_framebuffer Normal;
 
 	//NOTE(dima): theese are temp values
 	GLuint CubeVAO;
 	GLuint PlaneVAO;
+
+	//NOTE(dima): Extensions supported
+	b32 AnisotropicFilteringSupported;
+	float MaxAnisotropicLevel;
+	u32 AnisotropicLevelType;
+	float AnisotropicLevel;
+
+	u32 AntialiasingType;
+
+	b32 MultisamplingSupported;
+	int MaxMultisampleLevel;
+	int MultisampleLevel;
 };
 
 //#define GL_GUI_CHUNK_POLYS_COUNT 4096
@@ -101,6 +115,7 @@ struct gl_state {
 //	
 //};
 
+extern PFNGLGETSTRINGIPROC glGetStringi;
 extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;

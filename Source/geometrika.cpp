@@ -222,6 +222,6 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
 
 #if 1
-	RENDERPushVoxelLighting(RenderStack);
+	RENDERPushVoxelLighting(RenderStack, V3(0.5f, 0.5f, 0.5f));
 #endif
 }

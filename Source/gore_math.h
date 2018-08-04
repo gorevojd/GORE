@@ -24,6 +24,12 @@ typedef union v2 {
 	float E[2];
 } v2;
 
+typedef struct iv3 {
+	int x;
+	int y;
+	int z;
+} iv3;
+
 typedef union v3 {
 	struct {
 		float x;

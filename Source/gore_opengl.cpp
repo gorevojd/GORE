@@ -1,29 +1,37 @@
 #include "gore_opengl.h"
 
 enum texture_allocation_flag {
-	TextureAllocation_LinearFiltering,
-	TextureAllocation_NearestFiltering
+	TextureAllocation_NearestFiltering = 0x01,
+	TextureAllocation_GenerateMipmaps = 0x02,
+	TextureAllocation_EnableAnisotropic = 0x04,
 };
 
-GLuint OpenGLAllocateTexture(bitmap_info* Buffer, u32 TextureAllocationFlag) {
+GLuint OpenGLAllocateTexture(
+	bitmap_info* Buffer, 
+	u32 TextureAllocationFlag,
+	gl_state* GLState) 
+{
 	GLuint TextureHandle;
 	glGenTextures(1, &TextureHandle);
 
 	glBindTexture(GL_TEXTURE_2D, TextureHandle);
-	switch (TextureAllocationFlag) {
-		case TextureAllocation_LinearFiltering: {
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		}break;
-
-		case TextureAllocation_NearestFiltering: {
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		}break;
-	}
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	if (TextureAllocationFlag & TextureAllocation_NearestFiltering) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+	else {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+
+	if (TextureAllocationFlag & TextureAllocation_EnableAnisotropic) {
+		if (GLState->AnisotropicFilteringSupported) {
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GLState->AnisotropicLevel);
+		}
+	}
 
 	glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -179,6 +187,7 @@ gl_voxel_shader OpenGLLoadVoxelShader() {
 	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
 	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
 	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
+	Result.FogColorLocation = glGetUniformLocation(Result.Program.Handle, "FogColor");
 
 	Result.DiffuseMapLocation = glGetUniformLocation(Result.Program.Handle, "DiffuseMap");
 
@@ -189,7 +198,7 @@ gl_voxel_shader OpenGLLoadVoxelShader() {
 	return(Result);
 }
 
-void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, surface_material* Mat) {
+void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf_shader* Shader, surface_material* Mat) {
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
 	glUniform3f(Shader->SurfMatColorLocation, Mat->Color.x, Mat->Color.y, Mat->Color.z);
 
@@ -206,7 +215,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
+				OpenGLAllocateTexture(Info, TextureAllocation_EnableAnisotropic, GLState);
 			}
 		}
 
@@ -224,7 +233,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
+				OpenGLAllocateTexture(Info, TextureAllocation_EnableAnisotropic, GLState);
 			}
 		}
 
@@ -243,7 +252,7 @@ void OpenGLUniformSurfaceMaterial(render_state* State, gl_wtf_shader* Shader, su
 
 		if (Info) {
 			if (!Info->TextureHandle) {
-				OpenGLAllocateTexture(Info, TextureAllocation_LinearFiltering);
+				OpenGLAllocateTexture(Info, TextureAllocation_EnableAnisotropic, GLState);
 			}
 		}
 
@@ -261,12 +270,12 @@ inline void OpenGLUseProgramEnd() {
 	glUseProgram(0);
 }
 
-void OpenGLRenderBitmap(bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+void OpenGLRenderBitmap(gl_state* GLState, bitmap_info* Buffer, v2 P, v2 Dim, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 
 	rect2 Rect = Rect2MinDim(P, Dim);
 
 	if (!Buffer->TextureHandle) {
-		OpenGLAllocateTexture(Buffer, TextureAllocation_LinearFiltering);
+		OpenGLAllocateTexture(Buffer, 0, GLState);
 	}
 
 	glBindTexture(GL_TEXTURE_2D, (size_t)Buffer->TextureHandle);
@@ -329,7 +338,9 @@ void OpenGLSetScreenspace(int Width, int Height) {
 void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	FUNCTION_TIMING();
 
-	glBindFramebuffer(GL_FRAMEBUFFER, GLState->MultisampleScreen.FBO);
+	//glEnable(GL_MULTISAMPLE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, GLState->Multisampled.FBO);
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
@@ -379,7 +390,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 			case(RenderEntry_Bitmap): {
 				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
-				OpenGLRenderBitmap(EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
+				OpenGLRenderBitmap(GLState, EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
 			}break;
 
 			case(RenderEntry_Clear): {
@@ -443,7 +454,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				bitmap_info* Buffer = &CurrentFontInfo->FontAtlasImage;
 
 				if (!Buffer->TextureHandle) {
-					OpenGLAllocateTexture(Buffer, TextureAllocation_LinearFiltering);
+					OpenGLAllocateTexture(Buffer, 0, GLState);
 				}
 				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
 				glBegin(GL_TRIANGLES);
@@ -529,7 +540,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 				glEnable(GL_DEPTH_TEST);
 
-				OpenGLUniformSurfaceMaterial(RenderState, &GLState->WtfShader, &EntryMesh->Material);
+				OpenGLUniformSurfaceMaterial(GLState, RenderState, &GLState->WtfShader, &EntryMesh->Material);
 
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
@@ -559,7 +570,8 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 						else {
 							TextureToBind = OpenGLAllocateTexture(
 								EntryVoxelMesh->VoxelAtlasBitmap,
-								TextureAllocation_NearestFiltering);
+								TextureAllocation_NearestFiltering | TextureAllocation_EnableAnisotropic,
+								GLState);
 						}
 					}
 
@@ -621,6 +633,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 			}break;
 
 			case RenderEntry_VoxelLighting: {
+				render_stack_entry_voxel_lighting* Entry = (render_stack_entry_voxel_lighting*)At;
 
 				gl_voxel_shader* VoxelShader = &GLState->VoxelShader;
 
@@ -629,6 +642,11 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				v3 VoxDirDif = V3(1.0f, 1.0f, 1.0f);
 
 				glUseProgram(VoxelShader->Program.Handle);
+				glUniform3f(
+					VoxelShader->FogColorLocation,
+					Entry->FogColor.r,
+					Entry->FogColor.g,
+					Entry->FogColor.b);
 				glUniform3f(
 					VoxelShader->DirDirectionLocation, 
 					VoxDirDir.x, 
@@ -664,8 +682,8 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, GLState->MultisampleScreen.FBO);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState->Temp.FBO);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, GLState->Multisampled.FBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState->Normal.FBO);
 	glBlitFramebuffer(
 		0, 0,
 		RenderState->RenderWidth,
@@ -678,14 +696,14 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 
 	OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
 	glBindVertexArray(GLState->ScreenQuadVAO);
 	_glActiveTexture(GL_TEXTURE0);
 	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-	glBindTexture(GL_TEXTURE_2D, GLState->Temp.Texture);
+	glBindTexture(GL_TEXTURE_2D, GLState->Normal.Texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 	OpenGLUseProgramEnd();
@@ -704,12 +722,11 @@ static void OpenGLInitMultisampleFramebuffer(
 	glGenFramebuffers(1, &Framebuffer->FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
 
-#define OPENGL_NUM_SAMPLES 4
 	glGenTextures(1, &Framebuffer->Texture);
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer->Texture);
 	glTexImage2DMultisample(
 		GL_TEXTURE_2D_MULTISAMPLE,
-		OPENGL_NUM_SAMPLES,
+		NumberOfSamples,
 		GL_RGBA8,
 		RenderWidth,
 		RenderHeight,
@@ -729,7 +746,7 @@ static void OpenGLInitMultisampleFramebuffer(
 	glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
 	glRenderbufferStorageMultisample(
 		GL_RENDERBUFFER,
-		OPENGL_NUM_SAMPLES,
+		NumberOfSamples,
 		GL_DEPTH24_STENCIL8,
 		RenderWidth,
 		RenderHeight);
@@ -800,6 +817,29 @@ static void OpenGLInitFramebuffer(
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+static b32 OpenGLExtensionIsSupported(
+	char* ExtensionName)
+{
+	b32 Result = 0;
+
+	int ExtensionsCount;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &ExtensionsCount);
+
+	for (int ExtensionIndex = 0;
+		ExtensionIndex < ExtensionsCount;
+		ExtensionIndex++)
+	{
+		const GLubyte* Extension = glGetStringi(GL_EXTENSIONS, ExtensionIndex);
+
+		if (StringsAreEqual((char*)Extension, ExtensionName)) {
+			Result = 1;
+			break;
+		}
+	}
+
+	return(Result);
+}
+
 void OpenGLInitState(
 	gl_state* State, 
 	int RenderWidth, 
@@ -810,6 +850,26 @@ void OpenGLInitState(
 	State->WtfShader = OpenGLLoadWtfShader();
 	State->VoxelShader = OpenGLLoadVoxelShader();
 	State->ScreenShader = OpenGLLoadScreenShader();
+
+	//NOTE(dima): Checking for OpenGL extensions support
+	//TODO(dima): Load parameters from game_settings
+	State->AnisotropicFilteringSupported = OpenGLExtensionIsSupported("GL_EXT_texture_filter_anisotropic");
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &State->MaxAnisotropicLevel);
+	State->AnisotropicLevelType = AnisoLevel_8x;
+	State->AnisotropicLevel = GetAnisoLevelBasedOnParams(
+		State->AnisotropicLevelType,
+		State->MaxAnisotropicLevel);
+
+	State->AntialiasingType = AA_None;
+
+	State->MultisamplingSupported =
+		OpenGLExtensionIsSupported("GL_ARB_multisample") ||
+		OpenGLExtensionIsSupported("GLX_ARB_multisample") ||
+		OpenGLExtensionIsSupported("WGL_ARB_multisample");
+	glGetIntegerv(GL_MAX_SAMPLES, &State->MaxMultisampleLevel);
+	if (AntialiasingIsMSAA(State->AntialiasingType)) {
+		State->MultisampleLevel = GetMSAALevel(State->AntialiasingType);
+	}
 
 	//NOTE(dima): Initializing of screen quad. Pos + Tex
 	float ScreenQuadFloats[] = {
@@ -838,8 +898,15 @@ void OpenGLInitState(
 	}
 	glBindVertexArray(0);
 
-	OpenGLInitMultisampleFramebuffer(&State->MultisampleScreen, RenderWidth, RenderHeight, 4);
-	OpenGLInitFramebuffer(&State->Temp, RenderWidth, RenderHeight);
+	//NOTE(dima): Initialization of framebuffer objects
+	if (State->MultisamplingSupported && AntialiasingIsMSAA(State->AntialiasingType)) {
+		OpenGLInitMultisampleFramebuffer(&State->Multisampled, RenderWidth, RenderHeight, State->MultisampleLevel);
+	}
+	else {
+		OpenGLInitFramebuffer(&State->Multisampled, RenderWidth, RenderHeight);
+	}
+	
+	OpenGLInitFramebuffer(&State->Normal, RenderWidth, RenderHeight);
 }
 
 void OpenGLProcessAllocationQueue() {
