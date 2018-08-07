@@ -96,6 +96,9 @@ struct gl_state {
 	//NOTE(dima): This is the first framebuffer that we will render to
 	opengl_framebuffer FramebufferInitial;
 
+	//NOTE(dima): If antialiasing is MSAA then multisampled data will be resolved to this buffer
+	opengl_framebuffer FramebufferResolved;
+
 	//This framebuffer will hold the result image that will be displayed to the screen
 	opengl_framebuffer FramebufferResult;
 	

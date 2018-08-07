@@ -702,6 +702,23 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	//NOTE(dima): Resolving multisampled buffer to temp buffer
+	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+		LastWriteFBO = GLState->FramebufferResolved.FBO;
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
+
+		glBlitFramebuffer(
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+			GL_NEAREST);
+	}
+
 	//NOTE(dima): FXAA antialiasing
 	if (GLState->AntialiasingType == AA_FXAA) {
 		BEGIN_TIMING("FXAA");
@@ -837,7 +854,8 @@ static void OpenGLInitMultisampleFramebuffer(
 static void OpenGLInitFramebuffer(
 	opengl_framebuffer* Framebuffer,
 	int RenderWidth,
-	int RenderHeight)
+	int RenderHeight, 
+	b32 AllocateDepthStencilAttachment)
 {
 	//NOTE(dima): Initializing internal framebuffer
 	glGenFramebuffers(1, &Framebuffer->FBO);
@@ -865,20 +883,22 @@ static void OpenGLInitFramebuffer(
 		Framebuffer->Texture,
 		0);
 
-	glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
-	glRenderbufferStorage(
-		GL_RENDERBUFFER,
-		GL_DEPTH24_STENCIL8,
-		RenderWidth,
-		RenderHeight);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	if (AllocateDepthStencilAttachment) {
+		glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
+		glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
+		glRenderbufferStorage(
+			GL_RENDERBUFFER,
+			GL_DEPTH24_STENCIL8,
+			RenderWidth,
+			RenderHeight);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-	glFramebufferRenderbuffer(
-		GL_FRAMEBUFFER,
-		GL_DEPTH_STENCIL_ATTACHMENT,
-		GL_RENDERBUFFER,
-		Framebuffer->DepthStencilRBO);
+		glFramebufferRenderbuffer(
+			GL_FRAMEBUFFER,
+			GL_DEPTH_STENCIL_ATTACHMENT,
+			GL_RENDERBUFFER,
+			Framebuffer->DepthStencilRBO);
+	}
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		Assert(!"Framebuffer should be complete");
@@ -993,13 +1013,17 @@ void OpenGLInitState(
 	//NOTE(dima): Initialization of framebuffer objects
 	if (State->MultisamplingSupported && AntialiasingIsMSAA(State->AntialiasingType)) {
 		OpenGLInitMultisampleFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight, State->MultisampleLevel);
+		OpenGLInitFramebuffer(&State->FramebufferResolved, RenderWidth, RenderHeight, GL_TRUE);
 	}
 	else {
-		OpenGLInitFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight);
+		OpenGLInitFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight, GL_TRUE);
 	}
 	
-	OpenGLInitFramebuffer(&State->FramebufferResult, RenderWidth, RenderHeight);
-	OpenGLInitFramebuffer(&State->FramebufferFXAA, RenderWidth, RenderHeight);
+	if (State->AntialiasingType == AA_FXAA) {
+		OpenGLInitFramebuffer(&State->FramebufferFXAA, RenderWidth, RenderHeight, GL_FALSE);
+	}
+
+	OpenGLInitFramebuffer(&State->FramebufferResult, RenderWidth, RenderHeight, GL_FALSE);
 }
 
 void OpenGLProcessAllocationQueue() {
