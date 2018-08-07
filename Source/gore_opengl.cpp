@@ -15,25 +15,23 @@ GLuint OpenGLAllocateTexture(
 	glGenTextures(1, &TextureHandle);
 
 	glBindTexture(GL_TEXTURE_2D, TextureHandle);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	if (TextureAllocationFlag & TextureAllocation_NearestFiltering) {
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	}
-	else {
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
-
 	if (TextureAllocationFlag & TextureAllocation_EnableAnisotropic) {
 		if (GLState->AnisotropicFilteringSupported) {
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GLState->AnisotropicLevel);
 		}
 	}
 
-	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	if (TextureAllocationFlag & TextureAllocation_NearestFiltering) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+	else {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
 
 	glTexImage2D(
 		GL_TEXTURE_2D,
@@ -45,6 +43,9 @@ GLuint OpenGLAllocateTexture(
 		GL_ABGR_EXT,
 		GL_UNSIGNED_BYTE,
 		Buffer->Pixels);
+
+
+	glGenerateMipmap(GL_TEXTURE_2D);
 
 	Buffer->TextureHandle = (void*)TextureHandle;
 
@@ -124,6 +125,23 @@ gl_program OpenGLLoadShader(char* VertexPath, char* FragmentPath) {
 	return(Result);
 }
 
+gl_fxaa_shader OpenGLLoadFXAAShader() {
+	gl_fxaa_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/FXAAShader.vert";
+	char* FragmentPath = "../Data/Shaders/FXAAShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PosIndex = glGetAttribLocation(Result.Program.Handle, "inPos");
+	Result.TexCoordIndex = glGetAttribLocation(Result.Program.Handle, "inTexCoords");
+
+	Result.TextureLocation = glGetUniformLocation(Result.Program.Handle, "FramebufferTexture");
+	Result.TextureSizeLocation = glGetUniformLocation(Result.Program.Handle, "FramebufferSize");
+
+	return(Result);
+}
+
 gl_screen_shader OpenGLLoadScreenShader() {
 	gl_screen_shader Result = {};
 
@@ -197,6 +215,7 @@ gl_voxel_shader OpenGLLoadVoxelShader() {
 
 	return(Result);
 }
+
 
 void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf_shader* Shader, surface_material* Mat) {
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
@@ -338,9 +357,10 @@ void OpenGLSetScreenspace(int Width, int Height) {
 void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	FUNCTION_TIMING();
 
-	//glEnable(GL_MULTISAMPLE);
+	glEnable(GL_MULTISAMPLE);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, GLState->Multisampled.FBO);
+	GLuint LastWriteFBO = GLState->FramebufferInitial.FBO;
+	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
@@ -682,8 +702,42 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, GLState->Multisampled.FBO);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, GLState->Normal.FBO);
+	//NOTE(dima): FXAA antialiasing
+	if (GLState->AntialiasingType == AA_FXAA) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+		LastWriteFBO = GLState->FramebufferFXAA.FBO;
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
+
+		glBlitFramebuffer(
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			GL_COLOR_BUFFER_BIT,
+			GL_NEAREST);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferFXAA.FBO);
+
+		OpenGLUseProgramBegin(&GLState->FXAAShader.Program);
+		glBindVertexArray(GLState->ScreenQuadVAO);
+		_glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferFXAA.Texture);
+		glUniform1i(GLState->FXAAShader.TextureLocation, 0);
+		glUniform2f(
+			GLState->FXAAShader.TextureSizeLocation,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
+		OpenGLUseProgramEnd();
+	}
+
+	//NOTE(dima): Finalizing screen shader
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+	LastWriteFBO = GLState->FramebufferResult.FBO;
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
 	glBlitFramebuffer(
 		0, 0,
 		RenderState->RenderWidth,
@@ -703,7 +757,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	glBindVertexArray(GLState->ScreenQuadVAO);
 	_glActiveTexture(GL_TEXTURE0);
 	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-	glBindTexture(GL_TEXTURE_2D, GLState->Normal.Texture);
+	glBindTexture(GL_TEXTURE_2D, GLState->FramebufferResult.Texture);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 	OpenGLUseProgramEnd();
@@ -767,7 +821,7 @@ static void OpenGLInitMultisampleFramebuffer(
 static void OpenGLInitFramebuffer(
 	opengl_framebuffer* Framebuffer,
 	int RenderWidth,
-	int RenderHeight) 
+	int RenderHeight)
 {
 	//NOTE(dima): Initializing internal framebuffer
 	glGenFramebuffers(1, &Framebuffer->FBO);
@@ -850,6 +904,7 @@ void OpenGLInitState(
 	State->WtfShader = OpenGLLoadWtfShader();
 	State->VoxelShader = OpenGLLoadVoxelShader();
 	State->ScreenShader = OpenGLLoadScreenShader();
+	State->FXAAShader = OpenGLLoadFXAAShader();
 
 	//NOTE(dima): Checking for OpenGL extensions support
 	//TODO(dima): Load parameters from game_settings
@@ -860,7 +915,7 @@ void OpenGLInitState(
 		State->AnisotropicLevelType,
 		State->MaxAnisotropicLevel);
 
-	State->AntialiasingType = AA_None;
+	State->AntialiasingType = AA_FXAA;
 
 	State->MultisamplingSupported =
 		OpenGLExtensionIsSupported("GL_ARB_multisample") ||
@@ -872,6 +927,7 @@ void OpenGLInitState(
 	}
 
 	//NOTE(dima): Initializing of screen quad. Pos + Tex
+#if 1
 	float ScreenQuadFloats[] = {
 		-1.0f, 1.0f, 0.0f, 1.0f,
 		1.0f, 1.0f, 1.0f, 1.0f,
@@ -881,6 +937,17 @@ void OpenGLInitState(
 		1.0f, -1.0f, 1.0f, 0.0f,
 		-1.0f, -1.0f, 0.0f, 0.0f,
 	};
+#else
+	float ScreenQuadFloats[] = {
+		0.0f, 1.0f, 0.0f, 1.0f,
+		1.0f, 1.0f, 1.0f, 1.0f,
+		1.0f, 0.0f, 1.0f, 0.0f,
+
+		0.0f, 1.0f, 0.0f, 1.0f,
+		1.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 0.0f,
+	};
+#endif
 
 	glGenVertexArrays(1, &State->ScreenQuadVAO);
 	glGenBuffers(1, &State->ScreenQuadVBO);
@@ -896,17 +963,27 @@ void OpenGLInitState(
 		glEnableVertexAttribArray(State->ScreenShader.TexIndex);
 		glVertexAttribPointer(State->ScreenShader.TexIndex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 	}
+
+	if (OpenGLArrayIsValid(State->FXAAShader.PosIndex)) {
+		glEnableVertexAttribArray(State->FXAAShader.PosIndex);
+		glVertexAttribPointer(State->FXAAShader.PosIndex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+	}
+	if (OpenGLArrayIsValid(State->FXAAShader.TexCoordIndex)) {
+		glEnableVertexAttribArray(State->FXAAShader.TexCoordIndex);
+		glVertexAttribPointer(State->FXAAShader.TexCoordIndex, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	}
 	glBindVertexArray(0);
 
 	//NOTE(dima): Initialization of framebuffer objects
 	if (State->MultisamplingSupported && AntialiasingIsMSAA(State->AntialiasingType)) {
-		OpenGLInitMultisampleFramebuffer(&State->Multisampled, RenderWidth, RenderHeight, State->MultisampleLevel);
+		OpenGLInitMultisampleFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight, State->MultisampleLevel);
 	}
 	else {
-		OpenGLInitFramebuffer(&State->Multisampled, RenderWidth, RenderHeight);
+		OpenGLInitFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight);
 	}
 	
-	OpenGLInitFramebuffer(&State->Normal, RenderWidth, RenderHeight);
+	OpenGLInitFramebuffer(&State->FramebufferResult, RenderWidth, RenderHeight);
+	OpenGLInitFramebuffer(&State->FramebufferFXAA, RenderWidth, RenderHeight);
 }
 
 void OpenGLProcessAllocationQueue() {
@@ -982,3 +1059,4 @@ void OpenGLProcessAllocationQueue() {
 		Entry = NextEntry;
 	}
 }
+//

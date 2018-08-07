@@ -161,5 +161,8 @@
     <ClInclude Include="..\Source\gore_game_settings.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\gore_opengl_common.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

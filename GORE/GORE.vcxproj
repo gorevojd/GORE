@@ -200,6 +200,7 @@
     <ClInclude Include="..\Source\gore_math.h" />
     <ClInclude Include="..\Source\gore_memory.h" />
     <ClInclude Include="..\Source\gore_opengl.h" />
+    <ClInclude Include="..\Source\gore_opengl_common.h" />
     <ClInclude Include="..\Source\gore_platform.h" />
     <ClInclude Include="..\Source\gore_random.h" />
     <ClInclude Include="..\Source\gore_renderer.h" />

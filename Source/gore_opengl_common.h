@@ -1,0 +1,92 @@
+#ifndef GORE_OPENGL_COMMON_H_INCLUDED
+#define GORE_OPENGL_COMMON_H_INCLUDED
+
+#include <SDL_opengl.h>
+#include <gore_types.h>
+
+extern PFNGLGETSTRINGIPROC glGetStringi;
+extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
+extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
+extern PFNGLGENBUFFERSPROC glGenBuffers;
+extern PFNGLBINDBUFFERPROC glBindBuffer;
+extern PFNGLBUFFERDATAPROC glBufferData;
+extern PFNGLBUFFERSUBDATAPROC glBufferSubData;
+extern PFNGLMAPBUFFERPROC glMapBuffer;
+extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
+extern PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
+extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+extern PFNGLUSEPROGRAMPROC glUseProgram;
+extern PFNGLCREATESHADERPROC glCreateShader;
+extern PFNGLSHADERSOURCEPROC glShaderSource;
+extern PFNGLCOMPILESHADERPROC glCompileShader;
+extern PFNGLGETSHADERIVPROC glGetShaderiv;
+extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+extern PFNGLDELETESHADERPROC glDeleteShader;
+extern PFNGLCREATEPROGRAMPROC glCreateProgram;
+extern PFNGLDELETEPROGRAMPROC glDeleteProgram;
+extern PFNGLATTACHSHADERPROC glAttachShader;
+extern PFNGLDETACHSHADERPROC glDetachShader;
+extern PFNGLLINKPROGRAMPROC glLinkProgram;
+extern PFNGLGETPROGRAMIVPROC glGetProgramiv;
+extern PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
+extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+extern PFNGLUNIFORM1FPROC glUniform1f;
+extern PFNGLUNIFORM2FPROC glUniform2f;
+extern PFNGLUNIFORM3FPROC glUniform3f;
+extern PFNGLUNIFORM4FPROC glUniform4f;
+extern PFNGLUNIFORM1IPROC glUniform1i;
+extern PFNGLUNIFORM2IPROC glUniform2i;
+extern PFNGLUNIFORM3IPROC glUniform3i;
+extern PFNGLUNIFORM4IPROC glUniform4i;
+extern PFNGLUNIFORM1UIPROC glUniform1ui;
+extern PFNGLUNIFORM2UIPROC glUniform2ui;
+extern PFNGLUNIFORM3UIPROC glUniform3ui;
+extern PFNGLUNIFORM4UIPROC glUniform4ui;
+extern PFNGLUNIFORM1FVPROC glUniform1fv;
+extern PFNGLUNIFORM2FVPROC glUniform2fv;
+extern PFNGLUNIFORM3FVPROC glUniform3fv;
+extern PFNGLUNIFORM4FVPROC glUniform4fv;
+extern PFNGLUNIFORM1IVPROC glUniform1iv;
+extern PFNGLUNIFORM2IVPROC glUniform2iv;
+extern PFNGLUNIFORM3IVPROC glUniform3iv;
+extern PFNGLUNIFORM4IVPROC glUniform4iv;
+extern PFNGLUNIFORM1UIVPROC glUniform1uiv;
+extern PFNGLUNIFORM2UIVPROC glUniform2uiv;
+extern PFNGLUNIFORM3UIVPROC glUniform3uiv;
+extern PFNGLUNIFORM4UIVPROC glUniform4uiv;
+extern PFNGLUNIFORMMATRIX2FVPROC glUniformMatrix2fv;
+extern PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
+extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
+extern PFNGLUNIFORMMATRIX2X3FVPROC glUniformMatrix2x3fv;
+extern PFNGLUNIFORMMATRIX3X2FVPROC glUniformMatrix3x2fv;
+extern PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
+extern PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
+extern PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
+extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
+
+extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
+extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
+extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
+extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
+extern PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
+
+extern PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers;
+extern PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
+extern PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
+
+extern PFNGLTEXIMAGE2DMULTISAMPLEPROC glTexImage2DMultisample;
+extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
+extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
+extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC glRenderbufferStorageMultisample;
+extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
+
+typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
+extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
+
+typedef void (GLAPIENTRY *MYPFNGLACTIVETEXTURE)(GLenum texture);
+extern MYPFNGLACTIVETEXTURE _glActiveTexture;
+
+#endif

@@ -1,12 +1,12 @@
 #ifndef GORE_OPENGL_H_INCLUDED
 
+#include "gore_opengl_common.h"
 #include "gore_platform.h"
 #include "gore_render_state.h"
 #include "gore_lighting.h"
 #include "gore_voxshared.h"
 #include "gore_game_settings.h"
 
-#include <SDL_opengl.h>
 
 struct gl_program {
 	GLuint Handle;
@@ -59,6 +59,16 @@ struct gl_voxel_shader {
 	gl_program Program;
 };
 
+struct gl_fxaa_shader {
+	GLint PosIndex;
+	GLint TexCoordIndex;
+
+	GLint TextureLocation;
+	GLint TextureSizeLocation;
+
+	gl_program Program;
+};
+
 struct gl_screen_shader {
 	GLint PosIndex;
 	GLint TexIndex;
@@ -78,12 +88,19 @@ struct gl_state {
 	gl_wtf_shader WtfShader;
 	gl_voxel_shader VoxelShader;
 	gl_screen_shader ScreenShader;
+	gl_fxaa_shader FXAAShader;
 
 	GLuint ScreenQuadVAO;
 	GLuint ScreenQuadVBO;
 
-	opengl_framebuffer Multisampled;
-	opengl_framebuffer Normal;
+	//NOTE(dima): This is the first framebuffer that we will render to
+	opengl_framebuffer FramebufferInitial;
+
+	//This framebuffer will hold the result image that will be displayed to the screen
+	opengl_framebuffer FramebufferResult;
+	
+	//NOTE(dima): This framebuffer will be used for FXAA shader
+	opengl_framebuffer FramebufferFXAA;
 
 	//NOTE(dima): theese are temp values
 	GLuint CubeVAO;
@@ -114,90 +131,6 @@ struct gl_state {
 //
 //	
 //};
-
-extern PFNGLGETSTRINGIPROC glGetStringi;
-extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
-extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
-extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
-extern PFNGLDELETEVERTEXARRAYSPROC glDeleteVertexArrays;
-extern PFNGLGENBUFFERSPROC glGenBuffers;
-extern PFNGLBINDBUFFERPROC glBindBuffer;
-extern PFNGLBUFFERDATAPROC glBufferData;
-extern PFNGLBUFFERSUBDATAPROC glBufferSubData;
-extern PFNGLMAPBUFFERPROC glMapBuffer;
-extern PFNGLDELETEBUFFERSPROC glDeleteBuffers;
-extern PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
-extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
-extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
-extern PFNGLUSEPROGRAMPROC glUseProgram;
-extern PFNGLCREATESHADERPROC glCreateShader;
-extern PFNGLSHADERSOURCEPROC glShaderSource;
-extern PFNGLCOMPILESHADERPROC glCompileShader;
-extern PFNGLGETSHADERIVPROC glGetShaderiv;
-extern PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
-extern PFNGLDELETESHADERPROC glDeleteShader;
-extern PFNGLCREATEPROGRAMPROC glCreateProgram;
-extern PFNGLATTACHSHADERPROC glAttachShader;
-extern PFNGLDETACHSHADERPROC glDetachShader;
-extern PFNGLLINKPROGRAMPROC glLinkProgram;
-extern PFNGLGETPROGRAMIVPROC glGetProgramiv;
-extern PFNGLGETPROGRAMINFOLOGPROC glGetProgramInfoLog;
-extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
-extern PFNGLUNIFORM1FPROC glUniform1f;
-extern PFNGLUNIFORM2FPROC glUniform2f;
-extern PFNGLUNIFORM3FPROC glUniform3f;
-extern PFNGLUNIFORM4FPROC glUniform4f;
-extern PFNGLUNIFORM1IPROC glUniform1i;
-extern PFNGLUNIFORM2IPROC glUniform2i;
-extern PFNGLUNIFORM3IPROC glUniform3i;
-extern PFNGLUNIFORM4IPROC glUniform4i;
-extern PFNGLUNIFORM1UIPROC glUniform1ui;
-extern PFNGLUNIFORM2UIPROC glUniform2ui;
-extern PFNGLUNIFORM3UIPROC glUniform3ui;
-extern PFNGLUNIFORM4UIPROC glUniform4ui;
-extern PFNGLUNIFORM1FVPROC glUniform1fv;
-extern PFNGLUNIFORM2FVPROC glUniform2fv;
-extern PFNGLUNIFORM3FVPROC glUniform3fv;
-extern PFNGLUNIFORM4FVPROC glUniform4fv;
-extern PFNGLUNIFORM1IVPROC glUniform1iv;
-extern PFNGLUNIFORM2IVPROC glUniform2iv;
-extern PFNGLUNIFORM3IVPROC glUniform3iv;
-extern PFNGLUNIFORM4IVPROC glUniform4iv;
-extern PFNGLUNIFORM1UIVPROC glUniform1uiv;
-extern PFNGLUNIFORM2UIVPROC glUniform2uiv;
-extern PFNGLUNIFORM3UIVPROC glUniform3uiv;
-extern PFNGLUNIFORM4UIVPROC glUniform4uiv;
-extern PFNGLUNIFORMMATRIX2FVPROC glUniformMatrix2fv;
-extern PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
-extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
-extern PFNGLUNIFORMMATRIX2X3FVPROC glUniformMatrix2x3fv;
-extern PFNGLUNIFORMMATRIX3X2FVPROC glUniformMatrix3x2fv;
-extern PFNGLUNIFORMMATRIX2X4FVPROC glUniformMatrix2x4fv;
-extern PFNGLUNIFORMMATRIX4X2FVPROC glUniformMatrix4x2fv;
-extern PFNGLUNIFORMMATRIX3X4FVPROC glUniformMatrix3x4fv;
-extern PFNGLUNIFORMMATRIX4X3FVPROC glUniformMatrix4x3fv;
-
-extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
-extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
-extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
-extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
-extern PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
-
-extern PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers;
-extern PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer;
-extern PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers;
-
-extern PFNGLTEXIMAGE2DMULTISAMPLEPROC glTexImage2DMultisample;
-extern PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D;
-extern PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage;
-extern PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC glRenderbufferStorageMultisample;
-extern PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer;
-
-typedef void (GLAPIENTRY *MYPFNGLDRAWELEMENTSPROC)(GLenum mode, GLsizei count, GLenum type, const GLvoid * indices);
-extern MYPFNGLDRAWELEMENTSPROC _glDrawElements;
-
-typedef void (GLAPIENTRY *MYPFNGLACTIVETEXTURE)(GLenum texture);
-extern MYPFNGLACTIVETEXTURE _glActiveTexture;
 
 extern void OpenGLProcessAllocationQueue();
 extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);

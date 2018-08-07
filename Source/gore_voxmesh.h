@@ -301,7 +301,6 @@ struct voxworld_generation_state {
 
 #define MESH_REGEN_FREQUENCY 5.0f
 	input_system* Input;
-	float MeshRegenTimeCounter;
 
 	threadwork_data_set ChunkSet;
 	threadwork_data_set MeshSet;

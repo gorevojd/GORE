@@ -18,6 +18,7 @@ enum antialiasing_type {
 	AA_MSAA_4x,
 	AA_MSAA_8x,
 	AA_MSAA_16x,
+	AA_FXAA,
 };
 
 

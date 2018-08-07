@@ -629,7 +629,22 @@ void GenerateRandomChunk(voxel_chunk_info* Chunk, voxworld_generation_state* Gen
 
 				int RandomTreeHeight = (int)((float)BiomeParams.TreeMinHeight + (float)(BiomeParams.TreeMaxHeight - BiomeParams.TreeMinHeight) * NextRandom);
 
-				BuildColumnInChunk(Chunk, 8, 8, SetHeight, SetHeight + RandomTreeHeight - 1, BiomeParams.TreeMaterial);
+				int TreePosX = 8;
+				int TreePosY = 8;
+
+				int TreeMin = SetHeight;
+				int TreeMax = SetHeight + RandomTreeHeight - 1;
+				BuildColumnInChunk(Chunk, TreePosX, TreePosY, TreeMin, TreeMax, BiomeParams.TreeMaterial);
+
+				int LeavesHeight = 5;
+				int LeavesMin = TreeMax - 3;
+				int LeavesMax = LeavesMin + LeavesHeight;
+
+				BuildColumnInChunk(Chunk, TreePosX, TreePosY, TreeMax + 1, LeavesMax + 1, VoxelMaterial_Leaves);
+				BuildColumnInChunk(Chunk, TreePosX + 1, TreePosY, LeavesMin, LeavesMax, VoxelMaterial_Leaves);
+				BuildColumnInChunk(Chunk, TreePosX - 1, TreePosY, LeavesMin, LeavesMax, VoxelMaterial_Leaves);
+				BuildColumnInChunk(Chunk, TreePosX, TreePosY + 1, LeavesMin, LeavesMax, VoxelMaterial_Leaves);
+				BuildColumnInChunk(Chunk, TreePosX, TreePosY - 1, LeavesMin, LeavesMax, VoxelMaterial_Leaves);
 			}
 #else
 			BuildColumnInChunk(Chunk, i, j, 0, GetNextRandomSmoothFloat(Generation) * 2.5f + 100, VoxelMaterial_Stone);
@@ -1622,7 +1637,6 @@ static void VoxelChunksGenerationInit(
 	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->Input = Input;
-	Generation->MeshRegenTimeCounter = 0.0f;
 
 	Generation->TotalMemory = Memory;
 	Generation->FCPMemoryBlock = SplitStackedMemory(Generation->TotalMemory, KILOBYTES(100));
@@ -2092,11 +2106,6 @@ void VoxelChunksGenerationUpdate(
 		Generation->ChunksPushed += CellData->ChunksPushed;
 		Generation->ChunksLoaded += CellData->ChunksLoaded;
 	}
-
-	if (Generation->MeshRegenTimeCounter > MESH_REGEN_FREQUENCY) {
-		Generation->MeshRegenTimeCounter -= MESH_REGEN_FREQUENCY;
-	}
-	Generation->MeshRegenTimeCounter += Input->DeltaTime;
 
 	END_TIMING();
 	END_TIMING();
