@@ -704,6 +704,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	//NOTE(dima): FXAA antialiasing
 	if (GLState->AntialiasingType == AA_FXAA) {
+		BEGIN_TIMING("FXAA");
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
 		LastWriteFBO = GLState->FramebufferFXAA.FBO;
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
@@ -732,9 +733,11 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 		OpenGLUseProgramEnd();
+		END_TIMING();
 	}
 
 	//NOTE(dima): Finalizing screen shader
+	BEGIN_TIMING("Final shader postprocess");
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
 	LastWriteFBO = GLState->FramebufferResult.FBO;
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
@@ -747,11 +750,8 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 		RenderState->RenderHeight,
 		GL_COLOR_BUFFER_BIT,
 		GL_NEAREST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_DEPTH_TEST);
+	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferResult.FBO);
 
 	OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
 	glBindVertexArray(GLState->ScreenQuadVAO);
@@ -761,6 +761,22 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 	OpenGLUseProgramEnd();
+	END_TIMING();
+
+	//NOTE(dima): Blitting to default framebuffer
+	BEGIN_TIMING("Blitting to default FBO");
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		GL_COLOR_BUFFER_BIT,
+		GL_NEAREST);
+	END_TIMING();
 
 	//glDeleteFramebuffers(1, &FramebufferObject);
 	//glDeleteRenderbuffers(1, &DepthStencilRBO);
