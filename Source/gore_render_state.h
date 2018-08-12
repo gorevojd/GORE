@@ -4,6 +4,7 @@
 #include "gore_asset.h"
 #include "gore_game_common.h"
 #include "gore_lighting.h"
+#include "gore_lpterrain.h"
 
 struct render_state {
 	platform_mutex RenderPushMutex;
@@ -31,13 +32,14 @@ enum render_entry_type {
 	RenderEntry_Rectangle,
 	RenderEntry_Mesh,
 	RenderEntry_VoxelMesh,
+	RenderEntry_LpterMesh,
 
 	RenderEntry_Lighting,
 	RenderEntry_VoxelLighting,
 
-	RenderEntry_Glyph,
-	RenderEntry_BeginText,
-	RenderEntry_EndText,
+	RenderEntry_GUI_Glyph,
+	RenderEntry_GUI_BeginText,
+	RenderEntry_GUI_EndText,
 
 	RenderEntry_Test,
 };
@@ -83,6 +85,12 @@ struct render_stack_entry_voxel_mesh {
 	voxel_mesh_info* MeshInfo;
 
 	bitmap_info* VoxelAtlasBitmap;
+
+	v3 P;
+};
+
+struct render_stack_entry_lpter_mesh {
+	lpter_mesh* Mesh;
 
 	v3 P;
 };
@@ -225,6 +233,13 @@ inline void RENDERPushVoxelMesh(render_state* State, voxel_mesh_info* Mesh, v3 P
 	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
 }
 
+inline void RENDERPushLpterMesh(render_state* State, lpter_mesh* Mesh, v3 P) {
+	render_stack_entry_lpter_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lpter_mesh, RenderEntry_LpterMesh);
+
+	Entry->Mesh = Mesh;
+	Entry->P = P;
+}
+
 inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Color, float Diameter) {
 	v3 Diff = Max - Min;
 
@@ -276,17 +291,17 @@ inline void RENDERPushGradient(render_state* Stack, v3 Color) {
 }
 
 inline void RENDERPushBeginText(render_state* Stack, font_info* FontInfo) {
-	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderEntry_BeginText);
+	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderEntry_GUI_BeginText);
 
 	Entry->FontInfo = FontInfo;
 }
 
 inline void RENDERPushEndText(render_state* Stack) {
-	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderEntry_EndText);
+	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderEntry_GUI_EndText);
 }
 
 inline void RENDERPushGlyph(render_state* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
-	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Glyph);
+	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_GUI_Glyph);
 
 	Entry->Codepoint = Codepoint;
 	Entry->P = P;

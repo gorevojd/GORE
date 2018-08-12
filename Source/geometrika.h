@@ -7,6 +7,7 @@
 #include "gore_render_state.h"
 #include "gore_voxshared.h"
 #include "gore_voxmesh.h"
+#include "gore_lpterrain.h"
 #include "gore_cellural.h"
 
 struct geometrika_state {
@@ -22,12 +23,15 @@ struct geometrika_state {
 	voxel_chunk_info TestChunk;
 #endif
 
+	lpter_terrain Terrain[25];
+	lpter_mesh Mesh[25];
+
 	surface_material CubeMat;
 	surface_material PlaneMat;
 };
 
 extern void GEOMKAUpdateAndRender(
-	geometrika_state* State, 
+	stacked_memory* GameMemoryBlock,
 	asset_system* AssetSystem,
 	render_state* RenderStack,
 	input_system* Input);

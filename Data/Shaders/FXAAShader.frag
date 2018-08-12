@@ -55,5 +55,4 @@ void main(void) {
     }else{
             FragmentColor = vec4(rgbB, 1.0);
     }
-    //FragmentColor = vec4(1.0f, FragmentColor.g, FragmentColor.b, 1.0);
 }

@@ -4,7 +4,7 @@
 #include "gore_math.h"
 #include <vector>
 
-#define VOXEL_WORLD_ENABLED 1
+#define VOXEL_WORLD_ENABLED 0
 
 #define VOXEL_ENABLE_FRUSTUM_CULLING 1
 

@@ -599,8 +599,8 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 struct gui_state {
 	font_info* FontInfo;
+	render_state RenderStackInternal;
 	render_state* RenderStack;
-	render_state* TempRenderStack;
 
 	float FontScale;
 	float LastFontScale;
@@ -608,6 +608,7 @@ struct gui_state {
 	b32 TextElemsCacheShouldBeReinitialized;
 
 	input_system* Input;
+	asset_system* AssetSystem;
 
 	i32 ScreenWidth;
 	i32 ScreenHeight;
@@ -626,6 +627,7 @@ struct gui_state {
 	gui_layout* DefaultLayout;
 
 	stacked_memory* GUIMem;
+	stacked_memory RenderMemorySplit;
 
 	b32 PlusMinusSymbol;
 
@@ -798,11 +800,11 @@ extern void GUIInitState(
 	gui_state* GUIState, 
 	stacked_memory* GUIMemory, 
 	color_state* ColorState, 
-	font_info* FontInfo, 
+	asset_system* AssetSystem,
 	input_system* Input, 
 	i32 Width, i32 Height);
 
-extern void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack);
+extern void GUIBeginFrame(gui_state* GUIState);
 extern void GUIPrepareFrame(gui_state* GUIState);
 extern void GUIEndFrame(gui_state* GUIState);
 

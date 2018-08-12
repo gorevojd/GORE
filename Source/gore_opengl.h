@@ -5,8 +5,8 @@
 #include "gore_render_state.h"
 #include "gore_lighting.h"
 #include "gore_voxshared.h"
+#include "gore_lpterrain.h"
 #include "gore_game_settings.h"
-
 
 struct gl_program {
 	GLuint Handle;
@@ -59,6 +59,26 @@ struct gl_voxel_shader {
 	gl_program Program;
 };
 
+struct gl_lpter_shader {
+	GLint PositionIndex;
+	GLint NormalIndex;
+	GLint ColorIndex;
+
+	GLint ModelMatrixLocation;
+	GLint ViewMatrixLocation;
+	GLint ProjectionMatrixLocation;
+	GLint NormalsBufferLocation;
+	GLint FogColorLocation;
+
+	GLint CameraPLocation;
+
+	GLint DirDirectionLocation;
+	GLint DirDiffuseLocation;
+	GLint DirAmbientLocation;
+
+	gl_program Program;
+};
+
 struct gl_fxaa_shader {
 	GLint PosIndex;
 	GLint TexCoordIndex;
@@ -89,9 +109,13 @@ struct gl_state {
 	gl_voxel_shader VoxelShader;
 	gl_screen_shader ScreenShader;
 	gl_fxaa_shader FXAAShader;
+	gl_lpter_shader LpterShader;
 
 	GLuint ScreenQuadVAO;
 	GLuint ScreenQuadVBO;
+
+	//NOTE(dima): This framebuffer will be used for storing and rendering GUI
+	opengl_framebuffer FramebufferGUI;
 
 	//NOTE(dima): This is the first framebuffer that we will render to
 	opengl_framebuffer FramebufferInitial;
@@ -99,12 +123,9 @@ struct gl_state {
 	//NOTE(dima): If antialiasing is MSAA then multisampled data will be resolved to this buffer
 	opengl_framebuffer FramebufferResolved;
 
-	//This framebuffer will hold the result image that will be displayed to the screen
-	opengl_framebuffer FramebufferResult;
+	//NOTE(dima): This framebuffer will be used for posteffects
+	opengl_framebuffer FramebufferPFX;
 	
-	//NOTE(dima): This framebuffer will be used for FXAA shader
-	opengl_framebuffer FramebufferFXAA;
-
 	//NOTE(dima): theese are temp values
 	GLuint CubeVAO;
 	GLuint PlaneVAO;
@@ -136,7 +157,7 @@ struct gl_state {
 //};
 
 extern void OpenGLProcessAllocationQueue();
-extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
+extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack, b32 IsGUIRenderStack = 0);
 
 extern void OpenGLInitState(
 	gl_state* State,

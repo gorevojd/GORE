@@ -48,7 +48,7 @@ void main(){
 	int ExtractedTextureIndex = int((VertexData1 >> 2u) & 255u);
 	int ExtractedTexVertType = int(VertexData1 & 3u);
 
-	float Epsilon = 0.000f;
+	float Epsilon = 0.005f;
 	float TwoEpsilon = 2.0f * Epsilon;
 
 	vec2 TexCoord;

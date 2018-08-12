@@ -8,13 +8,17 @@ void GUIInitState(
 	gui_state* GUIState, 
 	stacked_memory* GUIMemory,
 	color_state* ColorState,
-	font_info* FontInfo,
+	asset_system* AssetSystem,
 	input_system* Input, 
 	i32 Width, i32 Height) 
 {
 	GUIState->RenderStack = 0;
-	GUIState->FontInfo = FontInfo;
+	GUIState->AssetSystem = AssetSystem;
+
 	GUIState->ColorsState = ColorState;
+
+	font_id GUIFontID = GetFirstFont(AssetSystem, GameAsset_Font);
+	GUIState->FontInfo = GetFontFromID(AssetSystem, GUIFontID);
 
 	GUIState->Input = Input;
 
@@ -28,6 +32,7 @@ void GUIInitState(
 	GUIState->PlusMinusSymbol = 0;
 
 	GUIState->GUIMem = GUIMemory;
+	GUIState->RenderMemorySplit = SplitStackedMemory(GUIMemory, MEGABYTES(1));
 
 #if 0
 	GUIState->TempRect.Rect.Min = V2(400, 400);
@@ -239,8 +244,13 @@ v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale) {
 	return(Result);
 }
 
-void GUIBeginFrame(gui_state* GUIState, render_state* RenderStack) {
-	GUIState->RenderStack = RenderStack;
+void GUIBeginFrame(gui_state* GUIState) {
+	GUIState->RenderStackInternal = RENDERBeginStack(
+		&GUIState->RenderMemorySplit,
+		GUIState->ScreenWidth,
+		GUIState->ScreenHeight,
+		GUIState->AssetSystem);
+	GUIState->RenderStack = &GUIState->RenderStackInternal;
 
 	GUIState->TooltipCount = 0;
 }
@@ -494,8 +504,6 @@ void GUIPrepareFrame(gui_state* GUIState) {
 void GUIEndFrame(gui_state* GUIState) {
 	FUNCTION_TIMING();
 
-	BEGIN_SECTION("GUI");
-
 	//NOTE(DIMA): Processing walkaround
 	if (ButtonWentDown(GUIState->Input, KeyType_Backquote)) {
 		GUIState->WalkaroundEnabled = !GUIState->WalkaroundEnabled;
@@ -589,7 +597,12 @@ void GUIEndFrame(gui_state* GUIState) {
 	}
 	GUIState->LastFontScale = GUIState->FontScale;
 
+	BEGIN_SECTION("GUI");
+	DEBUG_STACKED_MEM("GUI memory", GUIState->GUIMem);
+	DEBUG_STACKED_MEM("GUI render memory", GUIState->RenderStack->InitStack);
 	END_SECTION();
+
+	RENDEREndStack(&GUIState->RenderStackInternal);
 }
 
 inline gui_layout* GUIAllocateViewElement(gui_state* State) {

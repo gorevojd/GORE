@@ -1784,7 +1784,7 @@ void VoxelChunksGenerationUpdate(
 
 	if (!Generation->Initialized) {
 
-		Generation = PushStruct(Memory, voxworld_generation_state);
+		PushStruct(Memory, voxworld_generation_state);
 
 		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize, Input);
 

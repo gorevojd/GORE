@@ -1,7 +1,11 @@
 #include "geometrika.h"
 
-void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, render_state* RenderStack, input_system* Input) {
+void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetSystem, render_state* RenderStack, input_system* Input) {
+	geometrika_state* State = (geometrika_state*)GameMemoryBlock->BaseAddress;
+
 	if (!State->IsInitialized) {
+
+		PushStruct(GameMemoryBlock, geometrika_state);
 
 		State->Camera = GAMECreateCamera();
 		State->CapturingMouse = 1;
@@ -15,6 +19,13 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 		State->CubeMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_ContainerDiffImage);
 		State->CubeMat.Specular = GetFirstBitmap(AssetSystem, GameAsset_ContainerSpecImage);
 
+		for (int X = 0; X < 5; X++) {
+			for (int Y = 0; Y < 5; Y++) {
+				int CurrentIndex = X * 5 + Y;
+				LpterGenerateTerrain(&State->Terrain[CurrentIndex], X, Y);
+				LpterGenerateMesh(&State->Mesh[CurrentIndex], &State->Terrain[CurrentIndex]);
+			}
+		}
 		State->IsInitialized = 1;
 	}
 
@@ -112,6 +123,9 @@ void GEOMKAUpdateAndRender(geometrika_state* State, asset_system* AssetSystem, r
 
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
+	for (int i = 0; i < ArrayCount(State->Mesh); i++) {
+		RENDERPushLpterMesh(RenderStack, &State->Mesh[i], LpterGetTerrainOffset(&State->Terrain[i]));
+	}
 #if 0
 	v4 FrustumPlanes[6];
 

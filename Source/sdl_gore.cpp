@@ -1178,10 +1178,13 @@ int main(int ArgsCount, char** Args) {
 	glBufferData = (PFNGLBUFFERDATAPROC)SDL_GL_GetProcAddress("glBufferData");
 	glBufferSubData = (PFNGLBUFFERSUBDATAPROC)SDL_GL_GetProcAddress("glBufferSubData");
 	glMapBuffer = (PFNGLMAPBUFFERPROC)SDL_GL_GetProcAddress("glMapBuffer");
+	glTexBuffer = (PFNGLTEXBUFFERPROC)SDL_GL_GetProcAddress("glTexBuffer");
 	glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteBuffers");
 	glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress("glGetAttribLocation");
 	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
 	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribPointer");
+	glVertexAttribIPointer = (PFNGLVERTEXATTRIBIPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribIPointer");
+	glVertexAttribLPointer = (PFNGLVERTEXATTRIBLPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribLPointer");
 	glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
 	glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
 	glShaderSource = (PFNGLSHADERSOURCEPROC)SDL_GL_GetProcAddress("glShaderSource");
@@ -1244,6 +1247,10 @@ int main(int ArgsCount, char** Args) {
 	glRenderbufferStorage = (PFNGLRENDERBUFFERSTORAGEPROC)SDL_GL_GetProcAddress("glRenderbufferStorage");
 	glRenderbufferStorageMultisample = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC)SDL_GL_GetProcAddress("glRenderbufferStorageMultisample");
 	glFramebufferRenderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFERPROC)SDL_GL_GetProcAddress("glFramebufferRenderbuffer");
+	glClearBufferiv = (PFNGLCLEARBUFFERIVPROC)SDL_GL_GetProcAddress("glClearBufferiv");
+	glClearBufferuiv = (PFNGLCLEARBUFFERUIVPROC)SDL_GL_GetProcAddress("glClearBufferuiv");
+	glClearBufferfv = (PFNGLCLEARBUFFERFVPROC)SDL_GL_GetProcAddress("glClearBufferfv");
+	glClearBufferfi = (PFNGLCLEARBUFFERFIPROC)SDL_GL_GetProcAddress("glClearBufferfi");
 
 	_glDrawElements = (MYPFNGLDRAWELEMENTSPROC)SDL_GL_GetProcAddress("glDrawElements");
 	_glActiveTexture = (MYPFNGLACTIVETEXTURE)SDL_GL_GetProcAddress("glActiveTexture");
@@ -1272,7 +1279,7 @@ int main(int ArgsCount, char** Args) {
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
 	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 3, VoxelAtlas);
 
-#if 1
+#if 0
 	int FloatsPerRow = 8;
 	
 	int NumOfFloatsToGen = 2048;
@@ -1325,17 +1332,12 @@ int main(int ArgsCount, char** Args) {
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
 	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
 
-	geometrika_state GameState = {};
-
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
-	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(1));
+	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(2));
 	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
 
-	font_id GUIFontID = GetFirstFont(&GlobalAssets, GameAsset_Font);
-	font_info* GUIFont = GetFontFromID(&GlobalAssets, GUIFontID);
-
 	InitColorsState(ColorState, &ColorsMemory);
-	GUIInitState(GUIState, &GUIMemory, ColorState, GUIFont, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
+	GUIInitState(GUIState, &GUIMemory, ColorState, &GlobalAssets, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
 	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
@@ -1411,7 +1413,7 @@ int main(int ArgsCount, char** Args) {
 		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
 #endif
 
-		GEOMKAUpdateAndRender(&GameState, &GlobalAssets, Stack, &GlobalInput);
+		GEOMKAUpdateAndRender(&PlatformApi.GameModeMemoryBlock, &GlobalAssets, Stack, &GlobalInput);
 
 #if VOXEL_WORLD_ENABLED
 		VoxelChunksGenerationUpdate(
@@ -1422,7 +1424,7 @@ int main(int ArgsCount, char** Args) {
 			&GlobalInput);
 #endif
 
-		GUIBeginFrame(GUIState, Stack);
+		GUIBeginFrame(GUIState);
 		END_TIMING();
 
 		BEGIN_TIMING("Debug update");
@@ -1445,6 +1447,7 @@ int main(int ArgsCount, char** Args) {
 
 		OpenGLProcessAllocationQueue();
 		OpenGLRenderStackToOutput(GLState, Stack);
+		OpenGLRenderStackToOutput(GLState, GUIState->RenderStack, true);
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");

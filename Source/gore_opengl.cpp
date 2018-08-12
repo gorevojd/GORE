@@ -76,7 +76,7 @@ GLuint OpenGLLoadProgramFromSource(char* VertexSource, char* FragmentSource) {
 	glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Success);
 	if (!Success) {
 		glGetShaderInfoLog(VertexShader, sizeof(InfoLog), 0, InfoLog);
-		DEBUG_ERROR_LOG("Vert shader load error");
+		DEBUG_ERROR_LOG(InfoLog);
 		//TODO(dima): Logging
 	}
 
@@ -187,6 +187,38 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 	Result.SurfMatHasDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasDiffuse");
 	Result.SurfMatHasSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasSpecular");
 	Result.SurfMatHasEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasEmissive");
+
+	return(Result);
+}
+
+gl_lpter_shader OpenGLLoadLpterShader() {
+	gl_lpter_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/LpterShader.vert";
+	char* FragmentPath = "../Data/Shaders/LpterShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PositionIndex = glGetAttribLocation(Result.Program.Handle, "inPos");
+	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "inNorm");
+	Result.ColorIndex = glGetAttribLocation(Result.Program.Handle, "inColor");
+
+	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
+	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
+	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
+	Result.NormalsBufferLocation = glGetUniformLocation(Result.Program.Handle, "NormalsBuffer");
+	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
+	Result.FogColorLocation = glGetUniformLocation(Result.Program.Handle, "FogColor");
+
+	Result.DirDirectionLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Direction");
+	Result.DirDiffuseLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Diffuse");
+	Result.DirAmbientLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Ambient");
+
+	glUseProgram(Result.Program.Handle);
+	glUniform3f(Result.DirDirectionLocation, 0.5f, -0.5f, 0.5f);
+	glUniform3f(Result.DirAmbientLocation, 0.05f, 0.05f, 0.05f);
+	glUniform3f(Result.DirDiffuseLocation, 1.0f, 1.0f, 1.0f);
+	glUseProgram(0);
 
 	return(Result);
 }
@@ -354,28 +386,36 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
+void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32 IsGUIRenderStack) {
 	FUNCTION_TIMING();
 
 	glEnable(GL_MULTISAMPLE);
 
-	GLuint LastWriteFBO = GLState->FramebufferInitial.FBO;
-	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+	GLuint LastWriteFBO;
+	GLuint LastReadFBO;
 
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	//glEnable(GL_CULL_FACE);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	if (IsGUIRenderStack) {
+		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
 
-	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
-
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//NOTE(dima): Iteration through render stack
-	u8* At = (u8*)RenderState->Data.BaseAddress;
-	u8* StackEnd = (u8*)RenderState->Data.BaseAddress + RenderState->Data.Used;
-
+		int ClearingValues[4] = { 0, 0, 0, 0 };
+		glClearBufferiv(GL_COLOR, 0, ClearingValues);
+		glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
+	}
+	else {
+		LastWriteFBO = GLState->FramebufferInitial.FBO;
+		glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+	
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+		//glEnable(GL_CULL_FACE);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	
+		OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
+	
+		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
+ 
 	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
 
 	glUseProgram(GLState->WtfShader.Program.Handle);
@@ -398,7 +438,24 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 		RenderState->CameraSetup.Camera.Position.z);
 	glUseProgram(0);
 
+	GLenum Err = glGetError();
+
+	glUseProgram(GLState->LpterShader.Program.Handle);
+	glUniformMatrix4fv(GLState->LpterShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
+	glUniformMatrix4fv(GLState->LpterShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniform3f(
+		GLState->LpterShader.CameraPLocation,
+		RenderState->CameraSetup.Camera.Position.x,
+		RenderState->CameraSetup.Camera.Position.y,
+		RenderState->CameraSetup.Camera.Position.z);
+	glUseProgram(0);
+
+
 	font_info* CurrentFontInfo = 0;
+
+	//NOTE(dima): Iteration through render stack
+	u8* At = (u8*)RenderState->Data.BaseAddress;
+	u8* StackEnd = (u8*)RenderState->Data.BaseAddress + RenderState->Data.Used;
 
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;
@@ -436,7 +493,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				OpenGLRenderRectangle(Rect2MinDim(EntryRect->P, EntryRect->Dim), EntryRect->ModulationColor);
 			}break;
 
-			case RenderEntry_Glyph: {
+			case RenderEntry_GUI_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
 				if (CurrentFontInfo) {
@@ -467,7 +524,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				}
 			}break;
 
-			case RenderEntry_BeginText: {
+			case RenderEntry_GUI_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
 				CurrentFontInfo = EntryBeginText->FontInfo;
@@ -481,7 +538,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 			}break;
 
-			case RenderEntry_EndText: {
+			case RenderEntry_GUI_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 				
 				CurrentFontInfo = 0;
@@ -644,6 +701,79 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 				}
 			}break;
 
+			case RenderEntry_LpterMesh: {
+#if 1
+				render_stack_entry_lpter_mesh* EntryMesh = (render_stack_entry_lpter_mesh*)At;
+
+				lpter_mesh* Mesh = EntryMesh->Mesh;
+				gl_lpter_shader* Shader = &GLState->LpterShader;
+
+				mat4 ModelTransform = Translate(Identity(), EntryMesh->P);
+
+				if (!Mesh->MeshHandle0) {
+					GLuint MeshVAO;
+					GLuint MeshVBO;
+					GLuint TexNormBO;
+
+					glGenVertexArrays(1, &MeshVAO);
+					glGenBuffers(1, &MeshVBO);
+					glGenBuffers(1, &TexNormBO);
+
+					glBindVertexArray(MeshVAO);
+
+					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+					glBufferData(GL_ARRAY_BUFFER,
+						Mesh->VertsCount * sizeof(lpter_vertex),
+						&Mesh->Verts[0], GL_DYNAMIC_DRAW);
+					glBindBuffer(GL_TEXTURE_BUFFER, TexNormBO);
+					glBufferData(GL_TEXTURE_BUFFER, sizeof(Mesh->Normals), &Mesh->Normals[0], GL_STATIC_DRAW);
+
+					GLuint NormalsBufTexture;
+					glGenTextures(1, &NormalsBufTexture);
+					_glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_BUFFER, NormalsBufTexture);
+					glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, TexNormBO);
+
+					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+						glEnableVertexAttribArray(Shader->PositionIndex);
+						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, GL_FALSE, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, P));
+					}
+
+					if (OpenGLArrayIsValid(Shader->ColorIndex)) {
+						glEnableVertexAttribArray(Shader->ColorIndex);
+						glVertexAttribIPointer(Shader->ColorIndex, 1, GL_UNSIGNED_INT, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, Color));
+					}
+
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray(0);
+
+					Mesh->MeshHandle0 = (void*)MeshVAO;
+					Mesh->MeshHandle1 = (void*)MeshVBO;
+					Mesh->MeshHandleTexBuf = (void*)TexNormBO;
+					Mesh->NormTexHandle = (void*)NormalsBufTexture;
+				}
+
+				glUseProgram((u32)Shader->Program.Handle);
+
+				glEnable(GL_DEPTH_TEST);
+
+				glUniformMatrix4fv(
+					Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+
+				_glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_BUFFER, (u32)Mesh->NormTexHandle);
+				glUniform1i(Shader->NormalsBufferLocation, 0);
+
+				glBindVertexArray((u32)Mesh->MeshHandle0);
+				glDrawArrays(GL_TRIANGLES, 0, Mesh->VertsCount);
+				glBindVertexArray(0);
+
+				glDisable(GL_DEPTH_TEST);
+
+				glUseProgram(0);
+#endif
+			}break;
+
 			case RenderEntry_Lighting: {
 				gl_wtf_shader* WtfShader = &GLState->WtfShader;
 
@@ -702,28 +832,27 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//NOTE(dima): Resolving multisampled buffer to temp buffer
-	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-		LastWriteFBO = GLState->FramebufferResolved.FBO;
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
+	if (!IsGUIRenderStack) {
 
-		glBlitFramebuffer(
-			0, 0,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight,
-			0, 0,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight,
-			GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-			GL_NEAREST);
-	}
+		//NOTE(dima): Resolving multisampled buffer to temp buffer
+		if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+			LastWriteFBO = GLState->FramebufferResolved.FBO;
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
 
-	//NOTE(dima): FXAA antialiasing
-	if (GLState->AntialiasingType == AA_FXAA) {
-		BEGIN_TIMING("FXAA");
+			glBlitFramebuffer(
+				0, 0,
+				RenderState->RenderWidth,
+				RenderState->RenderHeight,
+				0, 0,
+				RenderState->RenderWidth,
+				RenderState->RenderHeight,
+				GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+				GL_NEAREST);
+		}
+
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-		LastWriteFBO = GLState->FramebufferFXAA.FBO;
+		LastWriteFBO = GLState->FramebufferPFX.FBO;
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
 
 		glBlitFramebuffer(
@@ -736,64 +865,71 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 			GL_COLOR_BUFFER_BIT,
 			GL_NEAREST);
 
-		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferFXAA.FBO);
+		//NOTE(dima): FXAA antialiasing
+		if (GLState->AntialiasingType == AA_FXAA) {
+			BEGIN_TIMING("FXAA");
+			glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
 
-		OpenGLUseProgramBegin(&GLState->FXAAShader.Program);
+			OpenGLUseProgramBegin(&GLState->FXAAShader.Program);
+			glBindVertexArray(GLState->ScreenQuadVAO);
+			_glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, GLState->FramebufferPFX.Texture);
+			glUniform1i(GLState->FXAAShader.TextureLocation, 0);
+			glUniform2f(
+				GLState->FXAAShader.TextureSizeLocation,
+				RenderState->RenderWidth,
+				RenderState->RenderHeight);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+			glBindVertexArray(0);
+			OpenGLUseProgramEnd();
+			END_TIMING();
+		}
+
+		//NOTE(dima): Finalizing screen shader
+		BEGIN_TIMING("Final shader postprocess");
+
+		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
+
+		OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
 		glBindVertexArray(GLState->ScreenQuadVAO);
 		_glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferFXAA.Texture);
-		glUniform1i(GLState->FXAAShader.TextureLocation, 0);
-		glUniform2f(
-			GLState->FXAAShader.TextureSizeLocation,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight);
+		glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferPFX.Texture);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 		OpenGLUseProgramEnd();
 		END_TIMING();
+
+		//NOTE(dima): Blitting to default framebuffer
+		BEGIN_TIMING("Blitting to default FBO");
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			0, 0,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight,
+			GL_COLOR_BUFFER_BIT,
+			GL_NEAREST);
+		END_TIMING();
 	}
+	else {
+		//NOTE(dima): Render stack is GUI render stack
 
-	//NOTE(dima): Finalizing screen shader
-	BEGIN_TIMING("Final shader postprocess");
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-	LastWriteFBO = GLState->FramebufferResult.FBO;
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
-	glBlitFramebuffer(
-		0, 0,
-		RenderState->RenderWidth,
-		RenderState->RenderHeight,
-		0, 0,
-		RenderState->RenderWidth,
-		RenderState->RenderHeight,
-		GL_COLOR_BUFFER_BIT,
-		GL_NEAREST);
+		//glEnable(GL_BLEND);
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferResult.FBO);
-
-	OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
-	glBindVertexArray(GLState->ScreenQuadVAO);
-	_glActiveTexture(GL_TEXTURE0);
-	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-	glBindTexture(GL_TEXTURE_2D, GLState->FramebufferResult.Texture);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
-	OpenGLUseProgramEnd();
-	END_TIMING();
-
-	//NOTE(dima): Blitting to default framebuffer
-	BEGIN_TIMING("Blitting to default FBO");
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(
-		0, 0,
-		RenderState->RenderWidth,
-		RenderState->RenderHeight,
-		0, 0,
-		RenderState->RenderWidth,
-		RenderState->RenderHeight,
-		GL_COLOR_BUFFER_BIT,
-		GL_NEAREST);
-	END_TIMING();
+		OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
+		glBindVertexArray(GLState->ScreenQuadVAO);
+		_glActiveTexture(GL_TEXTURE0);
+		glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
+		OpenGLUseProgramEnd();
+	}
 
 	//glDeleteFramebuffers(1, &FramebufferObject);
 	//glDeleteRenderbuffers(1, &DepthStencilRBO);
@@ -941,6 +1077,7 @@ void OpenGLInitState(
 	State->VoxelShader = OpenGLLoadVoxelShader();
 	State->ScreenShader = OpenGLLoadScreenShader();
 	State->FXAAShader = OpenGLLoadFXAAShader();
+	State->LpterShader = OpenGLLoadLpterShader();
 
 	//NOTE(dima): Checking for OpenGL extensions support
 	//TODO(dima): Load parameters from game_settings
@@ -1019,11 +1156,9 @@ void OpenGLInitState(
 		OpenGLInitFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight, GL_TRUE);
 	}
 	
-	if (State->AntialiasingType == AA_FXAA) {
-		OpenGLInitFramebuffer(&State->FramebufferFXAA, RenderWidth, RenderHeight, GL_FALSE);
-	}
+	OpenGLInitFramebuffer(&State->FramebufferPFX, RenderWidth, RenderHeight, GL_FALSE);
 
-	OpenGLInitFramebuffer(&State->FramebufferResult, RenderWidth, RenderHeight, GL_FALSE);
+	OpenGLInitFramebuffer(&State->FramebufferGUI, RenderWidth, RenderHeight, GL_TRUE);
 }
 
 void OpenGLProcessAllocationQueue() {

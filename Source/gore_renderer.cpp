@@ -842,7 +842,7 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case RenderEntry_Glyph: {
+			case RenderEntry_GUI_Glyph: {
 				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
 				font_info* FontInfo = CurrentFontInfo;
@@ -866,13 +866,13 @@ void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2
 #endif
 			}break;
 
-			case RenderEntry_BeginText: {
+			case RenderEntry_GUI_BeginText: {
 				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
 
 				CurrentFontInfo = EntryBeginText->FontInfo;
 			}break;
 
-			case RenderEntry_EndText: {
+			case RenderEntry_GUI_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
 
 				CurrentFontInfo = 0;
