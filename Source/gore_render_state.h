@@ -2,6 +2,7 @@
 #define GORE_RENDER_STACK_H_INCLUDED
 
 #include "gore_asset.h"
+#include "gore_input.h"
 #include "gore_game_common.h"
 #include "gore_lighting.h"
 #include "gore_lpterrain.h"
@@ -12,6 +13,7 @@ struct render_state {
 	stacked_memory* InitStack;
 
 	asset_system* AssetSystem;
+	input_system* InputSystem;
 
 	int RenderWidth;
 	int RenderHeight;
@@ -21,6 +23,8 @@ struct render_state {
 	mesh_id LowPolyCylMeshID;
 
 	game_camera_setup CameraSetup;
+
+	float GlobalTime;
 };
 
 enum render_entry_type {
@@ -32,10 +36,9 @@ enum render_entry_type {
 	RenderEntry_Rectangle,
 	RenderEntry_Mesh,
 	RenderEntry_VoxelMesh,
-	RenderEntry_LpterMesh,
 
-	RenderEntry_Lighting,
-	RenderEntry_VoxelLighting,
+	RenderEntry_LpterMesh,
+	RenderEntry_LpterWaterMesh,
 
 	RenderEntry_GUI_Glyph,
 	RenderEntry_GUI_BeginText,
@@ -91,6 +94,12 @@ struct render_stack_entry_voxel_mesh {
 
 struct render_stack_entry_lpter_mesh {
 	lpter_mesh* Mesh;
+
+	v3 P;
+};
+
+struct render_stack_entry_lpter_water_mesh {
+	lpter_water* WaterMesh;
 
 	v3 P;
 };
@@ -240,6 +249,13 @@ inline void RENDERPushLpterMesh(render_state* State, lpter_mesh* Mesh, v3 P) {
 	Entry->P = P;
 }
 
+inline void RENDERPushLpterWaterMesh(render_state* State, lpter_water* Water, v3 P) {
+	render_stack_entry_lpter_water_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lpter_water_mesh, RenderEntry_LpterWaterMesh);
+
+	Entry->P = P;
+	Entry->WaterMesh = Water;
+}
+
 inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Color, float Diameter) {
 	v3 Diff = Max - Min;
 
@@ -270,18 +286,6 @@ inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Colo
 	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, Diff.y, 0.0f)), OutlineMat);
 	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
 
-}
-
-inline void RENDERPushLighting(render_state* State) {
-	render_stack_entry_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lighting, RenderEntry_Lighting);
-
-
-}
-
-inline void RENDERPushVoxelLighting(render_state* State, v3 FogColor) {
-	render_stack_entry_voxel_lighting* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_lighting, RenderEntry_VoxelLighting);
-
-	Entry->FogColor = FogColor;
 }
 
 inline void RENDERPushGradient(render_state* Stack, v3 Color) {
@@ -317,7 +321,12 @@ inline void RENDERPushTest(render_state* Stack) {
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Test);
 }
 
-extern render_state RENDERBeginStack(stacked_memory* RenderMemory, int WindowWidth, int WindowHeight, asset_system* AssetSystem);
+extern render_state RENDERBeginStack(
+	stacked_memory* RenderMemory, 
+	int WindowWidth, 
+	int WindowHeight, 
+	asset_system* AssetSystem, 
+	input_system* InputSystem);
 extern void RENDEREndStack(render_state* Stack);
 
 #endif

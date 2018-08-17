@@ -3,100 +3,6 @@
 //#define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
-float LpterNoise(float X, float Z) {
-	float Result = 0.0f;
-
-	float Freq = 1.0f;
-	float Ampl = 1.0f;
-
-	int Octaves = 6;
-	float dFreq = 2.0f;
-	//NOTE(dima): [0.0 - 1.0]
-	float ddFreq = 0.5f;
-	float dAmpl = 0.5f;
-
-	float StartAngle = -GORE_PI / 2.0f / 0.8f;
-	float EndAngle = GORE_PI / 2.0f / 0.8f;
-	float OneOctaveAngularDisplacement = (EndAngle - StartAngle) / Octaves;
-
-	for (int OctaveIndex = 0;
-		OctaveIndex < Octaves;
-		OctaveIndex++)
-	{
-		float StepNoise = stb_perlin_noise3(X * Freq, 0.0f, Z * Freq, 0, 0, 0);
-		//Ampl = Cos(StartAngle + OneOctaveAngularDisplacement * OctaveIndex);
-		//StepNoise = StepNoise < 0.0f ? StepNoise * 0.5f : StepNoise;
-
-
-		Result += StepNoise * Ampl;
-
-
-		Freq = Freq * dFreq;
-		//dFreq -= (dFreq - 1.0f) * ddFreq;
-		Ampl = Ampl * dAmpl;
-		//Ampl *= dAmpl;
-	}
-
-	float TestNoiseFreq = 1.0f;
-	float TestNoise = stb_perlin_noise3(X * TestNoiseFreq, 0.0f, Z * TestNoiseFreq, 0, 0, 0);
-
-	Result += TestNoise * 0.5f;
-
-	return(Result);
-}
-
-void LpterGenerateTerrain(lpter_terrain* Terrain, int WorldIndexX, int WorldIndexY) {
-	Terrain->WorldIndexX = WorldIndexX;
-	Terrain->WorldIndexY = WorldIndexY;
-
-	float PerVertexOffset = (float)LPTER_TERRAIN_METERS / (float)LPTER_QUADS_PER_SIDE;
-
-	float HeightMultiplier = 30.0f;
-
-	Terrain->OneOverHeightMultiplier = 1.0f / HeightMultiplier;
-
-	v2 TerrainWorldOffset = V2(
-		(float)WorldIndexX * (float)LPTER_TERRAIN_METERS,
-		(float)WorldIndexY * (float)LPTER_TERRAIN_METERS);
-
-	int Octaves = 6;
-	float Lacunarity = 2.0f;
-	float Gain = 0.5f;
-
-	for (int VerticalIndex = 0;
-		VerticalIndex < LPTER_VERTS_PER_SIDE;
-		VerticalIndex++)
-	{
-		float VertVerticalOffset = TerrainWorldOffset.y + (float)VerticalIndex * PerVertexOffset;
-
-		for (int HorizontalIndex = 0;
-			HorizontalIndex < LPTER_VERTS_PER_SIDE;
-			HorizontalIndex++)
-		{
-			float VertHorzOffset = TerrainWorldOffset.x + (float)HorizontalIndex * PerVertexOffset;
-
-			float* ToSet = Terrain->Heights + LPTER_VERTS_PER_SIDE * VerticalIndex + HorizontalIndex;
-
-#if 0
-			float Noise = stb_perlin_fbm_noise3(
-				VertHorzOffset / LPTER_TERRAIN_METERS,
-				0.0f,
-				VertVerticalOffset / LPTER_TERRAIN_METERS,
-				Lacunarity,
-				Gain,
-				Octaves,
-				0, 0, 0);
-#else
-			float Noise = LpterNoise(
-				VertHorzOffset / LPTER_TERRAIN_METERS,
-				VertVerticalOffset / LPTER_TERRAIN_METERS);
-#endif
-
-			*ToSet = Noise * HeightMultiplier;
-		}
-	}
-}
-
 inline float LpterGetHeight(lpter_terrain* Terrain, int X, int Y) {
 	float Result = Terrain->Heights[Y * LPTER_VERTS_PER_SIDE + X];
 
@@ -269,9 +175,9 @@ void LpterGenerateMesh(lpter_mesh* Mesh, lpter_terrain* Terrain) {
 	v3 SandColor = V3(0.65, 0.56f, 0.31f);
 
 	lpter_biome Biomes[] = {
-		LpterBiome(0.0f, 0.45f, SandColor, "Sand"),
-		LpterBiome(0.55f, 0.65f, GroundColor, "Ground"),
-		LpterBiome(0.75f, 1.0f, RockColor, "Rock")
+		LpterBiome(0.0f, 0.5f, SandColor, "Sand"),
+		LpterBiome(0.6f, 0.7f, GroundColor, "Ground"),
+		LpterBiome(0.8f, 1.0f, RockColor, "Rock")
 	};
 
 	for (int QuadY = 0;
@@ -310,10 +216,181 @@ void LpterGenerateMesh(lpter_mesh* Mesh, lpter_terrain* Terrain) {
 				VertColors[ColorIndex] = LpterGetTransitionedColor(Biomes, ArrayCount(Biomes), NormHeight);
 
 				//float t = Clamp01((Heights[ColorIndex] * Terrain->OneOverHeightMultiplier - (-1.0f)) / 2.0f);
-				//VertColors[ColorIndex] = Lerp(V3(1.0f, 0.0f, 0.0f), V3(1.0f, 1.0f, 1.0f), t);
+				//VertColors[ColorIndex] = Hadamard(VertColors[ColorIndex], Lerp(V3(0.4f, 0.4f, 0.4f), V3(1.0f, 1.0f, 1.0f), t));
 			}
 
 			LpterWritePolygon(Mesh, VertPss, VertColors, QuadX, QuadY);
+		}
+	}
+}
+
+
+float LpterNoise(float X, float Z) {
+	float Result = 0.0f;
+
+	float Freq = 1.0f;
+	float Ampl = 1.0f;
+
+	int Octaves = 6;
+	float dFreq = 2.0f;
+	//NOTE(dima): [0.0 - 1.0]
+	float ddFreq = 0.5f;
+	float dAmpl = 0.5f;
+
+	float StartAngle = -GORE_PI / 2.0f / 0.8f;
+	float EndAngle = GORE_PI / 2.0f / 0.8f;
+	float OneOctaveAngularDisplacement = (EndAngle - StartAngle) / Octaves;
+
+	for (int OctaveIndex = 0;
+		OctaveIndex < Octaves;
+		OctaveIndex++)
+	{
+		float StepNoise = stb_perlin_noise3(X * Freq, 0.0f, Z * Freq, 0, 0, 0);
+		//Ampl = Cos(StartAngle + OneOctaveAngularDisplacement * OctaveIndex);
+		//StepNoise = StepNoise < 0.0f ? StepNoise * 0.5f : StepNoise;
+
+
+		Result += StepNoise * Ampl;
+
+
+		Freq = Freq * dFreq;
+		//dFreq -= (dFreq - 1.0f) * ddFreq;
+		Ampl = Ampl * dAmpl;
+		//Ampl *= dAmpl;
+	}
+
+	float TestNoiseFreq = 1.0f;
+	float TestNoise = stb_perlin_noise3(X * TestNoiseFreq, 0.0f, Z * TestNoiseFreq, 0, 0, 0);
+
+	Result += TestNoise * 0.5f;
+
+	return(Result);
+}
+
+void LpterGenerateTerrain(
+	lpter_terrain* Terrain,
+	int WorldIndexX,
+	int WorldIndexY)
+{
+	Terrain->WorldIndexX = WorldIndexX;
+	Terrain->WorldIndexY = WorldIndexY;
+
+	float PerVertexOffset = (float)LPTER_TERRAIN_METERS / (float)LPTER_QUADS_PER_SIDE;
+
+	float HeightMultiplier = 15.0f;
+
+	Terrain->OneOverHeightMultiplier = 1.0f / HeightMultiplier;
+
+	v2 TerrainWorldOffset = V2(
+		(float)WorldIndexX * (float)LPTER_TERRAIN_METERS,
+		(float)WorldIndexY * (float)LPTER_TERRAIN_METERS);
+
+	int Octaves = 6;
+	float Lacunarity = 2.0f;
+	float Gain = 0.5f;
+
+	for (int VerticalIndex = 0;
+		VerticalIndex < LPTER_VERTS_PER_SIDE;
+		VerticalIndex++)
+	{
+		float VertVerticalOffset = TerrainWorldOffset.y + (float)VerticalIndex * PerVertexOffset;
+
+		for (int HorizontalIndex = 0;
+			HorizontalIndex < LPTER_VERTS_PER_SIDE;
+			HorizontalIndex++)
+		{
+			float VertHorzOffset = TerrainWorldOffset.x + (float)HorizontalIndex * PerVertexOffset;
+
+			float* ToSet = Terrain->Heights + LPTER_VERTS_PER_SIDE * VerticalIndex + HorizontalIndex;
+
+#if 0
+			float Noise = stb_perlin_fbm_noise3(
+				VertHorzOffset / LPTER_TERRAIN_METERS,
+				0.0f,
+				VertVerticalOffset / LPTER_TERRAIN_METERS,
+				Lacunarity,
+				Gain,
+				Octaves,
+				0, 0, 0);
+#else
+			float Noise = LpterNoise(
+				VertHorzOffset / LPTER_TERRAIN_METERS / 0.5f,
+				VertVerticalOffset / LPTER_TERRAIN_METERS / 0.5f);
+#endif
+
+			*ToSet = Noise * HeightMultiplier;
+		}
+	}
+
+	LpterGenerateMesh(&Terrain->Mesh, Terrain);
+}
+
+inline lpter_water_vertex LpterWaterCreateVertex(v2 VertXZ, lpter_i8v4 OffsetsToOtherVerts) {
+	lpter_water_vertex Result = {};
+
+	Result.VertexXZ = VertXZ;
+	Result.OffsetsToOtherVerts = OffsetsToOtherVerts;
+
+	return(Result);
+}
+
+inline void LpterWaterWritePolygon(lpter_water* Water, v2 VertsXZ[4], int QuadX, int QuadY) {
+	lpter_water_vertex* TriangleVerts = &Water->Vertices[QuadX * 6 + QuadY * LPTER_WATER_QUADS_PER_SIDE * 6];
+
+	lpter_water_vertex Tri1[3];
+	Tri1[0] = LpterWaterCreateVertex(VertsXZ[0], LpterI8V4(1, 1, 1, 0));
+	Tri1[1] = LpterWaterCreateVertex(VertsXZ[1], LpterI8V4(-1, 0, 0, 1));
+	Tri1[2] = LpterWaterCreateVertex(VertsXZ[2], LpterI8V4(0, -1, -1, -1));
+
+	lpter_water_vertex Tri2[3];
+	Tri2[0] = LpterWaterCreateVertex(VertsXZ[0], LpterI8V4(0, 1, 1, 1));
+	Tri2[1] = LpterWaterCreateVertex(VertsXZ[2], LpterI8V4(-1, -1, -1, 0));
+	Tri2[2] = LpterWaterCreateVertex(VertsXZ[3], LpterI8V4(1, 0, 0, -1));
+
+	TriangleVerts[0] = Tri1[0];
+	TriangleVerts[1] = Tri1[1];
+	TriangleVerts[2] = Tri1[2];
+	TriangleVerts[3] = Tri2[0];
+	TriangleVerts[4] = Tri2[1];
+	TriangleVerts[5] = Tri2[2];
+
+	Water->VerticesCount += 6;
+}
+
+void LpterGenerateWater(
+	lpter_water* Water,
+	int WorldIndexX,
+	int WorldIndexY,
+	float WaterLevel) 
+{
+	Water->WaterLevel = WaterLevel;
+
+	Water->VerticesCount = 0;
+
+	Water->WorldIndexX = WorldIndexX;
+	Water->WorldIndexY = WorldIndexY;
+
+	float PerVertexOffset = (float)LPTER_TERRAIN_METERS / (float)LPTER_WATER_QUADS_PER_SIDE;
+	Water->PerVertexOffset = PerVertexOffset;
+
+	for (int VertQuadId = 0;
+		VertQuadId < LPTER_WATER_QUADS_PER_SIDE;
+		VertQuadId++)
+	{
+		for (int HorzQuadId = 0;
+			HorzQuadId < LPTER_WATER_QUADS_PER_SIDE;
+			HorzQuadId++)
+		{
+			float VertQuadOffset = (float)VertQuadId * PerVertexOffset;
+			float HorzQuadOffset = (float)HorzQuadId * PerVertexOffset;
+
+			v2 VertsXZ[4];
+			VertsXZ[0] = V2(HorzQuadOffset, VertQuadOffset);
+			VertsXZ[1] = V2(HorzQuadOffset + PerVertexOffset, VertQuadOffset);
+			VertsXZ[2] = V2(HorzQuadOffset + PerVertexOffset, VertQuadOffset + PerVertexOffset);
+			VertsXZ[3] = V2(HorzQuadOffset, VertQuadOffset + PerVertexOffset);
+
+			LpterWaterWritePolygon(Water, VertsXZ, HorzQuadId, VertQuadId);
 		}
 	}
 }

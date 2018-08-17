@@ -1,6 +1,6 @@
 #include "gore_render_state.h"
 
-render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int RenderHeight, asset_system* AssetSystem) {
+render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int RenderHeight, asset_system* AssetSystem, input_system* InputSystem) {
 	render_state Result = {};
 
 	Result.RenderPushMutex = {};
@@ -12,6 +12,7 @@ render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int
 	Result.RenderWidth = RenderWidth;
 	Result.RenderHeight = RenderHeight;
 	Result.AssetSystem = AssetSystem;
+	Result.InputSystem = InputSystem;
 
 	Result.LowPolyCylMeshID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Cylynder, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 

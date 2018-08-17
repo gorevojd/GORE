@@ -1543,6 +1543,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	//NOTE(dima): Fonts
 	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info ChurchFontInfo = LoadFontInfoWithSTB("../Data/Fonts/11550.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
@@ -1550,6 +1551,7 @@ void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
 	FontAsset(System, "../Data/Fonts/LiberationMono-Bold.ttf", 18, false, 0, 0, AssetLoadFontFlag_BakeOffsetShadows);
 	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
 #else
+	AddFontAssetManual(System, &UbuntuFontInfo);
 	AddFontAssetManual(System, &DebugFontInfo);
 	AddFontAssetManual(System, &GoldenFontInfo);
 	AddFontAssetManual(System, &ChurchFontInfo);

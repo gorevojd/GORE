@@ -23,8 +23,9 @@ struct geometrika_state {
 	voxel_chunk_info TestChunk;
 #endif
 
-	lpter_terrain Terrain[25];
-	lpter_mesh Mesh[25];
+#define LPTER_CHUNKS_SIDE_COUNT 5
+	lpter_terrain Terrain[LPTER_CHUNKS_SIDE_COUNT * LPTER_CHUNKS_SIDE_COUNT];
+	lpter_water Water[LPTER_CHUNKS_SIDE_COUNT * LPTER_CHUNKS_SIDE_COUNT];
 
 	surface_material CubeMat;
 	surface_material PlaneMat;

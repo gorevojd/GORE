@@ -1084,7 +1084,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	//NOTE(dima): Initialization of the memory
-	u32 GameModeMemorySize = MEGABYTES(128);
+	u32 GameModeMemorySize = MEGABYTES(256);
 	u32 GeneralPurposeMemorySize = MEGABYTES(256);
 	u32 DEBUGMemorySize = MEGABYTES(128);
 
@@ -1380,7 +1380,7 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_TIMING("Other...");
-		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets);
+		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets, &GlobalInput);
 		render_state* Stack = &Stack_;
 
 		//RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));

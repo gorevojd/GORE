@@ -9,7 +9,24 @@
 #include "gore_game_settings.h"
 
 struct gl_program {
+public:
 	GLuint Handle;
+
+	int GetAttrib(char* AttribName) {
+		int Result = glGetAttribLocation(this->Handle, AttribName);
+
+		return(Result);
+	}
+
+	int GetUniform(char* UniformName) {
+		int Result = glGetUniformLocation(this->Handle, UniformName);
+
+		return(Result);
+	}
+
+	void Use() {
+		glUseProgram(this->Handle);
+	}
 };
 
 struct gl_wtf_shader {
@@ -79,6 +96,25 @@ struct gl_lpter_shader {
 	gl_program Program;
 };
 
+struct gl_lpter_water_shader {
+	GLint PositionIndex;
+	GLint OffsetsToOthersIndex;
+
+	GLint ModelMatrixLocation;
+	GLint ViewMatrixLocation;
+	GLint ProjectionMatrixLocation;
+
+	GLint WaterLevelLocation;
+	GLint GlobalTimeLocation;
+	GLint PerVertexOfffsetLocation;
+	GLint CameraPLocation;
+
+	GLint DirDirectionLocation;
+	GLint DirDiffuseLocation;
+
+	gl_program Program;
+};
+
 struct gl_fxaa_shader {
 	GLint PosIndex;
 	GLint TexCoordIndex;
@@ -98,10 +134,18 @@ struct gl_screen_shader {
 	gl_program Program;
 };
 
+enum opengl_framebuffer_depthstencil_attachment_type {
+	OpenGL_DS_Renderbuffer,
+	OpenGL_DS_Texture,
+};
+
 struct opengl_framebuffer {
 	GLuint FBO;
 	GLuint Texture;
+
+	u32 DepthStencilAttachmentType;
 	GLuint DepthStencilRBO;
+	GLuint DepthStencilTexture;
 };
 
 struct gl_state {
@@ -110,6 +154,7 @@ struct gl_state {
 	gl_screen_shader ScreenShader;
 	gl_fxaa_shader FXAAShader;
 	gl_lpter_shader LpterShader;
+	gl_lpter_water_shader LpterWaterShader;
 
 	GLuint ScreenQuadVAO;
 	GLuint ScreenQuadVBO;

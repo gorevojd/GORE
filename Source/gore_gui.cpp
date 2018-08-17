@@ -249,7 +249,8 @@ void GUIBeginFrame(gui_state* GUIState) {
 		&GUIState->RenderMemorySplit,
 		GUIState->ScreenWidth,
 		GUIState->ScreenHeight,
-		GUIState->AssetSystem);
+		GUIState->AssetSystem,
+		GUIState->Input);
 	GUIState->RenderStack = &GUIState->RenderStackInternal;
 
 	GUIState->TooltipCount = 0;

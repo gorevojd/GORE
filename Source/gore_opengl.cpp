@@ -125,6 +125,14 @@ gl_program OpenGLLoadShader(char* VertexPath, char* FragmentPath) {
 	return(Result);
 }
 
+static void OpenGLCleanupShader(gl_program* Program) {
+	glDeleteProgram(Program->Handle);
+}
+
+
+#define GLGET_ATTRIB(name) glGetAttribLocation(Result.Program.Handle, name)
+#define GLGET_UNIFORM(name) glGetUniformLocation(Result.Program.Handle, name)
+
 gl_fxaa_shader OpenGLLoadFXAAShader() {
 	gl_fxaa_shader Result = {};
 
@@ -133,11 +141,11 @@ gl_fxaa_shader OpenGLLoadFXAAShader() {
 
 	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
 
-	Result.PosIndex = glGetAttribLocation(Result.Program.Handle, "inPos");
-	Result.TexCoordIndex = glGetAttribLocation(Result.Program.Handle, "inTexCoords");
+	Result.PosIndex = GLGET_ATTRIB("inPos");
+	Result.TexCoordIndex = GLGET_ATTRIB("inTexCoords");
 
-	Result.TextureLocation = glGetUniformLocation(Result.Program.Handle, "FramebufferTexture");
-	Result.TextureSizeLocation = glGetUniformLocation(Result.Program.Handle, "FramebufferSize");
+	Result.TextureLocation = GLGET_UNIFORM("FramebufferTexture");
+	Result.TextureSizeLocation = GLGET_UNIFORM("FramebufferSize");
 
 	return(Result);
 }
@@ -150,10 +158,10 @@ gl_screen_shader OpenGLLoadScreenShader() {
 
 	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
 
-	Result.PosIndex = glGetAttribLocation(Result.Program.Handle, "aPos");
-	Result.TexIndex = glGetAttribLocation(Result.Program.Handle, "aTexCoords");
+	Result.PosIndex = GLGET_ATTRIB("aPos");
+	Result.TexIndex = GLGET_ATTRIB("aTexCoords");
 
-	Result.ScreenTextureLocation = glGetUniformLocation(Result.Program.Handle, "screenTexture");
+	Result.ScreenTextureLocation = GLGET_UNIFORM("screenTexture");
 
 	return(Result);
 }
@@ -166,27 +174,27 @@ gl_wtf_shader OpenGLLoadWtfShader() {
 
 	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
 
-	Result.PositionIndex = glGetAttribLocation(Result.Program.Handle, "Position");
-	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "Normal");
-	Result.UVIndex = glGetAttribLocation(Result.Program.Handle, "UV");
-	Result.ColorIndex = glGetAttribLocation(Result.Program.Handle, "Color");
-	Result.TangentIndex = glGetAttribLocation(Result.Program.Handle, "Tangent");
+	Result.PositionIndex = GLGET_ATTRIB("Position");
+	Result.NormalIndex = GLGET_ATTRIB("Normal");
+	Result.UVIndex = GLGET_ATTRIB("UV");
+	Result.ColorIndex = GLGET_ATTRIB("Color");
+	Result.TangentIndex = GLGET_ATTRIB("Tangent");
 
-	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
-	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
-	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
-	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
+	Result.ModelMatrixLocation = GLGET_UNIFORM("Model");
+	Result.ViewMatrixLocation = GLGET_UNIFORM("View");
+	Result.ProjectionMatrixLocation = GLGET_UNIFORM("Projection");
+	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
 
-	Result.SurfMatShineLocation = glGetUniformLocation(Result.Program.Handle, "Material.Shine");
-	Result.SurfMatColorLocation = glGetUniformLocation(Result.Program.Handle, "Material.Color");
+	Result.SurfMatShineLocation = GLGET_UNIFORM("Material.Shine");
+	Result.SurfMatColorLocation = GLGET_UNIFORM("Material.Color");
 
-	Result.SurfMatDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.Diffuse");
-	Result.SurfMatSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.Specular");
-	Result.SurfMatEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.Emissive");
+	Result.SurfMatDiffLocation = GLGET_UNIFORM("Material.Diffuse");
+	Result.SurfMatSpecLocation = GLGET_UNIFORM("Material.Specular");
+	Result.SurfMatEmisLocation = GLGET_UNIFORM("Material.Emissive");
 
-	Result.SurfMatHasDiffLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasDiffuse");
-	Result.SurfMatHasSpecLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasSpecular");
-	Result.SurfMatHasEmisLocation = glGetUniformLocation(Result.Program.Handle, "Material.HasEmissive");
+	Result.SurfMatHasDiffLocation = GLGET_UNIFORM("Material.HasDiffuse");
+	Result.SurfMatHasSpecLocation = GLGET_UNIFORM("Material.HasSpecular");
+	Result.SurfMatHasEmisLocation = GLGET_UNIFORM("Material.HasEmissive");
 
 	return(Result);
 }
@@ -199,25 +207,67 @@ gl_lpter_shader OpenGLLoadLpterShader() {
 
 	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
 
-	Result.PositionIndex = glGetAttribLocation(Result.Program.Handle, "inPos");
-	Result.NormalIndex = glGetAttribLocation(Result.Program.Handle, "inNorm");
-	Result.ColorIndex = glGetAttribLocation(Result.Program.Handle, "inColor");
+	Result.PositionIndex = GLGET_ATTRIB("inPos");
+	Result.NormalIndex = GLGET_ATTRIB("inNorm");
+	Result.ColorIndex = GLGET_ATTRIB("inColor");
 
-	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
-	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
-	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
-	Result.NormalsBufferLocation = glGetUniformLocation(Result.Program.Handle, "NormalsBuffer");
-	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
-	Result.FogColorLocation = glGetUniformLocation(Result.Program.Handle, "FogColor");
+	Result.ModelMatrixLocation = GLGET_UNIFORM("Model");
+	Result.ViewMatrixLocation = GLGET_UNIFORM("View");
+	Result.ProjectionMatrixLocation = GLGET_UNIFORM("Projection");
+	Result.NormalsBufferLocation = GLGET_UNIFORM("NormalsBuffer");
+	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
+	Result.FogColorLocation = GLGET_UNIFORM("FogColor");
 
-	Result.DirDirectionLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Direction");
-	Result.DirDiffuseLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Diffuse");
-	Result.DirAmbientLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Ambient");
+	Result.DirDirectionLocation = GLGET_UNIFORM("DirLight.Direction");
+	Result.DirDiffuseLocation = GLGET_UNIFORM("DirLight.Diffuse");
+	Result.DirAmbientLocation = GLGET_UNIFORM("DirLight.Ambient");
 
 	glUseProgram(Result.Program.Handle);
 	glUniform3f(Result.DirDirectionLocation, 0.5f, -0.5f, 0.5f);
 	glUniform3f(Result.DirAmbientLocation, 0.05f, 0.05f, 0.05f);
 	glUniform3f(Result.DirDiffuseLocation, 1.0f, 1.0f, 1.0f);
+	glUseProgram(0);
+
+	return(Result);
+}
+
+gl_lpter_water_shader OpenGLLoadLpterWaterShader() {
+	gl_lpter_water_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/LpterWater.vert";
+	char* FragmentPath = "../Data/Shaders/LpterWater.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PositionIndex = GLGET_ATTRIB("inPosition");
+	Result.OffsetsToOthersIndex = GLGET_ATTRIB("inOffsetsToOtherPoints");
+
+	Result.GlobalTimeLocation = GLGET_UNIFORM("GlobalTime");
+	Result.WaterLevelLocation = GLGET_UNIFORM("WaterLevel");
+	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
+
+	Result.ProjectionMatrixLocation = GLGET_UNIFORM("Projection");
+	Result.ViewMatrixLocation = GLGET_UNIFORM("View");
+	Result.ModelMatrixLocation = GLGET_UNIFORM("Model");
+	Result.PerVertexOfffsetLocation = GLGET_UNIFORM("PerVertexOffset");
+
+	Result.DirDiffuseLocation = GLGET_UNIFORM("DirLight.Diffuse");
+	Result.DirDirectionLocation = GLGET_UNIFORM("DirLight.Direction");
+
+	v3 VoxDirDir = V3(0.5f, -0.5f, 0.5f);
+	v3 VoxDirDif = V3(1.0f, 1.0f, 1.0f);
+
+	Result.Program.Use();
+	glUniform3f(
+		Result.DirDirectionLocation,
+		VoxDirDir.x,
+		VoxDirDir.y,
+		VoxDirDir.z);
+	glUniform3f(
+		Result.DirDiffuseLocation,
+		VoxDirDif.x,
+		VoxDirDif.y,
+		VoxDirDif.z);
 	glUseProgram(0);
 
 	return(Result);
@@ -231,19 +281,47 @@ gl_voxel_shader OpenGLLoadVoxelShader() {
 
 	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
 
-	Result.VertexDataIndex = glGetAttribLocation(Result.Program.Handle, "VertexData");
+	Result.VertexDataIndex = GLGET_ATTRIB("VertexData");
 
-	Result.ModelMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Model");
-	Result.ViewMatrixLocation = glGetUniformLocation(Result.Program.Handle, "View");
-	Result.ProjectionMatrixLocation = glGetUniformLocation(Result.Program.Handle, "Projection");
-	Result.CameraPLocation = glGetUniformLocation(Result.Program.Handle, "CameraP");
-	Result.FogColorLocation = glGetUniformLocation(Result.Program.Handle, "FogColor");
+	Result.ModelMatrixLocation = GLGET_UNIFORM("Model");
+	Result.ViewMatrixLocation = GLGET_UNIFORM("View");
+	Result.ProjectionMatrixLocation = GLGET_UNIFORM("Projection");
+	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
+	Result.FogColorLocation = GLGET_UNIFORM("FogColor");
 
-	Result.DiffuseMapLocation = glGetUniformLocation(Result.Program.Handle, "DiffuseMap");
+	Result.DiffuseMapLocation = GLGET_UNIFORM("DiffuseMap");
 
-	Result.DirDirectionLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Direction");
-	Result.DirDiffuseLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Diffuse");
-	Result.DirAmbientLocation = glGetUniformLocation(Result.Program.Handle, "DirLight.Ambient");
+	Result.DirDirectionLocation = GLGET_UNIFORM("DirLight.Direction");
+	Result.DirDiffuseLocation = GLGET_UNIFORM("DirLight.Diffuse");
+	Result.DirAmbientLocation = GLGET_UNIFORM("DirLight.Ambient");
+
+	v3 VoxDirDir = V3(0.5f, -0.5f, 0.5f);
+	v3 VoxDirAmb = V3(0.1f, 0.1f, 0.1f);
+	v3 VoxDirDif = V3(1.0f, 1.0f, 1.0f);
+	v3 FogColor = V3(0.5f, 0.5f, 0.5f);
+
+	Result.Program.Use();
+	glUniform3f(
+		Result.FogColorLocation,
+		FogColor.r,
+		FogColor.g,
+		FogColor.b);
+	glUniform3f(
+		Result.DirDirectionLocation,
+		VoxDirDir.x,
+		VoxDirDir.y,
+		VoxDirDir.z);
+	glUniform3f(
+		Result.DirDiffuseLocation,
+		VoxDirDif.x,
+		VoxDirDif.y,
+		VoxDirDif.z);
+	glUniform3f(
+		Result.DirAmbientLocation,
+		VoxDirAmb.x,
+		VoxDirAmb.y,
+		VoxDirAmb.z);
+	glUseProgram(0);
 
 	return(Result);
 }
@@ -400,6 +478,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 		int ClearingValues[4] = { 0, 0, 0, 0 };
 		glClearBufferiv(GL_COLOR, 0, ClearingValues);
 		glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
+
 	}
 	else {
 		LastWriteFBO = GLState->FramebufferInitial.FBO;
@@ -407,6 +486,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 	
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
 		//glEnable(GL_CULL_FACE);
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	
@@ -437,9 +517,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 		RenderState->CameraSetup.Camera.Position.y,
 		RenderState->CameraSetup.Camera.Position.z);
 	glUseProgram(0);
-
-	GLenum Err = glGetError();
-
+	      
 	glUseProgram(GLState->LpterShader.Program.Handle);
 	glUniformMatrix4fv(GLState->LpterShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
 	glUniformMatrix4fv(GLState->LpterShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
@@ -450,6 +528,18 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 		RenderState->CameraSetup.Camera.Position.z);
 	glUseProgram(0);
 
+	glUseProgram(GLState->LpterWaterShader.Program.Handle);
+	glUniformMatrix4fv(GLState->LpterWaterShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
+	glUniformMatrix4fv(GLState->LpterWaterShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniform3f(
+		GLState->LpterWaterShader.CameraPLocation,
+		RenderState->CameraSetup.Camera.Position.x,
+		RenderState->CameraSetup.Camera.Position.y,
+		RenderState->CameraSetup.Camera.Position.z);
+	glUniform1f(
+		GLState->LpterWaterShader.GlobalTimeLocation,
+		RenderState->InputSystem->Time);
+	glUseProgram(0);
 
 	font_info* CurrentFontInfo = 0;
 
@@ -615,16 +705,12 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 
 				glUseProgram(GLState->WtfShader.Program.Handle);
 
-				glEnable(GL_DEPTH_TEST);
-
 				OpenGLUniformSurfaceMaterial(GLState, RenderState, &GLState->WtfShader, &EntryMesh->Material);
 
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
 				glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
 				glBindVertexArray(0);
-
-				glDisable(GL_DEPTH_TEST);
 
 				glUseProgram(0);
 			}break;
@@ -682,8 +768,6 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 
 					glUseProgram((u32)Shader->Program.Handle);
 
-					glEnable(GL_DEPTH_TEST);
-
 					_glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, TextureToBind);
 					glUniform1i(Shader->DiffuseMapLocation, 0);
@@ -695,10 +779,66 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 					glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
 					glBindVertexArray(0);
 
-					glDisable(GL_DEPTH_TEST);
-
 					glUseProgram(0);
 				}
+			}break;
+
+			case RenderEntry_LpterWaterMesh: {
+				render_stack_entry_lpter_water_mesh* Entry = (render_stack_entry_lpter_water_mesh*)At;
+
+				lpter_water* Water = Entry->WaterMesh;
+				gl_lpter_water_shader* WaterShader = &GLState->LpterWaterShader;
+
+				mat4 ModelTransform = Translate(Identity(), Entry->P);
+
+				if (!Water->MeshHandle1) {
+					GLuint MeshVAO;
+					GLuint MeshVBO;
+
+					glGenVertexArrays(1, &MeshVAO);
+					glGenBuffers(1, &MeshVBO);
+
+					glBindVertexArray(MeshVAO);
+					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+					glBufferData(GL_ARRAY_BUFFER, sizeof(Water->Vertices), Water->Vertices, GL_DYNAMIC_DRAW);
+					
+					if (OpenGLArrayIsValid(WaterShader->PositionIndex)) {
+						glEnableVertexAttribArray(WaterShader->PositionIndex);
+						glVertexAttribPointer(
+							WaterShader->PositionIndex, 
+							2, GL_FLOAT, 
+							0, 
+							sizeof(lpter_water_vertex), 
+							(void*)offsetof(lpter_water_vertex, VertexXZ));
+					}
+
+					if (OpenGLArrayIsValid(WaterShader->OffsetsToOthersIndex)) {
+						glEnableVertexAttribArray(WaterShader->OffsetsToOthersIndex);
+						glVertexAttribIPointer(
+							WaterShader->OffsetsToOthersIndex,
+							4, GL_BYTE, 
+							sizeof(lpter_water_vertex),
+							(void*)offsetof(lpter_water_vertex, OffsetsToOtherVerts));
+					}
+
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray(0);
+
+					Water->MeshHandle1 = (void*)MeshVAO;
+					Water->MeshHandle2 = (void*)MeshVBO;
+				}
+
+				WaterShader->Program.Use();
+
+				glUniformMatrix4fv(WaterShader->ModelMatrixLocation,
+					1, GL_TRUE, ModelTransform.E);
+
+				glUniform1f(WaterShader->WaterLevelLocation, Water->WaterLevel);
+				glUniform1f(WaterShader->PerVertexOfffsetLocation, Water->PerVertexOffset);
+
+				glBindVertexArray((u32)Water->MeshHandle1);
+				glDrawArrays(GL_TRIANGLES, 0, Water->VerticesCount);
+				glBindVertexArray(0);
 			}break;
 
 			case RenderEntry_LpterMesh: {
@@ -753,9 +893,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 					Mesh->NormTexHandle = (void*)NormalsBufTexture;
 				}
 
-				glUseProgram((u32)Shader->Program.Handle);
-
-				glEnable(GL_DEPTH_TEST);
+				Shader->Program.Use();
 
 				glUniformMatrix4fv(
 					Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
@@ -765,55 +903,10 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 				glUniform1i(Shader->NormalsBufferLocation, 0);
 
 				glBindVertexArray((u32)Mesh->MeshHandle0);
+				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				glDrawArrays(GL_TRIANGLES, 0, Mesh->VertsCount);
 				glBindVertexArray(0);
-
-				glDisable(GL_DEPTH_TEST);
-
-				glUseProgram(0);
 #endif
-			}break;
-
-			case RenderEntry_Lighting: {
-				gl_wtf_shader* WtfShader = &GLState->WtfShader;
-
-				glUseProgram(WtfShader->Program.Handle);
-
-				glUseProgram(0);
-			}break;
-
-			case RenderEntry_VoxelLighting: {
-				render_stack_entry_voxel_lighting* Entry = (render_stack_entry_voxel_lighting*)At;
-
-				gl_voxel_shader* VoxelShader = &GLState->VoxelShader;
-
-				v3 VoxDirDir = V3(0.5f, -0.5f, 0.5f);
-				v3 VoxDirAmb = V3(0.1f, 0.1f, 0.1f);
-				v3 VoxDirDif = V3(1.0f, 1.0f, 1.0f);
-
-				glUseProgram(VoxelShader->Program.Handle);
-				glUniform3f(
-					VoxelShader->FogColorLocation,
-					Entry->FogColor.r,
-					Entry->FogColor.g,
-					Entry->FogColor.b);
-				glUniform3f(
-					VoxelShader->DirDirectionLocation, 
-					VoxDirDir.x, 
-					VoxDirDir.y, 
-					VoxDirDir.z);
-				glUniform3f(
-					VoxelShader->DirDiffuseLocation,  
-					VoxDirDif.x, 
-					VoxDirDif.y, 
-					VoxDirDif.z);
-				glUniform3f(
-					VoxelShader->DirAmbientLocation,
-					VoxDirAmb.x, 
-					VoxDirAmb.y, 
-					VoxDirAmb.z);
-				glUseProgram(0);
-
 			}break;
 
 			case RenderEntry_Test: {
@@ -935,112 +1028,132 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 	//glDeleteRenderbuffers(1, &DepthStencilRBO);
 }
 
+
+static void OpenGLInitFramebuffer(
+	opengl_framebuffer* Framebuffer,
+	int RenderWidth,
+	int RenderHeight, 
+	b32 AllocateDepthStencilAttachment,
+	b32 EnableMultisampling = 0,
+	b32 NumberOfSamples = 0, 
+	u32 DepthStencilAttachmentType = 0)
+{
+	Framebuffer->DepthStencilAttachmentType = DepthStencilAttachmentType;
+
+	//NOTE(dima): Initializing internal framebuffer
+	glGenFramebuffers(1, &Framebuffer->FBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
+
+	glGenTextures(1, &Framebuffer->Texture);
+	if (EnableMultisampling) {
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer->Texture);
+		glTexImage2DMultisample(
+			GL_TEXTURE_2D_MULTISAMPLE,
+			NumberOfSamples,
+			GL_RGBA8,
+			RenderWidth,
+			RenderHeight,
+			GL_TRUE);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+		glFramebufferTexture2D(
+			GL_FRAMEBUFFER,
+			GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_2D_MULTISAMPLE,
+			Framebuffer->Texture,
+			0);
+	}
+	else {
+		glBindTexture(GL_TEXTURE_2D, Framebuffer->Texture);
+		glTexImage2D(
+			GL_TEXTURE_2D, 0,
+			GL_RGBA,
+			RenderWidth,
+			RenderHeight,
+			0,
+			GL_ABGR_EXT,
+			GL_UNSIGNED_BYTE,
+			0);
+		
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glFramebufferTexture2D(
+			GL_FRAMEBUFFER,
+			GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_2D,
+			Framebuffer->Texture,
+			0);
+	}
+
+	if (AllocateDepthStencilAttachment) {
+		switch (DepthStencilAttachmentType) {
+			case OpenGL_DS_Renderbuffer: {
+				glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
+				glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
+				glRenderbufferStorage(
+					GL_RENDERBUFFER,
+					GL_DEPTH24_STENCIL8,
+					RenderWidth,
+					RenderHeight);
+				glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+				glFramebufferRenderbuffer(
+					GL_FRAMEBUFFER,
+					GL_DEPTH_STENCIL_ATTACHMENT,
+					GL_RENDERBUFFER,
+					Framebuffer->DepthStencilRBO);
+			}break;
+
+			case OpenGL_DS_Texture: {
+				glGenTextures(1, &Framebuffer->DepthStencilTexture);
+				glBindTexture(1, Framebuffer->DepthStencilTexture);
+
+				glTexImage2D(
+					GL_TEXTURE_2D,
+					0,
+					GL_DEPTH24_STENCIL8,
+					RenderWidth,
+					RenderHeight,
+					0,
+					GL_DEPTH_STENCIL,
+					GL_UNSIGNED_INT_24_8,
+					0);
+
+				glFramebufferTexture2D(
+					GL_FRAMEBUFFER,
+					GL_DEPTH_STENCIL_ATTACHMENT,
+					GL_TEXTURE_2D,
+					Framebuffer->DepthStencilTexture,
+					0);
+			}break;
+		}
+
+	}
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(!"Framebuffer should be complete");
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 static void OpenGLInitMultisampleFramebuffer(
 	opengl_framebuffer* Framebuffer,
 	int RenderWidth,
 	int RenderHeight,
 	int NumberOfSamples)
 {
-	//NOTE(dima): Initializing of multisample framebuffer
-	glGenFramebuffers(1, &Framebuffer->FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
-
-	glGenTextures(1, &Framebuffer->Texture);
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer->Texture);
-	glTexImage2DMultisample(
-		GL_TEXTURE_2D_MULTISAMPLE,
-		NumberOfSamples,
-		GL_RGBA8,
+	OpenGLInitFramebuffer(
+		Framebuffer,
 		RenderWidth,
 		RenderHeight,
-		GL_TRUE);
-	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-
-	glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D_MULTISAMPLE,
-		Framebuffer->Texture,
-		0);
-
-	glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
-	glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
-	glRenderbufferStorageMultisample(
-		GL_RENDERBUFFER,
-		NumberOfSamples,
-		GL_DEPTH24_STENCIL8,
-		RenderWidth,
-		RenderHeight);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-	glFramebufferRenderbuffer(
-		GL_FRAMEBUFFER,
-		GL_DEPTH_STENCIL_ATTACHMENT,
-		GL_RENDERBUFFER,
-		Framebuffer->DepthStencilRBO);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(!"Framebuffer should be complete");
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-static void OpenGLInitFramebuffer(
-	opengl_framebuffer* Framebuffer,
-	int RenderWidth,
-	int RenderHeight, 
-	b32 AllocateDepthStencilAttachment)
-{
-	//NOTE(dima): Initializing internal framebuffer
-	glGenFramebuffers(1, &Framebuffer->FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer->FBO);
-
-	glGenTextures(1, &Framebuffer->Texture);
-	glBindTexture(GL_TEXTURE_2D, Framebuffer->Texture);
-	glTexImage2D(
-		GL_TEXTURE_2D, 0,
-		GL_RGBA,
-		RenderWidth,
-		RenderHeight,
-		0,
-		GL_ABGR_EXT,
-		GL_UNSIGNED_BYTE,
-		0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D,
-		Framebuffer->Texture,
-		0);
-
-	if (AllocateDepthStencilAttachment) {
-		glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
-		glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
-		glRenderbufferStorage(
-			GL_RENDERBUFFER,
-			GL_DEPTH24_STENCIL8,
-			RenderWidth,
-			RenderHeight);
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-		glFramebufferRenderbuffer(
-			GL_FRAMEBUFFER,
-			GL_DEPTH_STENCIL_ATTACHMENT,
-			GL_RENDERBUFFER,
-			Framebuffer->DepthStencilRBO);
-	}
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(!"Framebuffer should be complete");
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		true,
+		true,
+		NumberOfSamples);
 }
 
 static b32 OpenGLExtensionIsSupported(
@@ -1078,6 +1191,7 @@ void OpenGLInitState(
 	State->ScreenShader = OpenGLLoadScreenShader();
 	State->FXAAShader = OpenGLLoadFXAAShader();
 	State->LpterShader = OpenGLLoadLpterShader();
+	State->LpterWaterShader = OpenGLLoadLpterWaterShader();
 
 	//NOTE(dima): Checking for OpenGL extensions support
 	//TODO(dima): Load parameters from game_settings
@@ -1159,6 +1273,33 @@ void OpenGLInitState(
 	OpenGLInitFramebuffer(&State->FramebufferPFX, RenderWidth, RenderHeight, GL_FALSE);
 
 	OpenGLInitFramebuffer(&State->FramebufferGUI, RenderWidth, RenderHeight, GL_TRUE);
+}
+
+static void OpenGLFramebufferCleanup(opengl_framebuffer* Framebuffer) {
+	glDeleteTextures(1, &Framebuffer->Texture);
+	switch (Framebuffer->DepthStencilAttachmentType) {
+		case OpenGL_DS_Renderbuffer: {
+			glDeleteRenderbuffers(1, &Framebuffer->DepthStencilRBO);
+		}break;
+
+		case OpenGL_DS_Texture: {
+			glDeleteTextures(1, &Framebuffer->DepthStencilTexture);
+		}break;
+	}
+	glDeleteFramebuffers(1, &Framebuffer->FBO);
+}
+
+void OpenGLCleanup(gl_state* GLState) {
+	OpenGLFramebufferCleanup(&GLState->FramebufferGUI);
+	OpenGLFramebufferCleanup(&GLState->FramebufferInitial);
+	OpenGLFramebufferCleanup(&GLState->FramebufferPFX);
+	OpenGLFramebufferCleanup(&GLState->FramebufferResolved);
+
+	OpenGLCleanupShader(&GLState->WtfShader.Program);
+	OpenGLCleanupShader(&GLState->VoxelShader.Program);
+	OpenGLCleanupShader(&GLState->FXAAShader.Program);
+	OpenGLCleanupShader(&GLState->ScreenShader.Program);
+	OpenGLCleanupShader(&GLState->LpterShader.Program);
 }
 
 void OpenGLProcessAllocationQueue() {
