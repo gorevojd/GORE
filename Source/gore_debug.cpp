@@ -2336,7 +2336,6 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 			ToPrintStatistics1
 		};
 
-		v4 TextColor = GUIGetColor(GUI, Color_White);
 
 		float FontScale = GUI->FontScale * 0.8f;
 
@@ -2364,6 +2363,7 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 				ToPrintStatIndex++)
 			{
 				char* ToPrint = CurrentArrayOfStrings[ToPrintStatIndex];
+				v4 TextColor = GUIGetColor(GUI, Color_White);
 
 				v2 TxtDim = GUIGetTextSize(GUI, ToPrint, FontScale);
 				v2 TxtMin = V2(PrintAt.x, PrintAt.y - GUI->FontInfo->AscenderHeight * FontScale);
@@ -2371,7 +2371,8 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 				rect2 TxtRc = Rect2MinDim(TxtMin, TxtDim);
 
 				if (MouseInRect(GUI->Input, TxtRc)) {
-					RENDERPushRect(GUI->RenderStack, TxtRc, GUIGetColor(GUI, ColorExt_red4));
+					TextColor = V4(0.5f, 0.5f, 1.0f, 1.0f);
+					RENDERPushRect(GUI->RenderStack, TxtRc, V4(0.0f, 0.0f, 0.0f, 0.8f));
 					RENDERPushRectOutline(GUI->RenderStack, TxtRc, 2, GUIGetColor(GUI, Color_Red));
 				}
 

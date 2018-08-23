@@ -128,6 +128,7 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 		RENDERPushLpterMesh(RenderStack, &State->Terrain[i].Mesh, TerrainOffset);
 		RENDERPushLpterWaterMesh(RenderStack, &State->Water[i], TerrainOffset);
 	}
+
 #if 0
 	v4 FrustumPlanes[6];
 

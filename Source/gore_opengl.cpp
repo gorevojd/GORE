@@ -129,7 +129,6 @@ static void OpenGLCleanupShader(gl_program* Program) {
 	glDeleteProgram(Program->Handle);
 }
 
-
 #define GLGET_ATTRIB(name) glGetAttribLocation(Result.Program.Handle, name)
 #define GLGET_UNIFORM(name) glGetUniformLocation(Result.Program.Handle, name)
 

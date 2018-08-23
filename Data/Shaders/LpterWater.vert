@@ -22,7 +22,7 @@ float Pi = 3.14159265359;
 vec3 NoiseFunc(vec3 VertOffset){
 	vec3 Result = vec3(0.0);
 
-#if 0
+#if 1
 
 	Result.x = (sin(VertOffset.x * Pi * 0.4 + GlobalTime) + cos(VertOffset.z * 0.4 + GlobalTime)) * 0.3;
 	Result.y = (sin(VertOffset.x * Pi * 0.4 + GlobalTime) + cos(VertOffset.z * 0.5 + GlobalTime * 0.7)) * WaterWavesAmplitude;

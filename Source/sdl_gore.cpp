@@ -4,6 +4,8 @@
 #include "stb_sprintf.h"
 
 #include "geometrika.h"
+
+#include "gore_game_settings.h"
 /*
 	NOTE(Dima):
 		Images are stored in premultiplied alpha format
@@ -1316,22 +1318,6 @@ int main(int ArgsCount, char** Args) {
 	}
 #endif
 
-	//bitmap_info Image = LoadIMG("../Data/Images/image.bmp");
-	//bitmap_info AlphaImage = LoadIMG("../Data/Images/alpha.png");
-	//bitmap_info PotImage = LoadIMG("../Data/Images/pot.png");
-
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_copy.png", 15, 8, 8, AssetLoadFontFromImage_InitLowercaseWithUppercase);
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay_8x16.png", 20, 8, 16);
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/bubblemad_8x8.png", 15, 8, 8);
-	//font_info FontInfo = LoadFontInfoFromImage("../Data/Fonts/geebeeyay-8x8.png", 15, 8, 8);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/Boxy-Bold.ttf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/typoster.outline.otf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Regular.ttf", 20);
-	//font_info FontInfo = LoadFontInfoWithSTB("../Data/Fonts/arial.ttf", 18);
-
 	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
 	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(2));
 	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
@@ -1386,41 +1372,15 @@ int main(int ArgsCount, char** Args) {
 		//RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
 		RENDERPushTest(Stack);
 
-#if 0
-
-		float GradR = sin(GlobalTime + 0.5f) * 0.5f + 0.5f;
-		float GradG = cos(GlobalTime + 0.5f) * 0.4f + 0.5f;
-		float GradB = sin(GlobalTime * 2.0f + 0.5f) * 0.5f + 0.5f;
-
-		float AlphaImageX1 = sin(GlobalTime * 2 * 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
-		float AlphaImageX2 = cos(GlobalTime * 6) * 900 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5;
-		float AlphaImageX3 = sin(GlobalTime * 3 + 0.5f) * 400 + GlobalBuffer.Width * 0.5f - AlphaImage.Width * 0.5f;
-
-		//RENDERPushGradient(Stack, V3(GradR, GradG, GradB));
-		RENDERPushClear(Stack, V3(0.1f, 0.1f, 0.1f));
-		//RENDERPushClear(Stack, V3(0.5, 0.5f, 0.5f));
-		//RENDERPushBitmap(Stack, &Image, { 0, 0 }, 800);
-		//DrawCelluralBuffer(Stack, &Cellural);
-		//RENDERPushRect(Stack, Rect2MinDim(V2(0, 0), V2(300, 100)), V4(1.0f, 0.4f, 0.0f, 1.0f));
-		//if (TempBoolForSlider) {
-		//	RENDERPushBitmap(Stack, &CelluralBitmap, V2(0, 0), CelluralBitmap.Height);
-		//}
-
-		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX1, 400), 300.0f);
-		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX2, 600), 300.0f);
-		RENDERPushBitmap(Stack, &PotImage, V2(AlphaImageX3, 200), 300.0f);
-		//
-		//RENDERPushRect(Stack, V2(AlphaImageX1, 400), V2(100, 100), V4(1.0f, 1.0f, 1.0f, 0.5f));
-#endif
-
 		GEOMKAUpdateAndRender(&PlatformApi.GameModeMemoryBlock, &GlobalAssets, Stack, &GlobalInput);
 
 #if VOXEL_WORLD_ENABLED
+		geometrika_state* GameState = (geometrika_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
 		VoxelChunksGenerationUpdate(
 			&VoxelMemoryStack, 
 			Stack, 
 			PLATFORM_VOXEL_QUEUE_THREADS_COUNT, 
-			GameState.Camera.Position,
+			GameState->Camera.Position,
 			&GlobalInput);
 #endif
 

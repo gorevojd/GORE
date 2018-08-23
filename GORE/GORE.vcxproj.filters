@@ -170,5 +170,8 @@
     <ClInclude Include="..\Source\gore_lpterrain.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\dima_json_writer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

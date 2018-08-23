@@ -189,6 +189,21 @@ inline void CopyStrings(char* Dst, char* Src) {
 	*Dst = 0;
 }
 
+inline void ConcatStringsUnsafe(char* Dst, char* Src1, char* Src2) {
+	int Index = 0;
+
+	char* To = Dst;
+	char* At = Src1;
+	while (*At != 0) {
+		*To++ = *At++;
+	}
+
+	At = Src2;
+	while (*At) {
+		*To++ = *At++;
+	}
+}
+
 inline int StringLength(char* Text) {
 	int Res = 0;
 

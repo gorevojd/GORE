@@ -2,6 +2,9 @@
 #define GORE_GAME_SETTINGS_H_DEFINED
 
 #include "gore_types.h"
+#include "gore_platform.h"
+
+#define GAME_SETTINGS_FILE_NAME "settings.json"
 
 enum texture_anisotropic_filter_level {
 	AnisoLevel_1x,
@@ -20,7 +23,6 @@ enum antialiasing_type {
 	AA_MSAA_16x,
 	AA_FXAA,
 };
-
 
 inline float GetAnisoLevelBasedOnParams(u32 TextureAnisotropicFilterLevelType, float MaxAnisoLevel) {
 	float Result = 1.0f;
@@ -95,9 +97,40 @@ inline int GetMSAALevel(u32 AntialiasingType) {
 	return(Result);
 }
 
-struct game_settings{
-	texture_anisotropic_filter_level AnisotropicFilterLevel;
+enum game_setting_type {
+	GameSetting_Int,
+	GameSetting_String,
+	GameSetting_Bool,
+	GameSetting_Float,
+};
+
+struct game_setting {
+	char Name[32];
+
+	u32 Type;
+
+	union {
+		b32 BoolValue;
+		int IntegerValue;
+		char StringValue[32];
+		float FloatValue;
+	};
+};
+
+struct game_settings_values {
+	texture_anisotropic_filter_level AnisotropicFilterLevelType;
 	antialiasing_type AntialiasingType;
+	b32 VSyncEnabled;
+};
+
+struct game_settings{
+
+	game_setting* AnisotropicLevelSetting;
+	game_setting* AntialiasingTypeSetting;
+	game_setting* VSyncEnabledSetting;
+
+	int LastSettingIndex;
+	game_setting Settings[256];
 };
 
 #endif

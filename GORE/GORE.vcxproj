@@ -182,6 +182,7 @@
     <ClCompile Include="..\Source\sdl_gore.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Source\dima_json_writer.h" />
     <ClInclude Include="..\Source\geometrika.h" />
     <ClInclude Include="..\Source\gore_asset.h" />
     <ClInclude Include="..\Source\gore_asset_common.h" />
