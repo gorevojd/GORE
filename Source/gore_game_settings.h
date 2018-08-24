@@ -133,4 +133,7 @@ struct game_settings{
 	game_setting Settings[256];
 };
 
+game_settings TryReadGameSettings();
+void WriteGameSettings(game_settings* Settings);
+
 #endif

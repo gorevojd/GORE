@@ -18,30 +18,40 @@ inline game_setting* GetNextGameSetting(
 
 	CopyStrings(Result->Name, SettingName);
 	Result->Type = SettingType;
+
+	return(Result);
 }
 
 static game_setting* InitGameSettingInt(game_settings* Settings, char* Name, int Value) {
 	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Int);
 
 	Result->IntegerValue= Value;
+
+	return(Result);
 }
 
 static game_setting* InitGameSettingBool(game_settings* Settings, char* Name, b32 Value) {
 	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Bool);
 
 	Result->BoolValue = Value;
+
+	return(Result);
 }
 
 static game_setting* InitGameSettingString(game_settings* Settings, char* Name, char* Value) {
 	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_String);
 
 	CopyStrings(Result->StringValue, Value);
+
+	return(Result);
 }
 
 static game_setting* InitGameSettingFloat(game_settings* Settings, char* Name, float Value) {
 	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Float);
 
 	Result->FloatValue = Value;
+
+	return(Result);
 }
 
 #define GAME_SETTING_ANISOTROPIC_NAME "AnisotropicLevel"
@@ -70,33 +80,6 @@ static void InitInternalSettingsBasedOnValues(
 		Values->VSyncEnabled);
 }
 
-game_settings_values DefaultGameSettingsValues() {
-	game_settings_values Settings = {};
-
-	Settings.AnisotropicFilterLevelType = AnisoLevel_1x;
-	Settings.AntialiasingType = AA_FXAA;
-	Settings.VSyncEnabled = 0;
-
-	return(Settings);
-}
-
-game_settings TryReadGameSettings() {
-	game_settings Settings = {};
-
-	game_settings_values SettingsValues = DefaultGameSettingsValues();
-
-	char FilePath[256];
-	ConcatStringsUnsafe(FilePath, "../Data/", GAME_SETTINGS_FILE_NAME);
-
-	platform_read_file_result SettingsFileData = PlatformApi.ReadFile(FilePath);
-
-
-
-	PlatformApi.FreeFileMemory(&SettingsFileData);
-
-	return(Settings);
-}
-
 void WriteGameSettings(game_settings* Settings) {
 	json_writer Writer;
 	JSONInit(&Writer, JSONWriterFlag_Pretty);
@@ -119,7 +102,7 @@ void WriteGameSettings(game_settings* Settings) {
 			}break;
 
 			case GameSetting_Int: {
-				JSONAddF32(&Writer, Current->Name, Current->IntegerValue);
+				JSONAddS32(&Writer, Current->Name, Current->IntegerValue);
 			}break;
 
 			case GameSetting_String: {
@@ -138,4 +121,114 @@ void WriteGameSettings(game_settings* Settings) {
 	PlatformApi.WriteFile(FilePath, Writer.Buf, Writer.CurrentIndex);
 
 	JSONFree(&Writer);
+}
+
+
+game_settings_values DefaultGameSettingsValues() {
+	game_settings_values Settings = {};
+
+	Settings.AnisotropicFilterLevelType = AnisoLevel_1x;
+	Settings.AntialiasingType = AA_FXAA;
+	Settings.VSyncEnabled = 0;
+
+	return(Settings);
+}
+
+static void GetNextElementFromInput(char** AtInput, char* ElementBuf, int* ElementLen) {
+	int Len = 0;
+
+	char* At = *AtInput;
+	char* To = ElementBuf;
+
+	while (*At) {
+		if (*At != ',' &&
+			*At != ' ' &&
+			*At != '\n' &&
+			*At != '\r' &&
+			*At != ':' &&
+			*At != '\"')
+		{
+			*To++ = *At++;
+			Len++;
+		}
+		else {
+			*To = 0;
+			*AtInput = At;
+			break;
+		}
+	}
+}
+
+static inline b32 CharIsLetter(char c) {
+	if ((c >= 'a' && c <= 'z') ||
+		(c >= 'A' && c <= 'Z'))
+	{
+		return(1);
+	}
+
+	return(0);
+}
+
+game_settings TryReadGameSettings() {
+	game_settings Settings = {};
+
+	game_settings_values SettingsValues = DefaultGameSettingsValues();
+
+	char FilePath[256];
+	ConcatStringsUnsafe(FilePath, "../Data/", GAME_SETTINGS_FILE_NAME);
+
+	platform_read_file_result SettingsFileData = PlatformApi.ReadFile(FilePath);
+
+	if (SettingsFileData.Size) {
+		char* TextFromFile = (char*)SettingsFileData.Data;
+
+		//NOTE(dima): Simple one-nested JSON parser
+		char* At = TextFromFile;
+		b32 LastElementWasOpenBracket = 0;
+		b32 LastElementWasComma = 0;
+		//NOTE(dima): VERY BAD CODE. Do not use it!!!!
+		//NOTE(dima): It's only used here to extract values from config JSON file
+		while (*At) {
+
+			if ((*At >= 'a' && *At <= 'z') ||
+				(*At >= 'A' && *At <= 'Z'))
+			{
+				int KeyLen, ValLen;
+				char KeyBuf[64], ValBuf[64];
+				if (LastElementWasComma || LastElementWasOpenBracket) {
+					GetNextElementFromInput(&At, KeyBuf, &KeyLen);
+				}
+
+				while (*At != ':') {
+					*At++;
+				}
+				*At++;
+				while (*At == ' ') {
+					At++;
+				}
+				GetNextElementFromInput(&At, ValBuf, &ValLen);
+
+				continue;
+			}
+
+			if (*At == '{') {
+				LastElementWasOpenBracket = 1;
+			}
+			else if (*At == ',') {
+				LastElementWasComma = 1;
+			}
+
+			*At++;
+		}
+	}
+	else {
+		game_settings Def = {};
+		game_settings_values DefVals = DefaultGameSettingsValues();
+		InitInternalSettingsBasedOnValues(&Def, &DefVals);
+		WriteGameSettings(&Def);
+	}
+
+	PlatformApi.FreeFileMemory(&SettingsFileData);
+
+	return(Settings);
 }

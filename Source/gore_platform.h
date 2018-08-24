@@ -202,6 +202,8 @@ inline void ConcatStringsUnsafe(char* Dst, char* Src1, char* Src2) {
 	while (*At) {
 		*To++ = *At++;
 	}
+
+	*To = 0;
 }
 
 inline int StringLength(char* Text) {

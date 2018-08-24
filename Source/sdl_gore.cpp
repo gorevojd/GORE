@@ -1073,6 +1073,9 @@ int main(int ArgsCount, char** Args) {
 		Entry->Data = {};
 	}
 
+	//NOTE(dima): Loading game settings from settings file
+	game_settings Sets = TryReadGameSettings();
+
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
 	DEBUGSetLogRecording(1);
