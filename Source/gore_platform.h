@@ -234,6 +234,128 @@ inline u32 StringHashFNV(char* Name) {
 	return(Result);
 }
 
+inline b32 StringIsDecimalInteger(char* String) {
+	b32 Result = 1;
+
+	int FirstCheckIndex = 0;
+	if (String[0] == '-') {
+		FirstCheckIndex = 1;
+	}
+
+	char* At = String + FirstCheckIndex;
+	while (*At)
+	{
+		if (*At >= '0' &&
+			*At <= '9')
+		{
+
+		}
+		else {
+			return(0);
+		}
+
+		*At++;
+	}
+
+	return(Result);
+}
+
+inline int StringToInteger(char* String) {
+	int Result = 0;
+
+	char* At = String;
+
+	int Len = StringLength(String);
+
+	int NumberIsNegative = 1;
+	int FirstNumberIndex = 0;
+	if (String[0] == '-') {
+		FirstNumberIndex = 1;
+		NumberIsNegative = -1;
+	}
+
+	int CurrentMultiplier = 1;
+	for (int CharIndex = Len - 1;
+		CharIndex >= FirstNumberIndex;
+		CharIndex--)
+	{
+		Result += (String[CharIndex] - '0') * CurrentMultiplier;
+		CurrentMultiplier *= 10;
+	}
+
+	Result *= NumberIsNegative;
+
+	return(Result);
+}
+
+inline float StringToFloat(char* String) {
+	float Result = 0.0f;
+
+	//NOTE(dima): Detecting if negative and whole part start index
+	float IsNegative = 1.0f;
+	int WholeStart = 0;
+	if (String[0] == '-') {
+		IsNegative = -1.0f;
+		WholeStart = 1;
+	}
+
+	char* At = String + WholeStart;
+	b32 DotExist = 0;
+	char* DotAt = 0;
+	//NOTE(dima): Detecting whole part end
+	int WholeEndIndex = WholeStart;
+	while (*At) {
+		if (*At == '.') {
+			DotExist = 1;
+			DotAt = At;
+			break;
+		}
+		At++;
+		WholeEndIndex++;
+	}
+
+	//NOTE(dima): Converting whole part
+	float CurrentMultiplier = 1.0f;
+	for (int Index = WholeEndIndex - 1;
+		Index >= WholeStart;
+		Index--)
+	{
+		Result += (float)(String[Index] - '0') * CurrentMultiplier;
+		CurrentMultiplier *= 10.0f;
+	}
+
+	//NOTE(dima): Converting fractional part if exist
+	if (DotExist) {
+		int FractionalPartLen = 0;
+		At = DotAt;
+		++At;
+		while (*At) {
+			FractionalPartLen++;
+
+			At++;
+		}
+
+		if (FractionalPartLen) {
+			char* FractionalBegin = DotAt + 1;
+			char* FractionalEnd = At;
+
+			char* FractionalAt = FractionalBegin;
+			CurrentMultiplier = 0.1f;
+			while (FractionalAt != FractionalEnd) {
+				float CurrentDigit = (float)(*FractionalAt - '0');
+
+				Result += CurrentDigit * CurrentMultiplier;
+				CurrentMultiplier /= 10.0f;
+				FractionalAt++;
+			}
+		}
+	}
+
+	Result *= IsNegative;
+
+	return(Result);
+}
+
 struct platform_read_file_result {
 	u64 Size;
 	void* Data;

@@ -179,7 +179,12 @@ game_settings TryReadGameSettings() {
 
 	platform_read_file_result SettingsFileData = PlatformApi.ReadFile(FilePath);
 
+	game_settings Def = {};
+	game_settings_values DefVals = DefaultGameSettingsValues();
+	InitInternalSettingsBasedOnValues(&Def, &DefVals);
+
 	if (SettingsFileData.Size) {
+		
 		char* TextFromFile = (char*)SettingsFileData.Data;
 
 		//NOTE(dima): Simple one-nested JSON parser
@@ -193,6 +198,7 @@ game_settings TryReadGameSettings() {
 			if ((*At >= 'a' && *At <= 'z') ||
 				(*At >= 'A' && *At <= 'Z'))
 			{
+				//NOTE(dima): Get key and value strings
 				int KeyLen, ValLen;
 				char KeyBuf[64], ValBuf[64];
 				if (LastElementWasComma || LastElementWasOpenBracket) {
@@ -208,6 +214,32 @@ game_settings TryReadGameSettings() {
 				}
 				GetNextElementFromInput(&At, ValBuf, &ValLen);
 
+				//NOTE(dima): Find corresponding values in settings and set them
+				for (int SettingIndex = 0; 
+					SettingIndex < Settings.LastSettingIndex;
+					SettingIndex++)
+				{
+					game_setting* Setting = Settings.Settings + SettingIndex;
+					if (StringsAreEqual(KeyBuf, Setting->Name)) {
+						switch (Setting->Type) {
+							case GameSetting_Float: {
+								Setting->FloatValue = StringToFloat(ValBuf);
+							}break;
+
+							case GameSetting_Int:
+							case GameSetting_Bool: {
+								Setting->IntegerValue = StringToInteger(ValBuf);
+							}break;
+
+							case GameSetting_String: {
+								CopyStrings(Setting->StringValue, ValBuf);
+							}break;
+						}
+
+						break;
+					}
+				}
+
 				continue;
 			}
 
@@ -221,12 +253,8 @@ game_settings TryReadGameSettings() {
 			*At++;
 		}
 	}
-	else {
-		game_settings Def = {};
-		game_settings_values DefVals = DefaultGameSettingsValues();
-		InitInternalSettingsBasedOnValues(&Def, &DefVals);
-		WriteGameSettings(&Def);
-	}
+
+	WriteGameSettings(&Def);
 
 	PlatformApi.FreeFileMemory(&SettingsFileData);
 

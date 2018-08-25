@@ -123,11 +123,13 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
+#if 0
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {
 		v3 TerrainOffset = LpterGetTerrainOffset(&State->Terrain[i]);
 		RENDERPushLpterMesh(RenderStack, &State->Terrain[i].Mesh, TerrainOffset);
 		RENDERPushLpterWaterMesh(RenderStack, &State->Water[i], TerrainOffset);
 	}
+#endif
 
 #if 0
 	v4 FrustumPlanes[6];
