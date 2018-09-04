@@ -1126,16 +1126,6 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: SDL has been not initialized");
 	}
 
-#if 1
-	char* TestString1 = "1.123456789";
-	char* TestString2 = "123546.2134";
-	char* TestString3 = "-123.";
-
-	float Float1 = StringToFloat(TestString1);
-	float Float2 = StringToFloat(TestString2);
-	float Float3 = StringToFloat(TestString3);
-#endif
-
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);

@@ -152,8 +152,9 @@ inline void DEBUGSetLogRecording(b32 Recording) {
 #define DEBUG_VALUE(value_type) {debug_record* Rec = ADD_DEBUG_RECORD("Value", DebugRecord_Value); Rec->Value_Value.ValueType = value_type;}
 #define DEBUG_VALUE_SET_VALUE(rec, value_type, value) rec->Value_Value.Value_##value_type = value
 
+#define DEBUG_VALUE_FLOAT(idname, value) {debug_record* Rec = ADD_DEBUG_RECORD(idname, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_F32; Rec->Value_Value.Value_DebugValue_F32 = value;}
+#define DEBUG_VALUE_TEXT(idname, text) {debug_record* Rec = ADD_DEBUG_RECORD(idname, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_Text; Rec->Value_Value.Value_DebugValue_Text = text;}
 #define DEBUG_STACKED_MEM(name, value) {debug_record* Rec = ADD_DEBUG_RECORD(name, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_StackedMemory; Rec->Value_Value.Value_DebugValue_StackedMemory = value;}
-#define DEBUG_TEXT(idname, text) {debug_record* Rec = ADD_DEBUG_RECORD(idname, DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_Text; Rec->Value_Value.Value_DebugValue_Text = text;}
 #define DEBUG_VOXEL_STATISTICS(data) {debug_record* Rec = ADD_DEBUG_RECORD("VoxelStatistics", DebugRecord_Value); Rec->Value_Value.ValueType = DebugValue_VoxelStatistics; Rec->Value_Value.Value_DebugValue_VoxelStatistics = data;}
 
 #define DEBUG_LOG(log) DEBUGAddLog(log, __FILE__, __LINE__, DebugLog_Log)

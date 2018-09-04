@@ -10,6 +10,21 @@
 #include "gore_lpterrain.h"
 #include "gore_cellural.h"
 
+
+#define CELLURAL_CELL_PIXEL_WIDTH 4 
+struct cellural_machine {
+	int CellsXCount;
+	int CellsYCount;
+
+	int StartOffsetX;
+	int StartOffsetY;
+
+	bitmap_info Bitmap;
+
+	u16* Colors;
+	u8* Alphas;
+};
+
 struct geometrika_state {
 	b32 IsInitialized;
 
@@ -17,6 +32,9 @@ struct geometrika_state {
 
 	game_camera Camera;
 	b32 CameraAutoMove;
+
+	stacked_memory CelluralMachineMemory;
+	cellural_machine CelluralMachine;
 
 #if 1
 	bitmap_info* VoxelAtalsBitmap;
@@ -30,6 +48,7 @@ struct geometrika_state {
 	surface_material CubeMat;
 	surface_material PlaneMat;
 };
+
 
 extern void GEOMKAUpdateAndRender(
 	stacked_memory* GameMemoryBlock,

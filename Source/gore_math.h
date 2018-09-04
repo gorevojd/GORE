@@ -851,6 +851,18 @@ inline float PlanePointTest(v4 Plane, v3 Point) {
 }
 
 //NOTE(dima): Color math
+inline float From255To01(u32 Value) {
+	float Result = (float)Value / 255.0f;
+
+	return(Result);
+}
+
+inline u32 From01To255(float Value) {
+	u32 Result = (u32)(Value * 255.0f + 0.5f);
+
+	return(Result);
+}
+
 inline u32 PackRGBA(v4 Color) {
 	u32 Result;
 
@@ -877,6 +889,36 @@ inline v4 UnpackRGBA(u32 Color) {
 	Result.g *= OneOver255;
 	Result.b *= OneOver255;
 	Result.a *= OneOver255;
+
+	return(Result);
+}
+
+inline u16 PackRGB16(v3 RGB) {
+	//NOTE(dima): R - 5 bits, G - 6 bits, B - 5 bits
+	u32 R = (u32)(RGB.r * 31.0f + 0.5f);
+	u32 G = (u32)(RGB.g * 63.0f + 0.5f);
+	u32 B = (u32)(RGB.b * 31.0f + 0.5f);
+
+	u16 Result = B | (G << 5) | (R << 11);
+
+	return(Result);
+}
+
+inline v3 UnpackRGB16(u16 RGB) {
+	v3 Result;
+
+	Result.b = (float)(RGB & 31) / 31.0f;
+	Result.g = (float)((RGB >> 5) & 63) / 63.0f;
+	Result.r = (float)((RGB >> 11) & 31) / 31.0f;
+
+	return(Result);
+}
+
+inline u32 PackedRGB16AlphaToRGBA(u16 RGB, u8 Alpha) {
+	v3 UnpackedRGB16 = UnpackRGB16(RGB);
+	v4 Color = V4(UnpackedRGB16, From255To01(Alpha));
+
+	u32 Result = PackRGBA(Color);
 
 	return(Result);
 }

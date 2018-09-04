@@ -1,5 +1,126 @@
 #include "geometrika.h"
 
+void InitCelluralMachine(
+	cellural_machine* Machine,
+	stacked_memory* MemoryStack,
+	int RenderPixelWidth,
+	int RenderPixelHeight)
+{
+	//NOTE(dima): Reserving pixels for borders 
+	int BorderWidth = CELLURAL_CELL_PIXEL_WIDTH;
+
+	int NonBorderPixelWidth = (RenderPixelWidth - 2 * BorderWidth);
+	int NonBorderPixelHeight = (RenderPixelHeight - 2 * BorderWidth);
+
+	Machine->CellsXCount = NonBorderPixelWidth / CELLURAL_CELL_PIXEL_WIDTH;
+	Machine->CellsYCount = NonBorderPixelHeight / CELLURAL_CELL_PIXEL_WIDTH;
+	int CellsCount = Machine->CellsXCount * Machine->CellsYCount;
+
+	int AdditionalXOffset = (NonBorderPixelWidth % CELLURAL_CELL_PIXEL_WIDTH) / 2;
+	int AdditionalYOffset = (NonBorderPixelHeight % CELLURAL_CELL_PIXEL_WIDTH) / 2;
+
+	//NOTE(dima): Counting starting offsets for borders 
+	Machine->StartOffsetX = BorderWidth + AdditionalXOffset;
+	Machine->StartOffsetY = BorderWidth + AdditionalYOffset;
+
+	//NOTE(dima): Initializing bitmap 
+	Machine->Bitmap.Pixels = PushArray(MemoryStack, u8, CellsCount * 4);
+	Machine->Bitmap.Width = RenderPixelWidth;
+	Machine->Bitmap.Height = RenderPixelHeight;
+	Machine->Bitmap.Pitch = Machine->Bitmap.Width * 4;
+	Machine->Bitmap.WidthOverHeight = (float)Machine->Bitmap.Width / (float)Machine->Bitmap.Height;
+	Machine->Bitmap.TextureHandle = 0;
+
+	//NOTE(dima): Allocating needed arrays 
+	Machine->Colors = PushArray(MemoryStack, u16, CellsCount);
+	Machine->Alphas = PushArray(MemoryStack, u8, CellsCount);
+}
+
+void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState) {
+
+	//this is temp
+	int ColorIndex = 0;
+
+	u16 RandomColors[] = {
+		PackRGB16(V3(1.0f, 0.0f, 0.0f)),
+		PackRGB16(V3(0.0f, 1.0f, 0.0f)),
+		PackRGB16(V3(0.0f, 0.0f, 1.0f)),
+		PackRGB16(V3(1.0f, 1.0f, 0.0f)),
+		PackRGB16(V3(1.0f, 0.0f, 1.0f)),
+		PackRGB16(V3(0.0f, 1.0f, 1.0f)),
+		PackRGB16(V3(1.0f, 1.0f, 1.0f)),
+	};
+
+	int CellsCount = Machine->CellsXCount * Machine->CellsYCount;
+
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex++)
+	{
+		int CellX = CellIndex % Machine->CellsXCount;
+		int CellY = CellIndex / Machine->CellsXCount;
+
+		Machine->Colors[CellIndex] = RandomColors[ColorIndex % ArrayCount(RandomColors)];
+		Machine->Alphas[CellIndex] = 255;
+
+		ColorIndex++;
+	}
+
+
+	/*
+		NOTE(dima): Forming cellural machine bitmap.
+
+		IMPORTANT(dima): Remember that renderer 
+		accepts premultiplied alpha images.
+	*/
+
+#if 1
+	//NOTE(dima): Clearing bitmap
+	u32 ClearColor = PackRGBA(V4(0.0f, 0.0f, 0.0f, 1.0f));
+	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
+	for (int PixelIndex = 0;
+		PixelIndex < Machine->Bitmap.Width * Machine->Bitmap.Height;
+		PixelIndex++)
+	{
+		*Pixel++ = ClearColor;
+	}
+
+	//NOTE(dima): Rendering cells
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex++)
+	{
+		int CellX = CellIndex % Machine->CellsXCount;
+		int CellY = CellIndex / Machine->CellsXCount;
+
+		u32 CellColorRGBA = PackedRGB16AlphaToRGBA(
+			Machine->Colors[CellIndex], 
+			Machine->Alphas[CellIndex]);
+
+		for (int YPixel = Machine->StartOffsetY;
+			YPixel < Machine->StartOffsetY + CELLURAL_CELL_PIXEL_WIDTH;
+			YPixel++)
+		{
+			for (int XPixel = Machine->StartOffsetX;
+				XPixel < Machine->StartOffsetX + CELLURAL_CELL_PIXEL_WIDTH;
+				XPixel++)
+			{
+				u32* TargetPixel = (u32*)Machine->Bitmap.Pixels + 
+					Machine->Bitmap.Width * (YPixel + CellY * CELLURAL_CELL_PIXEL_WIDTH) +
+						XPixel + CellX * CELLURAL_CELL_PIXEL_WIDTH;
+
+				*TargetPixel = CellColorRGBA;
+			}
+		}
+	}
+
+	//TODO(dima): Need to deallocate bitmap handles 
+	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), 700);
+#else
+
+#endif
+}
+
 void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetSystem, render_state* RenderStack, input_system* Input) {
 	geometrika_state* State = (geometrika_state*)GameMemoryBlock->BaseAddress;
 
@@ -18,6 +139,13 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 
 		State->CubeMat.Diffuse = GetFirstBitmap(AssetSystem, GameAsset_ContainerDiffImage);
 		State->CubeMat.Specular = GetFirstBitmap(AssetSystem, GameAsset_ContainerSpecImage);
+
+		State->CelluralMachineMemory = SplitStackedMemory(GameMemoryBlock, MEGABYTES(20));
+		InitCelluralMachine(
+			&State->CelluralMachine,
+			&State->CelluralMachineMemory,
+			RenderStack->RenderWidth,
+			RenderStack->RenderHeight);
 
 		for (int X = 0; X < LPTER_CHUNKS_SIDE_COUNT; X++) {
 			for (int Y = 0; Y < LPTER_CHUNKS_SIDE_COUNT; Y++) {
@@ -122,6 +250,8 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 	mesh_id CylID = GetFirstMesh(AssetSystem, GameAsset_Cylynder);
 
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
+
+	UpdateCelluralMachine(&State->CelluralMachine, RenderStack);
 
 #if 0
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {

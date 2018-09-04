@@ -3,6 +3,7 @@
 
 #include "gore_types.h"
 #include "gore_platform.h"
+#include "gore_debug.h"
 
 #define GAME_SETTINGS_FILE_NAME "settings.json"
 
@@ -97,17 +98,17 @@ inline int GetMSAALevel(u32 AntialiasingType) {
 	return(Result);
 }
 
-enum game_setting_type {
-	GameSetting_Int,
-	GameSetting_String,
-	GameSetting_Bool,
-	GameSetting_Float,
+enum game_setting_value_type {
+	GameSettingValue_Int,
+	GameSettingValue_String,
+	GameSettingValue_Bool,
+	GameSettingValue_Float,
 };
 
 struct game_setting {
 	char Name[32];
 
-	u32 Type;
+	u32 ValueType;
 
 	union {
 		b32 BoolValue;
@@ -115,6 +116,14 @@ struct game_setting {
 		char StringValue[32];
 		float FloatValue;
 	};
+};
+
+enum game_setting_type {
+	GameSetting_AnisotropicLevelType,
+	GameSetting_AntialiasingType,
+	GameSetting_VSyncEnabled,
+
+	GameSetting_Count,
 };
 
 struct game_settings_values {

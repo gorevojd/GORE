@@ -10,20 +10,20 @@
 inline game_setting* GetNextGameSetting(
 	game_settings* Settings,
 	char* SettingName,
-	u32 SettingType)
+	u32 SettingValueType)
 {
 	game_setting* Result = Settings->Settings + Settings->LastSettingIndex++;
 
 	Assert(Settings->LastSettingIndex < ArrayCount(Settings->Settings));
 
 	CopyStrings(Result->Name, SettingName);
-	Result->Type = SettingType;
+	Result->ValueType = SettingValueType;
 
 	return(Result);
 }
 
 static game_setting* InitGameSettingInt(game_settings* Settings, char* Name, int Value) {
-	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Int);
+	game_setting* Result = GetNextGameSetting(Settings, Name, GameSettingValue_Int);
 
 	Result->IntegerValue= Value;
 
@@ -31,7 +31,7 @@ static game_setting* InitGameSettingInt(game_settings* Settings, char* Name, int
 }
 
 static game_setting* InitGameSettingBool(game_settings* Settings, char* Name, b32 Value) {
-	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Bool);
+	game_setting* Result = GetNextGameSetting(Settings, Name, GameSettingValue_Bool);
 
 	Result->BoolValue = Value;
 
@@ -39,7 +39,7 @@ static game_setting* InitGameSettingBool(game_settings* Settings, char* Name, b3
 }
 
 static game_setting* InitGameSettingString(game_settings* Settings, char* Name, char* Value) {
-	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_String);
+	game_setting* Result = GetNextGameSetting(Settings, Name, GameSettingValue_String);
 
 	CopyStrings(Result->StringValue, Value);
 
@@ -47,7 +47,7 @@ static game_setting* InitGameSettingString(game_settings* Settings, char* Name, 
 }
 
 static game_setting* InitGameSettingFloat(game_settings* Settings, char* Name, float Value) {
-	game_setting* Result = GetNextGameSetting(Settings, Name, GameSetting_Float);
+	game_setting* Result = GetNextGameSetting(Settings, Name, GameSettingValue_Float);
 
 	Result->FloatValue = Value;
 
@@ -91,21 +91,21 @@ void WriteGameSettings(game_settings* Settings) {
 	{
 		game_setting* Current = Settings->Settings + SettingIndex;
 
-		switch (Current->Type)
+		switch (Current->ValueType)
 		{
-			case GameSetting_Bool: {
+			case GameSettingValue_Bool: {
 				JSONAddS32(&Writer, Current->Name, Current->BoolValue);
 			}break;
 
-			case GameSetting_Float: {
+			case GameSettingValue_Float: {
 				JSONAddF32(&Writer, Current->Name, Current->FloatValue);
 			}break;
 
-			case GameSetting_Int: {
+			case GameSettingValue_Int: {
 				JSONAddS32(&Writer, Current->Name, Current->IntegerValue);
 			}break;
 
-			case GameSetting_String: {
+			case GameSettingValue_String: {
 				JSONAddSTR(&Writer, Current->Name, Current->StringValue);
 			}break;
 
@@ -172,8 +172,6 @@ static inline b32 CharIsLetter(char c) {
 game_settings TryReadGameSettings() {
 	game_settings Settings = {};
 
-	game_settings_values SettingsValues = DefaultGameSettingsValues();
-
 	char FilePath[256];
 	ConcatStringsUnsafe(FilePath, "../Data/", GAME_SETTINGS_FILE_NAME);
 
@@ -221,17 +219,20 @@ game_settings TryReadGameSettings() {
 				{
 					game_setting* Setting = Settings.Settings + SettingIndex;
 					if (StringsAreEqual(KeyBuf, Setting->Name)) {
-						switch (Setting->Type) {
-							case GameSetting_Float: {
+						switch (Setting->ValueType) {
+							case GameSettingValue_Float: {
 								Setting->FloatValue = StringToFloat(ValBuf);
 							}break;
 
-							case GameSetting_Int:
-							case GameSetting_Bool: {
+							case GameSettingValue_Int: {
 								Setting->IntegerValue = StringToInteger(ValBuf);
 							}break;
 
-							case GameSetting_String: {
+							case GameSettingValue_Bool: {
+								Setting->IntegerValue = StringToInteger(ValBuf);
+							}break;
+
+							case GameSettingValue_String: {
 								CopyStrings(Setting->StringValue, ValBuf);
 							}break;
 						}
@@ -260,3 +261,12 @@ game_settings TryReadGameSettings() {
 
 	return(Settings);
 }
+//
+//game_setting* GetGameSetting(game_settings* Settings) {
+//	for (int SettingIndex = 0;
+//		SettingIndex < Settings->LastSettingIndex;
+//		SettingIndex++)
+//	{
+//
+//	}
+//}
