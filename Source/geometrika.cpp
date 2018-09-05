@@ -1,5 +1,11 @@
 #include "geometrika.h"
 
+inline int GetCelluralMachineCellsCount(cellural_machine* Machine) {
+	int Result = Machine->CellsXCount * Machine->CellsYCount;
+
+	return(Result);
+}
+
 void InitCelluralMachine(
 	cellural_machine* Machine,
 	stacked_memory* MemoryStack,
@@ -24,9 +30,9 @@ void InitCelluralMachine(
 	Machine->StartOffsetY = BorderWidth + AdditionalYOffset;
 
 	//NOTE(dima): Initializing bitmap 
-	Machine->Bitmap.Pixels = PushArray(MemoryStack, u8, CellsCount * 4);
 	Machine->Bitmap.Width = RenderPixelWidth;
 	Machine->Bitmap.Height = RenderPixelHeight;
+	Machine->Bitmap.Pixels = PushArray(MemoryStack, u8, Machine->Bitmap.Width * Machine->Bitmap.Height * 4);
 	Machine->Bitmap.Pitch = Machine->Bitmap.Width * 4;
 	Machine->Bitmap.WidthOverHeight = (float)Machine->Bitmap.Width / (float)Machine->Bitmap.Height;
 	Machine->Bitmap.TextureHandle = 0;
@@ -51,7 +57,7 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 		PackRGB16(V3(1.0f, 1.0f, 1.0f)),
 	};
 
-	int CellsCount = Machine->CellsXCount * Machine->CellsYCount;
+	int CellsCount = GetCelluralMachineCellsCount(Machine);
 
 	for (int CellIndex = 0;
 		CellIndex < CellsCount;
