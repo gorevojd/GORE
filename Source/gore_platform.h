@@ -377,7 +377,7 @@ typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 
 struct dealloc_queue_bitmap_data {
-	struct bitmap_info* BitmapInfo;
+	void* TextureHandle;
 };
 
 struct dealloc_queue_voxelmesh_data {

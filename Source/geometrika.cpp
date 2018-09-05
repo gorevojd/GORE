@@ -40,12 +40,28 @@ void InitCelluralMachine(
 	//NOTE(dima): Allocating needed arrays 
 	Machine->Colors = PushArray(MemoryStack, u16, CellsCount);
 	Machine->Alphas = PushArray(MemoryStack, u8, CellsCount);
+	Machine->Types = PushArray(MemoryStack, u8, CellsCount);
+	Machine->LifeStart = PushArray(MemoryStack, float, CellsCount);
+	Machine->LifeLenSeconds = PushArray(MemoryStack, u8, CellsCount);
+
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex++)
+	{
+		Machine->Colors[CellIndex] = 0;
+		Machine->Alphas[CellIndex] = 1.0f;
+		Machine->Types[CellIndex] = 0;
+	}
+
+	Machine->TimeCounterForSpawning = 0.0f;
 }
 
-void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState) {
-
-	//this is temp
-	int ColorIndex = 0;
+void UpdateCelluralMachine(
+	cellural_machine* Machine, 
+	render_state* RenderState, 
+	input_system* Input,
+	random_state* Random) 
+{
 
 	u16 RandomColors[] = {
 		PackRGB16(V3(1.0f, 0.0f, 0.0f)),
@@ -59,6 +75,8 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 
 	int CellsCount = GetCelluralMachineCellsCount(Machine);
 
+	//NOTE(dima): Spawning cells
+#if 0
 	for (int CellIndex = 0;
 		CellIndex < CellsCount;
 		CellIndex++)
@@ -68,8 +86,64 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 
 		Machine->Colors[CellIndex] = RandomColors[ColorIndex % ArrayCount(RandomColors)];
 		Machine->Alphas[CellIndex] = 255;
+		Machine->Types[CellIndex] = MachineCell_Solid;
 
 		ColorIndex++;
+	}
+#else
+	float TimeToSpawn = 0.03f;
+	if (Machine->TimeCounterForSpawning > TimeToSpawn) {
+
+		for (int Index = 0; Index < 3; Index++) {
+			u32 NextRandomInt = GetNextRandomInt(Random);
+
+			int XIndex = (NextRandomInt & 0xFFFF) % Machine->CellsXCount;
+			int YIndex = ((NextRandomInt >> 16) & 0xFFFF) % Machine->CellsYCount;
+
+			int CellIndex = YIndex * Machine->CellsXCount + XIndex;
+
+			Machine->Colors[CellIndex] = RandomColors[Machine->ColorIncIndex % ArrayCount(RandomColors)];
+			Machine->Alphas[CellIndex] = 255;
+			Machine->Types[CellIndex] = MachineCell_Fadeout;
+
+			Machine->LifeStart[CellIndex] = Input->Time;
+			Machine->LifeLenSeconds[CellIndex] = 4 + NextRandomInt & 7;
+
+			Machine->ColorIncIndex++;
+		}
+
+		//Machine->TimeCounterForSpawning -= TimeToSpawn;
+		Machine->TimeCounterForSpawning = 0.0f;
+	}
+
+	Machine->TimeCounterForSpawning += Input->DeltaTime;
+#endif
+
+	//NOTE(dima): Updating cells
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex++)
+	{
+		switch (Machine->Types[CellIndex]) {
+			case MachineCell_None: {
+
+			}break;
+
+			case MachineCell_Solid: {
+
+			}break;
+
+			case MachineCell_Fadeout: {
+				float LifeStart = Machine->LifeStart[CellIndex];
+				float LifeEnd = LifeStart + (float)Machine->LifeLenSeconds[CellIndex];
+
+				float t = (Input->Time - LifeStart) / (LifeEnd - LifeStart);
+
+				t = 1.0f - Clamp01(t);
+
+				Machine->Alphas[CellIndex] = From01To255(t);
+			}break;
+		}
 	}
 
 
@@ -82,13 +156,14 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 
 #if 1
 	//NOTE(dima): Clearing bitmap
-	u32 ClearColor = PackRGBA(V4(0.0f, 0.0f, 0.0f, 1.0f));
+	v4 ClearColor = V4(0.05f, 0.05f, 0.05f, 1.0f);
+	u32 ClearColorPacked = PackRGBA(ClearColor);
 	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
 	for (int PixelIndex = 0;
 		PixelIndex < Machine->Bitmap.Width * Machine->Bitmap.Height;
 		PixelIndex++)
 	{
-		*Pixel++ = ClearColor;
+		*Pixel++ = ClearColorPacked;
 	}
 
 	//NOTE(dima): Rendering cells
@@ -99,9 +174,13 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 		int CellX = CellIndex % Machine->CellsXCount;
 		int CellY = CellIndex / Machine->CellsXCount;
 
-		u32 CellColorRGBA = PackedRGB16AlphaToRGBA(
-			Machine->Colors[CellIndex], 
-			Machine->Alphas[CellIndex]);
+		v3 UnpackedRGB16 = UnpackRGB16(Machine->Colors[CellIndex]);
+		v4 CellColor = V4(UnpackedRGB16, 1.0f);
+
+		float CellAlpha = From255To01(Machine->Alphas[CellIndex]);
+		v4 BlendedColor = Lerp(ClearColor, CellColor, CellAlpha);
+
+		u32 BlendedColorPacked = PackRGBA(BlendedColor);
 
 		for (int YPixel = Machine->StartOffsetY;
 			YPixel < Machine->StartOffsetY + CELLURAL_CELL_PIXEL_WIDTH;
@@ -115,13 +194,21 @@ void UpdateCelluralMachine(cellural_machine* Machine, render_state* RenderState)
 					Machine->Bitmap.Width * (YPixel + CellY * CELLURAL_CELL_PIXEL_WIDTH) +
 						XPixel + CellX * CELLURAL_CELL_PIXEL_WIDTH;
 
-				*TargetPixel = CellColorRGBA;
+				//NOTE(dima): Alpha blend
+				*TargetPixel = BlendedColorPacked;
 			}
 		}
 	}
 
+	dealloc_queue_entry* DeallocEntry = PlatformRequestDeallocEntry();
+	DeallocEntry->EntryType = DeallocQueueEntry_Bitmap;
+	DeallocEntry->Data.BitmapData.TextureHandle = Machine->Bitmap.TextureHandle;;
+	PlatformInsertDellocEntry(DeallocEntry);
+
+	Machine->Bitmap.TextureHandle = 0;
+
 	//TODO(dima): Need to deallocate bitmap handles 
-	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), 700);
+	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), Machine->Bitmap.Height);
 #else
 
 #endif
@@ -133,6 +220,8 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 	if (!State->IsInitialized) {
 
 		PushStruct(GameMemoryBlock, geometrika_state);
+
+		State->Random = InitRandomStateWithSeed(1111);
 
 		State->Camera = GAMECreateCamera();
 		State->CapturingMouse = 1;
@@ -257,7 +346,7 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
-	UpdateCelluralMachine(&State->CelluralMachine, RenderStack);
+	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
 
 #if 0
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {

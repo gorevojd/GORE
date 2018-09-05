@@ -11,7 +11,15 @@
 #include "gore_cellural.h"
 
 
-#define CELLURAL_CELL_PIXEL_WIDTH 4 
+#define CELLURAL_CELL_PIXEL_WIDTH 13
+
+enum machine_cell_type {
+	MachineCell_None,
+
+	MachineCell_Solid, 
+	MachineCell_Fadeout,
+};
+
 struct cellural_machine {
 	int CellsXCount;
 	int CellsYCount;
@@ -23,10 +31,19 @@ struct cellural_machine {
 
 	u16* Colors;
 	u8* Alphas;
+	u8* Types;
+
+	float* LifeStart;
+	u8* LifeLenSeconds;
+
+	float TimeCounterForSpawning;
+	int ColorIncIndex;
 };
 
 struct geometrika_state {
 	b32 IsInitialized;
+
+	random_state Random;
 
 	b32 CapturingMouse;
 

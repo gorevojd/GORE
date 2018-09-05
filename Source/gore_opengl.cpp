@@ -1340,7 +1340,9 @@ void OpenGLProcessAllocationQueue() {
 
 		switch (Entry->EntryType) {
 			case DeallocQueueEntry_Bitmap: {
+				GLuint TextureHandle = (GLuint)Entry->Data.BitmapData.TextureHandle;
 
+				glDeleteTextures(1, &TextureHandle);
 			}break;
 
 			case DeallocQueueEntry_VoxelMesh: {

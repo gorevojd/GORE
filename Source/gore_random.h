@@ -560,4 +560,10 @@ inline float RandomBetween11(random_state* Random) {
 	return(Result);
 }
 
+inline u32 GetNextRandomInt(random_state* Random) {
+	u32 Result = RandomNumberTable[Random->RandomArrayIndex++ % ArrayCount(RandomNumberTable)];
+
+	return(Result);
+}
+
 #endif
