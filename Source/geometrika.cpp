@@ -154,9 +154,9 @@ void UpdateCelluralMachine(
 		accepts premultiplied alpha images.
 	*/
 
-#if 1
-	//NOTE(dima): Clearing bitmap
 	v4 ClearColor = V4(0.05f, 0.05f, 0.05f, 1.0f);
+#if 0
+	//NOTE(dima): Clearing bitmap
 	u32 ClearColorPacked = PackRGBA(ClearColor);
 	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
 	for (int PixelIndex = 0;
@@ -210,7 +210,27 @@ void UpdateCelluralMachine(
 	//TODO(dima): Need to deallocate bitmap handles 
 	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), Machine->Bitmap.Height);
 #else
+	RENDERPushClear(RenderState, ClearColor.rgb);
 
+	//NOTE(dima): Rendering cells
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex++)
+	{
+		int CellX = CellIndex % Machine->CellsXCount;
+		int CellY = CellIndex / Machine->CellsXCount;
+
+		v3 UnpackedRGB16 = UnpackRGB16(Machine->Colors[CellIndex]);
+		v4 CellColor = V4(UnpackedRGB16, From255To01(Machine->Alphas[CellIndex]));
+
+		v2 Min = V2(
+			Machine->StartOffsetX + CellX * CELLURAL_CELL_PIXEL_WIDTH,
+			Machine->StartOffsetY + CellY * CELLURAL_CELL_PIXEL_WIDTH);
+
+		v2 Dim = V2(CELLURAL_CELL_PIXEL_WIDTH, CELLURAL_CELL_PIXEL_WIDTH);
+
+		RENDERPushRect(RenderState, Min, Dim, CellColor);
+	}
 #endif
 }
 
@@ -346,8 +366,6 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
-	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
-
 #if 0
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {
 		v3 TerrainOffset = LpterGetTerrainOffset(&State->Terrain[i]);
@@ -464,4 +482,7 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 	RENDERPushMesh(RenderStack, CylID, CylMat1, State->CubeMat);
 
 	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
+
+
+	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
 }
