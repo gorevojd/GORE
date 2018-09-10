@@ -180,6 +180,7 @@ struct gl_state {
 	float MaxAnisotropicLevel;
 	u32 AnisotropicLevelType;
 	float AnisotropicLevel;
+	b32 FXAAEnabled;
 
 	u32 AntialiasingType;
 
@@ -202,7 +203,7 @@ struct gl_state {
 //};
 
 extern void OpenGLProcessAllocationQueue();
-extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack, b32 IsGUIRenderStack = 0);
+extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
 
 extern void OpenGLInitState(
 	gl_state* State,

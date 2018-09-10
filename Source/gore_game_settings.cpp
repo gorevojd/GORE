@@ -57,6 +57,7 @@ static game_setting* InitGameSettingFloat(game_settings* Settings, char* Name, f
 #define GAME_SETTING_ANISOTROPIC_NAME "AnisotropicLevel"
 #define GAME_SETTING_ANTIALIASING_NAME "Antialiasing"
 #define GAME_SETTING_VSYNC_NAME "VSync"
+#define GAME_SETTING_FXAAENABLED_NAME "FXAAEnabled"
 
 static void InitInternalSettingsBasedOnValues(
 	game_settings* Settings,
@@ -78,6 +79,11 @@ static void InitInternalSettingsBasedOnValues(
 		Settings,
 		GAME_SETTING_VSYNC_NAME,
 		Values->VSyncEnabled);
+
+	Settings->FXAAEnabledSetting = InitGameSettingBool(
+		Settings,
+		GAME_SETTING_FXAAENABLED_NAME,
+		Values->FXAAEnabled);
 }
 
 void WriteGameSettings(game_settings* Settings) {
@@ -128,8 +134,9 @@ game_settings_values DefaultGameSettingsValues() {
 	game_settings_values Settings = {};
 
 	Settings.AnisotropicFilterLevelType = AnisoLevel_1x;
-	Settings.AntialiasingType = AA_FXAA;
+	Settings.AntialiasingType = AA_MSAA_2x;
 	Settings.VSyncEnabled = 0;
+	Settings.FXAAEnabled = 1;
 
 	return(Settings);
 }

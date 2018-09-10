@@ -22,7 +22,6 @@ enum antialiasing_type {
 	AA_MSAA_4x,
 	AA_MSAA_8x,
 	AA_MSAA_16x,
-	AA_FXAA,
 };
 
 inline float GetAnisoLevelBasedOnParams(u32 TextureAnisotropicFilterLevelType, float MaxAnisoLevel) {
@@ -130,6 +129,7 @@ struct game_settings_values {
 	texture_anisotropic_filter_level AnisotropicFilterLevelType;
 	antialiasing_type AntialiasingType;
 	b32 VSyncEnabled;
+	b32 FXAAEnabled;
 };
 
 struct game_settings{
@@ -137,6 +137,7 @@ struct game_settings{
 	game_setting* AnisotropicLevelSetting;
 	game_setting* AntialiasingTypeSetting;
 	game_setting* VSyncEnabledSetting;
+	game_setting* FXAAEnabledSetting;
 
 	int LastSettingIndex;
 	game_setting Settings[256];

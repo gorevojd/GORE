@@ -463,7 +463,7 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32 IsGUIRenderStack) {
+void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 	FUNCTION_TIMING();
 
 	glEnable(GL_MULTISAMPLE);
@@ -471,8 +471,13 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 	GLuint LastWriteFBO;
 	GLuint LastReadFBO;
 
+#if 0
 	if (IsGUIRenderStack) {
 		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
+
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		int ClearingValues[4] = { 0, 0, 0, 0 };
 		glClearBufferiv(GL_COLOR, 0, ClearingValues);
@@ -485,15 +490,28 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 	
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_BLEND);
-		glEnable(GL_DEPTH_TEST);
 		//glEnable(GL_CULL_FACE);
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	
+
 		OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 	
 		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
+#else
+	LastWriteFBO = GLState->FramebufferInitial.FBO;
+	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+	//glEnable(GL_CULL_FACE);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
+
+	glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#endif
  
 	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
 
@@ -701,7 +719,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 
 					MeshInfo->Handle = (void*)VAO;
 				}
-
+				glEnable(GL_DEPTH_TEST);
 				glUseProgram(GLState->WtfShader.Program.Handle);
 
 				OpenGLUniformSurfaceMaterial(GLState, RenderState, &GLState->WtfShader, &EntryMesh->Material);
@@ -712,6 +730,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 				glBindVertexArray(0);
 
 				glUseProgram(0);
+				glDisable(GL_DEPTH_TEST);
 			}break;
 
 			case RenderEntry_VoxelMesh: {
@@ -765,6 +784,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 						EndMutexAccess(&Mesh->MeshUseMutex);
 					}
 
+					glEnable(GL_DEPTH_TEST);
 					glUseProgram((u32)Shader->Program.Handle);
 
 					_glActiveTexture(GL_TEXTURE0);
@@ -779,6 +799,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 					glBindVertexArray(0);
 
 					glUseProgram(0);
+					glDisable(GL_DEPTH_TEST);
 				}
 			}break;
 
@@ -827,6 +848,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 					Water->MeshHandle2 = (void*)MeshVBO;
 				}
 
+				glEnable(GL_DEPTH_TEST);
 				WaterShader->Program.Use();
 
 				glUniformMatrix4fv(WaterShader->ModelMatrixLocation,
@@ -838,6 +860,9 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 				glBindVertexArray((u32)Water->MeshHandle1);
 				glDrawArrays(GL_TRIANGLES, 0, Water->VerticesCount);
 				glBindVertexArray(0);
+
+				glUseProgram(0);
+				glDisable(GL_DEPTH_TEST);
 			}break;
 
 			case RenderEntry_LpterMesh: {
@@ -892,6 +917,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 					Mesh->NormTexHandle = (void*)NormalsBufTexture;
 				}
 
+				glEnable(GL_DEPTH_TEST);
 				Shader->Program.Use();
 
 				glUniformMatrix4fv(
@@ -905,6 +931,9 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				glDrawArrays(GL_TRIANGLES, 0, Mesh->VertsCount);
 				glBindVertexArray(0);
+
+				glUseProgram(0);
+				glDisable(GL_DEPTH_TEST);
 #endif
 			}break;
 
@@ -920,31 +949,12 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 		At += Header->SizeOfEntryType;
 	}
 
-	glDisable(GL_DEPTH_TEST);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	if (!IsGUIRenderStack) {
-
-		//NOTE(dima): Resolving multisampled buffer to temp buffer
-		if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-			LastWriteFBO = GLState->FramebufferResolved.FBO;
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
-
-			glBlitFramebuffer(
-				0, 0,
-				RenderState->RenderWidth,
-				RenderState->RenderHeight,
-				0, 0,
-				RenderState->RenderWidth,
-				RenderState->RenderHeight,
-				GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-				GL_NEAREST);
-		}
-
+	//NOTE(dima): Resolving multisampled buffer to temp buffer
+	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-		LastWriteFBO = GLState->FramebufferPFX.FBO;
+		LastWriteFBO = GLState->FramebufferResolved.FBO;
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
 
 		glBlitFramebuffer(
@@ -954,77 +964,87 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState, b32
 			0, 0,
 			RenderState->RenderWidth,
 			RenderState->RenderHeight,
-			GL_COLOR_BUFFER_BIT,
+			GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
 			GL_NEAREST);
+	}
 
-		//NOTE(dima): FXAA antialiasing
-		if (GLState->AntialiasingType == AA_FXAA) {
-			BEGIN_TIMING("FXAA");
-			glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+	LastWriteFBO = GLState->FramebufferPFX.FBO;
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
 
-			OpenGLUseProgramBegin(&GLState->FXAAShader.Program);
-			glBindVertexArray(GLState->ScreenQuadVAO);
-			_glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, GLState->FramebufferPFX.Texture);
-			glUniform1i(GLState->FXAAShader.TextureLocation, 0);
-			glUniform2f(
-				GLState->FXAAShader.TextureSizeLocation,
-				RenderState->RenderWidth,
-				RenderState->RenderHeight);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
-			glBindVertexArray(0);
-			OpenGLUseProgramEnd();
-			END_TIMING();
-		}
+	glBlitFramebuffer(
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		GL_COLOR_BUFFER_BIT,
+		GL_NEAREST);
 
-		//NOTE(dima): Finalizing screen shader
-		BEGIN_TIMING("Final shader postprocess");
-
+	//NOTE(dima): FXAA antialiasing
+	if (GLState->FXAAEnabled) {
+		BEGIN_TIMING("FXAA");
 		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
 
-		OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
+		OpenGLUseProgramBegin(&GLState->FXAAShader.Program);
 		glBindVertexArray(GLState->ScreenQuadVAO);
 		_glActiveTexture(GL_TEXTURE0);
-		glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
 		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferPFX.Texture);
+		glUniform1i(GLState->FXAAShader.TextureLocation, 0);
+		glUniform2f(
+			GLState->FXAAShader.TextureSizeLocation,
+			RenderState->RenderWidth,
+			RenderState->RenderHeight);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 		OpenGLUseProgramEnd();
 		END_TIMING();
-
-		//NOTE(dima): Blitting to default framebuffer
-		BEGIN_TIMING("Blitting to default FBO");
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		glBlitFramebuffer(
-			0, 0,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight,
-			0, 0,
-			RenderState->RenderWidth,
-			RenderState->RenderHeight,
-			GL_COLOR_BUFFER_BIT,
-			GL_NEAREST);
-		END_TIMING();
 	}
-	else {
+
+	//NOTE(dima): Finalizing screen shader
+	BEGIN_TIMING("Final shader postprocess");
+
+	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
+
+	OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
+	glBindVertexArray(GLState->ScreenQuadVAO);
+	_glActiveTexture(GL_TEXTURE0);
+	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+	glBindTexture(GL_TEXTURE_2D, GLState->FramebufferPFX.Texture);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+	OpenGLUseProgramEnd();
+	END_TIMING();
+
+	//NOTE(dima): Blitting to default framebuffer
+	BEGIN_TIMING("Blitting to default FBO");
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		0, 0,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		GL_COLOR_BUFFER_BIT,
+		GL_NEAREST);
+	END_TIMING();
+	
 		//NOTE(dima): Render stack is GUI render stack
 
 		//glEnable(GL_BLEND);
 		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		OpenGLUseProgramBegin(&GLState->ScreenShader.Program);
-		glBindVertexArray(GLState->ScreenQuadVAO);
-		_glActiveTexture(GL_TEXTURE0);
-		glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-		glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		glBindVertexArray(0);
-		OpenGLUseProgramEnd();
-	}
-
-	//glDeleteFramebuffers(1, &FramebufferObject);
-	//glDeleteRenderbuffers(1, &DepthStencilRBO);
+		//GLState->ScreenShader.Program.Use();
+		//glBindVertexArray(GLState->ScreenQuadVAO);
+		//_glActiveTexture(GL_TEXTURE0);
+		//glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+		//glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		//glBindVertexArray(0);
+		//glUseProgram(0);
 }
 
 
@@ -1093,11 +1113,21 @@ static void OpenGLInitFramebuffer(
 			case OpenGL_DS_Renderbuffer: {
 				glGenRenderbuffers(1, &Framebuffer->DepthStencilRBO);
 				glBindRenderbuffer(GL_RENDERBUFFER, Framebuffer->DepthStencilRBO);
-				glRenderbufferStorage(
-					GL_RENDERBUFFER,
-					GL_DEPTH24_STENCIL8,
-					RenderWidth,
-					RenderHeight);
+				if (EnableMultisampling) {
+					glRenderbufferStorageMultisample(
+						GL_RENDERBUFFER,
+						NumberOfSamples,
+						GL_DEPTH24_STENCIL8,
+						RenderWidth,
+						RenderHeight);
+				}
+				else {
+					glRenderbufferStorage(
+						GL_RENDERBUFFER,
+						GL_DEPTH24_STENCIL8,
+						RenderWidth,
+						RenderHeight);
+				}
 				glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 				glFramebufferRenderbuffer(
@@ -1108,26 +1138,47 @@ static void OpenGLInitFramebuffer(
 			}break;
 
 			case OpenGL_DS_Texture: {
-				glGenTextures(1, &Framebuffer->DepthStencilTexture);
-				glBindTexture(1, Framebuffer->DepthStencilTexture);
+				if (EnableMultisampling) {
+					glGenTextures(1, &Framebuffer->DepthStencilTexture);
+					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer->DepthStencilTexture);
 
-				glTexImage2D(
-					GL_TEXTURE_2D,
-					0,
-					GL_DEPTH24_STENCIL8,
-					RenderWidth,
-					RenderHeight,
-					0,
-					GL_DEPTH_STENCIL,
-					GL_UNSIGNED_INT_24_8,
-					0);
+					glTexImage2DMultisample(
+						GL_TEXTURE_2D_MULTISAMPLE,
+						NumberOfSamples,
+						GL_DEPTH24_STENCIL8,
+						RenderWidth,
+						RenderHeight,
+						GL_TRUE);
 
-				glFramebufferTexture2D(
-					GL_FRAMEBUFFER,
-					GL_DEPTH_STENCIL_ATTACHMENT,
-					GL_TEXTURE_2D,
-					Framebuffer->DepthStencilTexture,
-					0);
+					glFramebufferTexture2D(
+						GL_FRAMEBUFFER,
+						GL_DEPTH_STENCIL_ATTACHMENT,
+						GL_TEXTURE_2D_MULTISAMPLE,
+						Framebuffer->DepthStencilTexture,
+						0);
+				}
+				else {
+					glGenTextures(1, &Framebuffer->DepthStencilTexture);
+					glBindTexture(GL_TEXTURE_2D, Framebuffer->DepthStencilTexture);
+
+					glTexImage2D(
+						GL_TEXTURE_2D,
+						0,
+						GL_DEPTH24_STENCIL8,
+						RenderWidth,
+						RenderHeight,
+						0,
+						GL_DEPTH_STENCIL,
+						GL_UNSIGNED_INT_24_8,
+						0);
+
+					glFramebufferTexture2D(
+						GL_FRAMEBUFFER,
+						GL_DEPTH_STENCIL_ATTACHMENT,
+						GL_TEXTURE_2D,
+						Framebuffer->DepthStencilTexture,
+						0);
+				}
 			}break;
 		}
 
@@ -1201,7 +1252,8 @@ void OpenGLInitState(
 		State->AnisotropicLevelType,
 		State->MaxAnisotropicLevel);
 
-	State->AntialiasingType = AA_FXAA;
+	State->AntialiasingType = AA_MSAA_2x;
+	State->FXAAEnabled = 1;
 
 	State->MultisamplingSupported =
 		OpenGLExtensionIsSupported("GL_ARB_multisample") ||

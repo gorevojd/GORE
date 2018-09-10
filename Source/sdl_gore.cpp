@@ -1157,19 +1157,19 @@ int main(int ArgsCount, char** Args) {
 
 	char WindowBitsBuf[64];
 
-	stbsp_sprintf(WindowBitsBuf, "Window RED bits count: %d", SetR);
+	stbsp_sprintf(WindowBitsBuf, "Window RED bits count: %d\n", SetR);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window GREEN bits count: %d", SetG);
+	stbsp_sprintf(WindowBitsBuf, "Window GREEN bits count: %d\n", SetG);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window BLUE bits count: %d", SetB);
+	stbsp_sprintf(WindowBitsBuf, "Window BLUE bits count: %d\n", SetB);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
-	stbsp_sprintf(WindowBitsBuf, "Window DEPTH bits count: %d", SetD);
+	stbsp_sprintf(WindowBitsBuf, "Window DEPTH bits count: %d\n", SetD);
 	DEBUG_LOG(WindowBitsBuf);
 	printf(WindowBitsBuf);
 
@@ -1410,7 +1410,7 @@ int main(int ArgsCount, char** Args) {
 
 		OpenGLProcessAllocationQueue();
 		OpenGLRenderStackToOutput(GLState, Stack);
-		OpenGLRenderStackToOutput(GLState, GUIState->RenderStack, true);
+		//OpenGLRenderStackToOutput(GLState, GUIState->RenderStack);
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");
