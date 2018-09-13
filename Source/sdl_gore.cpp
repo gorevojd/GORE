@@ -1074,7 +1074,7 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	//NOTE(dima): Loading game settings from settings file
-	game_settings Sets = TryReadGameSettings();
+	game_settings GameSettings = TryReadGameSettings();
 
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
@@ -1147,7 +1147,12 @@ int main(int ArgsCount, char** Args) {
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
 	SDL_GL_MakeCurrent(Window, SDLOpenGLRenderContext);
-	SDL_GL_SetSwapInterval(0);
+
+	int SwapInterval = 0;
+	if (GameSettings.Named.VSyncEnabledSetting->BoolValue) {
+		SwapInterval = 1;
+	}
+	SDL_GL_SetSwapInterval(SwapInterval);
 
 	int SetR, SetG, SetB, SetD;
 	SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &SetR);
@@ -1328,7 +1333,7 @@ int main(int ArgsCount, char** Args) {
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, &GlobalAssets, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
-	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height);
+	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height, &GameSettings);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
 
 	float TempFloatForSlider = 4.0f;
@@ -1409,8 +1414,8 @@ int main(int ArgsCount, char** Args) {
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLProcessAllocationQueue();
-		OpenGLRenderStackToOutput(GLState, Stack);
-		//OpenGLRenderStackToOutput(GLState, GUIState->RenderStack);
+		OpenGLRenderStateToOutput(GLState, Stack, &GameSettings);
+		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack);
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");

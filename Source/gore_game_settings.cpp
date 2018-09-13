@@ -65,22 +65,22 @@ static void InitInternalSettingsBasedOnValues(
 {
 	Settings->LastSettingIndex = 0;
 
-	Settings->AnisotropicLevelSetting = InitGameSettingInt(
+	Settings->Named.AnisotropicLevelTypeSetting = InitGameSettingInt(
 		Settings,
 		GAME_SETTING_ANISOTROPIC_NAME,
 		Values->AnisotropicFilterLevelType);
 
-	Settings->AntialiasingTypeSetting = InitGameSettingInt(
+	Settings->Named.AntialiasingTypeSetting = InitGameSettingInt(
 		Settings,
 		GAME_SETTING_ANTIALIASING_NAME,
 		Values->AntialiasingType);
 
-	Settings->VSyncEnabledSetting = InitGameSettingBool(
+	Settings->Named.VSyncEnabledSetting = InitGameSettingBool(
 		Settings,
 		GAME_SETTING_VSYNC_NAME,
 		Values->VSyncEnabled);
 
-	Settings->FXAAEnabledSetting = InitGameSettingBool(
+	Settings->Named.FXAAEnabledSetting = InitGameSettingBool(
 		Settings,
 		GAME_SETTING_FXAAENABLED_NAME,
 		Values->FXAAEnabled);
@@ -177,8 +177,6 @@ static inline b32 CharIsLetter(char c) {
 }
 
 game_settings TryReadGameSettings() {
-	game_settings Settings = {};
-
 	char FilePath[256];
 	ConcatStringsUnsafe(FilePath, "../Data/", GAME_SETTINGS_FILE_NAME);
 
@@ -221,10 +219,10 @@ game_settings TryReadGameSettings() {
 
 				//NOTE(dima): Find corresponding values in settings and set them
 				for (int SettingIndex = 0; 
-					SettingIndex < Settings.LastSettingIndex;
+					SettingIndex < Def.LastSettingIndex;
 					SettingIndex++)
 				{
-					game_setting* Setting = Settings.Settings + SettingIndex;
+					game_setting* Setting = Def.Settings + SettingIndex;
 					if (StringsAreEqual(KeyBuf, Setting->Name)) {
 						switch (Setting->ValueType) {
 							case GameSettingValue_Float: {
@@ -266,14 +264,22 @@ game_settings TryReadGameSettings() {
 
 	PlatformApi.FreeFileMemory(&SettingsFileData);
 
-	return(Settings);
+	return(Def);
 }
-//
-//game_setting* GetGameSetting(game_settings* Settings) {
-//	for (int SettingIndex = 0;
-//		SettingIndex < Settings->LastSettingIndex;
-//		SettingIndex++)
-//	{
-//
-//	}
-//}
+
+//TODO(dima): Better game setting finding system. Maybe through hash table
+game_setting* FindGameSetting(game_settings* Settings, char* SettingName) {
+	game_setting* Result = 0;
+
+	for (int SettingIndex = 0;
+		SettingIndex < Settings->LastSettingIndex;
+		SettingIndex++)
+	{
+		if (StringsAreEqual(Settings->Settings[SettingIndex].Name, SettingName)) {
+			Result = &Settings->Settings[SettingIndex];
+			break;
+		}
+	}
+
+	return(Result);
+}

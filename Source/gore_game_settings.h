@@ -134,10 +134,12 @@ struct game_settings_values {
 
 struct game_settings{
 
-	game_setting* AnisotropicLevelSetting;
-	game_setting* AntialiasingTypeSetting;
-	game_setting* VSyncEnabledSetting;
-	game_setting* FXAAEnabledSetting;
+	struct {
+		game_setting* AnisotropicLevelTypeSetting;
+		game_setting* AntialiasingTypeSetting;
+		game_setting* VSyncEnabledSetting;
+		game_setting* FXAAEnabledSetting;
+	} Named;
 
 	int LastSettingIndex;
 	game_setting Settings[256];
@@ -145,5 +147,6 @@ struct game_settings{
 
 game_settings TryReadGameSettings();
 void WriteGameSettings(game_settings* Settings);
+game_setting* FindGameSetting(game_settings* Settings, char* SettingName);
 
 #endif

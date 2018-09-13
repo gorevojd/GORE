@@ -203,12 +203,16 @@ struct gl_state {
 //};
 
 extern void OpenGLProcessAllocationQueue();
-extern void OpenGLRenderStackToOutput(gl_state* State, render_state* Stack);
+extern void OpenGLRenderStateToOutput(
+	gl_state* State, 
+	render_state* Stack, 
+	game_settings* GameSettings);
 
 extern void OpenGLInitState(
 	gl_state* State,
 	int RenderWidth,
-	int RenderHeight);
+	int RenderHeight,
+	game_settings* GameSettings);
 
 inline b32 OpenGLArrayIsValid(GLint ArrayIndex) {
 	b32 Result = 0;

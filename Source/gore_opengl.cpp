@@ -463,7 +463,7 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
+void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, game_settings* GameSettings) {
 	FUNCTION_TIMING();
 
 	glEnable(GL_MULTISAMPLE);
@@ -983,6 +983,7 @@ void OpenGLRenderStackToOutput(gl_state* GLState, render_state* RenderState) {
 		GL_NEAREST);
 
 	//NOTE(dima): FXAA antialiasing
+	GLState->FXAAEnabled = GameSettings->Named.FXAAEnabledSetting->BoolValue;
 	if (GLState->FXAAEnabled) {
 		BEGIN_TIMING("FXAA");
 		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferPFX.FBO);
@@ -1232,7 +1233,8 @@ static b32 OpenGLExtensionIsSupported(
 void OpenGLInitState(
 	gl_state* State, 
 	int RenderWidth, 
-	int RenderHeight) 
+	int RenderHeight,
+	game_settings* GameSettings) 
 {
 	*State = {};
 
@@ -1247,22 +1249,25 @@ void OpenGLInitState(
 	//TODO(dima): Load parameters from game_settings
 	State->AnisotropicFilteringSupported = OpenGLExtensionIsSupported("GL_EXT_texture_filter_anisotropic");
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &State->MaxAnisotropicLevel);
-	State->AnisotropicLevelType = AnisoLevel_8x;
+
+	State->AnisotropicLevelType = GameSettings->Named.AnisotropicLevelTypeSetting->IntegerValue;
+	State->AntialiasingType = GameSettings->Named.AntialiasingTypeSetting->IntegerValue;
+	State->FXAAEnabled = GameSettings->Named.FXAAEnabledSetting->BoolValue;
+
 	State->AnisotropicLevel = GetAnisoLevelBasedOnParams(
 		State->AnisotropicLevelType,
 		State->MaxAnisotropicLevel);
 
-	State->AntialiasingType = AA_MSAA_2x;
-	State->FXAAEnabled = 1;
+	if (AntialiasingIsMSAA(State->AntialiasingType)) {
+		State->MultisampleLevel = GetMSAALevel(State->AntialiasingType);
+	}
 
 	State->MultisamplingSupported =
 		OpenGLExtensionIsSupported("GL_ARB_multisample") ||
 		OpenGLExtensionIsSupported("GLX_ARB_multisample") ||
 		OpenGLExtensionIsSupported("WGL_ARB_multisample");
 	glGetIntegerv(GL_MAX_SAMPLES, &State->MaxMultisampleLevel);
-	if (AntialiasingIsMSAA(State->AntialiasingType)) {
-		State->MultisampleLevel = GetMSAALevel(State->AntialiasingType);
-	}
+
 
 	//NOTE(dima): Initializing of screen quad. Pos + Tex
 #if 1

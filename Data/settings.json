@@ -1,6 +1,6 @@
 {
 	"AnisotropicLevel": 0,
 	"Antialiasing": 2,
-	"VSync": 0,
+	"VSync": 1,
 	"FXAAEnabled": 1
 }
