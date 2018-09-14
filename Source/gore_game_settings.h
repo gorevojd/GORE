@@ -3,7 +3,6 @@
 
 #include "gore_types.h"
 #include "gore_platform.h"
-#include "gore_debug.h"
 
 #define GAME_SETTINGS_FILE_NAME "settings.json"
 

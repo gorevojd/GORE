@@ -45,21 +45,10 @@ inline u32 GetAlignValueFromAllocationFlag(u32 AllocationFlag) {
 	return(Result);
 }
 
-inline void AlignStackedMemory(stacked_memory* Stack, u32 Align) {
-	u32 AlignOffset = GET_ALIGN_OFFSET(Stack->BaseAddress, Align);
-
-	Assert(Stack->Used + AlignOffset <= Stack->MaxSize);
-	Stack->Used += AlignOffset;
-	Stack->FragmentationBytesCount += AlignOffset;
-}
-
 inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize, u32 AllocationFlag = 0) {
 	stacked_memory Result = {};
 
-	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
-	u32 AlignOffset = GET_ALIGN_OFFSET(Memory, AlignValue);
-
-	Result.BaseAddress = (u8*)Memory + AlignOffset;
+	Result.BaseAddress = (u8*)Memory;
 	Result.Used = 0;
 	Result.MaxSize = MaxSize;
 	Result.FragmentationBytesCount = 0;
@@ -67,7 +56,7 @@ inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize, u32 Allocatio
 	return(Result);
 }
 
-inline stacked_memory BeginTempStackedMemory(stacked_memory* Stack, u32 Size, u32 AllocationFlag = 0) {
+inline stacked_memory BeginTempStackedMemory(stacked_memory* Stack, u32 Size) {
 	stacked_memory Result = {};
 
 	//NOTE(dima): checking for overlapping the initial stack
@@ -79,9 +68,6 @@ inline stacked_memory BeginTempStackedMemory(stacked_memory* Stack, u32 Size, u3
 	Result.InitUsed = Stack->Used;
 	Result.FragmentationBytesCount = 0;
 
-	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
-	AlignStackedMemory(&Result, AlignValue);
-
 	Stack->Used += Size;
 
 	return(Result);
@@ -92,11 +78,8 @@ inline void EndTempStackedMemory(stacked_memory* Stack, stacked_memory* TempMem)
 	Stack->Used = TempMem->InitUsed;
 }
 
-inline stacked_memory SplitStackedMemory(stacked_memory* Stack, u32 Size, u32 AllocationFlag = 0) {
+inline stacked_memory SplitStackedMemory(stacked_memory* Stack, u32 Size) {
 	stacked_memory Result = {};
-
-	u32 AlignValue = GetAlignValueFromAllocationFlag(AllocationFlag);
-	AlignStackedMemory(Stack, AlignValue);
 
 	Assert(Stack->Used + Size <= Stack->MaxSize);
 	Result.BaseAddress = (u8*)Stack->BaseAddress + Stack->Used;
@@ -135,6 +118,7 @@ inline void* GetCurrentMemoryBase(stacked_memory* Mem) {
 }
 
 #define PushStruct(StMem, type) (type*)PushSomeMemory(StMem, sizeof(type))
+#define PushStructUnaligned(StMem, type) (type*)PushSomeMemory(StMem, sizeof(type), 1)
 #define PushArray(StMem, type, count) (type*)PushSomeMemory(StMem, sizeof(type) * count)
 #define PushString(StMem, str) (char*)PushSomeMemory(StMem, StringLength(str) + 1)
 

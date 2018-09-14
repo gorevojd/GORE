@@ -1523,7 +1523,7 @@ static void DescribeByIndex(
 }
 
 
-void ASSETSInit(asset_system* System, u32 MemorySizeForAssets) {
+void ASSETSInit(asset_system* System) {
 
 	//NOTE(dima): Reserving first asset to make it NULL asset
 	System->AssetCount = 1;

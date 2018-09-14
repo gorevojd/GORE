@@ -436,12 +436,12 @@ struct platform_api {
 	platform_compiler_barrier_type* ReadBarrier;
 	platform_compiler_barrier_type* WriteBarrier;
 
-	platform_thread_queue* VoxelQueue;
+	platform_thread_queue* SuperHighQueue;
 	platform_thread_queue* HighPriorityQueue;
 	platform_thread_queue* LowPriorityQueue;
 
 	stacked_memory GameModeMemoryBlock;
-	stacked_memory GeneralPurposeMemoryBlock;
+	stacked_memory PermanentMemoryBlock;
 	stacked_memory DEBUGMemoryBlock;
 
 	platform_read_file* ReadFile;

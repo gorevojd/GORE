@@ -6,7 +6,7 @@ render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int
 	Result.RenderPushMutex = {};
 	Result.InitStack = RenderMemory;
 	//NOTE(dima): 16 is subtracted because of possible alignment problems. If alignment is happened then it might be not enough memory
-	Result.Data = BeginTempStackedMemory(RenderMemory, RenderMemory->MaxSize - 16, MemAllocFlag_Align16);
+	Result.Data = BeginTempStackedMemory(RenderMemory, RenderMemory->MaxSize);
 
 	Result.EntryCount = 0;
 	Result.RenderWidth = RenderWidth;

@@ -51,8 +51,7 @@ threadwork_data* BeginThreadworkData(threadwork_data_set* Set)
 		//NOTE(dima): Beginning temp memory
 		Result->Memory = BeginTempStackedMemory(
 			&Result->MemoryInternal,
-			Result->MemoryInternal.MaxSize,
-			MemAllocFlag_Align16);
+			Result->MemoryInternal.MaxSize);
 
 		Set->FreeThreadworksCount--;
 	}

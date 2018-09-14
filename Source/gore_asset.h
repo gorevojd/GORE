@@ -5,6 +5,7 @@
 
 #include "gore_asset_types.h"
 #include "gore_asset_common.h"
+#include "gore_game_settings.h"
 
 typedef u32 bitmap_id;
 typedef u32 font_id;
@@ -147,7 +148,7 @@ voxel_atlas_id GetFirstVoxelAtlas(asset_system* System, u32 GroupID);
 u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType);
 u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType);
 
-void ASSETSInit(asset_system* System, u32 MemorySizeForAssets);
+void ASSETSInit(asset_system* System);
 
 inline game_asset* GetByAssetID(asset_system* System, u32 ID) {
 	game_asset* Result = System->Assets + ID;

@@ -1119,7 +1119,7 @@ static void VoxelRegenerateSetatistics(
 
 	Result->CameraPos = CameraP;
 
-	Result->Queue = PlatformApi.VoxelQueue;
+	Result->Queue = PlatformApi.SuperHighQueue;
 
 	GetVoxelChunkPosForCamera(
 		CameraP,
@@ -1340,7 +1340,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelChunkThreadwork) {
 			&WorkChunk->OldNeighbours);
 
 		PlatformApi.AddThreadworkEntry(
-			PlatformApi.VoxelQueue,
+			PlatformApi.SuperHighQueue,
 			MeshGenerationData,
 			GenerateVoxelMeshThreadwork);
 	}
@@ -1549,7 +1549,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 							&NeededChunk->OldNeighbours);
 
 						PlatformApi.AddThreadworkEntry(
-							PlatformApi.VoxelQueue,
+							PlatformApi.SuperHighQueue,
 							MeshGenerationData,
 							RegenerateVoxelMeshThreadwork);
 					}
@@ -1596,7 +1596,7 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 #if 1
 						BEGIN_TIMING("Pushing work to thread queue");
 						PlatformApi.AddThreadworkEntry(
-							PlatformApi.VoxelQueue,
+							PlatformApi.SuperHighQueue,
 							ChunkGenerationData,
 							GenerateVoxelChunkThreadwork);
 						END_TIMING();
@@ -2141,7 +2141,7 @@ void VoxelChunksGenerationUpdate(
 				UnloadData->Generation = Generation;
 
 				PlatformApi.AddThreadworkEntry(
-					PlatformApi.VoxelQueue,
+					PlatformApi.SuperHighQueue,
 					UnloadData,
 					UnloadVoxelChunkThreadwork);
 

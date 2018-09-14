@@ -477,6 +477,7 @@ PLATFORM_FREE_FILE_MEMORY(SDLFreeFileMemory) {
 	if (FileReadResult->Data) {
 		free(FileReadResult->Data);
 	}
+	FileReadResult->Data = 0;
 }
 
 PLATFORM_PLACE_CURSOR_AT_CENTER(SDLPlaceCursorAtCenter) {
@@ -896,27 +897,27 @@ int main(int ArgsCount, char** Args) {
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
 	//NOTE(dima): Initializing of threads
-	platform_thread_queue VoxelQueue;
+	platform_thread_queue SuperHighPriorityQueue;
 	platform_thread_queue HighPriorityQueue;
 	platform_thread_queue LowPriorityQueue;
 
-	platform_threadwork VoxelQueueEntries[16384];
-	platform_threadwork HighQueueEntries[512];
-	platform_threadwork LowQueueEntries[512];
+	platform_threadwork SuperHighQueueEntries[16384];
+	platform_threadwork HighQueueEntries[4096];
+	platform_threadwork LowQueueEntries[4096];
 
-#define PLATFORM_VOXEL_QUEUE_THREADS_COUNT 2
-#define PLATFORM_HIGH_QUEUE_THREADS_COUNT 2
-#define PLATFORM_LOW_QUEUE_THREADS_COUNT 1
+#define PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT 5
+#define PLATFORM_HIGH_QUEUE_THREADS_COUNT 4
+#define PLATFORM_LOW_QUEUE_THREADS_COUNT 2
 
 #if defined(PLATFORM_WINDA)
-	winda_thread_worker VoxelThreadWorkers[PLATFORM_VOXEL_QUEUE_THREADS_COUNT];
+	winda_thread_worker SuperHighThreadWorkers[PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT];
 	WindaInitThreadQueue(
-		&VoxelQueue,
-		VoxelThreadWorkers,
-		ArrayCount(VoxelThreadWorkers),
-		"VoxelQueue",
-		VoxelQueueEntries,
-		ArrayCount(VoxelQueueEntries));
+		&SuperHighPriorityQueue,
+		SuperHighThreadWorkers,
+		ArrayCount(SuperHighThreadWorkers),
+		"SuperHighQueue",
+		SuperHighQueueEntries,
+		ArrayCount(SuperHighQueueEntries));
 
 	winda_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
 	WindaInitThreadQueue(
@@ -936,14 +937,14 @@ int main(int ArgsCount, char** Args) {
 		LowQueueEntries,
 		ArrayCount(LowQueueEntries));
 #else
-	sdl_thread_worker VoxelThreadWorkers[PLATFORM_VOXEL_QUEUE_THREADS_COUNT];
+	sdl_thread_worker SuperHighThreadWorkers[PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT];
 	SDLInitThreadQueue(
-		&VoxelQueue,
-		VoxelThreadWorkers,
-		ArrayCount(VoxelThreadWorkers),
-		"VoxelQueue",
-		VoxelQueueEntries,
-		ArrayCount(VoxelQueueEntries));
+		&SuperHighPriorityQueue,
+		SuperHighThreadWorkers,
+		ArrayCount(SuperHighThreadWorkers),
+		"SuperHighQueue",
+		SuperHighQueueEntries,
+		ArrayCount(SuperHighQueueEntries));
 
 	sdl_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
 	SDLInitThreadQueue(
@@ -1034,7 +1035,7 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.DeallocateMemory = SDLDeallocateMemory;
 #endif
 
-	PlatformApi.VoxelQueue = &VoxelQueue;
+	PlatformApi.SuperHighQueue = &SuperHighPriorityQueue;
 	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
 	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;
@@ -1090,19 +1091,19 @@ int main(int ArgsCount, char** Args) {
 
 	//NOTE(dima): Initialization of the memory
 	u32 GameModeMemorySize = MEGABYTES(256);
-	u32 GeneralPurposeMemorySize = MEGABYTES(256);
+	u32 PermanentMemorySize = MEGABYTES(256);
 	u32 DEBUGMemorySize = MEGABYTES(128);
 
 	u64 TotalMemoryBlockSize =
 		GameModeMemorySize +
-		GeneralPurposeMemorySize +
+		PermanentMemorySize +
 		DEBUGMemorySize;
 
 	void* PlatformMemoryBlock = calloc(TotalMemoryBlockSize, 1);
 
 	void* GameModeMemPointer = PlatformMemoryBlock;
-	void* GeneralPurposeMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
-	void* DEBUGMemPointer = (u8*)GeneralPurposeMemPointer + GeneralPurposeMemorySize;
+	void* PermanentMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
+	void* DEBUGMemPointer = (u8*)PermanentMemPointer + PermanentMemorySize;
 
 #if VOXEL_WORLD_ENABLED
 	u32 VoxelMemorySize = MEGABYTES(300);
@@ -1112,7 +1113,7 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 	PlatformApi.GameModeMemoryBlock = InitStackedMemory(PlatformMemoryBlock, GameModeMemorySize);
-	PlatformApi.GeneralPurposeMemoryBlock = InitStackedMemory(GeneralPurposeMemPointer, GeneralPurposeMemorySize);
+	PlatformApi.PermanentMemoryBlock = InitStackedMemory(PermanentMemPointer, PermanentMemorySize);
 	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
 
 #define GORE_WINDOW_WIDTH 1366
@@ -1277,7 +1278,7 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Renderer is not created");
 	}
 
-	ASSETSInit(&GlobalAssets, MEGABYTES(32));
+	ASSETSInit(&GlobalAssets, MEGABYTES(32), &GameSettings);
 
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(&GlobalAssets, GameAsset_MyVoxelAtlas);
 	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(&GlobalAssets, VoxelAtlasID);
@@ -1326,9 +1327,9 @@ int main(int ArgsCount, char** Args) {
 	}
 #endif
 
-	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(5));
-	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, MEGABYTES(2));
-	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.GeneralPurposeMemoryBlock, KILOBYTES(20));
+	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(5));
+	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(2));
+	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, KILOBYTES(20));
 
 	InitColorsState(ColorState, &ColorsMemory);
 	GUIInitState(GUIState, &GUIMemory, ColorState, &GlobalAssets, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
@@ -1352,7 +1353,7 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_SECTION("Platform");
 
 		DEBUG_STACKED_MEM("Platform GameMode Memory", &PlatformApi.GameModeMemoryBlock);
-		DEBUG_STACKED_MEM("Platform GeneralPurpose Memory", &PlatformApi.GeneralPurposeMemoryBlock);
+		DEBUG_STACKED_MEM("Platform GeneralPurpose Memory", &PlatformApi.PermanentMemoryBlock);
 		DEBUG_STACKED_MEM("Platform DEBUG Memory", &PlatformApi.DEBUGMemoryBlock);
 
 		DEBUG_STACKED_MEM("GUIMem", &GUIMemory);
@@ -1415,7 +1416,7 @@ int main(int ArgsCount, char** Args) {
 
 		OpenGLProcessAllocationQueue();
 		OpenGLRenderStateToOutput(GLState, Stack, &GameSettings);
-		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack);
+		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack, &GameSettings);
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");
