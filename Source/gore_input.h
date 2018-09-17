@@ -73,6 +73,8 @@ typedef struct input_system {
 	v2 GlobalCenterP;
 	v2 LastGlobalMouseP;
 
+	v2 WindowDim;
+
 	float DeltaTime;
 	float Time;
 }input_system;

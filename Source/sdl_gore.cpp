@@ -65,7 +65,6 @@
 GLOBAL_VARIABLE b32 GlobalRunning;
 GLOBAL_VARIABLE bitmap_info GlobalBuffer;
 GLOBAL_VARIABLE input_system GlobalInput;
-GLOBAL_VARIABLE asset_system GlobalAssets;
 
 GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
@@ -1278,8 +1277,7 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Renderer is not created");
 	}
 
-	ASSETSInit(&GlobalAssets, MEGABYTES(32), &GameSettings);
-
+	/*
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(&GlobalAssets, GameAsset_MyVoxelAtlas);
 	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(&GlobalAssets, VoxelAtlasID);
 	random_state CellRandom = InitRandomStateWithSeed(1234);
@@ -1289,6 +1287,7 @@ int main(int ArgsCount, char** Args) {
 	//CelluralGenerateSquadLaby(&Cellural, &CellRandom);
 	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
 	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 3, VoxelAtlas);
+	*/
 
 #if 0
 	int FloatsPerRow = 8;
@@ -1327,12 +1326,6 @@ int main(int ArgsCount, char** Args) {
 	}
 #endif
 
-	stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(5));
-	stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(2));
-	stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, KILOBYTES(20));
-
-	InitColorsState(ColorState, &ColorsMemory);
-	GUIInitState(GUIState, &GUIMemory, ColorState, &GlobalAssets, &GlobalInput, GlobalBuffer.Width, GlobalBuffer.Height);
 
 	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height, &GameSettings);
 	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
@@ -1342,6 +1335,8 @@ int main(int ArgsCount, char** Args) {
 	b32 TempBoolForSlider = false;
 
 	float DeltaTime = 0.0f;
+	GlobalInput.WindowDim.x = GlobalBuffer.Width;
+	GlobalInput.WindowDim.y = GlobalBuffer.Height;
 
 	GlobalRunning = true;
 	while (GlobalRunning) {
@@ -1353,11 +1348,8 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_SECTION("Platform");
 
 		DEBUG_STACKED_MEM("Platform GameMode Memory", &PlatformApi.GameModeMemoryBlock);
-		DEBUG_STACKED_MEM("Platform GeneralPurpose Memory", &PlatformApi.PermanentMemoryBlock);
+		DEBUG_STACKED_MEM("Platform Permanent Memory", &PlatformApi.PermanentMemoryBlock);
 		DEBUG_STACKED_MEM("Platform DEBUG Memory", &PlatformApi.DEBUGMemoryBlock);
-
-		DEBUG_STACKED_MEM("GUIMem", &GUIMemory);
-		DEBUG_STACKED_MEM("ColorsMem", &ColorsMemory);
 
 		BEGIN_TIMING("Input processing");
 		SDLProcessEvents(Window, &GlobalInput);
@@ -1375,13 +1367,13 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_TIMING("Other...");
-		render_state Stack_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets, &GlobalInput);
-		render_state* Stack = &Stack_;
+		render_state RenderState_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets, &GlobalInput);
+		render_state* RenderState = &RenderState_;
 
 		//RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
-		RENDERPushTest(Stack);
+		RENDERPushTest(RenderState);
 
-		GEOMKAUpdateAndRender(&PlatformApi.GameModeMemoryBlock, &GlobalAssets, Stack, &GlobalInput);
+		GEOMKAUpdateAndRender(&PlatformApi.GameModeMemoryBlock, &GlobalAssets, RenderState, &GlobalInput);
 
 #if VOXEL_WORLD_ENABLED
 		geometrika_state* GameState = (geometrika_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
@@ -1415,7 +1407,7 @@ int main(int ArgsCount, char** Args) {
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
 		OpenGLProcessAllocationQueue();
-		OpenGLRenderStateToOutput(GLState, Stack, &GameSettings);
+		OpenGLRenderStateToOutput(GLState, RenderState, &GameSettings);
 		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack, &GameSettings);
 		END_TIMING();
 
@@ -1447,7 +1439,7 @@ int main(int ArgsCount, char** Args) {
 
 		BEGIN_TIMING("FrameEnding");
 		GUIEndFrame(GUIState);
-		RENDEREndStack(Stack);
+		RENDEREndStack(RenderState);
 		END_TIMING();
 
 		END_SECTION();

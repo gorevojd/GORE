@@ -463,6 +463,10 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
+static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
+
+}
+
 void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, game_settings* GameSettings) {
 	FUNCTION_TIMING();
 

@@ -1752,7 +1752,6 @@ void VoxelChunksGenerationUpdate(
 	stacked_memory* Memory,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	v3 CameraPos,
 	input_system* Input)
 {
 	FUNCTION_TIMING();
@@ -1788,6 +1787,10 @@ void VoxelChunksGenerationUpdate(
 
 		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize, Input);
 
+		Generation->CapturingMouse = 1;
+		Generation->CameraAutoMove = 0;
+		Generation->Camera = GAMECreateCamera();
+
 		Generation->Initialized = 1;
 	}
 
@@ -1798,7 +1801,84 @@ void VoxelChunksGenerationUpdate(
 	int CamChunkIndexY;
 	int CamChunkIndexZ;
 
-	GetVoxelChunkPosForCamera(CameraPos, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
+	float MouseSpeed = 0.1f;
+
+	if (Generation->CapturingMouse) {
+		float DeltaXAngle = -(Input->MouseP.x - Input->CenterP.x) * DEG_TO_RAD * MouseSpeed;
+		float DeltaYAngle = -(Input->MouseP.y - Input->CenterP.y) * DEG_TO_RAD * MouseSpeed;
+
+		GAMEUpdateCameraVectors(&Generation->Camera, DeltaYAngle, DeltaXAngle, 0.0f);
+
+		PlatformApi.PlaceCursorAtCenter();
+	}
+
+	//NOTE(dima): Camera movement
+	v3 RawMoveVector = V3(0.0f, 0.0f, 0.0f);
+	if (ButtonIsDown(Input, KeyType_A)) {
+		RawMoveVector += V3(1.0f, 0.0f, 0.0f);
+	}
+	if (ButtonIsDown(Input, KeyType_D)) {
+		RawMoveVector -= V3(1.0f, 0.0f, 0.0f);
+	}
+	if (ButtonIsDown(Input, KeyType_W)) {
+		RawMoveVector += V3(0.0f, 0.0f, 1.0f);
+	}
+	if (ButtonIsDown(Input, KeyType_S)) {
+		RawMoveVector -= V3(0.0f, 0.0f, 1.0f);
+	}
+
+	RawMoveVector = NOZ(RawMoveVector);
+
+	float CameraSpeed = 20.0f;
+	if (ButtonIsDown(Input, KeyType_LShift)) {
+		CameraSpeed *= 12.0f;
+	}
+	if (ButtonIsDown(Input, KeyType_Space)) {
+		CameraSpeed *= 7.0f;
+
+		if (ButtonIsDown(Input, KeyType_E)) {
+			CameraSpeed *= 5.0f;
+		}
+	}
+	if (ButtonWentDown(Input, KeyType_Q)) {
+		Generation->CameraAutoMove = !Generation->CameraAutoMove;
+	}
+
+	RawMoveVector = RawMoveVector * CameraSpeed;
+#if 0
+	RawMoveVector *= Input->DeltaTime;
+	State->Camera.Position += State->Camera.Front * RawMoveVector.z;
+	State->Camera.Position -= State->Camera.Left * RawMoveVector.x;
+	State->Camera.Position += State->Camera.Up * RawMoveVector.y;
+#else
+
+	v3 MoveVector = {};
+	MoveVector += Generation->Camera.Front * RawMoveVector.z;
+	MoveVector += (-Generation->Camera.Left * RawMoveVector.x);
+	MoveVector += Generation->Camera.Up * RawMoveVector.y;
+
+	if (Generation->CameraAutoMove) {
+		MoveVector = NOZ(V3(1.0f, 0.0f, 1.0f)) * 500.0f;
+	}
+
+	Generation->Camera.Position +=
+		Generation->Camera.dPosition * Input->DeltaTime * 1.2f +
+		MoveVector * Input->DeltaTime * Input->DeltaTime * 0.5f;
+
+	Generation->Camera.dPosition = (Generation->Camera.dPosition + MoveVector * Input->DeltaTime) * (1.0f - Input->DeltaTime * 5.0f);
+
+#endif
+
+	game_camera_setup CameraSetup = GAMECameraSetup(
+		Generation->Camera,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
+		CameraProjection_Perspective,
+		2000.0f);
+
+	RENDERSetCameraSetup(RenderState, CameraSetup);
+
+	GetVoxelChunkPosForCamera(Generation->Camera.Position, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
 #if 0
 	int testviewdist = 40;
@@ -2158,7 +2238,7 @@ void VoxelChunksGenerationUpdate(
 	}
 	END_TIMING();
 
-	VoxelRegenerateSetatistics(Generation, CameraPos);
+	VoxelRegenerateSetatistics(Generation, Generation->Camera.Position);
 
 	BEGIN_SECTION("VoxelGeneration");
 	DEBUG_VOXEL_STATISTICS(&Generation->DEBUGStat);

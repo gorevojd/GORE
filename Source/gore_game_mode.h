@@ -3,6 +3,9 @@
 
 #include "gore_platform.h"
 
+#include "gore_gui.h"
+#include "gore_colors.h"
+
 enum game_mode_type {
 	GameMode_EntryTitle,
 
@@ -28,6 +31,8 @@ struct permanent_state {
 
 	input_system* InputSystem;
 	asset_system* AssetSystem;
+	gui_state* GUIState;
+	color_state* ColorsState;
 };
 
 #endif

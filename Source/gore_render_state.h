@@ -7,22 +7,27 @@
 #include "gore_lighting.h"
 #include "gore_lpterrain.h"
 
-struct render_state {
-	platform_mutex RenderPushMutex;
+struct render_stack {
+	render_state* ParentRenderState;
+
 	stacked_memory Data;
 	stacked_memory* InitStack;
 
+	b32 CameraSetupIsSet;
+	game_camera_setup CameraSetup;
+
+	u32 EntryCount;
+};
+
+struct render_state {
 	asset_system* AssetSystem;
 	input_system* InputSystem;
 
 	int RenderWidth;
 	int RenderHeight;
 
-	u32 EntryCount;
-
 	mesh_id LowPolyCylMeshID;
 
-	game_camera_setup CameraSetup;
 
 	float GlobalTime;
 };
@@ -125,7 +130,7 @@ struct render_stack_entry_header {
 	u32 SizeOfEntryType;
 };
 
-inline void* RENDERPushToStack(render_state* Stack, u32 Size) {
+inline void* RENDERPushToStack(render_stack* Stack, u32 Size) {
 	void* Result = 0;
 
 	void* MemPushed = PushSomeMemory(&Stack->Data, Size);
@@ -139,7 +144,7 @@ inline void* RENDERPushToStack(render_state* Stack, u32 Size) {
 	return(Result);
 }
 
-inline void* RENDERPushEntryToStack(render_state* Stack, u32 SizeOfType, u32 TypeEnum) {
+inline void* RENDERPushEntryToStack(render_stack* Stack, u32 SizeOfType, u32 TypeEnum) {
 	render_stack_entry_header* Header =
 		(render_stack_entry_header*)RENDERPushToStack(Stack, sizeof(render_stack_entry_header));
 
@@ -152,7 +157,7 @@ inline void* RENDERPushEntryToStack(render_state* Stack, u32 SizeOfType, u32 Typ
 }
 #define PUSH_RENDER_ENTRY(Stack, type, entry_type_enum)	(type *)(RENDERPushEntryToStack(Stack, sizeof(type), entry_type_enum))
 
-inline void RENDERPushBitmap(render_state* Stack, bitmap_info* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushBitmap(render_stack* Stack, bitmap_info* Bitmap, v2 P, float Height, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_bitmap* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_bitmap, RenderEntry_Bitmap);
 
 	Entry->P = P;
@@ -162,7 +167,7 @@ inline void RENDERPushBitmap(render_state* Stack, bitmap_info* Bitmap, v2 P, flo
 	Entry->Bitmap = Bitmap;
 }
 
-inline void RENDERPushRect(render_state* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderEntry_Rectangle);
 
 	Entry->P = P;
@@ -171,7 +176,7 @@ inline void RENDERPushRect(render_state* Stack, v2 P, v2 Dim, v4 ModulationColor
 }
 
 
-inline void RENDERPushRect(render_state* Stack, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushRect(render_stack* Stack, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_rectangle* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_rectangle, RenderEntry_Rectangle);
 
 	Entry->P = Rect.Min;
@@ -179,7 +184,7 @@ inline void RENDERPushRect(render_state* Stack, rect2 Rect, v4 ModulationColor =
 	Entry->ModulationColor = ModulationColor;
 }
 
-inline void RENDERPushRectOutline(render_state* Stack, v2 P, v2 Dim, int PixelWidth, v4 ModulationColor = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
+inline void RENDERPushRectOutline(render_stack* Stack, v2 P, v2 Dim, int PixelWidth, v4 ModulationColor = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
 	v2 WidthQuad = V2(PixelWidth, PixelWidth);
 	RENDERPushRect(Stack, V2(P.x - PixelWidth, P.y - PixelWidth), V2(Dim.x + 2.0f * PixelWidth, PixelWidth), ModulationColor);
 	RENDERPushRect(Stack, V2(P.x - PixelWidth, P.y), V2(PixelWidth, Dim.y + PixelWidth), ModulationColor);
@@ -187,7 +192,7 @@ inline void RENDERPushRectOutline(render_state* Stack, v2 P, v2 Dim, int PixelWi
 	RENDERPushRect(Stack, V2(P.x + Dim.x, P.y), V2(PixelWidth, Dim.y), ModulationColor);
 }
 
-inline void RENDERPushRectOutline(render_state* Stack, rect2 Rect, int PixelWidth, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
+inline void RENDERPushRectOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
 	v2 Dim = GetRectDim(Rect);
 	v2 P = Rect.Min;
 
@@ -198,7 +203,7 @@ inline void RENDERPushRectOutline(render_state* Stack, rect2 Rect, int PixelWidt
 	RENDERPushRect(Stack, V2(P.x + Dim.x, P.y), V2(PixelWidth, Dim.y), Color);
 }
 
-inline void RENDERPushRectInnerOutline(render_state* Stack, rect2 Rect, int PixelWidth, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
+inline void RENDERPushRectInnerOutline(render_stack* Stack, rect2 Rect, int PixelWidth, v4 Color = V4(0.0f, 0.0f, 0.0f, 1.0f)) {
 	v2 Dim = GetRectDim(Rect);
 	v2 P = Rect.Min;
 
@@ -208,14 +213,14 @@ inline void RENDERPushRectInnerOutline(render_state* Stack, rect2 Rect, int Pixe
 	RENDERPushRect(Stack, V2(P.x + Dim.x - PixelWidth, P.y + PixelWidth), V2(PixelWidth, Dim.y - 2 * PixelWidth), Color);
 }
 
-inline void RENDERPushClear(render_state* Stack, v3 Clear) {
+inline void RENDERPushClear(render_stack* Stack, v3 Clear) {
 	render_stack_entry_clear* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_clear, RenderEntry_Clear);
 
 	Entry->Color = Clear;
 }
 
 
-inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material Material) {
+inline void RENDERPushMesh(render_stack* State, mesh_info* Mesh, mat4 TransformMatrix, surface_material Material) {
 	render_stack_entry_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_mesh, RenderEntry_Mesh);
 
 	Entry->MeshInfo = Mesh;
@@ -223,8 +228,8 @@ inline void RENDERPushMesh(render_state* State, mesh_info* Mesh, mat4 TransformM
 	Entry->Material = Material;
 }
 
-inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMatrix, surface_material Material) {
-	mesh_info* MeshInfo = GetMeshFromID(State->AssetSystem, MeshID);
+inline void RENDERPushMesh(render_stack* State, mesh_id MeshID, mat4 TransformMatrix, surface_material Material) {
+	mesh_info* MeshInfo = GetMeshFromID(State->ParentRenderState->AssetSystem, MeshID);
 
 	if (MeshInfo) {
 		RENDERPushMesh(State, MeshInfo, TransformMatrix, Material);
@@ -234,7 +239,7 @@ inline void RENDERPushMesh(render_state* State, mesh_id MeshID, mat4 TransformMa
 	}
 }
 
-inline void RENDERPushVoxelMesh(render_state* State, voxel_mesh_info* Mesh, v3 P, bitmap_info* VoxelAtlasBitmap) {
+inline void RENDERPushVoxelMesh(render_stack* State, voxel_mesh_info* Mesh, v3 P, bitmap_info* VoxelAtlasBitmap) {
 	render_stack_entry_voxel_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_mesh, RenderEntry_VoxelMesh);
 
 	Entry->MeshInfo = Mesh;
@@ -242,21 +247,21 @@ inline void RENDERPushVoxelMesh(render_state* State, voxel_mesh_info* Mesh, v3 P
 	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
 }
 
-inline void RENDERPushLpterMesh(render_state* State, lpter_mesh* Mesh, v3 P) {
+inline void RENDERPushLpterMesh(render_stack* State, lpter_mesh* Mesh, v3 P) {
 	render_stack_entry_lpter_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lpter_mesh, RenderEntry_LpterMesh);
 
 	Entry->Mesh = Mesh;
 	Entry->P = P;
 }
 
-inline void RENDERPushLpterWaterMesh(render_state* State, lpter_water* Water, v3 P) {
+inline void RENDERPushLpterWaterMesh(render_stack* State, lpter_water* Water, v3 P) {
 	render_stack_entry_lpter_water_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_lpter_water_mesh, RenderEntry_LpterWaterMesh);
 
 	Entry->P = P;
 	Entry->WaterMesh = Water;
 }
 
-inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Color, float Diameter) {
+inline void RENDERPushVolumeOutline(render_stack* Stack, v3 Min, v3 Max, v3 Color, float Diameter) {
 	v3 Diff = Max - Min;
 
 	surface_material OutlineMat = LITCreateSurfaceMaterial(1.0f, Color);
@@ -264,47 +269,47 @@ inline void RENDERPushVolumeOutline(render_state* State, v3 Min, v3 Max, v3 Colo
 	mat4 InitTran = TranslationMatrix(V3(0.0f, 0.5f, 0.0f));
 	mat4 VertTran = ScalingMatrix(V3(Diameter, Diff.y, Diameter)) * InitTran;
 
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, Diff.z)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, Diff.z)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
 
 	VertTran = ScalingMatrix(V3(Diameter, Diff.x, Diameter)) * InitTran;
 	mat4 RotationMat = RotationZ(-GORE_PI / 2.0f);
 	VertTran = RotationMat * VertTran;
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, Diff.z)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, Diff.z)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, 0.0f, Diff.z)), OutlineMat);
 
 
 	VertTran = ScalingMatrix(V3(Diameter, Diff.x, Diameter)) * InitTran;
 	RotationMat = RotationX(GORE_PI / 2.0f);
 	VertTran = RotationMat * VertTran;
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, Diff.y, 0.0f)), OutlineMat);
-	RENDERPushMesh(State, State->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, Diff.y, 0.0f)), OutlineMat);
+	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
 
 }
 
-inline void RENDERPushGradient(render_state* Stack, v3 Color) {
+inline void RENDERPushGradient(render_stack* Stack, v3 Color) {
 	render_stack_entry_gradient* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_gradient, RenderEntry_Gradient);
 
 	Entry->Color = Color;
 }
 
-inline void RENDERPushBeginText(render_state* Stack, font_info* FontInfo) {
+inline void RENDERPushBeginText(render_stack* Stack, font_info* FontInfo) {
 	render_stack_entry_begin_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_begin_text, RenderEntry_GUI_BeginText);
 
 	Entry->FontInfo = FontInfo;
 }
 
-inline void RENDERPushEndText(render_state* Stack) {
+inline void RENDERPushEndText(render_stack* Stack) {
 	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderEntry_GUI_EndText);
 }
 
-inline void RENDERPushGlyph(render_state* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_GUI_Glyph);
 
 	Entry->Codepoint = Codepoint;
@@ -313,11 +318,12 @@ inline void RENDERPushGlyph(render_state* Stack, int Codepoint, v2 P, v2 Dim, v4
 	Entry->ModulationColor = ModulationColor;
 }
 
-inline void RENDERSetCameraSetup(render_state* State, game_camera_setup Setup) {
+inline void RENDERSetCameraSetup(render_stack* State, game_camera_setup Setup) {
 	State->CameraSetup = Setup;
+	State->CameraSetupIsSet = 1;
 }
 
-inline void RENDERPushTest(render_state* Stack) {
+inline void RENDERPushTest(render_stack* Stack) {
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Test);
 }
 

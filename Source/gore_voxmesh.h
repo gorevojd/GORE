@@ -299,6 +299,10 @@ struct voxworld_generation_state {
 
 	b32 Initialized;
 
+	b32 CapturingMouse;
+	b32 CameraAutoMove;
+	game_camera Camera;
+
 #define MESH_REGEN_FREQUENCY 5.0f
 	input_system* Input;
 
@@ -348,7 +352,6 @@ void VoxelChunksGenerationUpdate(
 	stacked_memory* Memory,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	v3 CameraPos,
 	input_system* Input);
 
 #endif

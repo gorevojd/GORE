@@ -1,9 +1,24 @@
 #include "gore_render_state.h"
 
+render_stack RenderBeginStack(render_state* RenderState, stacked_memory* SplitedRenderMemory) {
+	render_stack Result = {};
+
+	Result.CameraSetup = {};
+	Result.CameraSetupIsSet = 0;
+
+	Result.InitStack = SplitedRenderMemory;
+	Result.Data = BeginTempStackedMemory(SplitedRenderMemory, SplitedRenderMemory->MaxSize);
+
+	Result.ParentRenderState = RenderState;
+
+	return(Result);
+}
+
+
+
 render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int RenderHeight, asset_system* AssetSystem, input_system* InputSystem) {
 	render_state Result = {};
 
-	Result.RenderPushMutex = {};
 	Result.InitStack = RenderMemory;
 	//NOTE(dima): 16 is subtracted because of possible alignment problems. If alignment is happened then it might be not enough memory
 	Result.Data = BeginTempStackedMemory(RenderMemory, RenderMemory->MaxSize);
