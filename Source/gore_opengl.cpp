@@ -326,7 +326,7 @@ gl_voxel_shader OpenGLLoadVoxelShader() {
 }
 
 
-void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf_shader* Shader, surface_material* Mat) {
+void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_stack* Stack, gl_wtf_shader* Shader, surface_material* Mat) {
 	glUniform1f(Shader->SurfMatShineLocation, Mat->Shine);
 	glUniform3f(Shader->SurfMatColorLocation, Mat->Color.x, Mat->Color.y, Mat->Color.z);
 
@@ -338,7 +338,7 @@ void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf
 	if (HasDiffuseBitmap) {
 		bitmap_info* Info = Mat->DiffuseInfo;
 		if (Mat->Diffuse) {
-			Info = GetBitmapFromID(State->AssetSystem, Mat->Diffuse);
+			Info = GetBitmapFromID(Stack->ParentRenderState->AssetSystem, Mat->Diffuse);
 		}
 
 		if (Info) {
@@ -356,7 +356,7 @@ void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf
 	if (HasSpecularBitmap) {
 		bitmap_info* Info = Mat->SpecularInfo;
 		if (Mat->Specular) {
-			Info = GetBitmapFromID(State->AssetSystem, Mat->Specular);
+			Info = GetBitmapFromID(Stack->ParentRenderState->AssetSystem, Mat->Specular);
 		}
 
 		if (Info) {
@@ -375,7 +375,7 @@ void OpenGLUniformSurfaceMaterial(gl_state* GLState, render_state* State, gl_wtf
 		bitmap_info* Info = Mat->EmissiveInfo;
 		
 		if (Mat->Emissive) {
-			Info = GetBitmapFromID(State->AssetSystem, Mat->Emissive);
+			Info = GetBitmapFromID(Stack->ParentRenderState->AssetSystem, Mat->Emissive);
 		}
 
 		if (Info) {
@@ -463,110 +463,32 @@ void OpenGLSetScreenspace(int Width, int Height) {
 	glLoadMatrixf(ProjMatrix);
 }
 
-static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
+static void OpenGLUniformCameraSetup(
+	GLuint ProgramHandle,
+	GLuint ViewLocation,
+	GLuint ProjLocation,
+	GLuint CameraPLocation,
+	game_camera_setup* CameraSetup)
+{
+	glUseProgram(ProgramHandle);
 
+	glUniformMatrix4fv(ProjLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
+	glUniformMatrix4fv(ViewLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniform3f(
+		CameraPLocation,
+		CameraSetup->Camera.Position.x,
+		CameraSetup->Camera.Position.y,
+		CameraSetup->Camera.Position.z);
+
+	glUseProgram(0);
 }
 
-void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, game_settings* GameSettings) {
-	FUNCTION_TIMING();
-
-	glEnable(GL_MULTISAMPLE);
-
-	GLuint LastWriteFBO;
-	GLuint LastReadFBO;
-
-#if 0
-	if (IsGUIRenderStack) {
-		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
-
-		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-		int ClearingValues[4] = { 0, 0, 0, 0 };
-		glClearBufferiv(GL_COLOR, 0, ClearingValues);
-		glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
-
-	}
-	else {
-		LastWriteFBO = GLState->FramebufferInitial.FBO;
-		glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
-	
-		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_BLEND);
-		//glEnable(GL_CULL_FACE);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-		OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
-	
-		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
-#else
-	LastWriteFBO = GLState->FramebufferInitial.FBO;
-	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
-
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	//glEnable(GL_CULL_FACE);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
-
-	glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#endif
- 
-	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
-
-	glUseProgram(GLState->WtfShader.Program.Handle);
-	glUniformMatrix4fv(GLState->WtfShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
-	glUniformMatrix4fv(GLState->WtfShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
-	glUniform3f(
-		GLState->WtfShader.CameraPLocation,
-		RenderState->CameraSetup.Camera.Position.x,
-		RenderState->CameraSetup.Camera.Position.y,
-		RenderState->CameraSetup.Camera.Position.z);
-	glUseProgram(0);
-
-	glUseProgram(GLState->VoxelShader.Program.Handle);
-	glUniformMatrix4fv(GLState->VoxelShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
-	glUniformMatrix4fv(GLState->VoxelShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
-	glUniform3f(
-		GLState->VoxelShader.CameraPLocation,
-		RenderState->CameraSetup.Camera.Position.x,
-		RenderState->CameraSetup.Camera.Position.y,
-		RenderState->CameraSetup.Camera.Position.z);
-	glUseProgram(0);
-	      
-	glUseProgram(GLState->LpterShader.Program.Handle);
-	glUniformMatrix4fv(GLState->LpterShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
-	glUniformMatrix4fv(GLState->LpterShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
-	glUniform3f(
-		GLState->LpterShader.CameraPLocation,
-		RenderState->CameraSetup.Camera.Position.x,
-		RenderState->CameraSetup.Camera.Position.y,
-		RenderState->CameraSetup.Camera.Position.z);
-	glUseProgram(0);
-
-	glUseProgram(GLState->LpterWaterShader.Program.Handle);
-	glUniformMatrix4fv(GLState->LpterWaterShader.ProjectionMatrixLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
-	glUniformMatrix4fv(GLState->LpterWaterShader.ViewMatrixLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
-	glUniform3f(
-		GLState->LpterWaterShader.CameraPLocation,
-		RenderState->CameraSetup.Camera.Position.x,
-		RenderState->CameraSetup.Camera.Position.y,
-		RenderState->CameraSetup.Camera.Position.z);
-	glUniform1f(
-		GLState->LpterWaterShader.GlobalTimeLocation,
-		RenderState->InputSystem->Time);
-	glUseProgram(0);
-
+static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 	font_info* CurrentFontInfo = 0;
 
 	//NOTE(dima): Iteration through render stack
-	u8* At = (u8*)RenderState->Data.BaseAddress;
-	u8* StackEnd = (u8*)RenderState->Data.BaseAddress + RenderState->Data.Used;
+	u8* At = (u8*)Stack->Data.BaseAddress;
+	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
 
 	while (At < StackEnd) {
 		render_stack_entry_header* Header = (render_stack_entry_header*)At;
@@ -594,7 +516,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 			case(RenderEntry_Gradient): {
 				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
-					
+
 				//TODO(DIMA): 
 			}break;
 
@@ -618,7 +540,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 					glColor4f(Color.r, Color.g, Color.b, Color.a);
 
 					float Depth = 10000.0f;
-					
+
 					glTexCoord2f(MinUV.x, MinUV.y);
 					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
 					glTexCoord2f(MaxUV.x, MinUV.y);
@@ -651,7 +573,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 			case RenderEntry_GUI_EndText: {
 				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
-				
+
 				CurrentFontInfo = 0;
 
 				glEnd();
@@ -673,8 +595,8 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 					glGenBuffers(1, &EBO);
 
 					/*
-						NOTE(dima): We need to be accurate here
-						because of the alignment..
+					NOTE(dima): We need to be accurate here
+					because of the alignment..
 					*/
 					u32 OneVertexSize = sizeof(vertex_info);
 
@@ -682,16 +604,16 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 					glBindBuffer(GL_ARRAY_BUFFER, VBO);
 					glBufferData(
-						GL_ARRAY_BUFFER, 
-						MeshInfo->VerticesCount * OneVertexSize, 
-						MeshInfo->Vertices, 
+						GL_ARRAY_BUFFER,
+						MeshInfo->VerticesCount * OneVertexSize,
+						MeshInfo->Vertices,
 						GL_STATIC_DRAW);
 
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 					glBufferData(
-						GL_ELEMENT_ARRAY_BUFFER, 
-						MeshInfo->IndicesCount * sizeof(u32), 
-						MeshInfo->Indices, 
+						GL_ELEMENT_ARRAY_BUFFER,
+						MeshInfo->IndicesCount * sizeof(u32),
+						MeshInfo->Indices,
 						GL_STATIC_DRAW);
 
 					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
@@ -726,7 +648,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				glEnable(GL_DEPTH_TEST);
 				glUseProgram(GLState->WtfShader.Program.Handle);
 
-				OpenGLUniformSurfaceMaterial(GLState, RenderState, &GLState->WtfShader, &EntryMesh->Material);
+				OpenGLUniformSurfaceMaterial(GLState, Stack, &GLState->WtfShader, &EntryMesh->Material);
 
 				glBindVertexArray((GLuint)MeshInfo->Handle);
 				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
@@ -825,14 +747,14 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 					glBindVertexArray(MeshVAO);
 					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
 					glBufferData(GL_ARRAY_BUFFER, sizeof(Water->Vertices), Water->Vertices, GL_DYNAMIC_DRAW);
-					
+
 					if (OpenGLArrayIsValid(WaterShader->PositionIndex)) {
 						glEnableVertexAttribArray(WaterShader->PositionIndex);
 						glVertexAttribPointer(
-							WaterShader->PositionIndex, 
-							2, GL_FLOAT, 
-							0, 
-							sizeof(lpter_water_vertex), 
+							WaterShader->PositionIndex,
+							2, GL_FLOAT,
+							0,
+							sizeof(lpter_water_vertex),
 							(void*)offsetof(lpter_water_vertex, VertexXZ));
 					}
 
@@ -840,7 +762,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 						glEnableVertexAttribArray(WaterShader->OffsetsToOthersIndex);
 						glVertexAttribIPointer(
 							WaterShader->OffsetsToOthersIndex,
-							4, GL_BYTE, 
+							4, GL_BYTE,
 							sizeof(lpter_water_vertex),
 							(void*)offsetof(lpter_water_vertex, OffsetsToOtherVerts));
 					}
@@ -953,6 +875,93 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		At += Header->SizeOfEntryType;
 	}
 
+}
+
+void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, game_settings* GameSettings) {
+	FUNCTION_TIMING();
+
+	glEnable(GL_MULTISAMPLE);
+
+	GLuint LastWriteFBO;
+	GLuint LastReadFBO;
+
+#if 0
+	if (IsGUIRenderStack) {
+		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
+
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+		int ClearingValues[4] = { 0, 0, 0, 0 };
+		glClearBufferiv(GL_COLOR, 0, ClearingValues);
+		glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
+
+	}
+	else {
+		LastWriteFBO = GLState->FramebufferInitial.FBO;
+		glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+	
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_BLEND);
+		//glEnable(GL_CULL_FACE);
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+		OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
+	
+		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
+#else
+	LastWriteFBO = GLState->FramebufferInitial.FBO;
+	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+	//glEnable(GL_CULL_FACE);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
+
+	glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#endif
+ 
+	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
+
+	OpenGLUniformCameraSetup(
+		GLState->WtfShader.Program.Handle,
+		GLState->WtfShader.ViewMatrixLocation,
+		GLState->WtfShader.ProjectionMatrixLocation,
+		GLState->WtfShader.CameraPLocation,
+		CameraSetup);
+
+	OpenGLUniformCameraSetup(
+		GLState->VoxelShader.Program.Handle,
+		GLState->VoxelShader.ViewMatrixLocation,
+		GLState->VoxelShader.ProjectionMatrixLocation,
+		GLState->VoxelShader.CameraPLocation,
+		CameraSetup);
+
+	OpenGLUniformCameraSetup(
+		GLState->LpterShader.Program.Handle,
+		GLState->LpterShader.ViewMatrixLocation,
+		GLState->LpterShader.ProjectionMatrixLocation,
+		GLState->VoxelShader.CameraPLocation,
+		CameraSetup);
+
+	OpenGLUniformCameraSetup(
+		GLState->LpterWaterShader.Program.Handle,
+		GLState->LpterWaterShader.ViewMatrixLocation,
+		GLState->LpterWaterShader.ProjectionMatrixLocation,
+		GLState->LpterWaterShader.CameraPLocation,
+		CameraSetup);
+	glUniform1f(
+		GLState->LpterWaterShader.GlobalTimeLocation,
+		RenderState->InputSystem->Time);
+	glUseProgram(0);
+
+	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	//NOTE(dima): Resolving multisampled buffer to temp buffer

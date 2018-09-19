@@ -10,8 +10,11 @@
 struct render_stack {
 	render_state* ParentRenderState;
 
+	render_stack* Next;
+	render_stack* Prev;
+
 	stacked_memory Data;
-	stacked_memory* InitStack;
+	stacked_memory InitStack;
 
 	b32 CameraSetupIsSet;
 	game_camera_setup CameraSetup;
@@ -19,7 +22,24 @@ struct render_stack {
 	u32 EntryCount;
 };
 
+inline b32 RenderStackIsEmpty(render_stack* Stack) {
+	b32 Result = (Stack->EntryCount == 0);
+
+	return(Result);
+}
+
 struct render_state {
+	stacked_memory RenderMemory;
+
+	render_stack Sentinel;
+
+	struct {
+		render_stack* Main;
+		render_stack* GUI;
+		render_stack* LpterMain;
+		render_stack* LpterWater;
+	}NamedStacks;
+
 	asset_system* AssetSystem;
 	input_system* InputSystem;
 
@@ -27,9 +47,6 @@ struct render_state {
 	int RenderHeight;
 
 	mesh_id LowPolyCylMeshID;
-
-
-	float GlobalTime;
 };
 
 enum render_entry_type {
@@ -327,12 +344,25 @@ inline void RENDERPushTest(render_stack* Stack) {
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_Test);
 }
 
-extern render_state RENDERBeginStack(
-	stacked_memory* RenderMemory, 
-	int WindowWidth, 
-	int WindowHeight, 
-	asset_system* AssetSystem, 
+/*
+	 /$$$$$$$$ /$$   /$$ /$$   /$$  /$$$$$$  /$$$$$$$$ /$$$$$$  /$$$$$$  /$$   /$$  /$$$$$$                   
+	| $$_____/| $$  | $$| $$$ | $$ /$$__  $$|__  $$__/|_  $$_/ /$$__  $$| $$$ | $$ /$$__  $$                  
+	| $$      | $$  | $$| $$$$| $$| $$  \__/   | $$     | $$  | $$  \ $$| $$$$| $$| $$  \__/                  
+	| $$$$$   | $$  | $$| $$ $$ $$| $$         | $$     | $$  | $$  | $$| $$ $$ $$|  $$$$$$                   
+	| $$__/   | $$  | $$| $$  $$$$| $$         | $$     | $$  | $$  | $$| $$  $$$$ \____  $$                  
+	| $$      | $$  | $$| $$\  $$$| $$    $$   | $$     | $$  | $$  | $$| $$\  $$$ /$$  \ $$                  
+	| $$      |  $$$$$$/| $$ \  $$|  $$$$$$/   | $$    /$$$$$$|  $$$$$$/| $$ \  $$|  $$$$$$/       /$$ /$$ /$$
+	|__/       \______/ |__/  \__/ \______/    |__/   |______/ \______/ |__/  \__/ \______/       |__/|__/|__/
+*/                                                                                                          
+
+render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize);
+void RenderBeginFrame(render_state* RenderState);
+void RenderEndFrame(render_state* RenderState);
+render_state RenderInitState(
+	stacked_memory RenderMemory,
+	int RenderWidth,
+	int RenderHeight,
+	asset_system* AssetSystem,
 	input_system* InputSystem);
-extern void RENDEREndStack(render_state* Stack);
 
 #endif

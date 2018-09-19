@@ -33,6 +33,7 @@ struct permanent_state {
 	asset_system* AssetSystem;
 	gui_state* GUIState;
 	color_state* ColorsState;
+	render_state* RenderState;
 };
 
 #endif

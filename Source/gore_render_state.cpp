@@ -1,39 +1,79 @@
 #include "gore_render_state.h"
 
-render_stack RenderBeginStack(render_state* RenderState, stacked_memory* SplitedRenderMemory) {
-	render_stack Result = {};
+render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize) {
+	render_stack* Result = PushStruct(&RenderState->RenderMemory, render_stack);
 
-	Result.CameraSetup = {};
-	Result.CameraSetupIsSet = 0;
+	Result->Next = RenderState->Sentinel.Next;
+	Result->Prev = &RenderState->Sentinel;
 
-	Result.InitStack = SplitedRenderMemory;
-	Result.Data = BeginTempStackedMemory(SplitedRenderMemory, SplitedRenderMemory->MaxSize);
+	Result->Next->Prev = Result;
+	Result->Prev->Next = Result;
 
-	Result.ParentRenderState = RenderState;
+	*Result = {};
+
+	Result->CameraSetup = {};
+	Result->CameraSetupIsSet = 0;
+
+	Result->InitStack = SplitStackedMemory(&RenderState->RenderMemory, StackByteSize);
+	Result->Data = {};
+
+	Result->ParentRenderState = RenderState;
 
 	return(Result);
 }
 
+void RenderBeginFrame(render_state* RenderState) {
+	render_stack* At = RenderState->Sentinel.Next;
 
+	//NOTE(dima): Running through all render stacks
+	while (At != &RenderState->Sentinel) {
 
-render_state RENDERBeginStack(stacked_memory* RenderMemory, int RenderWidth, int RenderHeight, asset_system* AssetSystem, input_system* InputSystem) {
+		At->Data = BeginTempStackedMemory(&At->InitStack, At->InitStack.MaxSize);
+
+		At = At->Next;
+	}
+}
+
+void RenderEndFrame(render_state* RenderState) {
+	render_stack* At = RenderState->Sentinel.Next;
+
+	//NOTE(dima): Running through all render stacks
+	while (At != &RenderState->Sentinel) {
+
+		EndTempStackedMemory(&At->InitStack, &At->Data);
+
+		At = At->Next;
+	}
+}
+
+render_state RenderInitState(
+	stacked_memory RenderMemory,
+	int RenderWidth,
+	int RenderHeight,
+	asset_system* AssetSystem,
+	input_system* InputSystem)
+{
 	render_state Result = {};
 
-	Result.InitStack = RenderMemory;
-	//NOTE(dima): 16 is subtracted because of possible alignment problems. If alignment is happened then it might be not enough memory
-	Result.Data = BeginTempStackedMemory(RenderMemory, RenderMemory->MaxSize);
+	Result.RenderMemory = RenderMemory;
 
-	Result.EntryCount = 0;
-	Result.RenderWidth = RenderWidth;
-	Result.RenderHeight = RenderHeight;
+	//NOTE(dima): Render state initialization
 	Result.AssetSystem = AssetSystem;
 	Result.InputSystem = InputSystem;
 
+	Result.RenderWidth = RenderWidth;
+	Result.RenderHeight = RenderHeight;
+
 	Result.LowPolyCylMeshID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Cylynder, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
-	return(Result);
-}
+	//NOTE(dima): Initialization of render stacks
+	Result.Sentinel = {};
+	Result.Sentinel.Next = &Result.Sentinel;
+	Result.Sentinel.Prev = &Result.Sentinel;
 
-void RENDEREndStack(render_state* State) {
-	EndTempStackedMemory(State->InitStack, &State->Data);
+	Result.NamedStacks = {};
+	Result.NamedStacks.Main = RenderInitStack(&Result, MEGABYTES(1));
+	Result.NamedStacks.GUI = RenderInitStack(&Result, MEGABYTES(1));
+
+	return(Result);
 }

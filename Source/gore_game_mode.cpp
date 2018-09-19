@@ -32,10 +32,20 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 			PlatformApi.PermanentMemoryBlock.MaxSize - sizeof(permanent_state));
 
 		PermanentState->InputSystem = InputSystem;
+
+		//NOTE(dima): Assets initialization
 		PermanentState->AssetSystem = PushStruct(&PermanentState->PermanentStateMemory, asset_system);
 		ASSETSInit(PermanentState->AssetSystem);
 
+		//NOTE(dima): Render initialization
 		stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(5));
+		PermanentState->RenderState = PushStruct(&PermanentState->PermanentStateMemory, render_state);
+		*PermanentState->RenderState = RenderInitState(
+			RENDERMemory,
+			InputSystem->WindowDim.x,
+			InputSystem->WindowDim.y,
+			PermanentState->AssetSystem,
+			PermanentState->InputSystem);
 
 		//NOTE(dima): Initialization of colors state
 		PermanentState->ColorsState = PushStruct(&PlatformApi.PermanentMemoryBlock, color_state);
@@ -57,6 +67,8 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 		PermanentState->IsInitialized = 1;
 	}
 
+	RenderBeginFrame(PermanentState->RenderState);
+
 	switch (GameModeState->GameModeType)
 	{
 		case GameMode_MainMenu: {
@@ -64,7 +76,11 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 		}break;
 
 		case GameMode_VoxelWorld: {
-			VoxelChunksGenerationUpdate(&GameModeState->GameModeMemory, )
+			VoxelChunksGenerationUpdate(
+				&GameModeState->GameModeMemory,
+				PermanentState->RenderState,
+				PlatformApi.GetThreadQueueInfo(PlatformApi.SuperHighQueue).WorkingThreadsCount,
+				PermanentState->InputSystem);
 		}break;
 
 		case GameMode_LowPolyTerrain: {
@@ -72,3 +88,22 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 		}break;
 	}
 }
+
+void FinalizeFrameGameMode() {
+	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
+	permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
+
+	switch (GameModeState->GameModeType) {
+		case GameMode_MainMenu: {
+		}break;
+
+		case GameMode_VoxelWorld: {
+		}break;
+
+		case GameMode_LowPolyTerrain: {
+		}break;
+	}
+
+	RenderEndFrame(PermanentState->RenderState);
+}
+
