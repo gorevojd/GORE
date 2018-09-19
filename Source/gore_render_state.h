@@ -8,7 +8,9 @@
 #include "gore_lpterrain.h"
 
 struct render_stack {
-	render_state* ParentRenderState;
+	struct render_state* ParentRenderState;
+
+	char Name[32];
 
 	render_stack* Next;
 	render_stack* Prev;
@@ -29,7 +31,7 @@ inline b32 RenderStackIsEmpty(render_stack* Stack) {
 }
 
 struct render_state {
-	stacked_memory RenderMemory;
+	stacked_memory* RenderMemory;
 
 	render_stack Sentinel;
 
@@ -355,11 +357,11 @@ inline void RENDERPushTest(render_stack* Stack) {
 	|__/       \______/ |__/  \__/ \______/    |__/   |______/ \______/ |__/  \__/ \______/       |__/|__/|__/
 */                                                                                                          
 
-render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize);
+render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize, char* Name);
 void RenderBeginFrame(render_state* RenderState);
 void RenderEndFrame(render_state* RenderState);
 render_state RenderInitState(
-	stacked_memory RenderMemory,
+	stacked_memory* RenderMemory,
 	int RenderWidth,
 	int RenderHeight,
 	asset_system* AssetSystem,

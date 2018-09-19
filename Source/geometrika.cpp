@@ -58,7 +58,7 @@ void InitCelluralMachine(
 
 void UpdateCelluralMachine(
 	cellural_machine* Machine, 
-	render_state* RenderState, 
+	render_stack* RenderState, 
 	input_system* Input,
 	random_state* Random) 
 {
@@ -235,8 +235,14 @@ void UpdateCelluralMachine(
 #endif
 }
 
-void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetSystem, render_state* RenderStack, input_system* Input) {
+void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, permanent_state* PermanentState) {
 	geometrika_state* State = (geometrika_state*)GameMemoryBlock->BaseAddress;
+
+	asset_system* AssetSystem = PermanentState->AssetSystem;
+	input_system* Input = PermanentState->InputSystem;
+	render_state* RenderState = PermanentState->RenderState;
+
+	render_stack* RenderStack = RenderState->NamedStacks.Main;
 
 	if (!State->IsInitialized) {
 
@@ -260,8 +266,8 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 		InitCelluralMachine(
 			&State->CelluralMachine,
 			&State->CelluralMachineMemory,
-			RenderStack->RenderWidth,
-			RenderStack->RenderHeight);
+			RenderState->RenderWidth,
+			RenderState->RenderHeight);
 
 		for (int X = 0; X < LPTER_CHUNKS_SIDE_COUNT; X++) {
 			for (int Y = 0; Y < LPTER_CHUNKS_SIDE_COUNT; Y++) {
@@ -343,8 +349,8 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, asset_system* AssetS
 
 	game_camera_setup CameraSetup = GAMECameraSetup(
 		State->Camera,
-		RenderStack->RenderWidth,
-		RenderStack->RenderHeight,
+		RenderState->RenderWidth,
+		RenderState->RenderHeight,
 		CameraProjection_Perspective,
 		2000.0f);
 

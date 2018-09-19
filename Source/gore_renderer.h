@@ -3,9 +3,9 @@
 
 #include "gore_render_state.h"
 
-extern void SoftwareRenderStackToOutput(render_state* Stack, bitmap_info* Buffer, rect2 ClipRect);
-extern void RenderMultithreaded(platform_thread_queue* Queue, render_state* Stack, bitmap_info* Buffer);
-extern void RenderDickInjection(render_state* Stack, bitmap_info* Buffer);
+extern void SoftwareRenderStackToOutput(render_stack* Stack, bitmap_info* Buffer, rect2 ClipRect);
+extern void RenderMultithreaded(platform_thread_queue* Queue, render_stack* Stack, bitmap_info* Buffer);
+extern void RenderDickInjection(render_stack* Stack, bitmap_info* Buffer);
 
 extern void RenderRectFast(
 	bitmap_info* Buffer,

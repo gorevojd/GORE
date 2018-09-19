@@ -8,7 +8,7 @@ void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
 
 }
 
-void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
+void GameModeUpdate(input_system* InputSystem, game_settings* GameSettings) {
 
 	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
 	if (!GameModeState->IsInitialized) {
@@ -31,15 +31,18 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 			GetCurrentMemoryBase(&PlatformApi.PermanentMemoryBlock),
 			PlatformApi.PermanentMemoryBlock.MaxSize - sizeof(permanent_state));
 
+		stacked_memory* PermMem = &PermanentState->PermanentStateMemory;
+
 		PermanentState->InputSystem = InputSystem;
 
 		//NOTE(dima): Assets initialization
-		PermanentState->AssetSystem = PushStruct(&PermanentState->PermanentStateMemory, asset_system);
+		PermanentState->AssetSystem = PushStruct(PermMem, asset_system);
 		ASSETSInit(PermanentState->AssetSystem);
 
 		//NOTE(dima): Render initialization
-		stacked_memory RENDERMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(5));
-		PermanentState->RenderState = PushStruct(&PermanentState->PermanentStateMemory, render_state);
+		PermanentState->RenderState = PushStruct(PermMem, render_state);
+		stacked_memory* RENDERMemory = PushStruct(PermMem, stacked_memory);
+		*RENDERMemory = SplitStackedMemory(PermMem, MEGABYTES(5));
 		*PermanentState->RenderState = RenderInitState(
 			RENDERMemory,
 			InputSystem->WindowDim.x,
@@ -48,21 +51,25 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 			PermanentState->InputSystem);
 
 		//NOTE(dima): Initialization of colors state
-		PermanentState->ColorsState = PushStruct(&PlatformApi.PermanentMemoryBlock, color_state);
-		stacked_memory ColorsMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, KILOBYTES(20));
-		InitColorsState(PermanentState->ColorsState, &ColorsMemory);
+		PermanentState->ColorsState = PushStruct(PermMem, color_state);
+		stacked_memory* ColorsMemory = PushStruct(PermMem, stacked_memory);
+		*ColorsMemory = SplitStackedMemory(PermMem, KILOBYTES(20));
+		InitColorsState(PermanentState->ColorsState, ColorsMemory);
 
 		//NOTE(dima): Initialization of GUI state
-		PermanentState->GUIState = PushStruct(&PlatformApi.PermanentMemoryBlock, gui_state);
-		stacked_memory GUIMemory = SplitStackedMemory(&PlatformApi.PermanentMemoryBlock, MEGABYTES(2));
+		PermanentState->GUIState = PushStruct(PermMem, gui_state);
+		stacked_memory* GUIMemory = PushStruct(PermMem, stacked_memory);
+		*GUIMemory = SplitStackedMemory(PermMem, MEGABYTES(2));
 		GUIInitState(
 			PermanentState->GUIState, 
-			&GUIMemory, 
+			GUIMemory, 
 			PermanentState->ColorsState, 
 			PermanentState->AssetSystem, 
 			PermanentState->InputSystem, 
-			PermanentState->InputSystem->WindowDim.x, 
-			PermanentState->InputSystem->WindowDim.y);
+			PermanentState->RenderState);
+
+		//NOTE(dima): Initialization of game settings
+		PermanentState->GameSettings = GameSettings;
 		
 		PermanentState->IsInitialized = 1;
 	}
@@ -89,7 +96,15 @@ void UpdateGameMode(input_system* InputSystem, game_settings* GameSettings) {
 	}
 }
 
-void FinalizeFrameGameMode() {
+/*
+	NOTE(dima):
+		Some system might want to deinitialize their states at
+		the end of the frame. So, that function will be called 
+		at the end of the frame to perform this kind of 
+		operations stored in there...... :D
+*/
+
+void GameModeFinalizeFrame() {
 	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
 	permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
 

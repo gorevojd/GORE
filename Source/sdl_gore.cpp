@@ -3,9 +3,8 @@
 #define STB_SPRINTF_IMPLEMENTATION
 #include "stb_sprintf.h"
 
-#include "geometrika.h"
+#include "gore_game_mode.h"
 
-#include "gore_game_settings.h"
 /*
 	NOTE(Dima):
 		Images are stored in premultiplied alpha format
@@ -1367,25 +1366,7 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		BEGIN_TIMING("Other...");
-		render_state RenderState_ = RENDERBeginStack(&RENDERMemory, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT, &GlobalAssets, &GlobalInput);
-		render_state* RenderState = &RenderState_;
-
-		//RENDERPushClear(Stack, V3(0.15f, 0.3f, 0.75f));
-		RENDERPushTest(RenderState);
-
-		GEOMKAUpdateAndRender(&PlatformApi.GameModeMemoryBlock, &GlobalAssets, RenderState, &GlobalInput);
-
-#if VOXEL_WORLD_ENABLED
-		geometrika_state* GameState = (geometrika_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
-		VoxelChunksGenerationUpdate(
-			&VoxelMemoryStack, 
-			Stack, 
-			PLATFORM_VOXEL_QUEUE_THREADS_COUNT, 
-			GameState->Camera.Position,
-			&GlobalInput);
-#endif
-
-		GUIBeginFrame(GUIState);
+		GameModeUpdate(&GlobalInput, &GameSettings);
 		END_TIMING();
 
 		BEGIN_TIMING("Debug update");
@@ -1406,8 +1387,10 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
+		permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
+
 		OpenGLProcessAllocationQueue();
-		OpenGLRenderStateToOutput(GLState, RenderState, &GameSettings);
+		OpenGLRenderStateToOutput(GLState, PermanentState->RenderState, &GameSettings);
 		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack, &GameSettings);
 		END_TIMING();
 
@@ -1438,8 +1421,7 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		BEGIN_TIMING("FrameEnding");
-		GUIEndFrame(GUIState);
-		RENDEREndStack(RenderState);
+		GameModeFinalizeFrame();
 		END_TIMING();
 
 		END_SECTION();

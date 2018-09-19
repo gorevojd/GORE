@@ -9,6 +9,7 @@
 #include "gore_voxmesh.h"
 #include "gore_lpterrain.h"
 #include "gore_cellural.h"
+#include "gore_game_mode.h"
 
 
 #define CELLURAL_CELL_PIXEL_WIDTH 13

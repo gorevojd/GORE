@@ -599,8 +599,9 @@ inline gui_color_theme GUIDefaultColorTheme() {
 
 struct gui_state {
 	font_info* FontInfo;
-	render_state RenderStackInternal;
-	render_state* RenderStack;
+
+	render_state* RenderState;
+	render_stack* RenderStack;
 
 	float FontScale;
 	float LastFontScale;
@@ -802,7 +803,7 @@ extern void GUIInitState(
 	color_state* ColorState, 
 	asset_system* AssetSystem,
 	input_system* Input, 
-	i32 Width, i32 Height);
+	render_state* RenderState);
 
 extern void GUIBeginFrame(gui_state* GUIState);
 extern void GUIPrepareFrame(gui_state* GUIState);
@@ -886,10 +887,5 @@ extern rect2 GUITextBase(
 	v4 BackgroundColor = V4(0.0f, 0.5f, 1.0f, 1.0f),
 	u32 OutlineWidth = 0,
 	v4 OutlineColor = V4(0.0f, 0.0f, 0.0f, 1.0f));
-
-#if 0
-extern void GUIBeginTreeFind(gui_state* State, char* NodeName);
-extern void GUIEndTreeFind(gui_state* State);
-#endif
 
 #endif

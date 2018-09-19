@@ -1,7 +1,8 @@
 #include "gore_render_state.h"
 
-render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize) {
-	render_stack* Result = PushStruct(&RenderState->RenderMemory, render_stack);
+render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize, char* Name) {
+	render_stack* Result = PushStruct(RenderState->RenderMemory, render_stack);
+	*Result = {};
 
 	Result->Next = RenderState->Sentinel.Next;
 	Result->Prev = &RenderState->Sentinel;
@@ -9,12 +10,12 @@ render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize) {
 	Result->Next->Prev = Result;
 	Result->Prev->Next = Result;
 
-	*Result = {};
+	CopyStrings(Result->Name, Name);
 
 	Result->CameraSetup = {};
 	Result->CameraSetupIsSet = 0;
 
-	Result->InitStack = SplitStackedMemory(&RenderState->RenderMemory, StackByteSize);
+	Result->InitStack = SplitStackedMemory(RenderState->RenderMemory, StackByteSize);
 	Result->Data = {};
 
 	Result->ParentRenderState = RenderState;
@@ -47,7 +48,7 @@ void RenderEndFrame(render_state* RenderState) {
 }
 
 render_state RenderInitState(
-	stacked_memory RenderMemory,
+	stacked_memory* RenderMemory,
 	int RenderWidth,
 	int RenderHeight,
 	asset_system* AssetSystem,
@@ -70,10 +71,11 @@ render_state RenderInitState(
 	Result.Sentinel = {};
 	Result.Sentinel.Next = &Result.Sentinel;
 	Result.Sentinel.Prev = &Result.Sentinel;
+	CopyStrings(Result.Sentinel.Name, "Sentinel");
 
 	Result.NamedStacks = {};
-	Result.NamedStacks.Main = RenderInitStack(&Result, MEGABYTES(1));
-	Result.NamedStacks.GUI = RenderInitStack(&Result, MEGABYTES(1));
+	Result.NamedStacks.Main = RenderInitStack(&Result, MEGABYTES(1), "Main");
+	Result.NamedStacks.GUI = RenderInitStack(&Result, MEGABYTES(1), "GUI");
 
 	return(Result);
 }

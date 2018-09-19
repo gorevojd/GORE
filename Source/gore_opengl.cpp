@@ -885,84 +885,70 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	GLuint LastWriteFBO;
 	GLuint LastReadFBO;
 
-#if 0
-	if (IsGUIRenderStack) {
-		glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
-
-		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-		int ClearingValues[4] = { 0, 0, 0, 0 };
-		glClearBufferiv(GL_COLOR, 0, ClearingValues);
-		glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
-
-	}
-	else {
-		LastWriteFBO = GLState->FramebufferInitial.FBO;
-		glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
-	
-		glEnable(GL_TEXTURE_2D);
-		glEnable(GL_BLEND);
-		//glEnable(GL_CULL_FACE);
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-		OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
-	
-		glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
-#else
-	LastWriteFBO = GLState->FramebufferInitial.FBO;
-	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
-
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
-	//glEnable(GL_CULL_FACE);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 
 	glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#endif
  
-	game_camera_setup* CameraSetup = &RenderState->CameraSetup;
-
-	OpenGLUniformCameraSetup(
-		GLState->WtfShader.Program.Handle,
-		GLState->WtfShader.ViewMatrixLocation,
-		GLState->WtfShader.ProjectionMatrixLocation,
-		GLState->WtfShader.CameraPLocation,
-		CameraSetup);
-
-	OpenGLUniformCameraSetup(
-		GLState->VoxelShader.Program.Handle,
-		GLState->VoxelShader.ViewMatrixLocation,
-		GLState->VoxelShader.ProjectionMatrixLocation,
-		GLState->VoxelShader.CameraPLocation,
-		CameraSetup);
-
-	OpenGLUniformCameraSetup(
-		GLState->LpterShader.Program.Handle,
-		GLState->LpterShader.ViewMatrixLocation,
-		GLState->LpterShader.ProjectionMatrixLocation,
-		GLState->VoxelShader.CameraPLocation,
-		CameraSetup);
-
-	OpenGLUniformCameraSetup(
-		GLState->LpterWaterShader.Program.Handle,
-		GLState->LpterWaterShader.ViewMatrixLocation,
-		GLState->LpterWaterShader.ProjectionMatrixLocation,
-		GLState->LpterWaterShader.CameraPLocation,
-		CameraSetup);
-	glUniform1f(
-		GLState->LpterWaterShader.GlobalTimeLocation,
-		RenderState->InputSystem->Time);
-	glUseProgram(0);
-
+	render_stack* MainRenderStack = RenderState->NamedStacks.Main;
+	render_stack* GUIRenderStack = RenderState->NamedStacks.GUI;
+	render_stack* LpterRenderStack = RenderState->NamedStacks.LpterMain;
+	render_stack* LpterWaterRenderStack = RenderState->NamedStacks.LpterWater;
 	
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	if (MainRenderStack) {
+		if (MainRenderStack->CameraSetupIsSet) {
+			OpenGLUniformCameraSetup(
+				GLState->WtfShader.Program.Handle,
+				GLState->WtfShader.ViewMatrixLocation,
+				GLState->WtfShader.ProjectionMatrixLocation,
+				GLState->WtfShader.CameraPLocation,
+				&MainRenderStack->CameraSetup);
+		}
+
+		if (MainRenderStack->CameraSetupIsSet) {
+			OpenGLUniformCameraSetup(
+				GLState->VoxelShader.Program.Handle,
+				GLState->VoxelShader.ViewMatrixLocation,
+				GLState->VoxelShader.ProjectionMatrixLocation,
+				GLState->VoxelShader.CameraPLocation,
+				&MainRenderStack->CameraSetup);
+		}
+	}
+
+	if (LpterRenderStack) {
+		if (LpterRenderStack->CameraSetupIsSet) {
+			OpenGLUniformCameraSetup(
+				GLState->LpterShader.Program.Handle,
+				GLState->LpterShader.ViewMatrixLocation,
+				GLState->LpterShader.ProjectionMatrixLocation,
+				GLState->VoxelShader.CameraPLocation,
+				&LpterRenderStack->CameraSetup);
+		}
+	}
+
+	if (LpterWaterRenderStack) {
+		if (LpterWaterRenderStack->CameraSetupIsSet) {
+			OpenGLUniformCameraSetup(
+				GLState->LpterWaterShader.Program.Handle,
+				GLState->LpterWaterShader.ViewMatrixLocation,
+				GLState->LpterWaterShader.ProjectionMatrixLocation,
+				GLState->LpterWaterShader.CameraPLocation,
+				&LpterWaterRenderStack->CameraSetup);
+		}
+
+		glUseProgram(GLState->LpterWaterShader.Program.Handle);
+		glUniform1f(
+			GLState->LpterWaterShader.GlobalTimeLocation,
+			RenderState->InputSystem->Time);
+		glUseProgram(0);
+	}
+
+	LastWriteFBO = GLState->FramebufferInitial.FBO;
+	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
 
 	//NOTE(dima): Resolving multisampled buffer to temp buffer
 	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
@@ -984,6 +970,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
 	LastWriteFBO = GLState->FramebufferPFX.FBO;
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
+	OpenGLRenderStackToOutput(GLState, MainRenderStack);
 
 	glBlitFramebuffer(
 		0, 0,
@@ -1045,20 +1032,27 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		GL_COLOR_BUFFER_BIT,
 		GL_NEAREST);
 	END_TIMING();
-	
-		//NOTE(dima): Render stack is GUI render stack
 
-		//glEnable(GL_BLEND);
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//NOTE(dima): GUI stack to output
+	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
+	OpenGLRenderStackToOutput(GLState, GUIRenderStack);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		//GLState->ScreenShader.Program.Use();
-		//glBindVertexArray(GLState->ScreenQuadVAO);
-		//_glActiveTexture(GL_TEXTURE0);
-		//glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-		//glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
-		//glBindVertexArray(0);
-		//glUseProgram(0);
+	int ClearingValues[4] = { 0, 0, 0, 0 };
+	glClearBufferiv(GL_COLOR, 0, ClearingValues);
+	glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	GLState->ScreenShader.Program.Use();
+	glBindVertexArray(GLState->ScreenQuadVAO);
+	_glActiveTexture(GL_TEXTURE0);
+	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+	glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
+	glUseProgram(0);
 }
 
 

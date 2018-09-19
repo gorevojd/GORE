@@ -1794,6 +1794,8 @@ void VoxelChunksGenerationUpdate(
 		Generation->Initialized = 1;
 	}
 
+	render_stack* RenderStack = RenderState->NamedStacks.Main;
+
 	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(RenderState->AssetSystem, GameAsset_MyVoxelAtlas);
 	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(RenderState->AssetSystem, VoxelAtlasID);
 	
@@ -1876,7 +1878,7 @@ void VoxelChunksGenerationUpdate(
 		CameraProjection_Perspective,
 		2000.0f);
 
-	RENDERSetCameraSetup(RenderState, CameraSetup);
+	RENDERSetCameraSetup(RenderStack, CameraSetup);
 
 	GetVoxelChunkPosForCamera(Generation->Camera.Position, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
@@ -1904,7 +1906,7 @@ void VoxelChunksGenerationUpdate(
 	v4 FrustumPlanes[6];
 
 #if 1
-	mat4 PVM = RenderState->CameraSetup.ProjectionViewMatrix;
+	mat4 PVM = RenderStack->CameraSetup.ProjectionViewMatrix;
 #else
 	mat4 PVM = PerspectiveProjection(
 		RenderState->RenderWidth,
@@ -2173,7 +2175,7 @@ void VoxelChunksGenerationUpdate(
 			RenderEntryAt = RenderEntryAt->Next)
 		{
 			RENDERPushVoxelMesh(
-				RenderState,
+				RenderStack,
 				RenderEntryAt->MeshInfo,
 				RenderEntryAt->Pos,
 				&CellData->VoxelAtlas->Bitmap);
