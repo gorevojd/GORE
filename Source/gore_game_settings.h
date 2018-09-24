@@ -144,7 +144,7 @@ struct game_settings{
 	game_setting Settings[256];
 };
 
-game_settings TryReadGameSettings();
+void TryReadGameSettings(game_settings* Result);
 void WriteGameSettings(game_settings* Settings);
 game_setting* FindGameSetting(game_settings* Settings, char* SettingName);
 

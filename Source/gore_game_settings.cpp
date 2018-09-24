@@ -176,15 +176,14 @@ static inline b32 CharIsLetter(char c) {
 	return(0);
 }
 
-game_settings TryReadGameSettings() {
+void TryReadGameSettings(game_settings* Result) {
 	char FilePath[256];
 	ConcatStringsUnsafe(FilePath, "../Data/", GAME_SETTINGS_FILE_NAME);
 
 	platform_read_file_result SettingsFileData = PlatformApi.ReadFile(FilePath);
 
-	game_settings Def = {};
 	game_settings_values DefVals = DefaultGameSettingsValues();
-	InitInternalSettingsBasedOnValues(&Def, &DefVals);
+	InitInternalSettingsBasedOnValues(Result, &DefVals);
 
 	if (SettingsFileData.Size) {
 		
@@ -219,10 +218,10 @@ game_settings TryReadGameSettings() {
 
 				//NOTE(dima): Find corresponding values in settings and set them
 				for (int SettingIndex = 0; 
-					SettingIndex < Def.LastSettingIndex;
+					SettingIndex < Result->LastSettingIndex;
 					SettingIndex++)
 				{
-					game_setting* Setting = Def.Settings + SettingIndex;
+					game_setting* Setting = Result->Settings + SettingIndex;
 					if (StringsAreEqual(KeyBuf, Setting->Name)) {
 						switch (Setting->ValueType) {
 							case GameSettingValue_Float: {
@@ -260,11 +259,9 @@ game_settings TryReadGameSettings() {
 		}
 	}
 
-	WriteGameSettings(&Def);
+	WriteGameSettings(Result);
 
 	PlatformApi.FreeFileMemory(&SettingsFileData);
-
-	return(Def);
 }
 
 //TODO(dima): Better game setting finding system. Maybe through hash table

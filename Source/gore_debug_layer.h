@@ -6,6 +6,9 @@
 #include "gore_types.h"
 #include "gore_debug_layer_types.h"
 
+#define GORE_DEBUG_ENABLED 1
+
+#if GORE_DEBUG_ENABLED
 enum debug_record_type {
 	DebugRecord_None,
 
@@ -179,5 +182,32 @@ struct debug_timing {
 		DEBUGAddRecord(Name, UniqueName, DebugRecord_EndTiming);
 	}
 };
+#else
+#define ADD_DEBUG_RECORD(...)
+
+#define BEGIN_TIMING(...)
+#define BEGIN_REPEATED_TIMING(...)
+#define END_TIMING(...)
+#define FUNCTION_TIMING(...)
+
+#define BEGIN_SECTION(...)
+#define END_SECTION(...)
+
+#define DEBUG_VALUE(...)
+#define DEBUG_VALUE_SET_VALUE(...)
+
+#define DEBUG_VALUE_FLOAT(...)
+#define DEBUG_VALUE_TEXT(...)
+#define DEBUG_STACKED_MEM(...)
+#define DEBUG_VOXEL_STATISTICS(...)
+
+#define DEBUG_LOG(...)
+#define DEBUG_ERROR_LOG(...)
+#define DEBUG_OK_LOG(...)
+#define DEBUG_WARN_LOG(...)
+
+#define DEBUG_FRAME_BARRIER(...)
+
+#endif
 
 #endif

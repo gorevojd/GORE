@@ -3,12 +3,15 @@
 #include "gore_voxshared.h"
 #include "gore_voxmesh.h"
 #include "gore_lpterrain.h"
+#include "geometrika.h"
 
 void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
+	ClearStackedMemory(&GameModeState->GameModeMemory);
 
+	GameModeState->GameModeType = NewGameModeType;
 }
 
-void GameModeUpdate(input_system* InputSystem, game_settings* GameSettings) {
+void GameModeUpdate(engine_systems* EngineSystems) {
 
 	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
 	if (!GameModeState->IsInitialized) {
@@ -19,81 +22,50 @@ void GameModeUpdate(input_system* InputSystem, game_settings* GameSettings) {
 			GetCurrentMemoryBase(&PlatformApi.GameModeMemoryBlock),
 			PlatformApi.GameModeMemoryBlock.MaxSize - sizeof(game_mode_state));
 
+		GameModeState->GameModeType = GameMode_Geometrica;
+
 		GameModeState->IsInitialized = 1;
 	}
 
-	permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
-	if(!PermanentState->IsInitialized){
+	RenderBeginFrame(EngineSystems->RenderState);
+	GUIBeginFrame(EngineSystems->DEBUGState->GUIState);
 
-		PermanentState = PushStructUnaligned(&PlatformApi.PermanentMemoryBlock, permanent_state);
-
-		PermanentState->PermanentStateMemory = InitStackedMemory(
-			GetCurrentMemoryBase(&PlatformApi.PermanentMemoryBlock),
-			PlatformApi.PermanentMemoryBlock.MaxSize - sizeof(permanent_state));
-
-		stacked_memory* PermMem = &PermanentState->PermanentStateMemory;
-
-		PermanentState->InputSystem = InputSystem;
-
-		//NOTE(dima): Assets initialization
-		PermanentState->AssetSystem = PushStruct(PermMem, asset_system);
-		ASSETSInit(PermanentState->AssetSystem);
-
-		//NOTE(dima): Render initialization
-		PermanentState->RenderState = PushStruct(PermMem, render_state);
-		stacked_memory* RENDERMemory = PushStruct(PermMem, stacked_memory);
-		*RENDERMemory = SplitStackedMemory(PermMem, MEGABYTES(5));
-		*PermanentState->RenderState = RenderInitState(
-			RENDERMemory,
-			InputSystem->WindowDim.x,
-			InputSystem->WindowDim.y,
-			PermanentState->AssetSystem,
-			PermanentState->InputSystem);
-
-		//NOTE(dima): Initialization of colors state
-		PermanentState->ColorsState = PushStruct(PermMem, color_state);
-		stacked_memory* ColorsMemory = PushStruct(PermMem, stacked_memory);
-		*ColorsMemory = SplitStackedMemory(PermMem, KILOBYTES(20));
-		InitColorsState(PermanentState->ColorsState, ColorsMemory);
-
-		//NOTE(dima): Initialization of GUI state
-		PermanentState->GUIState = PushStruct(PermMem, gui_state);
-		stacked_memory* GUIMemory = PushStruct(PermMem, stacked_memory);
-		*GUIMemory = SplitStackedMemory(PermMem, MEGABYTES(2));
-		GUIInitState(
-			PermanentState->GUIState, 
-			GUIMemory, 
-			PermanentState->ColorsState, 
-			PermanentState->AssetSystem, 
-			PermanentState->InputSystem, 
-			PermanentState->RenderState);
-
-		//NOTE(dima): Initialization of game settings
-		PermanentState->GameSettings = GameSettings;
-		
-		PermanentState->IsInitialized = 1;
-	}
-
-	RenderBeginFrame(PermanentState->RenderState);
-
+	BEGIN_TIMING("GameModeUpdate");
 	switch (GameModeState->GameModeType)
 	{
 		case GameMode_MainMenu: {
 			//UpdateMainMenu();
 		}break;
 
+		case GameMode_Geometrica: {
+			GEOMKAUpdateAndRender(&GameModeState->GameModeMemory, EngineSystems);
+		}break;
+
 		case GameMode_VoxelWorld: {
 			VoxelChunksGenerationUpdate(
 				&GameModeState->GameModeMemory,
-				PermanentState->RenderState,
+				EngineSystems->RenderState,
 				PlatformApi.GetThreadQueueInfo(PlatformApi.SuperHighQueue).WorkingThreadsCount,
-				PermanentState->InputSystem);
+				EngineSystems->InputSystem);
 		}break;
 
 		case GameMode_LowPolyTerrain: {
 			//UpdateLowPolyterrainWorld();
 		}break;
 	}
+	END_TIMING();
+
+#if GORE_DEBUG_ENABLED
+	BEGIN_TIMING("Debug update");
+	BEGIN_SECTION("Profile");
+	DEBUG_VALUE(DebugValue_FramesSlider);
+	DEBUG_VALUE(DebugValue_ViewFrameInfo);
+	DEBUG_VALUE(DebugValue_ProfileOverlays);
+	END_SECTION();
+
+	DEBUGUpdate(EngineSystems->DEBUGState);
+	END_TIMING();
+#endif
 }
 
 /*
@@ -104,12 +76,14 @@ void GameModeUpdate(input_system* InputSystem, game_settings* GameSettings) {
 		operations stored in there...... :D
 */
 
-void GameModeFinalizeFrame() {
+void GameModeFinalizeFrame(engine_systems* EngineSystems) {
 	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
-	permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
 
 	switch (GameModeState->GameModeType) {
 		case GameMode_MainMenu: {
+		}break;
+
+		case GameMode_Geometrica: {
 		}break;
 
 		case GameMode_VoxelWorld: {
@@ -119,6 +93,7 @@ void GameModeFinalizeFrame() {
 		}break;
 	}
 
-	RenderEndFrame(PermanentState->RenderState);
+	GUIEndFrame(EngineSystems->DEBUGState->GUIState);
+	RenderEndFrame(EngineSystems->RenderState);
 }
 

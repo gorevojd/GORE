@@ -172,7 +172,7 @@
     <ClCompile Include="..\Source\gore_game_common.cpp" />
     <ClCompile Include="..\Source\gore_game_mode.cpp" />
     <ClCompile Include="..\Source\gore_game_settings.cpp" />
-    <ClCompile Include="..\Source\gore_gui.cpp" />
+    <ClCompile Include="..\Source\gore_debug_gui.cpp" />
     <ClCompile Include="..\Source\gore_lpterrain.cpp" />
     <ClCompile Include="..\Source\gore_memory.cpp" />
     <ClCompile Include="..\Source\gore_opengl.cpp" />
@@ -198,7 +198,7 @@
     <ClInclude Include="..\Source\gore_game_common.h" />
     <ClInclude Include="..\Source\gore_game_mode.h" />
     <ClInclude Include="..\Source\gore_game_settings.h" />
-    <ClInclude Include="..\Source\gore_gui.h" />
+    <ClInclude Include="..\Source\gore_debug_gui.h" />
     <ClInclude Include="..\Source\gore_input.h" />
     <ClInclude Include="..\Source\gore_lighting.h" />
     <ClInclude Include="..\Source\gore_lpterrain.h" />

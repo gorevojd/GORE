@@ -13,7 +13,7 @@
 */
 
 #include "gore_platform.h"
-#include "gore_gui.h"
+#include "gore_debug_gui.h"
 
 #define DEBUG_SHOW_FRAME_GRAPH_TOOLTIPS 1
 #define DEBUG_NORMALIZE_FRAME_GRAPH 1
@@ -214,7 +214,8 @@ struct debug_state {
 	b32 RecordingChanged;
 	b32 RecordingChangedWasReenabled;
 
-	gui_state* GUIState;
+	debug_gui_state* GUIState;
+	color_state* ColorsState;
 };
 
 enum debug_frame_graph_type {
@@ -233,8 +234,12 @@ enum debug_frame_graph_type {
 	NOTE(dima): Initialization of the debug state;
 	This function should be executed on the main thread
 */
-extern void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState);
-
+extern void DEBUGInit(
+	debug_state* State,
+	stacked_memory* DEBUGMemoryBlock,
+	input_system* InputSystem,
+	asset_system* AssetSystem,
+	render_state* RenderState);
 
 extern void DEBUGUpdate(debug_state* State);
 

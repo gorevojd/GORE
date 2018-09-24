@@ -69,9 +69,10 @@ GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
 GLOBAL_VARIABLE float GlobalTime;
 
 platform_api PlatformApi;
+#if GORE_DEBUG_ENABLED
 debug_record_table GlobalRecordTable_ = {};
 debug_record_table *GlobalRecordTable = &GlobalRecordTable_;
-
+#endif
 
 static u64 SDLGetClocks() {
 	u64 Result = SDL_GetPerformanceCounter();
@@ -402,17 +403,8 @@ static void SDLProcessInput(input_system* System) {
 	b32 MExt2IsDown = MouseState & SDL_BUTTON_X2MASK;
 }
 
-static gui_state GUIState_;
-static gui_state* GUIState = &GUIState_;
-
-static debug_state DEBUGState_;
-static debug_state* DEBUGState = &DEBUGState_;
-
 static gl_state GLState_;
 static gl_state* GLState = &GLState_;
-
-static color_state ColorState_;
-static color_state* ColorState = &ColorState_;
 
 inline SDL_Surface* SDLSurfaceFromBuffer(bitmap_info* Buffer) {
 	SDL_Surface* Result = SDL_CreateRGBSurfaceFrom(
@@ -1073,8 +1065,10 @@ int main(int ArgsCount, char** Args) {
 	}
 
 	//NOTE(dima): Loading game settings from settings file
-	game_settings GameSettings = TryReadGameSettings();
-
+	game_settings GameSettings = {};
+	TryReadGameSettings(&GameSettings);
+	
+#if GORE_DEBUG_ENABLED
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
 	DEBUGSetLogRecording(1);
@@ -1086,33 +1080,23 @@ int main(int ArgsCount, char** Args) {
 		GlobalRecordTable->LogsInited[DebugLogIndex] = 0;
 		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
 	}
+#endif
 
 	//NOTE(dima): Initialization of the memory
 	u32 GameModeMemorySize = MEGABYTES(256);
-	u32 PermanentMemorySize = MEGABYTES(256);
-	u32 DEBUGMemorySize = MEGABYTES(128);
+	u32 PermanentMemorySize = MEGABYTES(512);
 
 	u64 TotalMemoryBlockSize =
 		GameModeMemorySize +
-		PermanentMemorySize +
-		DEBUGMemorySize;
+		PermanentMemorySize;
 
 	void* PlatformMemoryBlock = calloc(TotalMemoryBlockSize, 1);
 
 	void* GameModeMemPointer = PlatformMemoryBlock;
-	void* PermanentMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
-	void* DEBUGMemPointer = (u8*)PermanentMemPointer + PermanentMemorySize;
-
-#if VOXEL_WORLD_ENABLED
-	u32 VoxelMemorySize = MEGABYTES(300);
-
-	void* VoxelMemory = calloc(VoxelMemorySize, 1);
-	stacked_memory VoxelMemoryStack = InitStackedMemory(VoxelMemory, VoxelMemorySize);
-#endif
+	void* EngineSystemsMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
 
 	PlatformApi.GameModeMemoryBlock = InitStackedMemory(PlatformMemoryBlock, GameModeMemorySize);
-	PlatformApi.PermanentMemoryBlock = InitStackedMemory(PermanentMemPointer, PermanentMemorySize);
-	PlatformApi.DEBUGMemoryBlock = InitStackedMemory(DEBUGMemPointer, DEBUGMemorySize);
+	PlatformApi.EngineSystemsMemoryBlock = InitStackedMemory(EngineSystemsMemPointer, PermanentMemorySize);
 
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
@@ -1325,9 +1309,8 @@ int main(int ArgsCount, char** Args) {
 	}
 #endif
 
-
+	engine_systems* EngineSystems = EngineSystemsInit(&GlobalInput, &GameSettings);
 	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height, &GameSettings);
-	DEBUGInit(DEBUGState, &PlatformApi.DEBUGMemoryBlock, GUIState);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -1346,10 +1329,6 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_TIMING(DEBUG_FRAME_UPDATE_NODE_NAME);
 		BEGIN_SECTION("Platform");
 
-		DEBUG_STACKED_MEM("Platform GameMode Memory", &PlatformApi.GameModeMemoryBlock);
-		DEBUG_STACKED_MEM("Platform Permanent Memory", &PlatformApi.PermanentMemoryBlock);
-		DEBUG_STACKED_MEM("Platform DEBUG Memory", &PlatformApi.DEBUGMemoryBlock);
-
 		BEGIN_TIMING("Input processing");
 		SDLProcessEvents(Window, &GlobalInput);
 
@@ -1365,33 +1344,17 @@ int main(int ArgsCount, char** Args) {
 		}
 		END_TIMING();
 
-		BEGIN_TIMING("Other...");
-		GameModeUpdate(&GlobalInput, &GameSettings);
-		END_TIMING();
-
-		BEGIN_TIMING("Debug update");
-		BEGIN_SECTION("Profile");
-		DEBUG_VALUE(DebugValue_FramesSlider);
-		DEBUG_VALUE(DebugValue_ViewFrameInfo);
-		DEBUG_VALUE(DebugValue_ProfileOverlays);
-		END_SECTION();
-
-		DEBUGUpdate(DEBUGState);
-		END_TIMING();
+		GameModeUpdate(EngineSystems);
 
 		BEGIN_TIMING("FramePreparing");
-		GUIPrepareFrame(GUIState);
 		END_TIMING();
 
 #if 1
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
-		permanent_state* PermanentState = (permanent_state*)PlatformApi.PermanentMemoryBlock.BaseAddress;
-
 		OpenGLProcessAllocationQueue();
-		OpenGLRenderStateToOutput(GLState, PermanentState->RenderState, &GameSettings);
-		//OpenGLRenderStateToOutput(GLState, GUIState->RenderStack, &GameSettings);
+		OpenGLRenderStateToOutput(GLState, EngineSystems->RenderState, &GameSettings);
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");
@@ -1421,7 +1384,7 @@ int main(int ArgsCount, char** Args) {
 #endif
 
 		BEGIN_TIMING("FrameEnding");
-		GameModeFinalizeFrame();
+		GameModeFinalizeFrame(EngineSystems);
 		END_TIMING();
 
 		END_SECTION();

@@ -1,11 +1,11 @@
-#include "gore_gui.h"
+#include "gore_debug_gui.h"
 
 #define STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
 
 void GUIInitState(
-	gui_state* GUIState, 
+	debug_gui_state* GUIState, 
 	stacked_memory* GUIMemory,
 	color_state* ColorState,
 	asset_system* AssetSystem,
@@ -130,7 +130,7 @@ enum gui_print_text_flag {
 	GUIPrintText_Multiline = 4,
 };
 
-static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2 P, float Scale, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	FUNCTION_TIMING();
 
 	rect2 TextRect = {};
@@ -219,33 +219,33 @@ static rect2 PrintTextInternal(gui_state* State, u32 Flags, char* Text, v2 P, fl
 	return(TextRect);
 }
 
-rect2 GUIPrintText(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
+rect2 GUIPrintText(debug_gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
 	rect2 Result = PrintTextInternal(GUIState, GUIPrintText_Print, Text, P, Scale, Color);
 
 	return(Result);
 }
 
-rect2 GUIPrintTextMultiline(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
+rect2 GUIPrintTextMultiline(debug_gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color) {
 	rect2 Result = PrintTextInternal(GUIState, GUIPrintText_Print | GUIPrintText_Multiline, Text, P, Scale, Color);
 
 	return(Result);
 }
 
-v2 GUIGetTextSize(gui_state* GUIState, char* Text, float Scale) {
+v2 GUIGetTextSize(debug_gui_state* GUIState, char* Text, float Scale) {
 	rect2 TextRc = PrintTextInternal(GUIState, GUIPrintText_GetSize, Text, {}, Scale);
 
 	v2 Result = GetRectDim(TextRc);
 	return(Result);
 }
 
-v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale) {
+v2 GUIGetTextSizeMultiline(debug_gui_state* GUIState, char* Text, float Scale) {
 	rect2 TextRc = PrintTextInternal(GUIState, GUIPrintText_GetSize | GUIPrintText_Multiline, Text, {}, Scale);
 
 	v2 Result = GetRectDim(TextRc);
 	return(Result);
 }
 
-void GUIBeginFrame(gui_state* GUIState) {
+void GUIBeginFrame(debug_gui_state* GUIState) {
 	GUIState->TooltipCount = 0;
 }
 
@@ -455,7 +455,7 @@ inline gui_element* GUIFindTrueParent(gui_element* Elem) {
 	return(Result);
 }
 
-inline b32 GUIWalkaroundIsOnElement(gui_state* State, gui_element* Element) {
+inline b32 GUIWalkaroundIsOnElement(debug_gui_state* State, gui_element* Element) {
 	b32 Result = 0;
 
 	if (State->WalkaroundEnabled) {
@@ -467,7 +467,7 @@ inline b32 GUIWalkaroundIsOnElement(gui_state* State, gui_element* Element) {
 	return(Result);
 }
 
-inline b32 GUIWalkaroundIsHere(gui_state* State) {
+inline b32 GUIWalkaroundIsHere(debug_gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	b32 Result = GUIWalkaroundIsOnElement(State, State->CurrentNode);
@@ -475,7 +475,7 @@ inline b32 GUIWalkaroundIsHere(gui_state* State) {
 	return(Result);
 }
 
-void GUIPrepareFrame(gui_state* GUIState) {
+void GUIPrepareFrame(debug_gui_state* GUIState) {
 	//NOTE(dima): Tooltips processing
 	float RowAdvance = GetNextRowAdvance(GUIState->FontInfo);
 	v2 PrintP = GUIState->Input->MouseP;
@@ -495,7 +495,7 @@ void GUIPrepareFrame(gui_state* GUIState) {
 	GUIState->TooltipCount = 0;
 }
 
-void GUIEndFrame(gui_state* GUIState) {
+void GUIEndFrame(debug_gui_state* GUIState) {
 	FUNCTION_TIMING();
 
 	//NOTE(DIMA): Processing walkaround
@@ -596,7 +596,7 @@ void GUIEndFrame(gui_state* GUIState) {
 	END_SECTION();
 }
 
-inline gui_layout* GUIAllocateViewElement(gui_state* State) {
+inline gui_layout* GUIAllocateViewElement(debug_gui_state* State) {
 	gui_layout* View = 0;
 
 	if (State->FreeLayoutSentinel->NextBro != State->FreeLayoutSentinel) {
@@ -614,7 +614,7 @@ inline gui_layout* GUIAllocateViewElement(gui_state* State) {
 	return(View);
 }
 
-inline void GUIInsertViewElement(gui_state* State, gui_layout* ToInsert) {
+inline void GUIInsertViewElement(debug_gui_state* State, gui_layout* ToInsert) {
 	ToInsert->NextBro = State->LayoutSentinel->NextBro;
 	ToInsert->PrevBro = State->LayoutSentinel;
 
@@ -622,7 +622,7 @@ inline void GUIInsertViewElement(gui_state* State, gui_layout* ToInsert) {
 	ToInsert->PrevBro->NextBro = ToInsert;
 }
 
-inline void GUIFreeViewElement(gui_state* State, gui_layout* ToFree) {
+inline void GUIFreeViewElement(debug_gui_state* State, gui_layout* ToFree) {
 	ToFree->NextBro->PrevBro = ToFree->PrevBro;
 	ToFree->PrevBro->NextBro = ToFree->NextBro;
 
@@ -633,7 +633,7 @@ inline void GUIFreeViewElement(gui_state* State, gui_layout* ToFree) {
 	ToFree->PrevBro->NextBro = ToFree;
 }
 
-void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType) {
+void GUIBeginLayout(debug_gui_state* GUIState, char* LayoutName, u32 LayoutType) {
 	FUNCTION_TIMING();
 
 	/*
@@ -699,7 +699,7 @@ void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType) {
 	GUIState->CurrentLayout = Layout;
 }
 
-void GUIEndLayout(gui_state* GUIState, u32 LayoutType) {
+void GUIEndLayout(debug_gui_state* GUIState, u32 LayoutType) {
 
 	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
@@ -710,7 +710,7 @@ void GUIEndLayout(gui_state* GUIState, u32 LayoutType) {
 	GUIState->CurrentLayout = GUIState->CurrentLayout->Parent;
 }
 
-void GUIPreAdvanceCursor(gui_state* State) {
+void GUIPreAdvanceCursor(debug_gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_element* Element = State->CurrentNode;
@@ -730,7 +730,7 @@ inline b32 GUIIsRowBeginned(gui_layout* View) {
 	return(Result);
 }
 
-void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
+void GUIDescribeElement(debug_gui_state* State, v2 ElementDim, v2 ElementP) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	View->LastElementP = ElementP;
@@ -741,7 +741,7 @@ void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP) {
 	}
 }
 
-void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing) {
+void GUIAdvanceCursor(debug_gui_state* State, float AdditionalYSpacing) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 #if 0
@@ -762,7 +762,7 @@ void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing) {
 	View->CurrentX -= View->CurrentPreAdvance;
 }
 
-void GUIBeginRow(gui_state* State) {
+void GUIBeginRow(debug_gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	char NameBuf[16];
@@ -778,7 +778,7 @@ void GUIBeginRow(gui_state* State) {
 	View->BeginnedRowsCount++;
 }
 
-void GUIEndRow(gui_state* State) {
+void GUIEndRow(debug_gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	b32 NeedShow = GUIElementShouldBeUpdated(State->CurrentNode);
@@ -798,7 +798,7 @@ void GUIEndRow(gui_state* State) {
 	State->CurrentNode->RowCount++;
 }
 
-inline gui_element* GUIAllocateListElement(gui_state* State) {
+inline gui_element* GUIAllocateListElement(debug_gui_state* State) {
 	gui_element* Element = 0;
 
 	if (State->FreeElementsSentinel->NextBro != State->FreeElementsSentinel) {
@@ -822,7 +822,7 @@ inline void GUIInsertListElement(gui_element* Sentinel, gui_element* ToInsert) {
 	ToInsert->NextBro->PrevBro = ToInsert;
 }
 
-inline void GUIFreeListElement(gui_state* State, gui_element* Element) {
+inline void GUIFreeListElement(debug_gui_state* State, gui_element* Element) {
 	Element->NextBro->PrevBro = Element->PrevBro;
 	Element->PrevBro->NextBro = Element->NextBro;
 
@@ -833,7 +833,7 @@ inline void GUIFreeListElement(gui_state* State, gui_element* Element) {
 	Element->PrevBro->NextBro = Element;
 }
 
-inline void GUIInitElementChildrenSentinel(gui_state* GUIState, gui_element* Element) {
+inline void GUIInitElementChildrenSentinel(debug_gui_state* GUIState, gui_element* Element) {
 	Element->ChildrenSentinel = GUIAllocateListElement(GUIState);
 	Element->ChildrenSentinel->NextBro = Element->ChildrenSentinel;
 	Element->ChildrenSentinel->PrevBro = Element->ChildrenSentinel;
@@ -841,7 +841,7 @@ inline void GUIInitElementChildrenSentinel(gui_state* GUIState, gui_element* Ele
 }
 
 static gui_element* GUIRequestElement(
-	gui_state* GUIState,
+	debug_gui_state* GUIState,
 	u32 ElementType,
 	char* ElementName,
 	gui_interaction* Interaction,
@@ -990,7 +990,7 @@ static gui_element* GUIRequestElement(
 }
 
 gui_element* GUIBeginElement(
-	gui_state* State,
+	debug_gui_state* State,
 	u32 ElementType,
 	char* ElementName,
 	gui_interaction* ElementInteraction,
@@ -1010,7 +1010,7 @@ gui_element* GUIBeginElement(
 	return(Element);
 }
 
-void GUIEndElement(gui_state* State, u32 ElementType) {
+void GUIEndElement(debug_gui_state* State, u32 ElementType) {
 	FUNCTION_TIMING();
 
 	gui_element* Element = State->CurrentNode;
@@ -1045,7 +1045,7 @@ void GUIEndElement(gui_state* State, u32 ElementType) {
 }
 
 void GUIPerformInteraction(
-	gui_state* GUIState, 
+	debug_gui_state* GUIState, 
 	gui_interaction* Interaction) 
 {
 	FUNCTION_TIMING();
@@ -1134,7 +1134,7 @@ void GUIPerformInteraction(
 		}break;
 
 		case GUIInteraction_StateChangerGroup: {
-			gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
+			debug_gui_state_changer_group_interaction_context* Context = &Interaction->StateChangerGroupInteraction;
 
 			gui_element* CurrentElement = Context->StateChangerGroup->Cache.StateChangerGroupCache.ActiveElement;
 
@@ -1185,7 +1185,7 @@ void GUIPerformInteraction(
 }
 
 rect2 GUITextBase(
-	gui_state* GUIState,
+	debug_gui_state* GUIState,
 	char* Text,
 	v2 Pos,
 	v4 TextColor,
@@ -1213,20 +1213,20 @@ rect2 GUITextBase(
 	return(TextRc);
 }
 
-void GUILabel(gui_state* GUIState, char* LabelText, v2 At) {
+void GUILabel(debug_gui_state* GUIState, char* LabelText, v2 At) {
 	PrintTextInternal(GUIState, GUIPrintText_Print,
 		LabelText, At,
 		GUIState->FontScale * 0.7f,
 		GUIGetColor(GUIState, GUIState->ColorTheme.TextColor));
 }
 
-void GUITooltip(gui_state* GUIState, char* TooltipText) {
+void GUITooltip(debug_gui_state* GUIState, char* TooltipText) {
 	if (GUIState->TooltipCount < GUI_TOOLTIPS_MAX_COUNT) {
 		CopyStrings(GUIState->Tooltips[GUIState->TooltipCount++], TooltipText);
 	}
 }
 
-void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered) {
+void GUIAnchor(debug_gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, Interaction, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1308,7 +1308,7 @@ void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction*
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer) {
+void GUIImageView(debug_gui_state* GUIState, char* Name, bitmap_info* Buffer) {
 	GUITreeBegin(GUIState, Name);
 
 
@@ -1357,7 +1357,7 @@ void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer) {
 	GUITreeEnd(GUIState);
 }
 
-void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack) {
+void GUIStackedMemGraph(debug_gui_state* GUIState, char* Name, stacked_memory* MemoryStack) {
 	if (MemoryStack) {
 		gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 1);
 		if (GUIElementShouldBeUpdated(Element)) {
@@ -1449,7 +1449,7 @@ void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryS
 	}
 }
 
-void GUIText(gui_state* GUIState, char* Text) {
+void GUIText(debug_gui_state* GUIState, char* Text) {
 	FUNCTION_TIMING();
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, Text, 0, 1);
@@ -1474,7 +1474,7 @@ void GUIText(gui_state* GUIState, char* Text) {
 	GUIEndElement(GUIState, GUIElement_StaticItem);
 }
 
-static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Name, float ViewMultiplier) {
+static void GUIValueView(debug_gui_state* GUIState, gui_variable_link* Link, char* Name, float ViewMultiplier) {
 	FUNCTION_TIMING();
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
@@ -1555,7 +1555,7 @@ static void GUIValueView(gui_state* GUIState, gui_variable_link* Link, char* Nam
 	GUIEndElement(GUIState, GUIElement_StaticItem);
 }
 
-void ColorRectView(gui_state* GUIState, v4 Color) {
+void ColorRectView(debug_gui_state* GUIState, v4 Color) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StaticItem, "", 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1579,7 +1579,7 @@ void ColorRectView(gui_state* GUIState, v4 Color) {
 	GUIEndElement(GUIState, GUIElement_StaticItem);
 }
 
-void GUIInt32View(gui_state* GUIState, i32 Int, char* Name) {
+void GUIInt32View(debug_gui_state* GUIState, i32 Int, char* Name) {
 	GUIBeginRow(GUIState);
 
 	if (Name) {
@@ -1593,7 +1593,7 @@ void GUIInt32View(gui_state* GUIState, i32 Int, char* Name) {
 	GUIEndRow(GUIState);
 }
 
-void ColorView(gui_state* GUIState, v4 Color, char* Name) {
+void ColorView(debug_gui_state* GUIState, v4 Color, char* Name) {
 	FUNCTION_TIMING();
 	
 	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
@@ -1630,7 +1630,7 @@ void ColorView(gui_state* GUIState, v4 Color, char* Name) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void GUIVector2View(gui_state* GUIState, v2 Value, char* Name) {
+void GUIVector2View(debug_gui_state* GUIState, v2 Value, char* Name) {
 	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
 	if (GUIElementShouldBeUpdated(Elem)) {
@@ -1653,7 +1653,7 @@ void GUIVector2View(gui_state* GUIState, v2 Value, char* Name) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void GUIVector3View(gui_state* GUIState, v3 Value, char* Name) {
+void GUIVector3View(debug_gui_state* GUIState, v3 Value, char* Name) {
 	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
 	if (GUIElementShouldBeUpdated(Elem)) {
@@ -1677,7 +1677,7 @@ void GUIVector3View(gui_state* GUIState, v3 Value, char* Name) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void GUIVector4View(gui_state* GUIState, v4 Value, char* Name) {
+void GUIVector4View(debug_gui_state* GUIState, v4 Value, char* Name) {
 	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1, 0);
 
 	if (GUIElementShouldBeUpdated(Elem)) {
@@ -1703,7 +1703,7 @@ void GUIVector4View(gui_state* GUIState, v4 Value, char* Name) {
 	GUIEndElement(GUIState, GUIElement_CachedItem);
 }
 
-void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction) {
+void GUIActionText(debug_gui_state* GUIState, char* Text, gui_interaction* Interaction) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Text, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1742,7 +1742,7 @@ void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-b32 GUIButton(gui_state* GUIState, char* ButtonName) {
+b32 GUIButton(debug_gui_state* GUIState, char* ButtonName) {
 	b32 Result = 0;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
@@ -1783,7 +1783,7 @@ b32 GUIButton(gui_state* GUIState, char* ButtonName) {
 	return(Result);
 }
 
-b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect, v4* TextColor) {
+b32 GUIButtonAt(debug_gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect, v4* TextColor) {
 
 	b32 Result = 0;
 
@@ -1819,7 +1819,7 @@ b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect,
 	return(Result);
 }
 
-void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
+void GUIBoolButton(debug_gui_state* GUIState, char* ButtonName, b32* Value) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1911,7 +1911,7 @@ void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value) {
+void GUIBoolButton2(debug_gui_state* GUIState, char* ButtonName, b32* Value) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, ButtonName, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -1948,7 +1948,7 @@ void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
+void GUIBoolChecker(debug_gui_state* GUIState, char* Name, b32* Value) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_InteractibleItem, Name, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2005,7 +2005,7 @@ void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float* InteractValue) {
+void GUIVerticalSlider(debug_gui_state* State, char* Name, float Min, float Max, float* InteractValue) {
 	gui_interaction Interaction_ = GUIVariableInteraction(InteractValue, GUIVarType_F32);
 	gui_interaction* Interaction = &Interaction_;
 
@@ -2229,7 +2229,7 @@ void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float
 	GUIEndElement(State, GUIElement_InteractibleItem);
 }
 
-void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue) {
+void GUISlider(debug_gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue) {
 	gui_interaction Interaction_ = GUIVariableInteraction(InteractValue, GUIVarType_F32);
 	gui_interaction* Interaction = &Interaction_;
 
@@ -2387,7 +2387,7 @@ void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* Int
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIChangeTreeNodeText(gui_state* GUIState, char* Text) {
+void GUIChangeTreeNodeText(debug_gui_state* GUIState, char* Text) {
 	gui_element* Elem = GUIGetCurrentElement(GUIState);
 
 	if (Elem->Type == GUIElement_TreeNode) {
@@ -2395,7 +2395,7 @@ void GUIChangeTreeNodeText(gui_state* GUIState, char* Text) {
 	}
 }
 
-void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
+void GUITreeBegin(debug_gui_state* GUIState, char* NodeName, char* NameText) {
 	gui_layout* View = GUIGetCurrentLayout(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_TreeNode, NodeName, 0, 0);
@@ -2454,7 +2454,7 @@ void GUITreeBegin(gui_state* GUIState, char* NodeName, char* NameText) {
 	Element->Cache.TreeNode.StackBeginY = View->CurrentY;
 }
 
-u32 GUITreeGetOutFlags(gui_state* GUIState) {
+u32 GUITreeGetOutFlags(debug_gui_state* GUIState) {
 	gui_element* Element = GUIGetCurrentElement(GUIState);
 
 	Assert(Element->Type == GUIElement_TreeNode);
@@ -2464,7 +2464,7 @@ u32 GUITreeGetOutFlags(gui_state* GUIState) {
 	return(Result);
 }
 
-void GUITreeEnd(gui_state* State) {
+void GUITreeEnd(debug_gui_state* State) {
 	gui_element* Elem = GUIGetCurrentElement(State);
 
 	gui_layout* View = GUIGetCurrentLayout(State);
@@ -2498,7 +2498,7 @@ void GUITreeEnd(gui_state* State) {
 	GUIEndElement(State, GUIElement_TreeNode);
 }
 
-void GUIBeginRadioGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
+void GUIBeginRadioGroup(debug_gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
 	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_RadioGroup, Name, 0, 1, 0);
@@ -2526,7 +2526,7 @@ inline gui_element* GUIFindRadioGroupParent(gui_element* CurrentElement) {
 	return(Result);
 }
 
-void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex) {
+void GUIRadioButton(debug_gui_state* GUIState, char* Name, u32 UniqueIndex) {
 #if 1
 	gui_element* RadioGroup = GUIFindRadioGroupParent(GUIState->CurrentNode);
 #else
@@ -2589,14 +2589,14 @@ void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement) {
+void GUIEndRadioGroup(debug_gui_state* GUIState, u32* ActiveElement) {
 	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
 	*ActiveElement = CurrentElement->Cache.RadioCache.ActiveIndex;
 
 	GUIEndElement(GUIState, GUIElement_RadioGroup);
 }
 
-void GUIBeginStateChangerGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
+void GUIBeginStateChangerGroup(debug_gui_state* GUIState, char* Name, u32 DefaultSetIndex) {
 	gui_layout* Layout = GUIGetCurrentLayout(GUIState);
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_StateChangerGroup, Name, 0, 1, 0);
@@ -2624,7 +2624,7 @@ inline gui_element* GUIFindStateChangerGroupParent(gui_element* CurrentElement) 
 	return(Result);
 }
 
-void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID) {
+void GUIStateChanger(debug_gui_state* GUIState, char* Name, u32 StateID) {
 	gui_element* StateChangerGroup = GUIFindStateChangerGroupParent(GUIState->CurrentNode);
 	
 	gui_interaction NullInteraction = GUINullInteraction();
@@ -2645,7 +2645,7 @@ void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID) {
 	GUIEndElement(GUIState, GUIElement_InteractibleItem);
 }
 
-void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement) {
+void GUIEndStateChangerGroupAt(debug_gui_state* GUIState, v2 Pos, u32* ActiveElement) {
 	gui_element* CurrentElement = GUIGetCurrentElement(GUIState);
 
 	if (GUIElementShouldBeUpdated(CurrentElement)) {
@@ -2710,15 +2710,15 @@ void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement) 
 }
 
 #if 0
-void GUIWindowBegin(gui_state* GUIState, char* Name) {
+void GUIWindowBegin(debug_gui_state* GUIState, char* Name) {
 
 }
 
-void GUIWindowEnd(gui_state* GUIState) {
+void GUIWindowEnd(debug_gui_state* GUIState) {
 
 }
 
-void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
+void GUIWindow(debug_gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, Name, 0, 1);
 
 	if (GUIElementShouldBeUpdated(Element)) {
@@ -2799,7 +2799,7 @@ inline gui_element* GUIFindMenuParentNode(gui_element* CurrentElement) {
 	return(Result);
 }
 
-void GUIBeginMenuBar(gui_state* GUIState, char* MenuName) {
+void GUIBeginMenuBar(debug_gui_state* GUIState, char* MenuName) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_MenuBar, MenuName, 0, 1, 0);
 	Element->Cache.MenuNode.ChildrenCount = 0;
 	Element->Cache.MenuNode.MaxHeight = 0;
@@ -2807,13 +2807,13 @@ void GUIBeginMenuBar(gui_state* GUIState, char* MenuName) {
 	GUIBeginRow(GUIState);
 }
 
-void GUIEndMenuBar(gui_state* GUIState) {
+void GUIEndMenuBar(debug_gui_state* GUIState) {
 
 	GUIEndRow(GUIState);
 	GUIEndElement(GUIState, GUIElement_MenuBar);
 }
 
-void GUIBeginMenuItemInternal(gui_state* GUIState, char* ItemName, u32 MenuItemType) {
+void GUIBeginMenuItemInternal(debug_gui_state* GUIState, char* ItemName, u32 MenuItemType) {
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_MenuItem, ItemName, 0, 0, 0);
 
 	Element->Cache.MenuNode.ChildrenCount = 0;
@@ -2824,7 +2824,7 @@ void GUIBeginMenuItemInternal(gui_state* GUIState, char* ItemName, u32 MenuItemT
 	Element->Cache.MenuNode.Type = MenuItemType;
 }
 
-void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
+void GUIEndMenuItemInternal(debug_gui_state* GUIState, u32 MenuItemType) {
 	gui_element* Element = GUIGetCurrentElement(GUIState);
 	Assert(Element->Cache.MenuNode.Type == MenuItemType);
 
@@ -2920,15 +2920,15 @@ void GUIEndMenuItemInternal(gui_state* GUIState, u32 MenuItemType) {
 	}
 }
 
-void GUIBeginMenuBarItem(gui_state* GUIState, char* Name) {
+void GUIBeginMenuBarItem(debug_gui_state* GUIState, char* Name) {
 	GUIBeginMenuItemInternal(GUIState, Name, GUIMenuItem_MenuBarItem);
 }
 
-void GUIEndMenuBarItem(gui_state* GUIState) {
+void GUIEndMenuBarItem(debug_gui_state* GUIState) {
 	GUIEndMenuItemInternal(GUIState, GUIMenuItem_MenuBarItem);
 }
 
-void GUIMenuBarItem(gui_state* GUIState, char* ItemName) {
+void GUIMenuBarItem(debug_gui_state* GUIState, char* ItemName) {
 	GUIBeginMenuItemInternal(GUIState, ItemName, GUIMenuItem_MenuItem);
 	GUIEndMenuItemInternal(GUIState, GUIMenuItem_MenuItem);
 }
@@ -2964,7 +2964,7 @@ static gui_element* GUIWalkaroundBFS(gui_element* At, char* NodeName) {
 	return(Result);
 }
 
-void GUIBeginTreeFind(gui_state* State, char* NodeName) {
+void GUIBeginTreeFind(debug_gui_state* State, char* NodeName) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	gui_element* NeededElement = GUIWalkaroundBFS(State->RootNode, NodeName);
@@ -2977,7 +2977,7 @@ void GUIBeginTreeFind(gui_state* State, char* NodeName) {
 	GUITreeBegin(State, NodeName);
 }
 
-void GUIEndTreeFind(gui_state* State) {
+void GUIEndTreeFind(debug_gui_state* State) {
 	gui_layout* View = GUIGetCurrentLayout(State);
 
 	GUITreeEnd(State);

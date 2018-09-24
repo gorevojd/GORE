@@ -360,7 +360,8 @@ inline void RENDERPushTest(render_stack* Stack) {
 render_stack* RenderInitStack(render_state* RenderState, u32 StackByteSize, char* Name);
 void RenderBeginFrame(render_state* RenderState);
 void RenderEndFrame(render_state* RenderState);
-render_state RenderInitState(
+void RenderInitState(
+	render_state* Result,
 	stacked_memory* RenderMemory,
 	int RenderWidth,
 	int RenderHeight,

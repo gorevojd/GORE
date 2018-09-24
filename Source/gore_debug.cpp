@@ -1,10 +1,10 @@
 #include "gore_debug.h"
 
-
 #define STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
 
+#if GORE_DEBUG_ENABLED
 inline void DEBUGDeallocateTreeNode(debug_tree_node* FreeTreeNode, debug_tree_node* Entry) {
 	Entry->PrevBro->NextBro = Entry->NextBro;
 	Entry->NextBro->PrevBro = Entry->PrevBro;
@@ -379,10 +379,31 @@ static debug_thread* DEBUGRequestThread(debug_state* State, u32 ThreadID, b32* H
 	return(Result);
 }
 
-void DEBUGInit(debug_state* State, stacked_memory* DEBUGMemoryBlock, gui_state* GUIState) {
+void DEBUGInit(
+	debug_state* State, 
+	stacked_memory* DEBUGMemoryBlock, 
+	input_system* InputSystem,
+	asset_system* AssetSystem,
+	render_state* RenderState) 
+{
 	State->DebugMemory = DEBUGMemoryBlock;
 
-	State->GUIState = GUIState;
+	//NOTE(dima): Initialization of colors state
+	State->ColorsState = PushStruct(DEBUGMemoryBlock, color_state);
+	stacked_memory* ColorsMemory = PushStruct(DEBUGMemoryBlock, stacked_memory);
+	*ColorsMemory = SplitStackedMemory(DEBUGMemoryBlock, KILOBYTES(20));
+	InitColorsState(State->ColorsState, ColorsMemory);
+
+	State->GUIState = PushStruct(DEBUGMemoryBlock, debug_gui_state);
+	stacked_memory* GUIMemory = PushStruct(DEBUGMemoryBlock, stacked_memory);
+	*GUIMemory = SplitStackedMemory(DEBUGMemoryBlock, MEGABYTES(2));
+	GUIInitState(
+		State->GUIState,
+		GUIMemory,
+		State->ColorsState,
+		AssetSystem,
+		InputSystem,
+		RenderState);
 	
 	State->FreeBlockSentinel = PushStruct(State->DebugMemory, debug_tree_node);
 	State->FreeBlockSentinel->NextBro = State->FreeBlockSentinel;
@@ -836,14 +857,14 @@ static void DEBUGProcessRecords(debug_state* State) {
 	State->LastCollationFrameRecords = CollectedRecordIndex - FrameBarrierIndex;
 }
 
-inline void DEBUGPushFrameColumn(gui_state* GUIState, u32 FrameIndex, v2 InitP, v2 Dim, v4 Color) {
+inline void DEBUGPushFrameColumn(debug_gui_state* GUIState, u32 FrameIndex, v2 InitP, v2 Dim, v4 Color) {
 	rect2 ColumnRect = Rect2MinDim(V2(InitP.x + Dim.x * FrameIndex, InitP.y), Dim);
 
 	RENDERPushRect(GUIState->RenderStack, ColumnRect, Color);
 }
 
 static void DEBUGFramesSlider(debug_state* State) {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 	
 	//NOTE(dima): This is jush for safe
 	b32 PrevRecording = State->IsRecording;
@@ -954,7 +975,7 @@ static rect2 DEBUGFramesGraph(debug_state* State, u32 Type, debug_tree_node* Vie
 
 	rect2 Result = {};
 
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ProfileFrameGraph", 0, 1, 1);
 
@@ -1267,7 +1288,6 @@ static void DEBUGViewingFrameInfo(debug_state* State) {
 
 	debug_profiled_frame* ViewingFrame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
-
 	stbsp_sprintf(Buf, "Viewing frame: %.2fms, %.2fFPS, %urs, %.2f%% occupied, %dkb total", 
 		ViewingFrame->DeltaTime * 1000.0f, 
 		1.0f / ViewingFrame->DeltaTime, 
@@ -1310,7 +1330,7 @@ inline u64 DEBUGGetClocksFromTiming(debug_timing_statistic* Stat, u32 Type) {
 }
 
 static void DEBUGClocksList(debug_state* State, u32 Type) {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "ClockList", 0, 1, 1);
 
@@ -1473,7 +1493,7 @@ enum debug_logger_log_filter_type {
 };
 
 static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForMoving) {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "Logr", 0, 1, 1);
 
@@ -1795,7 +1815,7 @@ static void DEBUGLoggerAt(debug_state* State, v2 At, rect2* OutRc, b32 ValidForM
 }
 
 static void DEBUGLogger(debug_state* State) {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	gui_element* Element = GUIBeginElement(GUIState, GUIElement_CachedItem, "Logr", 0, 1, 1);
 
@@ -1824,7 +1844,7 @@ enum debug_profile_active_element {
 };
 
 static void DEBUGThreadsOverlay(debug_state* State) {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	gui_element* Elem = GUIBeginElement(GUIState, GUIElement_CachedItem, "ThreadsOverlay", 0, 1, 1);
 
@@ -2102,7 +2122,7 @@ static void DEBUGVoxelGenerationGraphElement(
 	debug_state* State, 
 	voxel_generation_statistics* Stat) 
 {
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	platform_thread_queue_info* QueueInfo = &PlatformApi.GetThreadQueueInfo(Stat->Queue);
 
@@ -2240,7 +2260,7 @@ static void DEBUGVoxelGenerationGraphElement(
 
 static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_statistics* GenerationStat) {
 
-	gui_state* GUI = State->GUIState;
+	debug_gui_state* GUI = State->GUIState;
 	
 	platform_thread_queue_info QueueInfo = PlatformApi.GetThreadQueueInfo(GenerationStat->Queue);
 
@@ -2401,152 +2421,154 @@ static void DEBUGVoxelStatisticsElement(debug_state* State, voxel_generation_sta
 static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node* TreeNode) {
 	debug_tree_node* At = TreeNode->ChildrenSentinel->PrevBro;
 
-	for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
-		switch (At->TreeNodeType) {
-			case DebugTreeNode_Section: {
-				char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
-				DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
+	if (State->GUIState) {
+		for (At; At != TreeNode->ChildrenSentinel; At = At->PrevBro) {
+			switch (At->TreeNodeType) {
+				case DebugTreeNode_Section: {
+					char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
+					DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
 
-				GUITreeBegin(State->GUIState, NodeName);
+					GUITreeBegin(State->GUIState, NodeName);
 
-				u32 TreeOutFlags = GUITreeGetOutFlags(State->GUIState);
+					u32 TreeOutFlags = GUITreeGetOutFlags(State->GUIState);
 
-				if (TreeOutFlags & GUITreeOutFlag_MouseOverRect) {
-					if (MouseButtonWentDown(State->GUIState->Input, MouseButton_Left) && 
-						ButtonIsDown(State->GUIState->Input, KeyType_LShift)) 
-					{
+					if (TreeOutFlags & GUITreeOutFlag_MouseOverRect) {
+						if (MouseButtonWentDown(State->GUIState->Input, MouseButton_Left) &&
+							ButtonIsDown(State->GUIState->Input, KeyType_LShift))
+						{
 
+						}
 					}
-				}
 
-				DEBUGOutputSectionChildrenToGUI(State, At);
-				GUITreeEnd(State->GUIState);
-			}break;
+					DEBUGOutputSectionChildrenToGUI(State, At);
+					GUITreeEnd(State->GUIState);
+				}break;
 
-			case DebugTreeNode_Value: {
-				switch (At->Value.ValueType) {
-					case DebugValue_FramesSlider: {
-						DEBUGFramesSlider(State);
-					}break;
+				case DebugTreeNode_Value: {
+					switch (At->Value.ValueType) {
+						case DebugValue_FramesSlider: {
+							DEBUGFramesSlider(State);
+						}break;
 
-					case DebugValue_ViewFrameInfo: {
-						DEBUGViewingFrameInfo(State);
-					}break;
+						case DebugValue_ViewFrameInfo: {
+							DEBUGViewingFrameInfo(State);
+						}break;
 
-					case DebugValue_ProfileOverlays: {
-						u32 ActiveProfileElement = 0;
+						case DebugValue_ProfileOverlays: {
+							u32 ActiveProfileElement = 0;
 
-						gui_state* GUIState = State->GUIState;
+							debug_gui_state* GUIState = State->GUIState;
 
-						GUIBeginRow(State->GUIState);
-						GUIBeginRadioGroup(State->GUIState, "ProfileMenuRG", DebugProfileActiveElement_TopExClocks);
-						GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
-						GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
-						GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
-						GUIRadioButton(State->GUIState, "Threads", DebugProfileActiveElement_Threads);
-						GUIRadioButton(State->GUIState, "RootNode", DebugProfileActiveElement_RootNodeBlocks);
-						GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
-						GUIEndRow(State->GUIState);
+							GUIBeginRow(State->GUIState);
+							GUIBeginRadioGroup(State->GUIState, "ProfileMenuRG", DebugProfileActiveElement_TopExClocks);
+							GUIRadioButton(State->GUIState, "Clocks", DebugProfileActiveElement_TopClocks);
+							GUIRadioButton(State->GUIState, "ClocksEx", DebugProfileActiveElement_TopExClocks);
+							GUIRadioButton(State->GUIState, "Frames", DebugProfileActiveElement_FrameGraph);
+							GUIRadioButton(State->GUIState, "Threads", DebugProfileActiveElement_Threads);
+							GUIRadioButton(State->GUIState, "RootNode", DebugProfileActiveElement_RootNodeBlocks);
+							GUIEndRadioGroup(State->GUIState, &ActiveProfileElement);
+							GUIEndRow(State->GUIState);
 
-						if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
-							DEBUGClocksList(State, DebugClockList_Total);
-						}
-						else if (ActiveProfileElement == DebugProfileActiveElement_TopExClocks) {
-							DEBUGClocksList(State, DebugClockList_Exclusive);
-						}
-						else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
-							u32 ActiveElement = 0;
-
-							rect2 GraphRect = DEBUGFramesGraph(State, State->FramesGraphBarType);
-
-							GUIBeginStateChangerGroup(GUIState, "FrameGraphRG", DEBUGFrameGraph_DeltaTime);
-							GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
-							GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
-							GUIStateChanger(GUIState, "records", DEBUGFrameGraph_CollectedRecords);
-							GUIEndStateChangerGroupAt(
-								GUIState, 
-								V2(GraphRect.Min.x, 
-									GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale), 
-								&ActiveElement);
-
-							if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
-								State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
+							if (ActiveProfileElement == DebugProfileActiveElement_TopClocks) {
+								DEBUGClocksList(State, DebugClockList_Total);
 							}
-							else if (ActiveElement == DEBUGFrameGraph_FPS) {
-								State->FramesGraphBarType = DEBUGFrameGraph_FPS;
+							else if (ActiveProfileElement == DebugProfileActiveElement_TopExClocks) {
+								DEBUGClocksList(State, DebugClockList_Exclusive);
 							}
-							else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
-								State->FramesGraphBarType = DEBUGFrameGraph_CollectedRecords;
+							else if (ActiveProfileElement == DebugProfileActiveElement_FrameGraph) {
+								u32 ActiveElement = 0;
+
+								rect2 GraphRect = DEBUGFramesGraph(State, State->FramesGraphBarType);
+
+								GUIBeginStateChangerGroup(GUIState, "FrameGraphRG", DEBUGFrameGraph_DeltaTime);
+								GUIStateChanger(GUIState, "delta time", DEBUGFrameGraph_DeltaTime);
+								GUIStateChanger(GUIState, "FPS", DEBUGFrameGraph_FPS);
+								GUIStateChanger(GUIState, "records", DEBUGFrameGraph_CollectedRecords);
+								GUIEndStateChangerGroupAt(
+									GUIState,
+									V2(GraphRect.Min.x,
+										GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale),
+									&ActiveElement);
+
+								if (ActiveElement == DEBUGFrameGraph_DeltaTime) {
+									State->FramesGraphBarType = DEBUGFrameGraph_DeltaTime;
+								}
+								else if (ActiveElement == DEBUGFrameGraph_FPS) {
+									State->FramesGraphBarType = DEBUGFrameGraph_FPS;
+								}
+								else if (ActiveElement == DEBUGFrameGraph_CollectedRecords) {
+									State->FramesGraphBarType = DEBUGFrameGraph_CollectedRecords;
+								}
 							}
-						}
-						else if (ActiveProfileElement == DebugProfileActiveElement_Threads) {
-							DEBUGThreadsOverlay(State);
-						}
-						else if (ActiveProfileElement == DebugProfileActiveElement_RootNodeBlocks) {
-							u32 ActiveElement = 0;
-
-							debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
-
-							u64 Clocks = 0;
-							if (Frame->FrameUpdateNode) {
-								Clocks = Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+							else if (ActiveProfileElement == DebugProfileActiveElement_Threads) {
+								DEBUGThreadsOverlay(State);
 							}
+							else if (ActiveProfileElement == DebugProfileActiveElement_RootNodeBlocks) {
+								u32 ActiveElement = 0;
 
-							char InfoBuf[64];
-							stbsp_sprintf(InfoBuf, "Clocks - %llu", Clocks);
-							GUIText(GUIState, InfoBuf);
+								debug_profiled_frame* Frame = DEBUGGetFrameByIndex(State, State->ViewFrameIndex);
 
-							rect2 GraphRect = DEBUGFramesGraph(State, State->RootNodeBarType);
+								u64 Clocks = 0;
+								if (Frame->FrameUpdateNode) {
+									Clocks = Frame->FrameUpdateNode->TimingSnapshot.ClocksElapsed;
+								}
 
-							GUIBeginStateChangerGroup(GUIState, "RootNodeRG", DEBUGFrameGraph_RootNodeBlocks);
-							GUIStateChanger(GUIState, "Blocks", DEBUGFrameGraph_RootNodeBlocks);
-							GUIEndStateChangerGroupAt(
-								GUIState,
-								V2(GraphRect.Min.x,
-									GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale),
-								&ActiveElement);
+								char InfoBuf[64];
+								stbsp_sprintf(InfoBuf, "Clocks - %llu", Clocks);
+								GUIText(GUIState, InfoBuf);
 
-							if (ActiveElement == DEBUGFrameGraph_RootNodeBlocks) {
-								State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
+								rect2 GraphRect = DEBUGFramesGraph(State, State->RootNodeBarType);
+
+								GUIBeginStateChangerGroup(GUIState, "RootNodeRG", DEBUGFrameGraph_RootNodeBlocks);
+								GUIStateChanger(GUIState, "Blocks", DEBUGFrameGraph_RootNodeBlocks);
+								GUIEndStateChangerGroupAt(
+									GUIState,
+									V2(GraphRect.Min.x,
+										GraphRect.Min.y + GUIState->FontInfo->AscenderHeight * GUIState->FontScale),
+									&ActiveElement);
+
+								if (ActiveElement == DEBUGFrameGraph_RootNodeBlocks) {
+									State->RootNodeBarType = DEBUGFrameGraph_RootNodeBlocks;
+								}
 							}
-						}
-					}break;
+						}break;
 
-					case DebugValue_Logger: {
-						GUISlider(State->GUIState, "LoggerFontScale",
-							0.5f,
-							1.5f,
-							&State->InLoggerFontScale);
+						case DebugValue_Logger: {
+							GUISlider(State->GUIState, "LoggerFontScale",
+								0.5f,
+								1.5f,
+								&State->InLoggerFontScale);
 
-						DEBUGLogger(State);
-					}break;
+							DEBUGLogger(State);
+						}break;
 
-					case DebugValue_DebugStateInfo: {
-						char DebugStateInfoBuf[256];
-						stbsp_sprintf(DebugStateInfoBuf, "Stored frames count: %d", DEBUG_FRAMES_COUNT);
+						case DebugValue_DebugStateInfo: {
+							char DebugStateInfoBuf[256];
+							stbsp_sprintf(DebugStateInfoBuf, "Stored frames count: %d", DEBUG_FRAMES_COUNT);
 
-						GUIText(State->GUIState, DebugStateInfoBuf);
-						GUIStackedMemGraph(State->GUIState, "DebugMem", State->DebugMemory);
-					}break;
+							GUIText(State->GUIState, DebugStateInfoBuf);
+							GUIStackedMemGraph(State->GUIState, "DebugMem", State->DebugMemory);
+						}break;
 
-					case DebugValue_VoxelStatistics: {
-						voxel_generation_statistics* GenerationStat = (voxel_generation_statistics*)At->Value.Value;
+						case DebugValue_VoxelStatistics: {
+							voxel_generation_statistics* GenerationStat = (voxel_generation_statistics*)At->Value.Value;
 
-						DEBUGVoxelStatisticsElement(State, GenerationStat);
-					}break;
+							DEBUGVoxelStatisticsElement(State, GenerationStat);
+						}break;
 
-					case DebugValue_StackedMemory: {
-						char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
-						DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
+						case DebugValue_StackedMemory: {
+							char NodeName[DEBUG_NEW_BLOCK_TEMP_NAME_SZ];
+							DEBUGParseNameFromUnique(At->UniqueName, NodeName, DEBUG_NEW_BLOCK_TEMP_NAME_SZ);
 
-						GUIStackedMemGraph(State->GUIState, NodeName, (stacked_memory*)At->Value.Value);
-					}break;
+							GUIStackedMemGraph(State->GUIState, NodeName, (stacked_memory*)At->Value.Value);
+						}break;
 
-					case DebugValue_Text: {
-						GUIText(State->GUIState, (char*)At->Value.Value);
-					}break;
-				}
-			}break;
+						case DebugValue_Text: {
+							GUIText(State->GUIState, (char*)At->Value.Value);
+						}break;
+					}
+				}break;
+			}
 		}
 	}
 }
@@ -2554,7 +2576,7 @@ static void DEBUGOutputSectionChildrenToGUI(debug_state* State, debug_tree_node*
 static void DEBUGOverlayToOutput(debug_state* State) {
 	FUNCTION_TIMING();
 
-	gui_state* GUIState = State->GUIState;
+	debug_gui_state* GUIState = State->GUIState;
 
 	int LastFrameIndex;
 
@@ -2826,4 +2848,7 @@ void DEBUGUpdate(debug_state* State) {
 #endif
 
 	DEBUGOverlayToOutput(State);
+
+	GUIPrepareFrame(State->GUIState);
 }
+#endif

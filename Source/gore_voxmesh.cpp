@@ -1846,6 +1846,17 @@ void VoxelChunksGenerationUpdate(
 		Generation->CameraAutoMove = !Generation->CameraAutoMove;
 	}
 
+	if (ButtonWentDown(Input, KeyType_Backquote)) {
+		Generation->CapturingMouse = !Generation->CapturingMouse;
+	}
+
+	if (ButtonIsDown(Input, KeyType_LCtrl)) {
+		Generation->CapturingMouse = 0;
+	}
+	if (ButtonWentUp(Input, KeyType_LCtrl)) {
+		Generation->CapturingMouse = 1;
+	}
+
 	RawMoveVector = RawMoveVector * CameraSpeed;
 #if 0
 	RawMoveVector *= Input->DeltaTime;

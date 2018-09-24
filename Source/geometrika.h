@@ -67,11 +67,8 @@ struct geometrika_state {
 	surface_material PlaneMat;
 };
 
-
 extern void GEOMKAUpdateAndRender(
-	stacked_memory* GameMemoryBlock,
-	asset_system* AssetSystem,
-	render_state* RenderStack,
-	input_system* Input);
+	stacked_memory* GameMemoryBlock, 
+	engine_systems* EngineSysState);
 
 #endif

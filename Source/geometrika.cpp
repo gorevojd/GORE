@@ -235,12 +235,12 @@ void UpdateCelluralMachine(
 #endif
 }
 
-void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, permanent_state* PermanentState) {
+void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* EngineSysState) {
 	geometrika_state* State = (geometrika_state*)GameMemoryBlock->BaseAddress;
 
-	asset_system* AssetSystem = PermanentState->AssetSystem;
-	input_system* Input = PermanentState->InputSystem;
-	render_state* RenderState = PermanentState->RenderState;
+	asset_system* AssetSystem = EngineSysState->AssetSystem;
+	input_system* Input = EngineSysState->InputSystem;
+	render_state* RenderState = EngineSysState->RenderState;
 
 	render_stack* RenderStack = RenderState->NamedStacks.Main;
 
@@ -322,6 +322,17 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, permanent_state* Per
 		State->CameraAutoMove = !State->CameraAutoMove;
 	}
 
+	if (ButtonWentDown(Input, KeyType_Backquote)) {
+		State->CapturingMouse = !State->CapturingMouse;
+	}
+
+	if (ButtonIsDown(Input, KeyType_LCtrl)) {
+		State->CapturingMouse = 0;
+	}
+	if (ButtonWentUp(Input, KeyType_LCtrl)) {
+		State->CapturingMouse = 1;
+	}
+
 	RawMoveVector = RawMoveVector * CameraSpeed;
 #if 0
 	RawMoveVector *= Input->DeltaTime;
@@ -355,17 +366,6 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, permanent_state* Per
 		2000.0f);
 
 	RENDERSetCameraSetup(RenderStack, CameraSetup);
-
-	if (ButtonWentDown(Input, KeyType_Backquote)) {
-		State->CapturingMouse = !State->CapturingMouse;
-	}
-
-	if (ButtonIsDown(Input, KeyType_LCtrl)) {
-		State->CapturingMouse = 0;
-	}
-	if (ButtonWentUp(Input, KeyType_LCtrl)) {
-		State->CapturingMouse = 1;
-	}
 
 	mesh_id CubeID = GetFirstMesh(AssetSystem, GameAsset_Cube);
 	mesh_id PlaneID = GetFirstMesh(AssetSystem, GameAsset_Plane);

@@ -20,7 +20,7 @@
 #define GUI_VALUE_VIEW_MULTIPLIER 8
 #define GUI_VALUE_COLOR_VIEW_MULTIPLIER 5
 
-struct gui_state;
+struct debug_gui_state;
 
 enum gui_variable_type {
 	GUIVarType_F32,
@@ -97,7 +97,7 @@ struct gui_radio_button_interaction_context {
 	u32 PressedIndex;
 };
 
-struct gui_state_changer_group_interaction_context {
+struct debug_gui_state_changer_group_interaction_context {
 	gui_element* StateChangerGroup;
 	u32 IncrementDirection;
 };
@@ -142,7 +142,7 @@ struct gui_interaction {
 		gui_bool_interaction_context BoolInteraction;
 		gui_menu_bar_interaction_context MenuMarInteraction;
 		gui_radio_button_interaction_context RadioButtonInteraction;
-		gui_state_changer_group_interaction_context StateChangerGroupInteraction;
+		debug_gui_state_changer_group_interaction_context StateChangerGroupInteraction;
 		gui_return_mouse_action_interaction_context ReturnMouseActionInteraction;
 	};
 };
@@ -433,11 +433,11 @@ struct gui_radio_button_cache {
 	b32 IsActive;
 };
 
-struct gui_state_changer_group_cache {
+struct debug_gui_state_changer_group_cache {
 	gui_element* ActiveElement;
 };
 
-struct gui_state_changer_cache {
+struct debug_gui_state_changer_cache {
 	u32 StateID;
 };
 
@@ -453,8 +453,8 @@ struct gui_element_cache {
 		gui_menu_node_cache MenuNode;
 		gui_radio_group_cache RadioCache;
 		gui_radio_button_cache RadioButton;
-		gui_state_changer_group_cache StateChangerGroupCache;
-		gui_state_changer_cache StateChangerCache;
+		debug_gui_state_changer_group_cache StateChangerGroupCache;
+		debug_gui_state_changer_cache StateChangerCache;
 		gui_dimensional_cache Dimensional;
 	};
 
@@ -597,7 +597,7 @@ inline gui_color_theme GUIDefaultColorTheme() {
 	return(Result);
 }
 
-struct gui_state {
+struct debug_gui_state {
 	font_info* FontInfo;
 
 	render_state* RenderState;
@@ -644,18 +644,18 @@ struct gui_state {
 };
 
 
-inline v4 GUIGetColor(gui_state* GUIState, u32 ColorIndex) {
+inline v4 GUIGetColor(debug_gui_state* GUIState, u32 ColorIndex) {
 	v4 Result = GetColor(GUIState->ColorsState, ColorIndex);
 
 	return(Result);
 }
 /*
-inline v4 GUIGetThemeColor(gui_state* State, u32 Color) {
+inline v4 GUIGetThemeColor(debug_gui_state* State, u32 Color) {
 	v4 Result = State->ColorTable[State->ColorTheme[]]
 }
 */
 
-inline gui_layout* GUIGetCurrentLayout(gui_state* GUIState) {
+inline gui_layout* GUIGetCurrentLayout(debug_gui_state* GUIState) {
 	gui_layout* Result = 0;
 
 	Result = GUIState->CurrentLayout;
@@ -663,7 +663,7 @@ inline gui_layout* GUIGetCurrentLayout(gui_state* GUIState) {
 	return(Result);
 }
 
-inline gui_element* GUIGetCurrentElement(gui_state* State) {
+inline gui_element* GUIGetCurrentElement(debug_gui_state* State) {
 	gui_element* Result = State->CurrentNode;
 
 	return(Result);
@@ -688,7 +688,7 @@ inline b32 GUIElementShouldBeUpdated(gui_element* Node) {
 	return(Result);
 }
 
-inline b32 GUIInteractionIsHot(gui_state* State, gui_interaction* Interaction) {
+inline b32 GUIInteractionIsHot(debug_gui_state* State, gui_interaction* Interaction) {
 	b32 Result = 0;
 
 	if (Interaction->ID == State->HotInteractionID) {
@@ -728,17 +728,17 @@ inline u32 GUITreeElementID(gui_element* Element) {
 	return(Result);
 }
 
-inline void GUISwapWalkaroundHot(gui_state* State) {
+inline void GUISwapWalkaroundHot(debug_gui_state* State) {
 	State->WalkaroundIsHot = !State->WalkaroundIsHot;
 }
 
-inline b32 GUIWalkaroundIsHot(gui_state* State) {
+inline b32 GUIWalkaroundIsHot(debug_gui_state* State) {
 	b32 Result = State->WalkaroundIsHot;
 
 	return(Result);
 }
 
-inline b32 GUISetInteractionHot(gui_state* State, gui_interaction* Interaction, b32 IsHot) {
+inline b32 GUISetInteractionHot(debug_gui_state* State, gui_interaction* Interaction, b32 IsHot) {
 	b32 Result = IsHot;
 
 	if (IsHot) {
@@ -798,87 +798,87 @@ enum gui_menu_item_type {
 };
 
 extern void GUIInitState(
-	gui_state* GUIState, 
+	debug_gui_state* GUIState, 
 	stacked_memory* GUIMemory, 
 	color_state* ColorState, 
 	asset_system* AssetSystem,
 	input_system* Input, 
 	render_state* RenderState);
 
-extern void GUIBeginFrame(gui_state* GUIState);
-extern void GUIPrepareFrame(gui_state* GUIState);
-extern void GUIEndFrame(gui_state* GUIState);
+extern void GUIBeginFrame(debug_gui_state* GUIState);
+extern void GUIPrepareFrame(debug_gui_state* GUIState);
+extern void GUIEndFrame(debug_gui_state* GUIState);
 
-extern rect2 GUIPrintText(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
-extern rect2 GUIPrintTextMultiline(gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
-extern v2 GUIGetTextSize(gui_state* GUIState, char* Text, float Scale);
-extern v2 GUIGetTextSizeMultiline(gui_state* GUIState, char* Text, float Scale);
+extern rect2 GUIPrintText(debug_gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
+extern rect2 GUIPrintTextMultiline(debug_gui_state* GUIState, char* Text, v2 P, float Scale, v4 Color);
+extern v2 GUIGetTextSize(debug_gui_state* GUIState, char* Text, float Scale);
+extern v2 GUIGetTextSizeMultiline(debug_gui_state* GUIState, char* Text, float Scale);
 
-extern void GUIPerformInteraction(gui_state* GUIState, gui_interaction* Interaction);
+extern void GUIPerformInteraction(debug_gui_state* GUIState, gui_interaction* Interaction);
 
-extern void GUIText(gui_state* GUIState, char* Text);
-extern b32 GUIButton(gui_state* GUIState, char* ButtonName);
-extern b32 GUIButtonAt(gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect = 0, v4* TextColor = 0);
-extern void GUIBoolButton(gui_state* GUIState, char* ButtonName, b32* Value);
-extern void GUIBoolButton2(gui_state* GUIState, char* ButtonName, b32* Value);
-extern void GUIBoolChecker(gui_state* GUIState, char* Name, b32* Value);
-extern void GUIActionText(gui_state* GUIState, char* Text, gui_interaction* Interaction);
-extern void GUITooltip(gui_state* GUIState, char* TooltipText);
-extern void GUILabel(gui_state* GUIState, char* LabelText, v2 At);
-extern void GUISlider(gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue);
-extern void GUIVerticalSlider(gui_state* State, char* Name, float Min, float Max, float* InteractValue);
-extern void GUIStackedMemGraph(gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
-extern void GUIImageView(gui_state* GUIState, char* Name, bitmap_info* Buffer);
-extern void ColorView(gui_state* GUIState, v4 Color, char* Name);
-extern void GUIVector2View(gui_state* GUIState, v2 Value, char* Name);
-extern void GUIVector3View(gui_state* GUIState, v3 Value, char* Name);
-extern void GUIVector4View(gui_state* GUIState, v4 Value, char* Name);
-extern void GUIInt32View(gui_state* GUIState, i32 Int, char* Name);
+extern void GUIText(debug_gui_state* GUIState, char* Text);
+extern b32 GUIButton(debug_gui_state* GUIState, char* ButtonName);
+extern b32 GUIButtonAt(debug_gui_state* GUIState, char* ButtonName, v2 At, rect2* ButtonRect = 0, v4* TextColor = 0);
+extern void GUIBoolButton(debug_gui_state* GUIState, char* ButtonName, b32* Value);
+extern void GUIBoolButton2(debug_gui_state* GUIState, char* ButtonName, b32* Value);
+extern void GUIBoolChecker(debug_gui_state* GUIState, char* Name, b32* Value);
+extern void GUIActionText(debug_gui_state* GUIState, char* Text, gui_interaction* Interaction);
+extern void GUITooltip(debug_gui_state* GUIState, char* TooltipText);
+extern void GUILabel(debug_gui_state* GUIState, char* LabelText, v2 At);
+extern void GUISlider(debug_gui_state* GUIState, char* Name, float Min, float Max, float* InteractValue);
+extern void GUIVerticalSlider(debug_gui_state* State, char* Name, float Min, float Max, float* InteractValue);
+extern void GUIStackedMemGraph(debug_gui_state* GUIState, char* Name, stacked_memory* MemoryStack);
+extern void GUIImageView(debug_gui_state* GUIState, char* Name, bitmap_info* Buffer);
+extern void ColorView(debug_gui_state* GUIState, v4 Color, char* Name);
+extern void GUIVector2View(debug_gui_state* GUIState, v2 Value, char* Name);
+extern void GUIVector3View(debug_gui_state* GUIState, v3 Value, char* Name);
+extern void GUIVector4View(debug_gui_state* GUIState, v4 Value, char* Name);
+extern void GUIInt32View(debug_gui_state* GUIState, i32 Int, char* Name);
 
-extern void GUIAnchor(gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered = 1);
+extern void GUIAnchor(debug_gui_state* GUIState, char* Name, v2 Pos, v2 Dim, gui_interaction* Interaction, b32 Centered = 1);
 
-extern void GUIWindow(gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
+extern void GUIWindow(debug_gui_state* GUIState, char* Name, u32 CreationFlags, u32 Width, u32 Height);
 
-extern void GUIBeginMenuBar(gui_state* GUIState, char* MenuName);
-extern void GUIEndMenuBar(gui_state* GUIState);
-extern void GUIBeginMenuBarItem(gui_state* GUIState, char* Name);
-extern void GUIEndMenuBarItem(gui_state* GUIState);
-extern void GUIMenuBarItem(gui_state* GUIState, char* ItemName);
+extern void GUIBeginMenuBar(debug_gui_state* GUIState, char* MenuName);
+extern void GUIEndMenuBar(debug_gui_state* GUIState);
+extern void GUIBeginMenuBarItem(debug_gui_state* GUIState, char* Name);
+extern void GUIEndMenuBarItem(debug_gui_state* GUIState);
+extern void GUIMenuBarItem(debug_gui_state* GUIState, char* ItemName);
 
-extern void GUIBeginLayout(gui_state* GUIState, char* LayoutName, u32 LayoutType);
-extern void GUIChangeTreeNodeText(gui_state* GUIState, char* Text);
-extern void GUIEndLayout(gui_state* GUIState, u32 LayoutType);
-extern void GUIBeginRow(gui_state* State);
-extern void GUIEndRow(gui_state* State);
+extern void GUIBeginLayout(debug_gui_state* GUIState, char* LayoutName, u32 LayoutType);
+extern void GUIChangeTreeNodeText(debug_gui_state* GUIState, char* Text);
+extern void GUIEndLayout(debug_gui_state* GUIState, u32 LayoutType);
+extern void GUIBeginRow(debug_gui_state* State);
+extern void GUIEndRow(debug_gui_state* State);
 
 extern gui_element* GUIBeginElement(
-	gui_state* State,
+	debug_gui_state* State,
 	u32 ElementType,
 	char* ElementName,
 	gui_interaction* ElementInteraction,
 	b32 InitExpandedState = 0,
 	b32 IncrementDepth = 1);
-extern void GUIEndElement(gui_state* State, u32 ElementType);
+extern void GUIEndElement(debug_gui_state* State, u32 ElementType);
 
-extern void GUIPreAdvanceCursor(gui_state* State);
-extern void GUIDescribeElement(gui_state* State, v2 ElementDim, v2 ElementP);
-extern void GUIAdvanceCursor(gui_state* State, float AdditionalYSpacing = 0.0f);
+extern void GUIPreAdvanceCursor(debug_gui_state* State);
+extern void GUIDescribeElement(debug_gui_state* State, v2 ElementDim, v2 ElementP);
+extern void GUIAdvanceCursor(debug_gui_state* State, float AdditionalYSpacing = 0.0f);
 
-extern void GUITreeBegin(gui_state* State, char* NodeText, char* NameText = 0);
-extern u32 GUITreeGetOutFlags(gui_state* GUIState);
-extern void GUITreeEnd(gui_state* State);
+extern void GUITreeBegin(debug_gui_state* State, char* NodeText, char* NameText = 0);
+extern u32 GUITreeGetOutFlags(debug_gui_state* GUIState);
+extern void GUITreeEnd(debug_gui_state* State);
 
 
-extern void GUIBeginRadioGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex);
-extern void GUIRadioButton(gui_state* GUIState, char* Name, u32 UniqueIndex);
-extern void GUIEndRadioGroup(gui_state* GUIState, u32* ActiveElement);
+extern void GUIBeginRadioGroup(debug_gui_state* GUIState, char* Name, u32 DefaultSetIndex);
+extern void GUIRadioButton(debug_gui_state* GUIState, char* Name, u32 UniqueIndex);
+extern void GUIEndRadioGroup(debug_gui_state* GUIState, u32* ActiveElement);
 
-void GUIBeginStateChangerGroup(gui_state* GUIState, char* Name, u32 DefaultSetIndex);
-void GUIStateChanger(gui_state* GUIState, char* Name, u32 StateID);
-void GUIEndStateChangerGroupAt(gui_state* GUIState, v2 Pos, u32* ActiveElement);
+void GUIBeginStateChangerGroup(debug_gui_state* GUIState, char* Name, u32 DefaultSetIndex);
+void GUIStateChanger(debug_gui_state* GUIState, char* Name, u32 StateID);
+void GUIEndStateChangerGroupAt(debug_gui_state* GUIState, v2 Pos, u32* ActiveElement);
 
 extern rect2 GUITextBase(
-	gui_state* GUIState,
+	debug_gui_state* GUIState,
 	char* Text,
 	v2 Pos,
 	v4 TextColor = V4(1.0f, 1.0f, 1.0f, 1.0f),

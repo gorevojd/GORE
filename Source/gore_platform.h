@@ -441,8 +441,7 @@ struct platform_api {
 	platform_thread_queue* LowPriorityQueue;
 
 	stacked_memory GameModeMemoryBlock;
-	stacked_memory PermanentMemoryBlock;
-	stacked_memory DEBUGMemoryBlock;
+	stacked_memory EngineSystemsMemoryBlock;
 
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;

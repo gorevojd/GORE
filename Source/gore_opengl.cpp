@@ -949,6 +949,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 	LastWriteFBO = GLState->FramebufferInitial.FBO;
 	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+	OpenGLRenderStackToOutput(GLState, MainRenderStack);
 
 	//NOTE(dima): Resolving multisampled buffer to temp buffer
 	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
@@ -970,7 +971,6 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, LastWriteFBO);
 	LastWriteFBO = GLState->FramebufferPFX.FBO;
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, LastWriteFBO);
-	OpenGLRenderStackToOutput(GLState, MainRenderStack);
 
 	glBlitFramebuffer(
 		0, 0,
@@ -1033,26 +1033,26 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		GL_NEAREST);
 	END_TIMING();
 
-	//NOTE(dima): GUI stack to output
-	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
-	OpenGLRenderStackToOutput(GLState, GUIRenderStack);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	int ClearingValues[4] = { 0, 0, 0, 0 };
-	glClearBufferiv(GL_COLOR, 0, ClearingValues);
-	glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	GLState->ScreenShader.Program.Use();
-	glBindVertexArray(GLState->ScreenQuadVAO);
-	_glActiveTexture(GL_TEXTURE0);
-	glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
-	glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
-	glUseProgram(0);
+	////NOTE(dima): GUI stack to output
+	//glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
+	//OpenGLRenderStackToOutput(GLState, GUIRenderStack);
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//
+	//int ClearingValues[4] = { 0, 0, 0, 0 };
+	//glClearBufferiv(GL_COLOR, 0, ClearingValues);
+	//glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
+	//
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//
+	//GLState->ScreenShader.Program.Use();
+	//glBindVertexArray(GLState->ScreenQuadVAO);
+	//_glActiveTexture(GL_TEXTURE0);
+	//glUniform1i(GLState->ScreenShader.ScreenTextureLocation, 0);
+	//glBindTexture(GL_TEXTURE_2D, GLState->FramebufferGUI.Texture);
+	//glDrawArrays(GL_TRIANGLES, 0, 6);
+	//glBindVertexArray(0);
+	//glUseProgram(0);
 }
 
 

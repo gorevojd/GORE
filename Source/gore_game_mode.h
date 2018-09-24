@@ -3,9 +3,9 @@
 
 #include "gore_platform.h"
 
-#include "gore_gui.h"
 #include "gore_colors.h"
 #include "gore_game_settings.h"
+#include "gore_engine.h"
 
 
 enum game_mode_type {
@@ -13,6 +13,7 @@ enum game_mode_type {
 
 	GameMode_MainMenu,
 
+	GameMode_Geometrica,
 	GameMode_VoxelWorld,
 	GameMode_LowPolyTerrain,
 };
@@ -26,20 +27,25 @@ struct game_mode_state {
 	u32 GameModeType;
 };
 
-struct permanent_state {
+class game_mode_abstract {
+private:
 	b32 IsInitialized;
 
-	stacked_memory PermanentStateMemory;
+public:
+	virtual void Init() = 0;
+	virtual void Update() = 0;
+	virtual void FinalizeFrame() = 0;
 
-	input_system* InputSystem;
-	asset_system* AssetSystem;
-	gui_state* GUIState;
-	color_state* ColorsState;
-	render_state* RenderState;
-	game_settings* GameSettings;
+	void SetInitialized(b32 Value) {
+		this->IsInitialized = Value;
+	}
+
+	b32 GetInitialized() {
+		return(this->IsInitialized);
+	}
 };
 
-void GameModeUpdate(input_system* InputSystem, game_settings* GameSettings);
-void GameModeFinalizeFrame();
+void GameModeUpdate(engine_systems* EngineSystems);
+void GameModeFinalizeFrame(engine_systems* EngineSystems);
 
 #endif
