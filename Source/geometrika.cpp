@@ -483,16 +483,16 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* Engi
 	mat4 CubeMat = TranslationMatrix(CubePos) * RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
 
 
-	//RENDERPushMesh(RenderStack, SphereID, SphereMat1, State->CubeMat);
-	////RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
-	//RENDERPushMesh(RenderStack, CubeID, CubeMat, State->CubeMat);
-	//
-	//RENDERPushMesh(RenderStack, CylID, CylMat1, State->CubeMat);
-	//
-	//RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
+	RENDERPushMesh(RenderStack, SphereID, SphereMat1, State->CubeMat);
+	//RENDERPushMesh(RenderStack, SphereID, SphereMat2, &State->CubeMat);
+	RENDERPushMesh(RenderStack, CubeID, CubeMat, State->CubeMat);
+	
+	RENDERPushMesh(RenderStack, CylID, CylMat1, State->CubeMat);
+	
+	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
 
 
-	//UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
-	//RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(0.0f, 1.0f, 0.0f, 1.0f));
+	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
+	RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(0.0f, 1.0f, 0.0f, 1.0f));
 
 }

@@ -14,11 +14,17 @@ struct engine_systems {
 
 	input_system* InputSystem;
 	asset_system* AssetSystem;
+
+	stacked_memory ColorsMemory;
 	color_state* ColorsState;
+
+	stacked_memory RENDERMemory;
 	render_state* RenderState;
+
 	game_settings* GameSettings;
 
 #if GORE_DEBUG_ENABLED
+	stacked_memory DEBUGMem;
 	debug_state* DEBUGState;
 #endif
 };

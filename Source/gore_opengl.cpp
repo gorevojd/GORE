@@ -885,6 +885,9 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	GLuint LastWriteFBO;
 	GLuint LastReadFBO;
 
+	LastWriteFBO = GLState->FramebufferInitial.FBO;
+	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -899,6 +902,8 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	render_stack* LpterRenderStack = RenderState->NamedStacks.LpterMain;
 	render_stack* LpterWaterRenderStack = RenderState->NamedStacks.LpterWater;
 	
+
+
 	if (MainRenderStack) {
 		if (MainRenderStack->CameraSetupIsSet) {
 			OpenGLUniformCameraSetup(
@@ -947,9 +952,9 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		glUseProgram(0);
 	}
 
-	LastWriteFBO = GLState->FramebufferInitial.FBO;
-	glBindFramebuffer(GL_FRAMEBUFFER, LastWriteFBO);
+	//glEnable(GL_DEPTH_TEST);
 	OpenGLRenderStackToOutput(GLState, MainRenderStack);
+	//glDisable(GL_DEPTH_TEST);
 
 	//NOTE(dima): Resolving multisampled buffer to temp buffer
 	if (AntialiasingIsMSAA(GLState->AntialiasingType)) {
@@ -1081,9 +1086,12 @@ static void OpenGLInitFramebuffer(
 			RenderWidth,
 			RenderHeight,
 			GL_TRUE);
-		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		u32 Err = glGetError();
+		//glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		//glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+
 
 		glFramebufferTexture2D(
 			GL_FRAMEBUFFER,
@@ -1276,6 +1284,7 @@ void OpenGLInitState(
 	glGetIntegerv(GL_MAX_SAMPLES, &State->MaxMultisampleLevel);
 
 
+
 	//NOTE(dima): Initializing of screen quad. Pos + Tex
 #if 1
 	float ScreenQuadFloats[] = {
@@ -1332,7 +1341,6 @@ void OpenGLInitState(
 	else {
 		OpenGLInitFramebuffer(&State->FramebufferInitial, RenderWidth, RenderHeight, GL_TRUE);
 	}
-	
 	OpenGLInitFramebuffer(&State->FramebufferPFX, RenderWidth, RenderHeight, GL_FALSE);
 
 	OpenGLInitFramebuffer(&State->FramebufferGUI, RenderWidth, RenderHeight, GL_TRUE);

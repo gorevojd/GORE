@@ -21,11 +21,10 @@ engine_systems* EngineSystemsInit(input_system* InputSystem, game_settings* Game
 
 	//NOTE(dima): Render initialization
 	EngineSystems->RenderState = PushStruct(PermMem, render_state);
-	stacked_memory* RENDERMemory = PushStruct(PermMem, stacked_memory);
-	*RENDERMemory = SplitStackedMemory(PermMem, MEGABYTES(5));
+	EngineSystems->RENDERMemory = SplitStackedMemory(PermMem, MEGABYTES(5));
 	RenderInitState(
 		EngineSystems->RenderState,
-		RENDERMemory,
+		&EngineSystems->RENDERMemory,
 		InputSystem->WindowDim.x,
 		InputSystem->WindowDim.y,
 		EngineSystems->AssetSystem,
@@ -33,9 +32,8 @@ engine_systems* EngineSystemsInit(input_system* InputSystem, game_settings* Game
 
 	//NOTE(dima): Initialization of colors state
 	EngineSystems->ColorsState = PushStruct(PermMem, color_state);
-	stacked_memory* ColorsMemory = PushStruct(PermMem, stacked_memory);
-	*ColorsMemory = SplitStackedMemory(PermMem, KILOBYTES(20));
-	InitColorsState(EngineSystems->ColorsState, ColorsMemory);
+	EngineSystems->ColorsMemory = SplitStackedMemory(PermMem, KILOBYTES(20));
+	InitColorsState(EngineSystems->ColorsState, &EngineSystems->ColorsMemory);
 
 	//NOTE(dima): Initialization of game settings
 	EngineSystems->GameSettings = GameSettings;
@@ -43,11 +41,11 @@ engine_systems* EngineSystemsInit(input_system* InputSystem, game_settings* Game
 #if GORE_DEBUG_ENABLED
 	//NOTE(dima): Initialization of debug state
 	EngineSystems->DEBUGState = PushStruct(PermMem, debug_state);
-	stacked_memory* DEBUGMem = PushStruct(PermMem, stacked_memory);
-	*DEBUGMem = SplitStackedMemory(PermMem, MEGABYTES(128));
+	EngineSystems->DEBUGMem = SplitStackedMemory(PermMem, MEGABYTES(128));
 	DEBUGInit(
 		EngineSystems->DEBUGState, 
-		DEBUGMem, InputSystem, 
+		&EngineSystems->DEBUGMem, 
+		InputSystem, 
 		EngineSystems->AssetSystem, 
 		EngineSystems->RenderState);
 #endif
