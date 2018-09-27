@@ -45,6 +45,10 @@ menu_element* InitMenuElementButton(main_menu_state* MenuState, char* Text) {
 	return(Result);
 }
 
+menu_element* InitMenuElementLayout(main_menu_state* MenuState, u32 LayoutType) {
+	menu_element* Result = 
+}
+
 void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystems) {
 	main_menu_state* MenuState = (main_menu_state*)GameModeMemory->BaseAddress;
 
@@ -60,6 +64,8 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuState->MenuElementSentinel = {};
 		MenuState->MenuElementSentinel.NextInList = &MenuState->MenuElementSentinel;
 		MenuState->MenuElementSentinel.PrevInList = &MenuState->MenuElementSentinel;
+
+		MenuState->CurrentElement = &MenuState->MenuElementSentinel;
 
 		BeginVerticalMenu();
 		BeginHorizontalMenu("Play");
