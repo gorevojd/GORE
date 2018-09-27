@@ -7,6 +7,55 @@
 
 #define EXT_COLORS_ENABLED 1
 
+inline v4 ColorFrom255(int R, int G, int B) {
+	float OneOver255 = 1.0f / 255.0f;
+	v4 Result = V4(R, G, B, 1.0f);
+	Result.r *= OneOver255;
+	Result.g *= OneOver255;
+	Result.b *= OneOver255;
+
+	return(Result);
+}
+
+inline int IntFromHexCharForColors(char C) {
+	int Result = 0;
+
+	if (C >= 'a' && C <= 'f') {
+		C += 'A' - 'a';
+	}
+
+	if (C >= '0' && C <= '9') {
+		Result = C - '0';
+	}
+
+	if (C >= 'A' && C <= 'F') {
+		Result = C + 10 - 'A';
+	}
+
+	return(Result);
+}
+
+inline v4 ColorFromHex(char* Str) {
+	float OneOver255 = 1.0f / 255.0f;
+
+	v4 Result;
+
+	Assert(Str[0] == '#');
+
+	int R, G, B;
+	R = IntFromHexCharForColors(Str[1]) * 16 + IntFromHexCharForColors(Str[2]);
+	G = IntFromHexCharForColors(Str[3]) * 16 + IntFromHexCharForColors(Str[4]);
+	B = IntFromHexCharForColors(Str[5]) * 16 + IntFromHexCharForColors(Str[6]);
+
+	Result = V4(R, G, B, 1.0f);
+
+	Result.r *= OneOver255;
+	Result.g *= OneOver255;
+	Result.b *= OneOver255;
+
+	return(Result);
+}
+
 struct color_slot {
 	v4 Color;
 	u32 ColorU32;

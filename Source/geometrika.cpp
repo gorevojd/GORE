@@ -158,7 +158,7 @@ void UpdateCelluralMachine(
 	*/
 
 	v4 ClearColor = V4(0.05f, 0.05f, 0.05f, 1.0f);
-#if 0
+#if 1
 	//NOTE(dima): Clearing bitmap
 	u32 ClearColorPacked = PackRGBA(ClearColor);
 	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
@@ -598,5 +598,5 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* Engi
 
 
 	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
-	RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 0.0f, 1.0f));
+	//RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 0.0f, 1.0f));
 }
