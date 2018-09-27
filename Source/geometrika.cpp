@@ -170,8 +170,12 @@ void UpdateCelluralMachine(
 	__m128i mm31 = _mm_set1_epi32(31);
 	__m128i mm63 = _mm_set1_epi32(63);
 
+	__m128 mmOne = _mm_set1_ps(1.0f);
+	__m128 mm255 = _mm_set1_ps(255.0f);
+
 	__m128 mmOneOver31 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_cvtepi32_ps(mm31));
 	__m128 mmOneOver63 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_cvtepi32_ps(mm63));
+	__m128 mmOneOver255 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_set1_ps(255.0f));
 
 	__m128 mmClearColor_r = _mm_set1_ps(ClearColor.r);
 	__m128 mmClearColor_g = _mm_set1_ps(ClearColor.g);
@@ -210,11 +214,30 @@ void UpdateCelluralMachine(
 		__m128 mmCollColorUnpacked_a = _mm_set1_ps(1.0f);
 
 		//NOTE(dima): Fetching alphas values
-		__m128 mmAlphas = _mm_setr_ps(
+		__m128 mmAlphas255 = _mm_setr_ps(
 			Machine->Alphas[CellIndex],
 			Machine->Alphas[CellIndex + 1],
 			Machine->Alphas[CellIndex + 2],
 			Machine->Alphas[CellIndex + 3]);
+
+		//NOTE(dima): Converting alpha to 01 range
+		__m128 mmAlphas01 = _mm_mul_ps(mmAlphas255, mmOneOver255);
+
+		//NOTE(dima): Alpha blenging
+		__m128 mmBlended_r = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(mmOne, mmAlphas01), mmClearColor_r), _mm_mul_ps(mmCellColorUnpacked_r, mmAlphas01));
+		__m128 mmBlended_g = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(mmOne, mmAlphas01), mmClearColor_g), _mm_mul_ps(mmCellColorUnpacked_g, mmAlphas01));
+		__m128 mmBlended_b = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(mmOne, mmAlphas01), mmClearColor_b), _mm_mul_ps(mmCellColorUnpacked_b, mmAlphas01));
+		__m128 mmBlended_a = _mm_set1_ps(1.0f);
+
+		__m128i mmResult_r = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_r, mm255)), 24);
+		__m128i mmResult_g = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_g, mm255)), 16);
+		__m128i mmResult_b = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_b, mm255)), 8);
+		__m128i mmResult_a = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_a, mm255)), 0);
+
+		//NOTE(dima): Color packing
+		__m128i mmPackedColor = _mm_or_si128(
+			_mm_or_si128(mmResult_r, mmResult_g),
+			_mm_or_si128(mmResult_b, mmResult_a));
 	}
 
 	for (int CellIndex = 0;

@@ -713,7 +713,7 @@ void RenderRectFast(
 			u32* OutDest = (u32*)(Buffer->Pixels + DestY * Buffer->Pitch + (DestX << 2));
 			__m128i mmDstPixels = _mm_loadu_si128((__m128i*)OutDest);
 
-#if 0
+#if 1
 			__m128 mmPreDestColor_r = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(mmDstPixels, 24), mmFF));
 			__m128 mmPreDestColor_g = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(mmDstPixels, 16), mmFF));
 			__m128 mmPreDestColor_b = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(mmDstPixels, 8) ,mmFF));
