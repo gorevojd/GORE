@@ -1444,9 +1444,10 @@ static void DEBUGClocksList(debug_state* State, u32 Type) {
 
 				v4 ResTextColor = TextColor;
 				if (MouseInRect(GUIState->Input, TxtRc)) {
-					ResTextColor = TextHighColor;
+					//ResTextColor = TextHighColor;
+					ResTextColor = V4(0.5f, 0.5f, 1.0f, 1.0f);
 					//RENDERPushRect(GUIState->RenderStack, TxtRc, GUIGetColor(GUIState, Color_PrettyBlue));
-					//RENDERPushRectInnerOutline(GUIState->RenderStack, TxtRc, 2, GUIGetColor(GUIState, Color_White));
+					RENDERPushRectInnerOutline(GUIState->RenderStack, TxtRc, 2, GUIGetColor(GUIState, Color_Red));
 				}
 				GUIPrintText(GUIState, TextBuf, TextPrintAt, GUIState->FontScale, ResTextColor);
 

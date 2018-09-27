@@ -12,7 +12,7 @@
 #include "gore_game_mode.h"
 
 
-#define CELLURAL_CELL_PIXEL_WIDTH 13
+#define CELLURAL_CELL_PIXEL_WIDTH 9
 
 enum machine_cell_type {
 	MachineCell_None,

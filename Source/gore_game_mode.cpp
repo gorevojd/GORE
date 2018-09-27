@@ -4,6 +4,7 @@
 #include "gore_voxmesh.h"
 #include "gore_lpterrain.h"
 #include "geometrika.h"
+#include "gore_game_main_menu.h"
 
 void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
 	ClearStackedMemory(&GameModeState->GameModeMemory);
@@ -22,7 +23,7 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 			GetCurrentMemoryBase(&PlatformApi.GameModeMemoryBlock),
 			PlatformApi.GameModeMemoryBlock.MaxSize - sizeof(game_mode_state));
 
-		GameModeState->GameModeType = GameMode_Geometrica;
+		GameModeState->GameModeType = GameMode_MainMenu;
 
 		GameModeState->IsInitialized = 1;
 	}
@@ -37,7 +38,7 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 	switch (GameModeState->GameModeType)
 	{
 		case GameMode_MainMenu: {
-			//UpdateMainMenu();
+			UpdateMainMenu(&GameModeState->GameModeMemory, EngineSystems);
 		}break;
 
 		case GameMode_Geometrica: {

@@ -894,7 +894,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 	OpenGLSetScreenspace(RenderState->RenderWidth, RenderState->RenderHeight);
 
-	glClearColor(0.0f, 0.5f, 1.0f, 1.0f);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
  
 	render_stack* MainRenderStack = RenderState->NamedStacks.Main;
@@ -1039,8 +1039,9 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 	//NOTE(dima): GUI stack to output
 	glBindFramebuffer(GL_FRAMEBUFFER, GLState->FramebufferGUI.FBO);
 	
-	int ClearingValues[4] = { 0, 0, 0, 0 };
-	glClearBufferiv(GL_COLOR, 0, ClearingValues);
+	int ClearingValue = 0;
+	//int ClearingValues[4] = { 0, 0, 0, 0 };
+	glClearBufferiv(GL_COLOR, 0, &ClearingValue);
 	glClearBufferfi(GL_DEPTH_STENCIL, 0, 0.0f, 0);
 
 	OpenGLRenderStackToOutput(GLState, GUIRenderStack);

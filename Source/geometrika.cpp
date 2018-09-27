@@ -1,5 +1,7 @@
 #include "geometrika.h"
 
+#include "gore_simd.h"
+
 inline int GetCelluralMachineCellsCount(cellural_machine* Machine) {
 	int Result = Machine->CellsXCount * Machine->CellsYCount;
 
@@ -156,7 +158,7 @@ void UpdateCelluralMachine(
 	*/
 
 	v4 ClearColor = V4(0.05f, 0.05f, 0.05f, 1.0f);
-#if 1
+#if 0
 	//NOTE(dima): Clearing bitmap
 	u32 ClearColorPacked = PackRGBA(ClearColor);
 	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
@@ -167,10 +169,16 @@ void UpdateCelluralMachine(
 		*Pixel++ = ClearColorPacked;
 	}
 
+#if 1
+	__m128i mmCellPixelWidth = _mm_set1_epi32(CELLURAL_CELL_PIXEL_WIDTH);
+	__m128i mmStartOffsetX = _mm_set1_epi32(Machine->StartOffsetX);
+	__m128i mmStartOffsetY = _mm_set1_epi32(Machine->StartOffsetY);
+
 	__m128i mm31 = _mm_set1_epi32(31);
 	__m128i mm63 = _mm_set1_epi32(63);
 
 	__m128 mmOne = _mm_set1_ps(1.0f);
+	__m128i mmOneI = _mm_set1_epi32(1);
 	__m128 mm255 = _mm_set1_ps(255.0f);
 
 	__m128 mmOneOver31 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_cvtepi32_ps(mm31));
@@ -209,8 +217,8 @@ void UpdateCelluralMachine(
 
 		//NOTE(dima): Color unpacking from RGB16
 		__m128 mmCellColorUnpacked_r = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm31)), mmOneOver31);
-		__m128 mmCellColorUnpacked_g = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm63)), mmOneOver63);
-		__m128 mmCellColorUnpacked_b = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm31)), mmOneOver31);
+		__m128 mmCellColorUnpacked_g = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(mmColors, 5), mm63)), mmOneOver63);
+		__m128 mmCellColorUnpacked_b = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(mmColors, 11), mm31)), mmOneOver31);
 		__m128 mmCollColorUnpacked_a = _mm_set1_ps(1.0f);
 
 		//NOTE(dima): Fetching alphas values
@@ -232,14 +240,37 @@ void UpdateCelluralMachine(
 		__m128i mmResult_r = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_r, mm255)), 24);
 		__m128i mmResult_g = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_g, mm255)), 16);
 		__m128i mmResult_b = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_b, mm255)), 8);
-		__m128i mmResult_a = _mm_slli_epi32(_mm_cvtps_epi32(_mm_mul_ps(mmBlended_a, mm255)), 0);
+		__m128i mmResult_a = _mm_cvtps_epi32(_mm_mul_ps(mmBlended_a, mm255));
 
 		//NOTE(dima): Color packing
 		__m128i mmPackedColor = _mm_or_si128(
 			_mm_or_si128(mmResult_r, mmResult_g),
 			_mm_or_si128(mmResult_b, mmResult_a));
-	}
 
+		//NOTE(dima): Calculating draw loop cell pixels range
+		__m128i mmCellMinX = _mm_add_epi32(mmStartOffsetX, MM_MulI(mmCellX, mmCellPixelWidth));
+		__m128i mmCellMaxX = _mm_add_epi32(mmStartOffsetX, MM_MulI(_mm_add_epi32(mmCellX, mmOneI), mmCellPixelWidth));
+		__m128i mmCellMinY = _mm_add_epi32(mmStartOffsetY, MM_MulI(mmCellY, mmCellPixelWidth));
+		__m128i mmCellMaxY = _mm_add_epi32(mmStartOffsetY, MM_MulI(_mm_add_epi32(mmCellY, mmOneI), mmCellPixelWidth));
+
+		//NOTE(dima): Draw loop
+		for (int i = 0; i < 4; i++) {
+			for (int YPixel = MMI_GetI(mmCellMinY, i);
+				YPixel < MMI_GetI(mmCellMaxY, i);
+				YPixel++)
+			{
+				for (int XPixel = MMI_GetI(mmCellMinX, i);
+					XPixel < MMI_GetI(mmCellMaxX, i);
+					XPixel++)
+				{
+					u32* TargetPixel = (u32*)Machine->Bitmap.Pixels + Machine->Bitmap.Width * YPixel + XPixel;
+
+					*TargetPixel = MMI_GetI(mmPackedColor, i);
+				}
+			}
+		}
+	}
+#else
 	for (int CellIndex = 0;
 		CellIndex < CellsCount;
 		CellIndex++)
@@ -267,11 +298,11 @@ void UpdateCelluralMachine(
 					Machine->Bitmap.Width * (YPixel + CellY * CELLURAL_CELL_PIXEL_WIDTH) +
 						XPixel + CellX * CELLURAL_CELL_PIXEL_WIDTH;
 
-				//NOTE(dima): Alpha blend
 				*TargetPixel = BlendedColorPacked;
 			}
 		}
 	}
+#endif
 
 	//NOTE(dima): Deallocating bitmap entry to reallocate it in the renderer
 	dealloc_queue_entry* DeallocEntry = PlatformRequestDeallocEntry();
@@ -567,6 +598,5 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* Engi
 
 
 	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
-	//RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 1.0f, 1.0f));
-
+	RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 0.0f, 1.0f));
 }

@@ -1,8 +1,5 @@
 #include "gore_renderer.h"
 
-#include <thread>
-#include <mutex>
-
 #define GORE_FAST_RENDERING 1
 
 #define MM(mm, i) (mm).m128_f32[i]
