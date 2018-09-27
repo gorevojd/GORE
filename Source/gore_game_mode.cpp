@@ -28,7 +28,10 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 	}
 
 	RenderBeginFrame(EngineSystems->RenderState);
+
+#if GORE_DEBUG_ENABLED
 	GUIBeginFrame(EngineSystems->DEBUGState->GUIState);
+#endif
 
 	BEGIN_TIMING("GameModeUpdate");
 	switch (GameModeState->GameModeType)
@@ -93,7 +96,10 @@ void GameModeFinalizeFrame(engine_systems* EngineSystems) {
 		}break;
 	}
 
+#if GORE_DEBUG_ENABLED
 	GUIEndFrame(EngineSystems->DEBUGState->GUIState);
+#endif
+
 	RenderEndFrame(EngineSystems->RenderState);
 }
 

@@ -4,6 +4,7 @@
 #define STB_SPRINTF_STATIC
 #include "stb_sprintf.h"
 
+#if GORE_DEBUG_ENABLED
 void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType) {
 	int NewLogIndex = (GlobalRecordTable->CurrentLogIndex + GlobalRecordTable->LogIncrement) % DEBUG_LOGS_COUNT;
 	int Index = PlatformApi.AtomicSet_I32(&GlobalRecordTable->CurrentLogIndex, NewLogIndex);
@@ -13,3 +14,4 @@ void DEBUGAddLog(char* Text, char* File, int Line, u32 LogType) {
 	GlobalRecordTable->LogsInited[Index] = 1;
 	GlobalRecordTable->LogsTypes[Index] = LogType;
 }
+#endif

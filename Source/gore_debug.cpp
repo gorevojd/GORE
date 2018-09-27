@@ -390,16 +390,14 @@ void DEBUGInit(
 
 	//NOTE(dima): Initialization of colors state
 	State->ColorsState = PushStruct(DEBUGMemoryBlock, color_state);
-	stacked_memory* ColorsMemory = PushStruct(DEBUGMemoryBlock, stacked_memory);
-	*ColorsMemory = SplitStackedMemory(DEBUGMemoryBlock, KILOBYTES(20));
-	InitColorsState(State->ColorsState, ColorsMemory);
+	State->ColorsMemory = SplitStackedMemory(DEBUGMemoryBlock, KILOBYTES(20));
+	InitColorsState(State->ColorsState, &State->ColorsMemory);
 
 	State->GUIState = PushStruct(DEBUGMemoryBlock, debug_gui_state);
-	stacked_memory* GUIMemory = PushStruct(DEBUGMemoryBlock, stacked_memory);
-	*GUIMemory = SplitStackedMemory(DEBUGMemoryBlock, MEGABYTES(2));
+	State->GUIMemory = SplitStackedMemory(DEBUGMemoryBlock, MEGABYTES(2));
 	GUIInitState(
 		State->GUIState,
-		GUIMemory,
+		&State->GUIMemory,
 		State->ColorsState,
 		AssetSystem,
 		InputSystem,

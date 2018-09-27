@@ -1102,6 +1102,9 @@ int main(int ArgsCount, char** Args) {
 #define GORE_WINDOW_HEIGHT 768
 
 	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+	GlobalInput.WindowDim.x = GlobalBuffer.Width;
+	GlobalInput.WindowDim.y = GlobalBuffer.Height;
+
 	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
 	GlobalTime = 0.0f;
 
@@ -1124,8 +1127,8 @@ int main(int ArgsCount, char** Args) {
 		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		GORE_WINDOW_WIDTH,
-		GORE_WINDOW_HEIGHT,
+		GlobalBuffer.Width,
+		GlobalBuffer.Height,
 		SDL_WINDOW_OPENGL);
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
@@ -1317,8 +1320,6 @@ int main(int ArgsCount, char** Args) {
 	b32 TempBoolForSlider = false;
 
 	float DeltaTime = 0.0f;
-	GlobalInput.WindowDim.x = GlobalBuffer.Width;
-	GlobalInput.WindowDim.y = GlobalBuffer.Height;
 
 	GlobalRunning = true;
 	while (GlobalRunning) {

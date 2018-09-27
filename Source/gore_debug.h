@@ -214,7 +214,10 @@ struct debug_state {
 	b32 RecordingChanged;
 	b32 RecordingChangedWasReenabled;
 
+	stacked_memory GUIMemory;
 	debug_gui_state* GUIState;
+
+	stacked_memory ColorsMemory;
 	color_state* ColorsState;
 };
 

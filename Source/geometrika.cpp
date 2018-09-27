@@ -32,7 +32,8 @@ void InitCelluralMachine(
 	//NOTE(dima): Initializing bitmap 
 	Machine->Bitmap.Width = RenderPixelWidth;
 	Machine->Bitmap.Height = RenderPixelHeight;
-	Machine->Bitmap.Pixels = PushArray(MemoryStack, u8, Machine->Bitmap.Width * Machine->Bitmap.Height * 4);
+	//NOTE(dima): +4 here will allocate few more pixels than we actually need for SIMD
+	Machine->Bitmap.Pixels = PushArray(MemoryStack, u8, (Machine->Bitmap.Width * Machine->Bitmap.Height + 4) * 4); 
 	Machine->Bitmap.Pitch = Machine->Bitmap.Width * 4;
 	Machine->Bitmap.WidthOverHeight = (float)Machine->Bitmap.Width / (float)Machine->Bitmap.Height;
 	Machine->Bitmap.TextureHandle = 0;
@@ -155,7 +156,7 @@ void UpdateCelluralMachine(
 	*/
 
 	v4 ClearColor = V4(0.05f, 0.05f, 0.05f, 1.0f);
-#if 0
+#if 1
 	//NOTE(dima): Clearing bitmap
 	u32 ClearColorPacked = PackRGBA(ClearColor);
 	u32* Pixel = (u32*)Machine->Bitmap.Pixels;
@@ -166,7 +167,56 @@ void UpdateCelluralMachine(
 		*Pixel++ = ClearColorPacked;
 	}
 
+	__m128i mm31 = _mm_set1_epi32(31);
+	__m128i mm63 = _mm_set1_epi32(63);
+
+	__m128 mmOneOver31 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_cvtepi32_ps(mm31));
+	__m128 mmOneOver63 = _mm_div_ps(_mm_set1_ps(1.0f), _mm_cvtepi32_ps(mm63));
+
+	__m128 mmClearColor_r = _mm_set1_ps(ClearColor.r);
+	__m128 mmClearColor_g = _mm_set1_ps(ClearColor.g);
+	__m128 mmClearColor_b = _mm_set1_ps(ClearColor.b);
+	__m128 mmClearColor_a = _mm_set1_ps(ClearColor.a);
+
 	//NOTE(dima): Rendering cells
+	for (int CellIndex = 0;
+		CellIndex < CellsCount;
+		CellIndex += 4)
+	{
+		__m128i mmCellsXCount = _mm_set1_epi32(Machine->CellsXCount);
+
+		__m128i mmCellIndex = _mm_setr_epi32(
+			CellIndex,
+			CellIndex + 1,
+			CellIndex + 2,
+			CellIndex + 3);
+
+		__m128i mmCellY = _mm_cvttps_epi32(_mm_div_ps(_mm_cvtepi32_ps(mmCellIndex), _mm_cvtepi32_ps(mmCellsXCount)));
+
+		__m128 mmYByWidth = _mm_mul_ps(_mm_cvtepi32_ps(mmCellY), _mm_cvtepi32_ps(mmCellsXCount));
+		__m128i mmCellX = _mm_cvtps_epi32(_mm_sub_ps(_mm_cvtepi32_ps(mmCellIndex), mmYByWidth));
+
+		//NOTE(dima): Fetching colors from color table
+		__m128i mmColors = _mm_setr_epi32(
+			Machine->Colors[CellIndex],
+			Machine->Colors[CellIndex + 1],
+			Machine->Colors[CellIndex + 2],
+			Machine->Colors[CellIndex + 3]);
+
+		//NOTE(dima): Color unpacking from RGB16
+		__m128 mmCellColorUnpacked_r = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm31)), mmOneOver31);
+		__m128 mmCellColorUnpacked_g = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm63)), mmOneOver63);
+		__m128 mmCellColorUnpacked_b = _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(mmColors, mm31)), mmOneOver31);
+		__m128 mmCollColorUnpacked_a = _mm_set1_ps(1.0f);
+
+		//NOTE(dima): Fetching alphas values
+		__m128 mmAlphas = _mm_setr_ps(
+			Machine->Alphas[CellIndex],
+			Machine->Alphas[CellIndex + 1],
+			Machine->Alphas[CellIndex + 2],
+			Machine->Alphas[CellIndex + 3]);
+	}
+
 	for (int CellIndex = 0;
 		CellIndex < CellsCount;
 		CellIndex++)
@@ -200,6 +250,7 @@ void UpdateCelluralMachine(
 		}
 	}
 
+	//NOTE(dima): Deallocating bitmap entry to reallocate it in the renderer
 	dealloc_queue_entry* DeallocEntry = PlatformRequestDeallocEntry();
 	DeallocEntry->EntryType = DeallocQueueEntry_Bitmap;
 	DeallocEntry->Data.BitmapData.TextureHandle = Machine->Bitmap.TextureHandle;;
@@ -207,7 +258,7 @@ void UpdateCelluralMachine(
 
 	Machine->Bitmap.TextureHandle = 0;
 
-	//TODO(dima): Need to deallocate bitmap handles 
+	//TODO(dima): Sending bitmap to the renderer
 	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), Machine->Bitmap.Height);
 #else
 	RENDERPushClear(RenderState, ClearColor.rgb);
@@ -493,6 +544,6 @@ void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* Engi
 
 
 	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
-	RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(0.0f, 1.0f, 0.0f, 1.0f));
+	//RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 1.0f, 1.0f));
 
 }
