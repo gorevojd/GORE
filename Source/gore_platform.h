@@ -356,6 +356,31 @@ inline float StringToFloat(char* String) {
 	return(Result);
 }
 
+inline void IntegerToString(int Value, char* String) {
+	int DigitIndex = 0;
+
+	do {
+		String[DigitIndex++] = '0' + (Value % 10);
+
+		Value /= 10;
+	} while (Value);
+
+	//NOTE(dima): Reversing string
+	int ScanBeginIndex = 0;
+	int ScanEndIndex = DigitIndex - 1;
+	while (ScanBeginIndex < ScanEndIndex) {
+		char Temp = String[ScanBeginIndex];
+		String[ScanBeginIndex] = String[ScanEndIndex];
+		String[ScanEndIndex] = Temp;
+
+		ScanBeginIndex++;
+		ScanEndIndex--;
+	}
+
+	//NOTE(dima): Null terminating the string
+	String[DigitIndex] = 0;
+}
+
 struct platform_read_file_result {
 	u64 Size;
 	void* Data;

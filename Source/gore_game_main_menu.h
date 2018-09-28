@@ -42,8 +42,6 @@ struct menu_element_button {
 
 	float TimeSinceDeactivation;
 	float TimeForFadeout;
-
-	char Text[32];
 };
 
 struct menu_element_layout {
@@ -54,21 +52,35 @@ struct menu_element_layout {
 	float HorizontalFill01;
 	float VerticalFill01;
 
+	float ElementSpacingX;
+	float ElementSpacingY;
+
 	rect2 Rect;
 };
 
-inline menu_element_layout MenuInitLayout(u32 LayoutType, float FillPercentage01) {
+inline menu_element_layout MenuInitLayout(
+	u32 LayoutType, 
+	float FillPercentageX01, 
+	float FillPercentageY01) 
+{
 	menu_element_layout Result = {};
 
+	Result.LayoutType = LayoutType;
 	Result.ChildrenElementCount = 0;
-	Result.HorizontalFill01 = FillPercentage01;
-	Result.VerticalFill01 = FillPercentage01;
+
+	Result.HorizontalFill01 = FillPercentageX01;
+	Result.VerticalFill01 = FillPercentageY01;
+
+	Result.ElementSpacingX = 0.05f;
+	Result.ElementSpacingY = 0.05f;
+
 	Result.Rect = {};
 
 	return(Result);
 }
 
 struct menu_element {
+	char IdName[32];
 
 	u32 MenuElementType;
 
@@ -82,8 +94,14 @@ struct menu_element {
 	menu_element* PrevInList;
 
 	menu_element* Parent;
+	menu_element* ParentViewElement;
 
 	menu_element* ChildrenSentinel;
+};
+
+enum menu_walkthrough_purpose {
+	MenuWalkThrough_CalculateRects,
+	MenuWalkThrough_Output,
 };
 
 struct main_menu_state {
@@ -95,6 +113,7 @@ struct main_menu_state {
 
 	menu_element RootElement;
 	menu_element* CurrentElement;
+	menu_element* ViewElement;
 
 	engine_systems* EngineSystems;
 };

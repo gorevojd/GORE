@@ -2,6 +2,7 @@
 
 static menu_element* InitMenuElementInternal(
 	main_menu_state* MenuState, 
+	char* IdName,
 	u32 MenuElementType, 
 	menu_element_layout Layout) 
 {
@@ -15,11 +16,14 @@ static menu_element* InitMenuElementInternal(
 	Result->PrevInList = MenuState->CurrentElement->ChildrenSentinel;
 
 	Result->NextInList->PrevInList = Result;
-	Result->NextInList->PrevInList = Result;
+	Result->PrevInList->NextInList = Result;
 
 	Result->ChildrenSentinel = PushStruct(MenuState->GameModeMemory, menu_element);
 	Result->ChildrenSentinel->NextInList = Result->ChildrenSentinel;
 	Result->ChildrenSentinel->PrevInList = Result->ChildrenSentinel;
+	
+	CopyStrings(Result->IdName, IdName);
+	CopyStrings(Result->ChildrenSentinel->IdName, "Sentinel");
 
 	Result->Parent = MenuState->CurrentElement;
 
@@ -33,11 +37,11 @@ static menu_element* InitMenuElementInternal(
 
 static menu_element* InitMenuElementButton(
 	main_menu_state* MenuState, 
-	char* Text, 
+	char* IdName, 
 	u32 ButtonActionType, 
 	menu_element_layout Layout) 
 {
-	menu_element* Result = InitMenuElementInternal(MenuState, MenuElement_Button, Layout);
+	menu_element* Result = InitMenuElementInternal(MenuState, IdName, MenuElement_Button, Layout);
 
 	//NOTE(dima): Initialization of button data
 	menu_element_button* ButtonData = &Result->Element.Button;
@@ -47,10 +51,8 @@ static menu_element* InitMenuElementButton(
 
 	ButtonData->ButtonActionType = ButtonActionType;
 
-	ButtonData->TimeForFadeout = 0.5f;
+	ButtonData->TimeForFadeout = 0.4f;
 	ButtonData->TimeSinceDeactivation = 999999.0f;
-
-	CopyStrings(ButtonData->Text, Text);
 
 	return(Result);
 }
@@ -61,43 +63,6 @@ static void MenuBeginElement(main_menu_state* MenuState, menu_element* LayoutEle
 
 static void MenuEndElement(main_menu_state* MenuState, u32 MenuElementType) {
 	Assert(MenuState->CurrentElement->MenuElementType == MenuElementType);
-
-	menu_element_layout* Layout = &MenuState->CurrentElement->Layout;
-
-	v2 LayoutRectDim = GetRectDim(Layout->Rect);
-	v2 TotalFillDim = V2(
-		LayoutRectDim.x * Layout->HorizontalFill01,
-		LayoutRectDim.y * Layout->VerticalFill01);
-
-	v2 TotalFreeDim = LayoutRectDim - TotalFillDim;
-
-	v2 ElementDim;
-	v2 FreeBordersDim;
-	v2 Increment;
-	switch (Layout->LayoutType) {
-		case MenuElementLayout_Horizontal: {
-			ElementDim = V2(TotalFillDim.x / (float)Layout->ChildrenElementCount, TotalFillDim.y);
-			FreeBordersDim = V2(TotalFreeDim.x / (float)(Layout->ChildrenElementCount + 1), TotalFreeDim.y * 0.5f);
-			Increment = V2(ElementDim.x + FreeBordersDim.x, 0.0f);
-		}break;
-
-		case MenuElementLayout_Vertical: {
-			ElementDim = V2(TotalFillDim.x, TotalFillDim.y / (float)Layout->ChildrenElementCount);
-			FreeBordersDim = V2(TotalFreeDim.x * 0.5f, TotalFreeDim.y / (float)(Layout->ChildrenElementCount + 1));
-			Increment = V2(0.0f, ElementDim.y + FreeBordersDim.y);
-		}break;
-	}
-
-	v2 At = V2(FreeBordersDim.x, FreeBordersDim.y);
-
-	menu_element* AtChildren = MenuState->CurrentElement->ChildrenSentinel->PrevInList;
-	while (AtChildren != MenuState->CurrentElement->ChildrenSentinel) {
-		AtChildren->Layout.Rect = Rect2MinDim(At, ElementDim);
-
-		At += Increment;
-
-		AtChildren = AtChildren->PrevInList;
-	}
 
 	MenuState->CurrentElement = MenuState->CurrentElement->Parent;
 }
@@ -118,19 +83,23 @@ void MenuEndButton(main_menu_state* MenuState) {
 void MenuActionButton(
 	main_menu_state* MenuState, 
 	char* Text, 
-	u32 ButtonActionType, 
 	menu_button_action_fp* Action,
 	void* ActionData,
 	menu_element_layout Layout) 
 {
-	menu_element* ButtonElement = InitMenuElementButton(MenuState, Text, ButtonActionType, Layout);
+	menu_element* ButtonElement = InitMenuElementButton(MenuState, Text, MenuButtonAction_Action, Layout);
 
 	MenuBeginElement(MenuState, ButtonElement);
 	MenuEndElement(MenuState, MenuElement_Button);
 }
 
 void MenuBeginLayout(main_menu_state* MenuState, menu_element_layout Layout) {
-	menu_element* LayoutElem = InitMenuElementInternal(MenuState, MenuElement_Layout, Layout);
+	char TempBuf[32];
+	IntegerToString(MenuState->CurrentElement->Layout.ChildrenElementCount, TempBuf);
+	char LayoutIDName[32];
+	ConcatStringsUnsafe(LayoutIDName, "Layout", TempBuf);
+
+	menu_element* LayoutElem = InitMenuElementInternal(MenuState, LayoutIDName, MenuElement_Layout, Layout);
 
 	MenuBeginElement(MenuState, LayoutElem);
 }
@@ -139,37 +108,118 @@ void MenuEndLayout(main_menu_state* MenuState){
 	MenuEndElement(MenuState, MenuElement_Layout);
 }
 
-static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem) {
-	menu_element* AtElem = Elem->ChildrenSentinel->NextInList;
-	for (AtElem; AtElem != Elem->ChildrenSentinel; AtElem = AtElem->NextInList)
-	{
-		switch (AtElem->MenuElementType) {
-			case MenuElement_Layout: {
-				MenuWalkThrough(MenuState, AtElem);
-			}break;
+static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 WalkThroughPurpose) {
+	switch (WalkThroughPurpose) {
+		case MenuWalkThrough_CalculateRects: {
+			menu_element_layout* Layout = &Elem->Layout;
 
-			case MenuElement_Button: {
-				menu_element_button* ButtonData = &AtElem->Element.Button;
+			v2 LayoutRectDim = GetRectDim(Layout->Rect);
+			v2 TotalFillDim = V2(
+				LayoutRectDim.x * Layout->HorizontalFill01,
+				LayoutRectDim.y * Layout->VerticalFill01);
 
-				input_system* Input = MenuState->EngineSystems->InputSystem;
+			v2 TotalFreeDim = LayoutRectDim - TotalFillDim;
+			v2 FreeBordersDim = V2(TotalFreeDim.x * 0.5f, TotalFreeDim.y * 0.5f);
 
-				ButtonData->TimeSinceDeactivation += Input->DeltaTime;
-				if (MouseInRect(Input, AtElem->Layout.Rect)) {
-					ButtonData->TimeSinceDeactivation = 0.0f;
-					
+			v2 ElemsSpacingDim = TotalFillDim * V2(Layout->ElementSpacingX, Layout->ElementSpacingY);
 
+			v2 ElementDim;
+			v2 Increment;
+
+			if (Layout->ChildrenElementCount > 1) {
+				v2 ElemsArea = TotalFillDim - ElemsSpacingDim;
+				v2 OneSpacingDim = ElemsSpacingDim / (float)(Layout->ChildrenElementCount - 1);
+
+				switch (Layout->LayoutType) {
+					case MenuElementLayout_Horizontal: {
+						ElementDim = V2(ElemsArea.x / (float)Layout->ChildrenElementCount, TotalFillDim.y);
+						Increment = V2(ElementDim.x + OneSpacingDim.x, 0.0f);
+					}break;
+
+					case MenuElementLayout_Vertical: {
+						ElementDim = V2(TotalFillDim.x, ElemsArea.y / (float)Layout->ChildrenElementCount);
+						Increment = V2(0.0f, ElementDim.y + OneSpacingDim.y);
+					}break;
 				}
-				float FadeoutPercentage = ButtonData->TimeSinceDeactivation / ButtonData->TimeForFadeout;
-				FadeoutPercentage = Clamp01(FadeoutPercentage);
+			}
+			else {
+				ElementDim = TotalFillDim;
+				FreeBordersDim = V2(0.0f, 0.0f);
+				Increment = V2(0.0f, 0.0f);
+			}
 
+			v2 At = Elem->Layout.Rect.Min + FreeBordersDim;
 
-			}break;
+			menu_element* AtChildren = Elem->ChildrenSentinel->PrevInList;
+			while (AtChildren != Elem->ChildrenSentinel) {
+				AtChildren->Layout.Rect = Rect2MinDim(At, ElementDim);
 
-			default: {
-				Assert(!"Invalid default value");
-			}break;
-		}
+				At += Increment;
+
+				MenuWalkThrough(MenuState, AtChildren, WalkThroughPurpose);
+
+				AtChildren = AtChildren->PrevInList;
+			}
+		}break;
+
+		case MenuWalkThrough_Output: {
+			render_stack* RenderStack = MenuState->EngineSystems->RenderState->NamedStacks.GUI;
+
+			menu_element* AtElem = Elem->ChildrenSentinel->NextInList;
+			for (AtElem; AtElem != Elem->ChildrenSentinel; AtElem = AtElem->NextInList)
+			{
+				switch (AtElem->MenuElementType) {
+					case MenuElement_Layout: {
+						MenuWalkThrough(MenuState, AtElem, WalkThroughPurpose);
+					}break;
+
+					case MenuElement_Button: {
+						menu_element_button* ButtonData = &AtElem->Element.Button;
+
+						input_system* Input = MenuState->EngineSystems->InputSystem;
+
+						ButtonData->TimeSinceDeactivation += Input->DeltaTime;
+						if (MouseInRect(Input, AtElem->Layout.Rect)) {
+							ButtonData->TimeSinceDeactivation = 0.0f;
+
+							if (MouseButtonWentDown(Input, MouseButton_Left)) {
+								switch (ButtonData->ButtonActionType) {
+									case MenuButtonAction_None: {
+
+									}break;
+
+									case MenuButtonAction_Action: {
+
+									}break;
+
+									case MenuButtonAction_OpenTree: {
+										AtElem->ParentViewElement = Elem;
+										MenuState->ViewElement = AtElem;
+									}break;
+								}
+							}
+						}
+						float FadeoutPercentage = ButtonData->TimeSinceDeactivation / ButtonData->TimeForFadeout;
+						FadeoutPercentage = Clamp01(FadeoutPercentage);
+
+						v4 ButtonColor = Lerp(ButtonData->ActiveColor, ButtonData->InactiveColor, FadeoutPercentage);
+						v4 OutlineColor = V4(0.0f, 0.0f, 0.0f, 1.0f);
+
+						RENDERPushRect(RenderStack, AtElem->Layout.Rect, ButtonColor);
+						RENDERPushRectOutline(RenderStack, AtElem->Layout.Rect, 2, OutlineColor);
+					}break;
+
+					default: {
+						Assert(!"Invalid default value");
+					}break;
+				}
+			}
+		}break;
 	}
+}
+
+static void FinalizeMenuCreation(main_menu_state* MenuState) {
+	MenuWalkThrough(MenuState, MenuState->CurrentElement, MenuWalkThrough_CalculateRects);
 }
 
 void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystems) {
@@ -194,26 +244,46 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuState->RootElement.ChildrenSentinel = PushStruct(GameModeMemory, menu_element);
 		MenuState->RootElement.ChildrenSentinel->NextInList = MenuState->RootElement.ChildrenSentinel;
 		MenuState->RootElement.ChildrenSentinel->PrevInList = MenuState->RootElement.ChildrenSentinel;
+		CopyStrings(MenuState->RootElement.ChildrenSentinel->IdName, "Sentinel");
 
 		MenuState->RootElement.MenuElementType = MenuElement_Root;
 
-		MenuState->RootElement.Layout = MenuInitLayout(MenuElementLayout_Vertical, 1.0f);
+		MenuState->RootElement.Layout = MenuInitLayout(MenuElementLayout_Vertical, 1.0f, 1.0f);
+		MenuState->RootElement.Layout.Rect = MenuState->WindowRect;
 
 		MenuState->RootElement.Parent = 0;
+		CopyStrings(MenuState->RootElement.IdName, "Root");
 
 		//NOTE(dima): Setting current element to the root
 		MenuState->CurrentElement = &MenuState->RootElement;
 
-		menu_element_layout DefaultLayout10 = MenuInitLayout(MenuElementLayout_Vertical, 1.0f);
-		menu_element_layout DefaultLayout09 = MenuInitLayout(MenuElementLayout_Vertical, 0.9f);
+		//NOTE(dima): Setting viewing element to the root element
+		MenuState->ViewElement = &MenuState->RootElement;
+
+		menu_element_layout DefaultLayout10 = MenuInitLayout(MenuElementLayout_Vertical, 1.0f, 1.0f);
+		menu_element_layout DefaultLayout09 = MenuInitLayout(MenuElementLayout_Horizontal, 0.9, 0.9f);
 
 		//NOTE(dima): This code should only be called once
 		MenuBeginLayout(MenuState, DefaultLayout09);
-		MenuBeginButton(MenuState, "Play", DefaultLayout10);
 
+		MenuBeginButton(MenuState, "Play", DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode1", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode2", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode3", 0, 0, DefaultLayout10);
 		MenuEndButton(MenuState);
 
+		MenuBeginLayout(MenuState, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode1", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode2", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode3", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode5", 0, 0, DefaultLayout10);
 		MenuEndLayout(MenuState);
+
+		MenuEndLayout(MenuState);
+
+		Assert(MenuState->CurrentElement == &MenuState->RootElement);
+
+		FinalizeMenuCreation(MenuState);
 
 		MenuState->IsInitialized = 1;
 	}
@@ -222,4 +292,5 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 
 	RENDERPushRect(MenuRenderStack, MenuState->WindowRect, V4(0.1f, 0.1f, 0.1f, 1.0f));
 
+	MenuWalkThrough(MenuState, MenuState->ViewElement, MenuWalkThrough_Output);
 }
