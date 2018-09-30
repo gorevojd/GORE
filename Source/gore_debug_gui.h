@@ -6,6 +6,7 @@
 #include "gore_asset.h"
 #include "gore_input.h"
 #include "gore_colors.h"
+#include "gore_font.h"
 
 /*
 	NOTE(dima): 

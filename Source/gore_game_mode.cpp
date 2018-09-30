@@ -23,7 +23,7 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 			GetCurrentMemoryBase(&PlatformApi.GameModeMemoryBlock),
 			PlatformApi.GameModeMemoryBlock.MaxSize - sizeof(game_mode_state));
 
-		GameModeState->GameModeType = GameMode_MainMenu;
+		GameModeState->GameModeType = GameMode_Geometrica;
 
 		GameModeState->IsInitialized = 1;
 	}

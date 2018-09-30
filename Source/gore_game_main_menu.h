@@ -3,6 +3,7 @@
 
 #include "gore_platform.h"
 #include "gore_engine.h"
+#include "gore_font.h"
 
 /*
 	NOTE(dima):
@@ -48,6 +49,7 @@ struct menu_element_layout {
 	u32 LayoutType;
 
 	u32 ChildrenElementCount;
+	u32 NotIncrementtedCount;
 
 	float HorizontalFill01;
 	float VerticalFill01;
@@ -79,6 +81,11 @@ inline menu_element_layout MenuInitLayout(
 	return(Result);
 }
 
+struct menu_element_layout_data {
+	rect2 InitRect;
+	b32 InitRectIsSet;
+};
+
 struct menu_element {
 	char IdName[32];
 
@@ -86,6 +93,7 @@ struct menu_element {
 
 	union {
 		menu_element_button Button;
+		menu_element_layout_data LayoutData;
 	}Element;
 
 	menu_element_layout Layout;
@@ -114,6 +122,10 @@ struct main_menu_state {
 	menu_element RootElement;
 	menu_element* CurrentElement;
 	menu_element* ViewElement;
+
+	font_info* MainFontInfo;
+
+	float InactiveColorPercentage;
 
 	engine_systems* EngineSystems;
 };

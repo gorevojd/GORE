@@ -1545,6 +1545,7 @@ void ASSETSInit(asset_system* System) {
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info ChurchFontInfo = LoadFontInfoWithSTB("../Data/Fonts/11550.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
+	font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
 #if 0
@@ -1552,10 +1553,15 @@ void ASSETSInit(asset_system* System) {
 	AddFontAsset(System, "../Data/Fonts/NewFontAtlas.png", 15, true, 8, 8, 0);
 #else
 	AddFontAssetManual(System, &UbuntuFontInfo);
+	AddFontAssetManual(System, &AntiqueOliveFontInfo);
 	AddFontAssetManual(System, &DebugFontInfo);
 	AddFontAssetManual(System, &GoldenFontInfo);
 	AddFontAssetManual(System, &ChurchFontInfo);
 #endif
+	EndAssetGroup(System);
+
+	BeginAssetGroup(System, GameAsset_MainMenuFont);
+	AddFontAssetManual(System, &AntiqueOliveFontInfo);
 	EndAssetGroup(System);
 
 	//NOTE(dima): Bitmaps

@@ -1,9 +1,10 @@
 #include "gore_game_main_menu.h"
 
 static menu_element* InitMenuElementInternal(
-	main_menu_state* MenuState, 
+	main_menu_state* MenuState,
 	char* IdName,
-	u32 MenuElementType, 
+	u32 MenuElementType,
+	b32 ShouldIncrementChildrenCount,
 	menu_element_layout Layout) 
 {
 	menu_element* Result = PushStruct(MenuState->GameModeMemory, menu_element);
@@ -30,7 +31,12 @@ static menu_element* InitMenuElementInternal(
 	Result->Layout = Layout;
 
 	//NOTE(dima): Incrementing parent children count
-	Result->Parent->Layout.ChildrenElementCount++;
+	if (ShouldIncrementChildrenCount) {
+		Result->Parent->Layout.ChildrenElementCount++;
+	}
+	else {
+		Result->Parent->Layout.NotIncrementtedCount++;
+	}
 
 	return(Result);
 }
@@ -39,17 +45,24 @@ static menu_element* InitMenuElementButton(
 	main_menu_state* MenuState, 
 	char* IdName, 
 	u32 ButtonActionType, 
-	menu_element_layout Layout) 
+	u32 ActiveColorIndex,
+	menu_element_layout Layout)
 {
-	menu_element* Result = InitMenuElementInternal(MenuState, IdName, MenuElement_Button, Layout);
+	menu_element* Result = InitMenuElementInternal(MenuState, IdName, MenuElement_Button, 1, Layout);
 
 	//NOTE(dima): Initialization of button data
 	menu_element_button* ButtonData = &Result->Element.Button;
 
-	ButtonData->ActiveColor = ColorFrom255(255, 33, 0);
-	ButtonData->InactiveColor = ColorFrom255(58, 55, 55);
+	ButtonData->ActiveColor = GetColor(MenuState->EngineSystems->ColorsState, ActiveColorIndex);
+	//ButtonData->InactiveColor = ColorFrom255(58, 55, 55);
+	ButtonData->InactiveColor = ButtonData->ActiveColor * 
+		V4(MenuState->InactiveColorPercentage, 
+			MenuState->InactiveColorPercentage, 
+			MenuState->InactiveColorPercentage, 
+			1.0f);
 
 	ButtonData->ButtonActionType = ButtonActionType;
+
 
 	ButtonData->TimeForFadeout = 0.4f;
 	ButtonData->TimeSinceDeactivation = 999999.0f;
@@ -67,10 +80,16 @@ static void MenuEndElement(main_menu_state* MenuState, u32 MenuElementType) {
 	MenuState->CurrentElement = MenuState->CurrentElement->Parent;
 }
 
-void MenuBeginButton(main_menu_state* MenuState, char* Text, menu_element_layout Layout) {
+void MenuBeginButton(
+	main_menu_state* MenuState, 
+	char* Text, 
+	u32 ActiveColorIndex,
+	menu_element_layout Layout) 
+{
 	menu_element* ButtonElement = InitMenuElementButton(
 		MenuState, Text, 
 		MenuButtonAction_OpenTree,
+		ActiveColorIndex,
 		Layout);
 
 	MenuBeginElement(MenuState, ButtonElement);
@@ -85,9 +104,13 @@ void MenuActionButton(
 	char* Text, 
 	menu_button_action_fp* Action,
 	void* ActionData,
+	u32 ActiveColorIndex,
 	menu_element_layout Layout) 
 {
-	menu_element* ButtonElement = InitMenuElementButton(MenuState, Text, MenuButtonAction_Action, Layout);
+	menu_element* ButtonElement = InitMenuElementButton(
+		MenuState, Text, 
+		MenuButtonAction_Action, 
+		ActiveColorIndex, Layout);
 
 	MenuBeginElement(MenuState, ButtonElement);
 	MenuEndElement(MenuState, MenuElement_Button);
@@ -99,7 +122,36 @@ void MenuBeginLayout(main_menu_state* MenuState, menu_element_layout Layout) {
 	char LayoutIDName[32];
 	ConcatStringsUnsafe(LayoutIDName, "Layout", TempBuf);
 
-	menu_element* LayoutElem = InitMenuElementInternal(MenuState, LayoutIDName, MenuElement_Layout, Layout);
+	menu_element* LayoutElem = InitMenuElementInternal(
+		MenuState, 
+		LayoutIDName, 
+		MenuElement_Layout, 
+		1,
+		Layout);
+
+	LayoutElem->Element.LayoutData = {};
+	LayoutElem->Element.LayoutData.InitRectIsSet = 0;
+	LayoutElem->Element.LayoutData.InitRect = {};
+
+	MenuBeginElement(MenuState, LayoutElem);
+}
+
+void MenuBeginRectLayout(main_menu_state* MenuState, rect2 Rect, menu_element_layout Layout) {
+	char TempBuf[32];
+	IntegerToString(MenuState->CurrentElement->Layout.NotIncrementtedCount, TempBuf);
+	char LayoutIDName[32];
+	ConcatStringsUnsafe(LayoutIDName, "RectLayout", TempBuf);
+
+	menu_element* LayoutElem = InitMenuElementInternal(
+		MenuState,
+		LayoutIDName,
+		MenuElement_Layout,
+		0,
+		Layout);
+
+	LayoutElem->Element.LayoutData = {};
+	LayoutElem->Element.LayoutData.InitRectIsSet = 1;
+	LayoutElem->Element.LayoutData.InitRect = Rect;
 
 	MenuBeginElement(MenuState, LayoutElem);
 }
@@ -152,6 +204,9 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 
 			menu_element* AtChildren = Elem->ChildrenSentinel->PrevInList;
 			while (AtChildren != Elem->ChildrenSentinel) {
+
+
+
 				AtChildren->Layout.Rect = Rect2MinDim(At, ElementDim);
 
 				At += Increment;
@@ -207,6 +262,25 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 
 						RENDERPushRect(RenderStack, AtElem->Layout.Rect, ButtonColor);
 						RENDERPushRectOutline(RenderStack, AtElem->Layout.Rect, 2, OutlineColor);
+
+						v4 ButtonTextColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+						v4 ResultTextColor = Lerp(
+							ButtonTextColor, 
+							Hadamard(ButtonTextColor, 
+								V4(
+									MenuState->InactiveColorPercentage, 
+									MenuState->InactiveColorPercentage, 
+									MenuState->InactiveColorPercentage, 
+									1.0f)),
+							FadeoutPercentage);
+
+						PrintTextCenteredInRect(
+							RenderStack,
+							MenuState->MainFontInfo,
+							AtElem->IdName,
+							AtElem->Layout.Rect,
+							1.0f,
+							ResultTextColor);
 					}break;
 
 					default: {
@@ -235,6 +309,12 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuState->WindowRect = Rect2MinDim(
 			V2(0.0f, 0.0f),
 			V2(EngineSystems->RenderState->RenderWidth, EngineSystems->RenderState->RenderHeight));
+
+		//NOTE(dima): Loading needed fonts
+		font_id FontID = GetFirstFont(EngineSystems->AssetSystem, GameAsset_MainMenuFont);
+		MenuState->MainFontInfo = GetFontFromID(EngineSystems->AssetSystem, FontID);
+
+		MenuState->InactiveColorPercentage = 0.5f;
 
 		//NOTE(dima): Initialization of the root element
 		MenuState->RootElement = {};
@@ -266,18 +346,37 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		//NOTE(dima): This code should only be called once
 		MenuBeginLayout(MenuState, DefaultLayout09);
 
-		MenuBeginButton(MenuState, "Play", DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode1", 0, 0, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode2", 0, 0, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode3", 0, 0, DefaultLayout10);
+		MenuBeginButton(MenuState, "Play", Color_Green, DefaultLayout10);
+		MenuBeginRectLayout(MenuState, MenuState->WindowRect, DefaultLayout10);
+		MenuActionButton(MenuState, "Geometrica", 0, 0, Color_Green, DefaultLayout10);
+		MenuActionButton(MenuState, "VoxelWorld", 0, 0, Color_Green, DefaultLayout10);
+		MenuActionButton(MenuState, "LpterWorld", 0, 0, Color_Green, DefaultLayout10);
+		MenuEndLayout(MenuState);
 		MenuEndButton(MenuState);
 
+#if 0
 		MenuBeginLayout(MenuState, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode1", 0, 0, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode2", 0, 0, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode3", 0, 0, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode5", 0, 0, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode11", 0, 0, Color_Blue, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode12", 0, 0, Color_Orange, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode13", 0, 0, Color_Purple, DefaultLayout10);
 		MenuEndLayout(MenuState);
+
+		MenuBeginLayout(MenuState, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode1", 0, 0, Color_Red, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode2", 0, 0, Color_Red, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode3", 0, 0, Color_Red, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode5", 0, 0, Color_Red, DefaultLayout10);
+		MenuEndLayout(MenuState);
+#else
+		MenuBeginButton(MenuState, "Options", Color_Blue, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode11", 0, 0, Color_Blue, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode12", 0, 0, Color_Orange, DefaultLayout10);
+		MenuActionButton(MenuState, "GameMode13", 0, 0, Color_Purple, DefaultLayout10);
+		MenuEndButton(MenuState);
+
+		MenuActionButton(MenuState, "Exit", 0, 0, Color_Red, DefaultLayout10);
+#endif
+
 
 		MenuEndLayout(MenuState);
 

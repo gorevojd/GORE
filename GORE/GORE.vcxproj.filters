@@ -75,6 +75,9 @@
     <ClCompile Include="..\Source\gore_game_main_menu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\gore_font.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\geometrika.h">
@@ -186,6 +189,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Source\gore_game_main_menu.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_font.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

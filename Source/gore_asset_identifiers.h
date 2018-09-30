@@ -26,6 +26,7 @@ enum game_asset_group_id {
 	GameAsset_Cylynder,
 
 	GameAsset_Font,
+	GameAsset_MainMenuFont,
 
 	GameAsset_MyVoxelAtlas,
 

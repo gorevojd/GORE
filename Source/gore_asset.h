@@ -268,24 +268,6 @@ mesh_info LoadMeshFromVertices(
 	b32 CalculateNormals = 0,
 	b32 CalculateTangents = 0);
 
-inline float GetNextRowAdvance(font_info* Info, float SpacingMultiplier = 1.0f) {
-	float Result = (Info->AscenderHeight - Info->DescenderHeight + Info->LineGap) * SpacingMultiplier;
-
-	return(Result);
-}
-
-inline float GetKerningForCharPair(font_info* FontInfo, int FirstCodepoint, int SecondCodepoint) {
-	float Result = 0;
-
-	int FirstIndex = FontInfo->CodepointToGlyphMapping[FirstCodepoint];
-	int SecondIndex = FontInfo->CodepointToGlyphMapping[SecondCodepoint];
-
-	Result = FontInfo->KerningPairs[SecondIndex * FontInfo->GlyphsCount + FirstIndex];
-
-	return(Result);
-}
-
-
 bitmap_info AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
 void CopyRGBABuffer(bitmap_info* Dst, bitmap_info* Src);
 void DeallocateRGBABuffer(bitmap_info* Buffer);
