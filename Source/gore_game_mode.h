@@ -25,6 +25,9 @@ struct game_mode_state {
 	stacked_memory GameModeMemory;
 
 	u32 GameModeType;
+
+	b32 GameModeShouldBeSwitched;
+	u32 NewGameModeType;
 };
 
 class game_mode_abstract {
@@ -47,5 +50,6 @@ public:
 
 void GameModeUpdate(engine_systems* EngineSystems);
 void GameModeFinalizeFrame(engine_systems* EngineSystems);
+void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType);
 
 #endif

@@ -1750,7 +1750,7 @@ static void VoxelChunksGenerationInit(
 }
 
 void VoxelChunksGenerationUpdate(
-	stacked_memory* Memory,
+	game_mode_state* GameModeState,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
 	input_system* Input)
@@ -1779,6 +1779,8 @@ void VoxelChunksGenerationUpdate(
 		by checking all 16 16x16x16 mini-chunks. Then second - 
 		try to check if all vertices are outside at least one plane
 	*/
+
+	stacked_memory* Memory = &GameModeState->GameModeMemory;
 
 	voxworld_generation_state* Generation = (voxworld_generation_state*)Memory->BaseAddress;
 

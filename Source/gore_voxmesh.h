@@ -6,6 +6,7 @@
 #include "gore_render_state.h"
 #include "gore_input.h"
 #include "gore_threadwork_memory.h"
+#include "gore_game_mode.h"
 
 enum voxel_normal_type_index{
 	VoxelNormalIndex_Up,
@@ -349,7 +350,7 @@ struct voxworld_generation_state {
 };
 
 void VoxelChunksGenerationUpdate(
-	stacked_memory* Memory,
+	game_mode_state* GameModeState,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
 	input_system* Input);

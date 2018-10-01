@@ -14,6 +14,7 @@
 
 #define GORE_PI 3.14159265359f
 #define GORE_TWO_PI 6.28318530718f
+#define GORE_PI_OVER_TWO 1.57079632679f
 
 typedef union v2 {
 	struct {
@@ -175,6 +176,14 @@ inline float Pow(float a, float b) {
 
 inline float Lerp(float a, float b, float t) {
 	float Result = a + (b - a) * t;
+
+	return(Result);
+}
+
+inline float CosLerp(float a, float b, float t, float Angle = GORE_PI_OVER_TWO) {
+	float tAngle = Lerp(0, Angle, t);
+
+	float Result = a + (b - a) * (1.0f - Cos(tAngle));
 
 	return(Result);
 }

@@ -487,6 +487,9 @@ PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
 	GlobalRunning = 0;
 }
 
+PLATFORM_END_GAME_LOOP(SDLEndGameLoop) {
+	GlobalRunning = 0;
+}
 
 #if defined(PLATFORM_WINDA)
 
@@ -1033,6 +1036,7 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
 	PlatformApi.TerminateProgram = SDLTerminateProgram;
+	PlatformApi.EndGameLoop = SDLEndGameLoop;
 
 	//NOTE(dima): Allocation of alloc queue entries
 	int PlatformAllocEntriesCount = 1 << 14;

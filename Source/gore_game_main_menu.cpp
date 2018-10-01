@@ -120,6 +120,9 @@ static void MenuActionButton(
 		MenuButtonAction_Action, 
 		ActiveColorIndex, Layout);
 
+	ButtonElement->Element.Button.ActionFunction = Action;
+	ButtonElement->Element.Button.ActionData = ActionData;
+
 	MenuBeginElement(MenuState, ButtonElement);
 	MenuEndElement(MenuState, MenuElement_Button);
 }
@@ -285,7 +288,6 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 
 						input_system* Input = MenuState->EngineSystems->InputSystem;
 
-						ButtonData->TimeSinceDeactivation += Input->DeltaTime;
 						if (MouseInRect(Input, AtElem->Layout.Rect)) {
 							ButtonData->TimeSinceActivation += Input->DeltaTime;
 							ButtonData->TimeSinceDeactivation = 0.0f;
@@ -297,7 +299,9 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 									}break;
 
 									case MenuButtonAction_Action: {
-
+										if (ButtonData->ActionFunction) {
+											ButtonData->ActionFunction(ButtonData->ActionData);
+										}
 									}break;
 
 									case MenuButtonAction_OpenTree: {
@@ -308,6 +312,7 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 							}
 						}
 						else {
+							ButtonData->TimeSinceDeactivation += Input->DeltaTime;
 							ButtonData->TimeSinceActivation = 0.0f;
 						}
 
@@ -318,15 +323,18 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 						FadeoutPercentage = Clamp01(FadeoutPercentage);
 
 #if 1
-						float WeightAdditionFadePercentage = FadeinPercentage;
-						float WeightAddition = Lerp(0.0f, 0.2f, WeightAdditionFadePercentage);
+#if 1
+						float WeightAddition = Lerp(0.0f, 0.4f, FadeinPercentage);
+						WeightAddition = Lerp(WeightAddition, 0.0f, FadeoutPercentage + FadeinPercentage);
 #else
-						float WeightAdditionFadePercentage = (FadeoutPercentage - FadeinPercentage) * 0.5f;
-						float WeightAddition = Lerp(0.2f, 0.0f, WeightAdditionFadePercentage);
+						float WeightAdditionFadePercentage = (FadeoutPercentage - FadeinPercentage);
+						//float WeightAddition = CosLerp(0.2f, 0.0f, WeightAdditionFadePercentage);
+						float WeightAddition = Lerp(0.0f, 0.2f, FadeinPercentage);
 #endif
 
-						//ButtonData->WeightAdditionX = WeightAddition;
-						//ButtonData->WeightAdditionY = WeightAddition;
+						ButtonData->WeightAdditionX = WeightAddition;
+						ButtonData->WeightAdditionY = WeightAddition;
+#endif
 
 						v4 ButtonColor = Lerp(ButtonData->ActiveColor, ButtonData->InactiveColor, FadeoutPercentage);
 						v4 OutlineColor = V4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -418,7 +426,44 @@ static void FinalizeMenuCreation(main_menu_state* MenuState) {
 	MenuWalkThrough(MenuState, MenuState->CurrentElement, MenuWalkThrough_CalculateRects);
 }
 
-void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystems) {
+struct menu_go_back_action_data {
+	main_menu_state* MenuState;
+};
+
+static MENU_BUTTON_ACTION(MenuGoBackAction) {
+	menu_go_back_action_data* ActionData = (menu_go_back_action_data*)Data;
+
+	if (ActionData->MenuState->ViewElement->ParentViewElement != 0) {
+		ActionData->MenuState->ViewElement = ActionData->MenuState->ViewElement->ParentViewElement;
+	}
+}
+
+static MENU_BUTTON_ACTION(MenuExitAction){
+	PlatformApi.EndGameLoop();
+}
+
+struct menu_open_game_mode_action_data {
+	game_mode_state* GameModeState;
+	u32 NewGameMode;
+};
+
+static inline menu_open_game_mode_action_data OpenModeData(game_mode_state* GameModeState, u32 NewMode) {
+	menu_open_game_mode_action_data Result = {};
+
+	Result.GameModeState = GameModeState;
+	Result.NewGameMode = NewMode;
+
+	return(Result);
+}
+
+static MENU_BUTTON_ACTION(MenuOpenGameModeAction) {
+	menu_open_game_mode_action_data* ActionData = (menu_open_game_mode_action_data*)Data;
+
+	SwitchGameMode(ActionData->GameModeState, ActionData->NewGameMode);
+}
+
+void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystems) {
+	stacked_memory* GameModeMemory = &GameModeState->GameModeMemory;
 	main_menu_state* MenuState = (main_menu_state*)GameModeMemory->BaseAddress;
 
 	if (!MenuState->IsInitialized) {
@@ -473,10 +518,20 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuBeginButton(MenuState, "Play", ColorExt_orange2, DefaultLayout10);
 		MenuAddWeightsToPrevElement(MenuState, 1.0f, 2.0f);
 		MenuBeginRectLayout(MenuState, MenuState->WindowRect, DefaultLayout09);
-		MenuActionButton(MenuState, "Geometrica", 0, 0, ColorExt_rebeccapurple, DefaultLayout10);
-		MenuActionButton(MenuState, "VoxelWorld", 0, 0, ColorExt_bisque3, DefaultLayout10);
-		MenuActionButton(MenuState, "LpterWorld", 0, 0, ColorExt_DarkSlateGray2, DefaultLayout10);
-		MenuActionButton(MenuState, "Back", 0, 0, Color_Red, DefaultLayout10);
+
+		menu_open_game_mode_action_data* OpenGeomkaData = PushStruct(GameModeMemory, menu_open_game_mode_action_data);
+		*OpenGeomkaData = OpenModeData(GameModeState, GameMode_Geometrica);
+		MenuActionButton(MenuState, "Geometrica", MenuOpenGameModeAction, OpenGeomkaData, ColorExt_rebeccapurple, DefaultLayout10);
+
+		menu_open_game_mode_action_data* OpenVoxelData = PushStruct(GameModeMemory, menu_open_game_mode_action_data);
+		*OpenVoxelData = OpenModeData(GameModeState, GameMode_VoxelWorld);
+		MenuActionButton(MenuState, "VoxelWorld", MenuOpenGameModeAction, OpenVoxelData, ColorExt_bisque3, DefaultLayout10);
+
+		menu_open_game_mode_action_data* OpenLpterData = PushStruct(GameModeMemory, menu_open_game_mode_action_data);
+		*OpenLpterData = OpenModeData(GameModeState, GameMode_LowPolyTerrain);
+		MenuActionButton(MenuState, "LpterWorld", MenuOpenGameModeAction, OpenLpterData, ColorExt_DarkSlateGray2, DefaultLayout10);
+
+		MenuActionButton(MenuState, "Back", MenuGoBackAction, {&MenuState}, Color_Red, DefaultLayout10);
 		MenuAddWeightsToPrevElement(MenuState, 0.5f, 1.0f);
 		MenuEndLayout(MenuState);
 		MenuEndButton(MenuState);
@@ -498,7 +553,7 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuBeginLayout(MenuState, DefaultLayout10);
 		MenuActionButton(MenuState, "Options", 0, 0, ColorExt_rebeccapurple, DefaultLayout10);
 		MenuActionButton(MenuState, "Credits", 0, 0, Color_PrettyBlue, DefaultLayout10);
-		MenuActionButton(MenuState, "Exit", 0, 0, Color_Red, DefaultLayout10);
+		MenuActionButton(MenuState, "Exit", MenuExitAction, 0, Color_Red, DefaultLayout10);
 		MenuEndLayout(MenuState);
 
 #endif

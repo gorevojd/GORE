@@ -5,6 +5,8 @@
 #include "gore_engine.h"
 #include "gore_font.h"
 
+#include "gore_game_mode.h"
+
 /*
 	NOTE(dima):
 		1) Every element has it's own layout and
@@ -13,8 +15,8 @@
 		2) 
 */
 
-#define MENU_BUTTON_ACTION_TYPE(name) void name(void* ActionData)
-typedef MENU_BUTTON_ACTION_TYPE(menu_button_action_fp);
+#define MENU_BUTTON_ACTION(name) void name(void* Data)
+typedef MENU_BUTTON_ACTION(menu_button_action_fp);
 
 enum menu_button_action_type {
 	MenuButtonAction_None,
@@ -41,6 +43,9 @@ struct menu_element_button {
 
 	float WeightAdditionX;
 	float WeightAdditionY;
+
+	menu_button_action_fp* ActionFunction;
+	void* ActionData;
 
 	u32 ButtonActionType;
 
@@ -145,6 +150,6 @@ struct main_menu_state {
 	engine_systems* EngineSystems;
 };
 
-void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystems);
+void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystems);
 
 #endif

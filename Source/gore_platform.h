@@ -401,6 +401,9 @@ typedef PLATFORM_PLACE_CURSOR_AT_CENTER(platform_place_cursor_at_center);
 #define PLATFORM_TERMINATE_PROGRAM(name) void name()
 typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 
+#define PLATFORM_END_GAME_LOOP(name) void name()
+typedef PLATFORM_END_GAME_LOOP(platform_end_game_loop);
+
 struct dealloc_queue_bitmap_data {
 	void* TextureHandle;
 };
@@ -460,6 +463,8 @@ struct platform_api {
 	platform_compiler_barrier_type* ReadWriteBarrier;
 	platform_compiler_barrier_type* ReadBarrier;
 	platform_compiler_barrier_type* WriteBarrier;
+
+	platform_end_game_loop* EndGameLoop;
 
 	platform_thread_queue* SuperHighQueue;
 	platform_thread_queue* HighPriorityQueue;

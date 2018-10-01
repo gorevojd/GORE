@@ -57,6 +57,9 @@ void InitCelluralMachine(
 	}
 
 	Machine->TimeCounterForSpawning = 0.0f;
+
+	Machine->StartFadeoutTime = 0.0f;
+	Machine->FadeoutTimeCounter = 0.0f;
 }
 
 void UpdateCelluralMachine(
@@ -313,7 +316,20 @@ void UpdateCelluralMachine(
 	Machine->Bitmap.TextureHandle = 0;
 
 	//TODO(dima): Sending bitmap to the renderer
-	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), Machine->Bitmap.Height);
+	v4 ResultModColor = V4(1.0f, 1.0f, 1.0f, 1.0f);
+
+#if 0
+	Machine->FadeoutTimeCounter += Input->DeltaTime;
+
+	float FadeoutDuration = 5.0f;
+
+	float FadeoutT = Machine->FadeoutTimeCounter / FadeoutDuration;
+	FadeoutT = Clamp01(FadeoutT);
+
+	ResultModColor = V4(1.0f, 1.0f, 1.0f, 1.0f - FadeoutT);
+#endif
+
+	RENDERPushBitmap(RenderState, &Machine->Bitmap, V2(0.0f, 0.0f), Machine->Bitmap.Height, ResultModColor);
 #else
 	RENDERPushClear(RenderState, ClearColor.rgb);
 
@@ -340,7 +356,8 @@ void UpdateCelluralMachine(
 #endif
 }
 
-void GEOMKAUpdateAndRender(stacked_memory* GameMemoryBlock, engine_systems* EngineSysState) {
+void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* EngineSysState) {
+	stacked_memory* GameMemoryBlock = &GameModeState->GameModeMemory;
 	geometrika_state* State = (geometrika_state*)GameMemoryBlock->BaseAddress;
 
 	asset_system* AssetSystem = EngineSysState->AssetSystem;

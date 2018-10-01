@@ -39,6 +39,9 @@ struct cellural_machine {
 
 	float TimeCounterForSpawning;
 	int ColorIncIndex;
+
+	float StartFadeoutTime;
+	float FadeoutTimeCounter;
 };
 
 struct geometrika_state {
@@ -68,7 +71,7 @@ struct geometrika_state {
 };
 
 extern void GEOMKAUpdateAndRender(
-	stacked_memory* GameMemoryBlock, 
+	game_mode_state* GameModeState, 
 	engine_systems* EngineSysState);
 
 #endif

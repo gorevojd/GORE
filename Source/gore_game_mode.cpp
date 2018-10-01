@@ -7,9 +7,8 @@
 #include "gore_game_main_menu.h"
 
 void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
-	ClearStackedMemory(&GameModeState->GameModeMemory);
-
-	GameModeState->GameModeType = NewGameModeType;
+	GameModeState->GameModeShouldBeSwitched = 1;
+	GameModeState->NewGameModeType = NewGameModeType;
 }
 
 void GameModeUpdate(engine_systems* EngineSystems) {
@@ -38,16 +37,16 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 	switch (GameModeState->GameModeType)
 	{
 		case GameMode_MainMenu: {
-			UpdateMainMenu(&GameModeState->GameModeMemory, EngineSystems);
+			UpdateMainMenu(GameModeState, EngineSystems);
 		}break;
 
 		case GameMode_Geometrica: {
-			GEOMKAUpdateAndRender(&GameModeState->GameModeMemory, EngineSystems);
+			GEOMKAUpdateAndRender(GameModeState, EngineSystems);
 		}break;
 
 		case GameMode_VoxelWorld: {
 			VoxelChunksGenerationUpdate(
-				&GameModeState->GameModeMemory,
+				GameModeState,
 				EngineSystems->RenderState,
 				PlatformApi.GetThreadQueueInfo(PlatformApi.SuperHighQueue).WorkingThreadsCount,
 				EngineSystems->InputSystem);
@@ -102,5 +101,12 @@ void GameModeFinalizeFrame(engine_systems* EngineSystems) {
 #endif
 
 	RenderEndFrame(EngineSystems->RenderState);
+
+	if (GameModeState->GameModeShouldBeSwitched) {
+		ClearStackedMemory(&GameModeState->GameModeMemory);
+		GameModeState->GameModeType = GameModeState->NewGameModeType;
+
+		GameModeState->GameModeShouldBeSwitched = 0;
+	}
 }
 
