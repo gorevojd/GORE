@@ -449,6 +449,7 @@ inline float GetNextRandomSmoothFloat(voxworld_generation_state* Generation) {
 	return(Result);
 }
 
+#define STB_PERLIN_STATIC
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 

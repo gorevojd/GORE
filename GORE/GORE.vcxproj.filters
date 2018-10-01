@@ -194,5 +194,8 @@
     <ClInclude Include="..\Source\gore_font.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\stb_perlin.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

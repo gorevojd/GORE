@@ -221,6 +221,7 @@
     <ClInclude Include="..\Source\gore_voxmesh.h" />
     <ClInclude Include="..\Source\sdl_gore.h" />
     <ClInclude Include="..\Source\stb_image.h" />
+    <ClInclude Include="..\Source\stb_perlin.h" />
     <ClInclude Include="..\Source\stb_sprintf.h" />
     <ClInclude Include="..\Source\stb_truetype.h" />
   </ItemGroup>

@@ -58,6 +58,9 @@ struct menu_element_layout {
 	float ElementSpacingY;
 
 	rect2 Rect;
+
+	b32 BackgroundTextureIsSet;
+	bitmap_info* BackgroundTexture;
 };
 
 inline menu_element_layout MenuInitLayout(

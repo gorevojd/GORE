@@ -1546,6 +1546,8 @@ void ASSETSInit(asset_system* System) {
 	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info ChurchFontInfo = LoadFontInfoWithSTB("../Data/Fonts/11550.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
+	//font_info SuperMarioFontInfo = LoadFontInfoWithSTB("../Data/Fonts/Super Mario Bros.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
+	//font_info PressStartFontInfo = LoadFontInfoWithSTB("../Data/Fonts/PressStart2P.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
 #if 0
@@ -1562,6 +1564,8 @@ void ASSETSInit(asset_system* System) {
 
 	BeginAssetGroup(System, GameAsset_MainMenuFont);
 	AddFontAssetManual(System, &AntiqueOliveFontInfo);
+	//AddFontAssetManual(System, &PressStartFontInfo);
+	//AddFontAssetManual(System, &SuperMarioFontInfo);
 	EndAssetGroup(System);
 
 	//NOTE(dima): Bitmaps

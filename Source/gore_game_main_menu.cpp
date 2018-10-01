@@ -1,5 +1,9 @@
 #include "gore_game_main_menu.h"
 
+#define STB_PERLIN_IMPLEMENTATION
+#define STB_PERLIN_STATIC
+#include "stb_perlin.h"
+
 static menu_element* InitMenuElementInternal(
 	main_menu_state* MenuState,
 	char* IdName,
@@ -205,9 +209,15 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 			menu_element* AtChildren = Elem->ChildrenSentinel->PrevInList;
 			while (AtChildren != Elem->ChildrenSentinel) {
 
+				if ((AtChildren->MenuElementType == MenuElement_Layout) &&
+					(AtChildren->Element.LayoutData.InitRectIsSet))
+				{
+					AtChildren->Layout.Rect = AtChildren->Element.LayoutData.InitRect;
+				}
+				else {
+					AtChildren->Layout.Rect = Rect2MinDim(At, ElementDim);
+				}
 
-
-				AtChildren->Layout.Rect = Rect2MinDim(At, ElementDim);
 
 				At += Increment;
 
@@ -273,6 +283,55 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 									MenuState->InactiveColorPercentage, 
 									1.0f)),
 							FadeoutPercentage);
+
+						if (!AtElem->Layout.BackgroundTextureIsSet) {
+							AtElem->Layout.BackgroundTexture = PushStruct(MenuState->GameModeMemory, bitmap_info);
+
+							bitmap_info* Target = AtElem->Layout.BackgroundTexture;
+
+							*Target = {};
+
+							Target->Width = u32(GetRectWidth(AtElem->Layout.Rect) + 0.5f);
+							Target->Height = u32(GetRectHeight(AtElem->Layout.Rect) + 0.5f);
+							Target->Align = V2(0.0f, 0.0f);
+							Target->Pitch = Target->Width * 4;
+							Target->Pixels = PushArray(MenuState->GameModeMemory, u8, Target->Width * Target->Height * 4);
+							Target->TextureHandle = 0;
+							Target->WidthOverHeight = (float)Target->Width / (float)Target->Height;
+
+							float OneOverWidth = 1.0f / (float)Target->Width;
+							float OneOverHeight = 1.0f / (float)Target->Height;
+
+#if 0
+							for (int Ypix = 0; Ypix < Target->Height; Ypix++) {
+								for (int Xpix = 0; Xpix < Target->Width; Xpix++) {
+									float NoiseMultiplier = 4.0f;
+									float Xval = ((float)Xpix + AtElem->Layout.Rect.Min.x) * OneOverWidth * NoiseMultiplier;
+									float Yval = ((float)Ypix + AtElem->Layout.Rect.Min.y) * OneOverHeight * NoiseMultiplier;
+
+									float Noise = stb_perlin_fbm_noise3(Xval, Yval, 0.0f, 2.0f, 0.5f, 5, 0, 0, 0);
+
+									float Noise01 = Clamp01(Noise * 0.5f + 0.5f);
+
+									v4 GrayscaleColor = V4(Noise01, Noise01, Noise01, 0.1f);
+
+									u32 Packed = PackRGBA(GrayscaleColor);
+
+									u32* TargetPixel = (u32*)Target->Pixels + Ypix * Target->Width + Xpix;
+
+									*TargetPixel = Packed;
+								}
+							}
+#endif
+
+							AtElem->Layout.BackgroundTextureIsSet = 1;
+						}
+
+						RENDERPushBitmap(
+							RenderStack,
+							AtElem->Layout.BackgroundTexture,
+							AtElem->Layout.Rect.Min,
+							GetRectHeight(AtElem->Layout.Rect));
 
 						PrintTextCenteredInRect(
 							RenderStack,
@@ -340,17 +399,18 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		//NOTE(dima): Setting viewing element to the root element
 		MenuState->ViewElement = &MenuState->RootElement;
 
-		menu_element_layout DefaultLayout10 = MenuInitLayout(MenuElementLayout_Vertical, 1.0f, 1.0f);
-		menu_element_layout DefaultLayout09 = MenuInitLayout(MenuElementLayout_Horizontal, 0.9, 0.9f);
+		menu_element_layout DefaultLayout10 = MenuInitLayout(MenuElementLayout_Horizontal, 1.0f, 1.0f);
+		menu_element_layout DefaultLayout0608 = MenuInitLayout(MenuElementLayout_Vertical, 0.6f, 0.8f);
+		menu_element_layout DefaultLayout09 = MenuInitLayout(MenuElementLayout_Vertical, 0.9f, 0.7f);
 
 		//NOTE(dima): This code should only be called once
-		MenuBeginLayout(MenuState, DefaultLayout09);
+		MenuBeginLayout(MenuState, DefaultLayout0608);
 
-		MenuBeginButton(MenuState, "Play", Color_Green, DefaultLayout10);
-		MenuBeginRectLayout(MenuState, MenuState->WindowRect, DefaultLayout10);
-		MenuActionButton(MenuState, "Geometrica", 0, 0, Color_Green, DefaultLayout10);
-		MenuActionButton(MenuState, "VoxelWorld", 0, 0, Color_Green, DefaultLayout10);
-		MenuActionButton(MenuState, "LpterWorld", 0, 0, Color_Green, DefaultLayout10);
+		MenuBeginButton(MenuState, "Play", ColorExt_orange2, DefaultLayout10);
+		MenuBeginRectLayout(MenuState, MenuState->WindowRect, DefaultLayout09);
+		MenuActionButton(MenuState, "Geometrica", 0, 0, ColorExt_rebeccapurple, DefaultLayout10);
+		MenuActionButton(MenuState, "VoxelWorld", 0, 0, ColorExt_bisque3, DefaultLayout10);
+		MenuActionButton(MenuState, "LpterWorld", 0, 0, ColorExt_DarkSlateGray2, DefaultLayout10);
 		MenuEndLayout(MenuState);
 		MenuEndButton(MenuState);
 
@@ -368,13 +428,12 @@ void UpdateMainMenu(stacked_memory* GameModeMemory, engine_systems* EngineSystem
 		MenuActionButton(MenuState, "GameMode5", 0, 0, Color_Red, DefaultLayout10);
 		MenuEndLayout(MenuState);
 #else
-		MenuBeginButton(MenuState, "Options", Color_Blue, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode11", 0, 0, Color_Blue, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode12", 0, 0, Color_Orange, DefaultLayout10);
-		MenuActionButton(MenuState, "GameMode13", 0, 0, Color_Purple, DefaultLayout10);
-		MenuEndButton(MenuState);
-
+		MenuBeginLayout(MenuState, DefaultLayout10);
+		MenuActionButton(MenuState, "Options", 0, 0, ColorExt_rebeccapurple, DefaultLayout10);
+		MenuActionButton(MenuState, "Credits", 0, 0, Color_PrettyBlue, DefaultLayout10);
 		MenuActionButton(MenuState, "Exit", 0, 0, Color_Red, DefaultLayout10);
+		MenuEndLayout(MenuState);
+
 #endif
 
 

@@ -1,6 +1,7 @@
 #include "gore_lpterrain.h"
 
-//#define STB_PERLIN_IMPLEMENTATION
+#define STB_PERLIN_STATIC
+#define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
 inline float LpterGetHeight(lpter_terrain* Terrain, int X, int Y) {

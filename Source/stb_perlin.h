@@ -66,10 +66,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern float stb_perlin_noise3(float x, float y, float z, int x_wrap, int y_wrap, int z_wrap);
-extern float stb_perlin_ridge_noise3(float x, float y, float z,float lacunarity, float gain, float offset, int octaves,int x_wrap, int y_wrap, int z_wrap);
-extern float stb_perlin_fbm_noise3(float x, float y, float z,float lacunarity, float gain, int octaves,int x_wrap, int y_wrap, int z_wrap);
-extern float stb_perlin_turbulence_noise3(float x, float y, float z, float lacunarity, float gain, int octaves,int x_wrap, int y_wrap, int z_wrap);
+
+#if defined(STB_PERLIN_STATIC)
+#define STB_PERLIN_DEF static
+#else
+#define STB_PERLIN_DEF extern
+#endif
+
+STB_PERLIN_DEF float stb_perlin_noise3(float x, float y, float z, int x_wrap, int y_wrap, int z_wrap);
+STB_PERLIN_DEF float stb_perlin_ridge_noise3(float x, float y, float z,float lacunarity, float gain, float offset, int octaves,int x_wrap, int y_wrap, int z_wrap);
+STB_PERLIN_DEF float stb_perlin_fbm_noise3(float x, float y, float z,float lacunarity, float gain, int octaves,int x_wrap, int y_wrap, int z_wrap);
+STB_PERLIN_DEF float stb_perlin_turbulence_noise3(float x, float y, float z, float lacunarity, float gain, int octaves,int x_wrap, int y_wrap, int z_wrap);
+
+
 #ifdef __cplusplus
 }
 #endif

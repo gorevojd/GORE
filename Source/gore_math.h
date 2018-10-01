@@ -455,6 +455,12 @@ inline float GetRectHeight(rect2 Rect) {
 	return(Result);
 }
 
+inline float GetRectArea(rect2 Rect) {
+	float Result = (Rect.Max.x - Rect.Min.x) * (Rect.Max.y - Rect.Min.y);
+
+	return(Result);
+}
+
 inline rect2 Rect2MinMax(v2 Min, v2 Max) {
 	rect2 Res;
 	Res.Min = Min;
