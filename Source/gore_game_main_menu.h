@@ -39,9 +39,13 @@ struct menu_element_button {
 	v4 ActiveColor;
 	v4 InactiveColor;
 
+	float WeightAdditionX;
+	float WeightAdditionY;
+
 	u32 ButtonActionType;
 
 	float TimeSinceDeactivation;
+	float TimeSinceActivation;
 	float TimeForFadeout;
 };
 
@@ -56,6 +60,9 @@ struct menu_element_layout {
 
 	float ElementSpacingX;
 	float ElementSpacingY;
+
+	float WeightX;
+	float WeightY;
 
 	rect2 Rect;
 
@@ -75,6 +82,9 @@ inline menu_element_layout MenuInitLayout(
 
 	Result.HorizontalFill01 = FillPercentageX01;
 	Result.VerticalFill01 = FillPercentageY01;
+
+	Result.WeightX = 1.0f;
+	Result.WeightY = 1.0f;
 
 	Result.ElementSpacingX = 0.05f;
 	Result.ElementSpacingY = 0.05f;
@@ -108,6 +118,7 @@ struct menu_element {
 	menu_element* ParentViewElement;
 
 	menu_element* ChildrenSentinel;
+
 };
 
 enum menu_walkthrough_purpose {
@@ -125,6 +136,7 @@ struct main_menu_state {
 	menu_element RootElement;
 	menu_element* CurrentElement;
 	menu_element* ViewElement;
+	menu_element* PrevElement;
 
 	font_info* MainFontInfo;
 

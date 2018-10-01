@@ -173,6 +173,12 @@ inline float Pow(float a, float b) {
 	return(Result);
 }
 
+inline float Lerp(float a, float b, float t) {
+	float Result = a + (b - a) * t;
+
+	return(Result);
+}
+
 //NOTE(dima): Constructors
 inline v2 V2(float x, float y) {
 	v2 Result;
