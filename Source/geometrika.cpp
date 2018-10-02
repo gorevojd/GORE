@@ -496,10 +496,16 @@ void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* Engin
 	mesh_id SphereID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Sphere, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
 #if 1
+	render_stack* LpterStack = EngineSysState->RenderState->NamedStacks.LpterMain;
+	render_stack* LpterWaterStack = EngineSysState->RenderState->NamedStacks.LpterWater;
+
+	RENDERSetCameraSetup(LpterStack, CameraSetup);
+	RENDERSetCameraSetup(LpterWaterStack, CameraSetup);
+
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {
 		v3 TerrainOffset = LpterGetTerrainOffset(&State->Terrain[i]);
-		RENDERPushLpterMesh(RenderStack, &State->Terrain[i].Mesh, TerrainOffset);
-		RENDERPushLpterWaterMesh(RenderStack, &State->Water[i], TerrainOffset);
+		RENDERPushLpterMesh(LpterStack, &State->Terrain[i].Mesh, TerrainOffset);
+		RENDERPushLpterWaterMesh(LpterWaterStack, &State->Water[i], TerrainOffset);
 	}
 #endif
 
@@ -614,6 +620,6 @@ void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* Engin
 	RENDERPushMesh(RenderStack, PlaneID, ScalingMatrix(V3(100, 100, 100)), State->PlaneMat);
 
 
-	UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
+	//UpdateCelluralMachine(&State->CelluralMachine, RenderStack, Input, &State->Random);
 	//RENDERPushRect(RenderStack, V2(100, 100), V2(200, 200), V4(1.0f, 0.6f, 0.0f, 1.0f));
 }

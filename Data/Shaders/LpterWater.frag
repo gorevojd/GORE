@@ -33,5 +33,5 @@ void main(){
 
 	Result += CalcDirLight(DirLight, fs_in.N, ViewDir, WaterColor);
 
-	FragColor = vec4(Result, 1.0);
+	FragColor = vec4(Result, 0.5);
 }

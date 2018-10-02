@@ -486,204 +486,259 @@ static void OpenGLUniformCameraSetup(
 static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 	font_info* CurrentFontInfo = 0;
 
-	//NOTE(dima): Iteration through render stack
-	u8* At = (u8*)Stack->Data.BaseAddress;
-	u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
+	if (Stack) {
+		//NOTE(dima): Iteration through render stack
+		u8* At = (u8*)Stack->Data.BaseAddress;
+		u8* StackEnd = (u8*)Stack->Data.BaseAddress + Stack->Data.Used;
 
-	while (At < StackEnd) {
-		render_stack_entry_header* Header = (render_stack_entry_header*)At;
+		while (At < StackEnd) {
+			render_stack_entry_header* Header = (render_stack_entry_header*)At;
 
-		u32 SizeOfEntryType = Header->SizeOfEntryType;
+			u32 SizeOfEntryType = Header->SizeOfEntryType;
 
-		At += sizeof(render_stack_entry_header);
-		switch (Header->Type) {
-			case(RenderEntry_Bitmap): {
-				render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
+			At += sizeof(render_stack_entry_header);
+			switch (Header->Type) {
+				case(RenderEntry_Bitmap): {
+					render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
-				OpenGLRenderBitmap(GLState, EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
-			}break;
+					OpenGLRenderBitmap(GLState, EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
+				}break;
 
-			case(RenderEntry_Clear): {
-				render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
+				case(RenderEntry_Clear): {
+					render_stack_entry_clear* EntryClear = (render_stack_entry_clear*)At;
 
-				glClearColor(
-					EntryClear->Color.r,
-					EntryClear->Color.g,
-					EntryClear->Color.b,
-					1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			}break;
+					glClearColor(
+						EntryClear->Color.r,
+						EntryClear->Color.g,
+						EntryClear->Color.b,
+						1.0f);
+					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				}break;
 
-			case(RenderEntry_Gradient): {
-				render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
+				case(RenderEntry_Gradient): {
+					render_stack_entry_gradient* EntryGrad = (render_stack_entry_gradient*)At;
 
-				//TODO(DIMA): 
-			}break;
+					//TODO(DIMA): 
+				}break;
 
-			case(RenderEntry_Rectangle): {
-				render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
+				case(RenderEntry_Rectangle): {
+					render_stack_entry_rectangle* EntryRect = (render_stack_entry_rectangle*)At;
 
-				OpenGLRenderRectangle(Rect2MinDim(EntryRect->P, EntryRect->Dim), EntryRect->ModulationColor);
-			}break;
+					OpenGLRenderRectangle(Rect2MinDim(EntryRect->P, EntryRect->Dim), EntryRect->ModulationColor);
+				}break;
 
-			case RenderEntry_GUI_Glyph: {
-				render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
+				case RenderEntry_GUI_Glyph: {
+					render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
-				if (CurrentFontInfo) {
-					glyph_info* Glyph = &CurrentFontInfo->Glyphs[CurrentFontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
+					if (CurrentFontInfo) {
+						glyph_info* Glyph = &CurrentFontInfo->Glyphs[CurrentFontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
 
-					v4 Color = EntryGlyph->ModulationColor;
-					rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
-					v2 MinUV = Glyph->AtlasMinUV;
-					v2 MaxUV = Glyph->AtlasMaxUV;
+						v4 Color = EntryGlyph->ModulationColor;
+						rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
+						v2 MinUV = Glyph->AtlasMinUV;
+						v2 MaxUV = Glyph->AtlasMaxUV;
 
-					glColor4f(Color.r, Color.g, Color.b, Color.a);
+						glColor4f(Color.r, Color.g, Color.b, Color.a);
 
-					float Depth = 10000.0f;
+						float Depth = 10000.0f;
 
-					glTexCoord2f(MinUV.x, MinUV.y);
-					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
-					glTexCoord2f(MaxUV.x, MinUV.y);
-					glVertex3f(Rect.Max.x, Rect.Min.y, Depth);
-					glTexCoord2f(MaxUV.x, MaxUV.y);
-					glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
+						glTexCoord2f(MinUV.x, MinUV.y);
+						glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+						glTexCoord2f(MaxUV.x, MinUV.y);
+						glVertex3f(Rect.Max.x, Rect.Min.y, Depth);
+						glTexCoord2f(MaxUV.x, MaxUV.y);
+						glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
 
-					glTexCoord2f(MinUV.x, MinUV.y);
-					glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
-					glTexCoord2f(MaxUV.x, MaxUV.y);
-					glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
-					glTexCoord2f(MinUV.x, MaxUV.y);
-					glVertex3f(Rect.Min.x, Rect.Max.y, Depth);
-				}
-			}break;
-
-			case RenderEntry_GUI_BeginText: {
-				render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
-
-				CurrentFontInfo = EntryBeginText->FontInfo;
-				bitmap_info* Buffer = &CurrentFontInfo->FontAtlasImage;
-
-				if (!Buffer->TextureHandle) {
-					OpenGLAllocateTexture(Buffer, 0, GLState);
-				}
-				glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
-				glBegin(GL_TRIANGLES);
-
-			}break;
-
-			case RenderEntry_GUI_EndText: {
-				render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
-
-				CurrentFontInfo = 0;
-
-				glEnd();
-				glBindTexture(GL_TEXTURE_2D, 0);
-			}break;
-
-			case RenderEntry_Mesh: {
-				render_stack_entry_mesh* EntryMesh = (render_stack_entry_mesh*)At;
-
-				mesh_info* MeshInfo = EntryMesh->MeshInfo;
-
-				gl_wtf_shader* Shader = &GLState->WtfShader;
-
-				if (!MeshInfo->Handle) {
-					GLuint EBO, VBO, VAO;
-
-					glGenVertexArrays(1, &VAO);
-					glGenBuffers(1, &VBO);
-					glGenBuffers(1, &EBO);
-
-					/*
-					NOTE(dima): We need to be accurate here
-					because of the alignment..
-					*/
-					u32 OneVertexSize = sizeof(vertex_info);
-
-					glBindVertexArray(VAO);
-
-					glBindBuffer(GL_ARRAY_BUFFER, VBO);
-					glBufferData(
-						GL_ARRAY_BUFFER,
-						MeshInfo->VerticesCount * OneVertexSize,
-						MeshInfo->Vertices,
-						GL_STATIC_DRAW);
-
-					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-					glBufferData(
-						GL_ELEMENT_ARRAY_BUFFER,
-						MeshInfo->IndicesCount * sizeof(u32),
-						MeshInfo->Indices,
-						GL_STATIC_DRAW);
-
-					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
-						glEnableVertexAttribArray(Shader->PositionIndex);
-						u32 POffset = offsetof(vertex_info, P);
-						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)POffset);
+						glTexCoord2f(MinUV.x, MinUV.y);
+						glVertex3f(Rect.Min.x, Rect.Min.y, Depth);
+						glTexCoord2f(MaxUV.x, MaxUV.y);
+						glVertex3f(Rect.Max.x, Rect.Max.y, Depth);
+						glTexCoord2f(MinUV.x, MaxUV.y);
+						glVertex3f(Rect.Min.x, Rect.Max.y, Depth);
 					}
+				}break;
 
-					if (OpenGLArrayIsValid(Shader->NormalIndex)) {
-						glEnableVertexAttribArray(Shader->NormalIndex);
-						u32 NOffset = offsetof(vertex_info, N);
-						glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)NOffset);
+				case RenderEntry_GUI_BeginText: {
+					render_stack_entry_begin_text* EntryBeginText = (render_stack_entry_begin_text*)At;
+
+					CurrentFontInfo = EntryBeginText->FontInfo;
+					bitmap_info* Buffer = &CurrentFontInfo->FontAtlasImage;
+
+					if (!Buffer->TextureHandle) {
+						OpenGLAllocateTexture(Buffer, 0, GLState);
 					}
+					glBindTexture(GL_TEXTURE_2D, (GLuint)Buffer->TextureHandle);
+					glBegin(GL_TRIANGLES);
 
-					if (OpenGLArrayIsValid(Shader->UVIndex)) {
-						glEnableVertexAttribArray(Shader->UVIndex);
-						u32 UVOffset = offsetof(vertex_info, UV);
-						glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, OneVertexSize, (void*)UVOffset);
+				}break;
+
+				case RenderEntry_GUI_EndText: {
+					render_stack_entry_end_text* EntryEndText = (render_stack_entry_end_text*)At;
+
+					CurrentFontInfo = 0;
+
+					glEnd();
+					glBindTexture(GL_TEXTURE_2D, 0);
+				}break;
+
+				case RenderEntry_Mesh: {
+					render_stack_entry_mesh* EntryMesh = (render_stack_entry_mesh*)At;
+
+					mesh_info* MeshInfo = EntryMesh->MeshInfo;
+
+					gl_wtf_shader* Shader = &GLState->WtfShader;
+
+					if (!MeshInfo->Handle) {
+						GLuint EBO, VBO, VAO;
+
+						glGenVertexArrays(1, &VAO);
+						glGenBuffers(1, &VBO);
+						glGenBuffers(1, &EBO);
+
+						/*
+						NOTE(dima): We need to be accurate here
+						because of the alignment..
+						*/
+						u32 OneVertexSize = sizeof(vertex_info);
+
+						glBindVertexArray(VAO);
+
+						glBindBuffer(GL_ARRAY_BUFFER, VBO);
+						glBufferData(
+							GL_ARRAY_BUFFER,
+							MeshInfo->VerticesCount * OneVertexSize,
+							MeshInfo->Vertices,
+							GL_STATIC_DRAW);
+
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+						glBufferData(
+							GL_ELEMENT_ARRAY_BUFFER,
+							MeshInfo->IndicesCount * sizeof(u32),
+							MeshInfo->Indices,
+							GL_STATIC_DRAW);
+
+						if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+							glEnableVertexAttribArray(Shader->PositionIndex);
+							u32 POffset = offsetof(vertex_info, P);
+							glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)POffset);
+						}
+
+						if (OpenGLArrayIsValid(Shader->NormalIndex)) {
+							glEnableVertexAttribArray(Shader->NormalIndex);
+							u32 NOffset = offsetof(vertex_info, N);
+							glVertexAttribPointer(Shader->NormalIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)NOffset);
+						}
+
+						if (OpenGLArrayIsValid(Shader->UVIndex)) {
+							glEnableVertexAttribArray(Shader->UVIndex);
+							u32 UVOffset = offsetof(vertex_info, UV);
+							glVertexAttribPointer(Shader->UVIndex, 2, GL_FLOAT, 0, OneVertexSize, (void*)UVOffset);
+						}
+
+						if (OpenGLArrayIsValid(Shader->TangentIndex)) {
+							glEnableVertexAttribArray(Shader->TangentIndex);
+							u32 TOffset = offsetof(vertex_info, T);
+							glVertexAttribPointer(Shader->TangentIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)TOffset);
+						}
+
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
+						glBindVertexArray(0);
+
+						MeshInfo->Handle = (void*)VAO;
 					}
+					glEnable(GL_DEPTH_TEST);
+					glUseProgram(GLState->WtfShader.Program.Handle);
 
-					if (OpenGLArrayIsValid(Shader->TangentIndex)) {
-						glEnableVertexAttribArray(Shader->TangentIndex);
-						u32 TOffset = offsetof(vertex_info, T);
-						glVertexAttribPointer(Shader->TangentIndex, 3, GL_FLOAT, 0, OneVertexSize, (void*)TOffset);
-					}
+					OpenGLUniformSurfaceMaterial(GLState, Stack, &GLState->WtfShader, &EntryMesh->Material);
 
-					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray((GLuint)MeshInfo->Handle);
+					glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
+					glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
 					glBindVertexArray(0);
 
-					MeshInfo->Handle = (void*)VAO;
-				}
-				glEnable(GL_DEPTH_TEST);
-				glUseProgram(GLState->WtfShader.Program.Handle);
+					glUseProgram(0);
+					glDisable(GL_DEPTH_TEST);
+				}break;
 
-				OpenGLUniformSurfaceMaterial(GLState, Stack, &GLState->WtfShader, &EntryMesh->Material);
+				case RenderEntry_VoxelMesh: {
+					render_stack_entry_voxel_mesh* EntryVoxelMesh = (render_stack_entry_voxel_mesh*)At;
 
-				glBindVertexArray((GLuint)MeshInfo->Handle);
-				glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
-				glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
-				glBindVertexArray(0);
+					gl_voxel_shader* Shader = &GLState->VoxelShader;
+					voxel_mesh_info* Mesh = EntryVoxelMesh->MeshInfo;
 
-				glUseProgram(0);
-				glDisable(GL_DEPTH_TEST);
-			}break;
+					mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
 
-			case RenderEntry_VoxelMesh: {
-				render_stack_entry_voxel_mesh* EntryVoxelMesh = (render_stack_entry_voxel_mesh*)At;
+					if (Mesh->State == VoxelMeshState_Generated) {
 
-				gl_voxel_shader* Shader = &GLState->VoxelShader;
-				voxel_mesh_info* Mesh = EntryVoxelMesh->MeshInfo;
-
-				mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
-
-				if (Mesh->State == VoxelMeshState_Generated) {
-
-					u32 TextureToBind = 0;
-					if (EntryVoxelMesh->VoxelAtlasBitmap) {
-						if (EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle) {
-							TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
+						u32 TextureToBind = 0;
+						if (EntryVoxelMesh->VoxelAtlasBitmap) {
+							if (EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle) {
+								TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
+							}
+							else {
+								TextureToBind = OpenGLAllocateTexture(
+									EntryVoxelMesh->VoxelAtlasBitmap,
+									TextureAllocation_NearestFiltering | TextureAllocation_EnableAnisotropic,
+									GLState);
+							}
 						}
-						else {
-							TextureToBind = OpenGLAllocateTexture(
-								EntryVoxelMesh->VoxelAtlasBitmap,
-								TextureAllocation_NearestFiltering | TextureAllocation_EnableAnisotropic,
-								GLState);
+
+						if (!Mesh->MeshHandle) {
+							BeginMutexAccess(&Mesh->MeshUseMutex);
+							GLuint MeshVAO;
+							GLuint MeshVBO;
+
+							glGenVertexArrays(1, &MeshVAO);
+							glGenBuffers(1, &MeshVBO);
+
+							glBindVertexArray(MeshVAO);
+
+							glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+							glBufferData(GL_ARRAY_BUFFER,
+								Mesh->VerticesCount * sizeof(u32),
+								&Mesh->Vertices[0], GL_DYNAMIC_DRAW);
+
+							if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
+								glEnableVertexAttribArray(Shader->VertexDataIndex);
+								glVertexAttribPointer(Shader->VertexDataIndex, 1, GL_FLOAT, GL_FALSE, 4, 0);
+							}
+
+							glBindBuffer(GL_ARRAY_BUFFER, 0);
+							glBindVertexArray(0);
+
+							Mesh->MeshHandle = (void*)MeshVAO;
+							Mesh->MeshHandle2 = (void*)MeshVBO;
+							EndMutexAccess(&Mesh->MeshUseMutex);
 						}
+
+						glEnable(GL_DEPTH_TEST);
+						glUseProgram((u32)Shader->Program.Handle);
+
+						_glActiveTexture(GL_TEXTURE0);
+						glBindTexture(GL_TEXTURE_2D, TextureToBind);
+						glUniform1i(Shader->DiffuseMapLocation, 0);
+
+						glUniformMatrix4fv(
+							Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+
+						glBindVertexArray((u32)Mesh->MeshHandle);
+						glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
+						glBindVertexArray(0);
+
+						glUseProgram(0);
+						glDisable(GL_DEPTH_TEST);
 					}
+				}break;
 
-					if (!Mesh->MeshHandle) {
-						BeginMutexAccess(&Mesh->MeshUseMutex);
+				case RenderEntry_LpterWaterMesh: {
+					render_stack_entry_lpter_water_mesh* Entry = (render_stack_entry_lpter_water_mesh*)At;
+
+					lpter_water* Water = Entry->WaterMesh;
+					gl_lpter_water_shader* WaterShader = &GLState->LpterWaterShader;
+
+					mat4 ModelTransform = Translate(Identity(), Entry->P);
+
+					if (!Water->MeshHandle1) {
 						GLuint MeshVAO;
 						GLuint MeshVBO;
 
@@ -691,190 +746,136 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 						glGenBuffers(1, &MeshVBO);
 
 						glBindVertexArray(MeshVAO);
-
 						glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
-						glBufferData(GL_ARRAY_BUFFER,
-							Mesh->VerticesCount * sizeof(u32),
-							&Mesh->Vertices[0], GL_DYNAMIC_DRAW);
+						glBufferData(GL_ARRAY_BUFFER, sizeof(Water->Vertices), Water->Vertices, GL_DYNAMIC_DRAW);
 
-						if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
-							glEnableVertexAttribArray(Shader->VertexDataIndex);
-							glVertexAttribPointer(Shader->VertexDataIndex, 1, GL_FLOAT, GL_FALSE, 4, 0);
+						if (OpenGLArrayIsValid(WaterShader->PositionIndex)) {
+							glEnableVertexAttribArray(WaterShader->PositionIndex);
+							glVertexAttribPointer(
+								WaterShader->PositionIndex,
+								2, GL_FLOAT,
+								0,
+								sizeof(lpter_water_vertex),
+								(void*)offsetof(lpter_water_vertex, VertexXZ));
+						}
+
+						if (OpenGLArrayIsValid(WaterShader->OffsetsToOthersIndex)) {
+							glEnableVertexAttribArray(WaterShader->OffsetsToOthersIndex);
+							glVertexAttribIPointer(
+								WaterShader->OffsetsToOthersIndex,
+								4, GL_BYTE,
+								sizeof(lpter_water_vertex),
+								(void*)offsetof(lpter_water_vertex, OffsetsToOtherVerts));
 						}
 
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 						glBindVertexArray(0);
 
-						Mesh->MeshHandle = (void*)MeshVAO;
-						Mesh->MeshHandle2 = (void*)MeshVBO;
-						EndMutexAccess(&Mesh->MeshUseMutex);
+						Water->MeshHandle1 = (void*)MeshVAO;
+						Water->MeshHandle2 = (void*)MeshVBO;
 					}
 
 					glEnable(GL_DEPTH_TEST);
-					glUseProgram((u32)Shader->Program.Handle);
+					WaterShader->Program.Use();
 
-					_glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, TextureToBind);
-					glUniform1i(Shader->DiffuseMapLocation, 0);
+					glUniformMatrix4fv(WaterShader->ModelMatrixLocation,
+						1, GL_TRUE, ModelTransform.E);
 
-					glUniformMatrix4fv(
-						Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+					glUniform1f(WaterShader->WaterLevelLocation, Water->WaterLevel);
+					glUniform1f(WaterShader->PerVertexOfffsetLocation, Water->PerVertexOffset);
 
-					glBindVertexArray((u32)Mesh->MeshHandle);
-					glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
+					glBindVertexArray((u32)Water->MeshHandle1);
+					glDrawArrays(GL_TRIANGLES, 0, Water->VerticesCount);
 					glBindVertexArray(0);
 
 					glUseProgram(0);
 					glDisable(GL_DEPTH_TEST);
-				}
-			}break;
+				}break;
 
-			case RenderEntry_LpterWaterMesh: {
-				render_stack_entry_lpter_water_mesh* Entry = (render_stack_entry_lpter_water_mesh*)At;
-
-				lpter_water* Water = Entry->WaterMesh;
-				gl_lpter_water_shader* WaterShader = &GLState->LpterWaterShader;
-
-				mat4 ModelTransform = Translate(Identity(), Entry->P);
-
-				if (!Water->MeshHandle1) {
-					GLuint MeshVAO;
-					GLuint MeshVBO;
-
-					glGenVertexArrays(1, &MeshVAO);
-					glGenBuffers(1, &MeshVBO);
-
-					glBindVertexArray(MeshVAO);
-					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
-					glBufferData(GL_ARRAY_BUFFER, sizeof(Water->Vertices), Water->Vertices, GL_DYNAMIC_DRAW);
-
-					if (OpenGLArrayIsValid(WaterShader->PositionIndex)) {
-						glEnableVertexAttribArray(WaterShader->PositionIndex);
-						glVertexAttribPointer(
-							WaterShader->PositionIndex,
-							2, GL_FLOAT,
-							0,
-							sizeof(lpter_water_vertex),
-							(void*)offsetof(lpter_water_vertex, VertexXZ));
-					}
-
-					if (OpenGLArrayIsValid(WaterShader->OffsetsToOthersIndex)) {
-						glEnableVertexAttribArray(WaterShader->OffsetsToOthersIndex);
-						glVertexAttribIPointer(
-							WaterShader->OffsetsToOthersIndex,
-							4, GL_BYTE,
-							sizeof(lpter_water_vertex),
-							(void*)offsetof(lpter_water_vertex, OffsetsToOtherVerts));
-					}
-
-					glBindBuffer(GL_ARRAY_BUFFER, 0);
-					glBindVertexArray(0);
-
-					Water->MeshHandle1 = (void*)MeshVAO;
-					Water->MeshHandle2 = (void*)MeshVBO;
-				}
-
-				glEnable(GL_DEPTH_TEST);
-				WaterShader->Program.Use();
-
-				glUniformMatrix4fv(WaterShader->ModelMatrixLocation,
-					1, GL_TRUE, ModelTransform.E);
-
-				glUniform1f(WaterShader->WaterLevelLocation, Water->WaterLevel);
-				glUniform1f(WaterShader->PerVertexOfffsetLocation, Water->PerVertexOffset);
-
-				glBindVertexArray((u32)Water->MeshHandle1);
-				glDrawArrays(GL_TRIANGLES, 0, Water->VerticesCount);
-				glBindVertexArray(0);
-
-				glUseProgram(0);
-				glDisable(GL_DEPTH_TEST);
-			}break;
-
-			case RenderEntry_LpterMesh: {
+				case RenderEntry_LpterMesh: {
 #if 1
-				render_stack_entry_lpter_mesh* EntryMesh = (render_stack_entry_lpter_mesh*)At;
+					render_stack_entry_lpter_mesh* EntryMesh = (render_stack_entry_lpter_mesh*)At;
 
-				lpter_mesh* Mesh = EntryMesh->Mesh;
-				gl_lpter_shader* Shader = &GLState->LpterShader;
+					lpter_mesh* Mesh = EntryMesh->Mesh;
+					gl_lpter_shader* Shader = &GLState->LpterShader;
 
-				mat4 ModelTransform = Translate(Identity(), EntryMesh->P);
+					mat4 ModelTransform = Translate(Identity(), EntryMesh->P);
 
-				if (!Mesh->MeshHandle0) {
-					GLuint MeshVAO;
-					GLuint MeshVBO;
-					GLuint TexNormBO;
+					if (!Mesh->MeshHandle0) {
+						GLuint MeshVAO;
+						GLuint MeshVBO;
+						GLuint TexNormBO;
 
-					glGenVertexArrays(1, &MeshVAO);
-					glGenBuffers(1, &MeshVBO);
-					glGenBuffers(1, &TexNormBO);
+						glGenVertexArrays(1, &MeshVAO);
+						glGenBuffers(1, &MeshVBO);
+						glGenBuffers(1, &TexNormBO);
 
-					glBindVertexArray(MeshVAO);
+						glBindVertexArray(MeshVAO);
 
-					glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
-					glBufferData(GL_ARRAY_BUFFER,
-						Mesh->VertsCount * sizeof(lpter_vertex),
-						&Mesh->Verts[0], GL_DYNAMIC_DRAW);
-					glBindBuffer(GL_TEXTURE_BUFFER, TexNormBO);
-					glBufferData(GL_TEXTURE_BUFFER, sizeof(Mesh->Normals), &Mesh->Normals[0], GL_STATIC_DRAW);
+						glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+						glBufferData(GL_ARRAY_BUFFER,
+							Mesh->VertsCount * sizeof(lpter_vertex),
+							&Mesh->Verts[0], GL_DYNAMIC_DRAW);
+						glBindBuffer(GL_TEXTURE_BUFFER, TexNormBO);
+						glBufferData(GL_TEXTURE_BUFFER, sizeof(Mesh->Normals), &Mesh->Normals[0], GL_STATIC_DRAW);
 
-					GLuint NormalsBufTexture;
-					glGenTextures(1, &NormalsBufTexture);
+						GLuint NormalsBufTexture;
+						glGenTextures(1, &NormalsBufTexture);
+						_glActiveTexture(GL_TEXTURE0);
+						glBindTexture(GL_TEXTURE_BUFFER, NormalsBufTexture);
+						glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, TexNormBO);
+
+						if (OpenGLArrayIsValid(Shader->PositionIndex)) {
+							glEnableVertexAttribArray(Shader->PositionIndex);
+							glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, GL_FALSE, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, P));
+						}
+
+						if (OpenGLArrayIsValid(Shader->ColorIndex)) {
+							glEnableVertexAttribArray(Shader->ColorIndex);
+							glVertexAttribIPointer(Shader->ColorIndex, 1, GL_UNSIGNED_INT, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, Color));
+						}
+
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
+						glBindVertexArray(0);
+
+						Mesh->MeshHandle0 = (void*)MeshVAO;
+						Mesh->MeshHandle1 = (void*)MeshVBO;
+						Mesh->MeshHandleTexBuf = (void*)TexNormBO;
+						Mesh->NormTexHandle = (void*)NormalsBufTexture;
+					}
+
+					glEnable(GL_DEPTH_TEST);
+					Shader->Program.Use();
+
+					glUniformMatrix4fv(
+						Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+
 					_glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_BUFFER, NormalsBufTexture);
-					glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, TexNormBO);
+					glBindTexture(GL_TEXTURE_BUFFER, (u32)Mesh->NormTexHandle);
+					glUniform1i(Shader->NormalsBufferLocation, 0);
 
-					if (OpenGLArrayIsValid(Shader->PositionIndex)) {
-						glEnableVertexAttribArray(Shader->PositionIndex);
-						glVertexAttribPointer(Shader->PositionIndex, 3, GL_FLOAT, GL_FALSE, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, P));
-					}
-
-					if (OpenGLArrayIsValid(Shader->ColorIndex)) {
-						glEnableVertexAttribArray(Shader->ColorIndex);
-						glVertexAttribIPointer(Shader->ColorIndex, 1, GL_UNSIGNED_INT, sizeof(lpter_vertex), (void*)offsetof(lpter_vertex, Color));
-					}
-
-					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray((u32)Mesh->MeshHandle0);
+					//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+					glDrawArrays(GL_TRIANGLES, 0, Mesh->VertsCount);
 					glBindVertexArray(0);
 
-					Mesh->MeshHandle0 = (void*)MeshVAO;
-					Mesh->MeshHandle1 = (void*)MeshVBO;
-					Mesh->MeshHandleTexBuf = (void*)TexNormBO;
-					Mesh->NormTexHandle = (void*)NormalsBufTexture;
-				}
-
-				glEnable(GL_DEPTH_TEST);
-				Shader->Program.Use();
-
-				glUniformMatrix4fv(
-					Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
-
-				_glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_BUFFER, (u32)Mesh->NormTexHandle);
-				glUniform1i(Shader->NormalsBufferLocation, 0);
-
-				glBindVertexArray((u32)Mesh->MeshHandle0);
-				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-				glDrawArrays(GL_TRIANGLES, 0, Mesh->VertsCount);
-				glBindVertexArray(0);
-
-				glUseProgram(0);
-				glDisable(GL_DEPTH_TEST);
+					glUseProgram(0);
+					glDisable(GL_DEPTH_TEST);
 #endif
-			}break;
+				}break;
 
-			case RenderEntry_Test: {
+				case RenderEntry_Test: {
 
-			}break;
+				}break;
 
-			default: {
-				Assert(!"Invalid entry type");
-			}break;
+				default: {
+					Assert(!"Invalid entry type");
+				}break;
+			}
+
+			At += Header->SizeOfEntryType;
 		}
-
-		At += Header->SizeOfEntryType;
 	}
-
 }
 
 void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, game_settings* GameSettings) {
@@ -910,6 +911,26 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->WtfShader.ProjectionMatrixLocation,
 				GLState->WtfShader.CameraPLocation,
 				&MainRenderStack->CameraSetup);
+
+			//OpenGLUniformCameraSetup(
+			//	GLState->LpterShader.Program.Handle,
+			//	GLState->LpterShader.ViewMatrixLocation,
+			//	GLState->LpterShader.ProjectionMatrixLocation,
+			//	GLState->LpterShader.CameraPLocation,
+			//	&MainRenderStack->CameraSetup);
+
+			//OpenGLUniformCameraSetup(
+			//	GLState->LpterWaterShader.Program.Handle,
+			//	GLState->LpterWaterShader.ViewMatrixLocation,
+			//	GLState->LpterWaterShader.ProjectionMatrixLocation,
+			//	GLState->LpterWaterShader.CameraPLocation,
+			//	&MainRenderStack->CameraSetup);
+
+			//	glUseProgram(GLState->LpterWaterShader.Program.Handle);
+			//	glUniform1f(
+			//		GLState->LpterWaterShader.GlobalTimeLocation,
+			//		RenderState->InputSystem->Time);
+			//	glUseProgram(0);
 		}
 
 		if (MainRenderStack->CameraSetupIsSet) {
@@ -928,7 +949,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->LpterShader.Program.Handle,
 				GLState->LpterShader.ViewMatrixLocation,
 				GLState->LpterShader.ProjectionMatrixLocation,
-				GLState->VoxelShader.CameraPLocation,
+				GLState->LpterShader.CameraPLocation,
 				&LpterRenderStack->CameraSetup);
 		}
 	}
@@ -952,6 +973,9 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 
 	//glEnable(GL_DEPTH_TEST);
 	OpenGLRenderStackToOutput(GLState, MainRenderStack);
+
+	OpenGLRenderStackToOutput(GLState, LpterRenderStack);
+	OpenGLRenderStackToOutput(GLState, LpterWaterRenderStack);
 	//glDisable(GL_DEPTH_TEST);
 
 	//NOTE(dima): Resolving multisampled buffer to temp buffer

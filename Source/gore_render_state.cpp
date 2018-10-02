@@ -76,4 +76,6 @@ void RenderInitState(
 	Result->NamedStacks = {};
 	Result->NamedStacks.Main = RenderInitStack(Result, MEGABYTES(1), "Main");
 	Result->NamedStacks.GUI = RenderInitStack(Result, MEGABYTES(1), "GUI");
+	Result->NamedStacks.LpterMain = RenderInitStack(Result, MEGABYTES(1), "LpterMain");
+	Result->NamedStacks.LpterWater = RenderInitStack(Result, MEGABYTES(1), "LpterWater");
 }

@@ -34,7 +34,8 @@ vec3 NoiseFunc(vec3 VertOffset){
 
 void main(){
 
-	vec3 ChunkTransl = Model._m30_m31_m32;
+	//vec3 ChunkTransl = Model._m30_m31_m32;
+	vec3 ChunkTransl = vec3(Model[3][0], Model[3][1], Model[3][2]);
 	vec3 VertOffset = ChunkTransl + vec3(inPosition.x, 0.0, inPosition.y);
 
 	vec3 VertNoiseOffset = NoiseFunc(VertOffset);
