@@ -944,4 +944,33 @@ inline u32 PackedRGB16AlphaToRGBA(u16 RGB, u8 Alpha) {
 	return(Result);
 }
 
+//NOTE(dima): Collision math
+
+inline b32 BoxIntersectsWithCircle(rect2 Rect, v2 CircleCenterP, float CircleRadius) {
+	v2 NearestBoxP = V2(
+		Clamp(CircleCenterP.x, Rect.Min.x, Rect.Max.x),
+		Clamp(CircleCenterP.y, Rect.Min.y, Rect.Max.y));
+
+	float DeltaX = NearestBoxP.x - CircleCenterP.x;
+	float DeltaY = NearestBoxP.y - CircleCenterP.y;
+
+	b32 IntersectionHappens = (DeltaX * DeltaX + DeltaY * DeltaY) < (CircleRadius * CircleRadius);
+
+	return(IntersectionHappens);
+}
+
+inline b32 BoxIntersectsWithBox(rect2 Box1, rect2 Box2) {
+	v2 Box1Dim = GetRectDim(Box1);
+	v2 Box2Dim = GetRectDim(Box2);
+
+	float DistBetweenCentersX = Abs((Box1.Min.x - Box2.Min.x) * 2.0f + (Box1Dim.x - Box2Dim.x));
+	float DistBetweenCentersY = Abs((Box1.Min.y - Box2.Min.y) * 2.0f + (Box1Dim.y - Box2Dim.y));
+
+	b32 IntersectionHappens =
+		((DistBetweenCentersX < Box1Dim.x + Box2Dim.x) &&
+		(DistBetweenCentersY < Box1Dim.y + Box2Dim.y));
+
+	return(IntersectionHappens);
+}
+
 #endif
