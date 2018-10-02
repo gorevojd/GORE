@@ -528,8 +528,8 @@ void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystem
 		MenuActionButton(MenuState, "VoxelWorld", MenuOpenGameModeAction, OpenVoxelData, ColorExt_bisque3, DefaultLayout10);
 
 		menu_open_game_mode_action_data* OpenLpterData = PushStruct(GameModeMemory, menu_open_game_mode_action_data);
-		*OpenLpterData = OpenModeData(GameModeState, GameMode_LowPolyTerrain);
-		MenuActionButton(MenuState, "LpterWorld", MenuOpenGameModeAction, OpenLpterData, ColorExt_DarkSlateGray2, DefaultLayout10);
+		*OpenLpterData = OpenModeData(GameModeState, GameMode_RoadOfWarrior);
+		MenuActionButton(MenuState, "Road of Warrior", MenuOpenGameModeAction, OpenLpterData, ColorExt_DarkSlateGray2, DefaultLayout10);
 
 		MenuActionButton(MenuState, "Back", MenuGoBackAction, {&MenuState}, Color_Red, DefaultLayout10);
 		MenuAddWeightsToPrevElement(MenuState, 0.5f, 1.0f);

@@ -839,6 +839,23 @@ inline mat4 OrthographicProjection(
 	return(Result);
 }
 
+inline mat4 OrthographicUnproject(
+	u32 Width, u32 Height,
+	float Far, float Near)
+{
+	mat4 Result = {};
+
+	Result.E[0] = (float)Width * 0.5f;
+	Result.E[3] = (float)Width * 0.5f;
+	Result.E[5] = (float)Height * 0.5f;
+	Result.E[7] = (float)Height * 0.5f;
+	Result.E[10] = (Far - Near) * -0.5f;
+	Result.E[11] = (Far + Near) * -0.5f;
+	Result.E[15] = 1.0f;
+
+	return(Result);
+}
+
 inline mat4 OrthographicProjection(u32 Width, u32 Height) {
 	mat4 Result = {};
 

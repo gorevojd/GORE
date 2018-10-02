@@ -5,6 +5,7 @@
 #include "gore_lpterrain.h"
 #include "geometrika.h"
 #include "gore_game_main_menu.h"
+#include "row.h"
 
 void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
 	GameModeState->GameModeShouldBeSwitched = 1;
@@ -52,7 +53,7 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 				EngineSystems->InputSystem);
 		}break;
 
-		case GameMode_LowPolyTerrain: {
+		case GameMode_RoadOfWarrior: {
 			//UpdateLowPolyterrainWorld();
 		}break;
 	}
@@ -92,7 +93,7 @@ void GameModeFinalizeFrame(engine_systems* EngineSystems) {
 		case GameMode_VoxelWorld: {
 		}break;
 
-		case GameMode_LowPolyTerrain: {
+		case GameMode_RoadOfWarrior: {
 		}break;
 	}
 

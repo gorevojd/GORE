@@ -41,10 +41,12 @@ game_camera_setup GAMECameraSetup(
 	switch (ProjectionType) {
 		case CameraProjection_Orthographic: {
 			Setup.ProjectionMatrix = OrthographicProjection(Width, Height, Far, Near);
+			Setup.OrthographicUnprojectMatrix = OrthographicUnproject(Width, Height, Far, Near);
 		}break;
 
 		case CameraProjection_InfiniteOrthographic: {
 			Setup.ProjectionMatrix = OrthographicProjection(Width, Height);
+
 		}break;
 
 		case CameraProjection_Perspective: {

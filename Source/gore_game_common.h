@@ -22,6 +22,7 @@ struct game_camera_setup {
 
 	mat4 ProjectionMatrix;
 	mat4 ViewMatrix;
+	mat4 OrthographicUnprojectMatrix;
 
 	mat4 ProjectionViewMatrix;
 };

@@ -182,6 +182,7 @@
     <ClCompile Include="..\Source\gore_render_state.cpp" />
     <ClCompile Include="..\Source\gore_threadwork_memory.cpp" />
     <ClCompile Include="..\Source\gore_voxmesh.cpp" />
+    <ClCompile Include="..\Source\row.cpp" />
     <ClCompile Include="..\Source\sdl_gore.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -219,6 +220,7 @@
     <ClInclude Include="..\Source\gore_types.h" />
     <ClInclude Include="..\Source\gore_voxshared.h" />
     <ClInclude Include="..\Source\gore_voxmesh.h" />
+    <ClInclude Include="..\Source\row.h" />
     <ClInclude Include="..\Source\sdl_gore.h" />
     <ClInclude Include="..\Source\stb_image.h" />
     <ClInclude Include="..\Source\stb_perlin.h" />
