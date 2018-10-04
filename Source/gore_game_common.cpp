@@ -24,10 +24,20 @@ void GAMEUpdateCameraVectors(
 	Camera->Up = Normalize(Cross(Camera->Front, Camera->Left));
 }
 
+void GAMEUpdateCameraVectorsBasedOnUpAndFront(
+	game_camera* Camera,
+	v3 Front,
+	v3 Up)
+{
+	Camera->Front = Normalize(Front);
+	Camera->Left = Normalize(Cross(Up, Front));
+	Camera->Up = Normalize(Cross(Camera->Front, Camera->Left));
+}
+
 game_camera_setup GAMECameraSetup(
 	game_camera Camera, 
-	u32 Width,
-	u32 Height, 
+	int Width,
+	int Height, 
 	u32 ProjectionType,
 	float Far,
 	float Near,
@@ -40,8 +50,8 @@ game_camera_setup GAMECameraSetup(
 	Setup.ProjectionMatrix = Identity();
 	switch (ProjectionType) {
 		case CameraProjection_Orthographic: {
-			Setup.ProjectionMatrix = OrthographicProjection(Width, Height, Far, Near);
-			Setup.OrthographicUnprojectMatrix = OrthographicUnproject(Width, Height, Far, Near);
+			Setup.ProjectionMatrix = Transpose(OrthographicProjection(Width, 0, 0, Height, Far, Near));
+			//Setup.OrthographicUnprojectMatrix = OrthographicUnproject(Width, Height, Far, Near);
 		}break;
 
 		case CameraProjection_InfiniteOrthographic: {

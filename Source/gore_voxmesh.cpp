@@ -1885,14 +1885,14 @@ void VoxelChunksGenerationUpdate(
 
 #endif
 
-	game_camera_setup CameraSetup = GAMECameraSetup(
+	Generation->CameraSetup = GAMECameraSetup(
 		Generation->Camera,
 		RenderState->RenderWidth,
 		RenderState->RenderHeight,
 		CameraProjection_Perspective,
 		2000.0f);
 
-	RENDERSetCameraSetup(RenderStack, CameraSetup);
+	RENDERSetCameraSetup(RenderStack, &Generation->CameraSetup);
 
 	GetVoxelChunkPosForCamera(Generation->Camera.Position, &CamChunkIndexX, &CamChunkIndexY, &CamChunkIndexZ);
 
@@ -1920,7 +1920,7 @@ void VoxelChunksGenerationUpdate(
 	v4 FrustumPlanes[6];
 
 #if 1
-	mat4 PVM = RenderStack->CameraSetup.ProjectionViewMatrix;
+	mat4 PVM = Generation->CameraSetup.ProjectionViewMatrix;
 #else
 	mat4 PVM = PerspectiveProjection(
 		RenderState->RenderWidth,

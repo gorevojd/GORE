@@ -480,14 +480,14 @@ void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* Engin
 
 #endif
 
-	game_camera_setup CameraSetup = GAMECameraSetup(
+	State->CameraSetup = GAMECameraSetup(
 		State->Camera,
 		RenderState->RenderWidth,
 		RenderState->RenderHeight,
 		CameraProjection_Perspective,
 		2000.0f);
 
-	RENDERSetCameraSetup(RenderStack, CameraSetup);
+	RENDERSetCameraSetup(RenderStack, &State->CameraSetup);
 
 	mesh_id CubeID = GetFirstMesh(AssetSystem, GameAsset_Cube);
 	mesh_id PlaneID = GetFirstMesh(AssetSystem, GameAsset_Plane);
@@ -499,8 +499,8 @@ void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* Engin
 	render_stack* LpterStack = EngineSysState->RenderState->NamedStacks.LpterMain;
 	render_stack* LpterWaterStack = EngineSysState->RenderState->NamedStacks.LpterWater;
 
-	RENDERSetCameraSetup(LpterStack, CameraSetup);
-	RENDERSetCameraSetup(LpterWaterStack, CameraSetup);
+	RENDERSetCameraSetup(LpterStack, &State->CameraSetup);
+	RENDERSetCameraSetup(LpterWaterStack, &State->CameraSetup);
 
 	for (int i = 0; i < ArrayCount(State->Terrain); i++) {
 		v3 TerrainOffset = LpterGetTerrainOffset(&State->Terrain[i]);

@@ -54,7 +54,7 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 		}break;
 
 		case GameMode_RoadOfWarrior: {
-			//UpdateLowPolyterrainWorld();
+			UpdateROW(GameModeState, EngineSystems);
 		}break;
 	}
 	END_TIMING();

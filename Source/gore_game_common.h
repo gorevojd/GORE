@@ -62,11 +62,16 @@ extern void GAMEUpdateCameraVectors(
 
 extern game_camera_setup GAMECameraSetup(
 	game_camera Camera,
-	u32 Width,
-	u32 Height,
+	int Width,
+	int Height,
 	u32 ProjectionType = CameraProjection_InfiniteOrthographic,
 	float Far = 1000.0f,
 	float Near = 0.1f,
 	float FieldOfView = 45.0f);
+
+extern void GAMEUpdateCameraVectorsBasedOnUpAndFront(
+	game_camera* Camera,
+	v3 Front,
+	v3 Up);
 
 #endif

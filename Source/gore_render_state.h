@@ -19,7 +19,7 @@ struct render_stack {
 	stacked_memory InitStack;
 
 	b32 CameraSetupIsSet;
-	game_camera_setup CameraSetup;
+	game_camera_setup* CameraSetup;
 
 	u32 EntryCount;
 };
@@ -54,7 +54,10 @@ struct render_state {
 enum render_entry_type {
 	RenderEntry_None = 0,
 
+	//NOTE(dima): Bitmap is the screenspace bitmap
 	RenderEntry_Bitmap,
+	//NOTE(dima): Sprite is the bitmap that would be rendered in worldspace
+	RenderEntry_Sprite,
 	RenderEntry_Clear,
 	RenderEntry_Gradient,
 	RenderEntry_Rectangle,
@@ -75,6 +78,13 @@ struct render_stack_entry_bitmap {
 	bitmap_info* Bitmap;
 	v2 P;
 	v2 Dim;
+	v4 ModulationColor;
+};
+
+struct render_stack_entry_sprite {
+	b32 BitmapIsSet;
+	bitmap_info* Bitmap;
+	rect2 SpriteRect;
 	v4 ModulationColor;
 };
 
@@ -184,6 +194,15 @@ inline void RENDERPushBitmap(render_stack* Stack, bitmap_info* Bitmap, v2 P, flo
 	Entry->ModulationColor = ModulationColor;
 
 	Entry->Bitmap = Bitmap;
+}
+
+inline void RENDERPushSprite(render_stack* Stack, bitmap_info* Bitmap, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+	render_stack_entry_sprite* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_sprite, RenderEntry_Sprite);
+
+	Entry->SpriteRect = Rect;
+	Entry->Bitmap = Bitmap;
+	Entry->BitmapIsSet = Bitmap ? 1 : 0;
+	Entry->ModulationColor = ModulationColor;
 }
 
 inline void RENDERPushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
@@ -337,7 +356,7 @@ inline void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4
 	Entry->ModulationColor = ModulationColor;
 }
 
-inline void RENDERSetCameraSetup(render_stack* State, game_camera_setup Setup) {
+inline void RENDERSetCameraSetup(render_stack* State, game_camera_setup* Setup) {
 	State->CameraSetup = Setup;
 	State->CameraSetupIsSet = 1;
 }

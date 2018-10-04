@@ -52,6 +52,7 @@ struct geometrika_state {
 	b32 CapturingMouse;
 
 	game_camera Camera;
+	game_camera_setup CameraSetup;
 	b32 CameraAutoMove;
 
 	stacked_memory CelluralMachineMemory;

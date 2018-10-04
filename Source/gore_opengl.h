@@ -134,6 +134,21 @@ struct gl_screen_shader {
 	gl_program Program;
 };
 
+struct gl_sprite_shader {
+	GLint PosIndex;
+	GLint TexIndex;
+
+	GLint ViewMatrixLocation;
+	GLint ProjectionMatrixLocation;
+
+	GLint Bitmap1IsSetLocation;
+	GLint Bitmap1Location;
+	GLint ModulationColorLocation;
+	GLint CameraPLocation;
+
+	gl_program Program;
+};
+
 enum opengl_framebuffer_depthstencil_attachment_type {
 	OpenGL_DS_Renderbuffer,
 	OpenGL_DS_Texture,
@@ -155,6 +170,7 @@ struct gl_state {
 	gl_fxaa_shader FXAAShader;
 	gl_lpter_shader LpterShader;
 	gl_lpter_water_shader LpterWaterShader;
+	gl_sprite_shader SpriteShader;
 
 	GLuint ScreenQuadVAO;
 	GLuint ScreenQuadVBO;

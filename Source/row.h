@@ -24,6 +24,9 @@ struct row_state {
 	v2 PlayerDim;
 
 	game_camera Camera;
+	game_camera_setup CameraSetup;
 };
+
+void UpdateROW(game_mode_state* GameModeState, engine_systems* EngineSystems);
 
 #endif

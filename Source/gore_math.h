@@ -780,7 +780,7 @@ inline mat4 LookAt(v3 Pos, v3 TargetPos, v3 WorldUp) {
 	return(Result);
 }
 
-inline mat4 PerspectiveProjection(u32 Width, u32 Height, float FOV, float Far, float Near)
+inline mat4 PerspectiveProjection(int Width, int Height, float FOV, float Far, float Near)
 {
 	mat4 Result = {};
 
@@ -800,8 +800,8 @@ inline mat4 PerspectiveProjection(u32 Width, u32 Height, float FOV, float Far, f
 }
 
 inline mat4 OrthographicProjection(
-	u32 Right, u32 Left,
-	u32 Top, u32 Bottom,
+	int Right, int Left,
+	int Top, int Bottom,
 	float Far, float Near)
 {
 	mat4 Result = {};
@@ -822,7 +822,7 @@ inline mat4 OrthographicProjection(
 }
 
 inline mat4 OrthographicProjection(
-	u32 Width, u32 Height,
+	int Width, int Height,
 	float Far, float Near)
 {
 	mat4 Result = {};
@@ -840,7 +840,7 @@ inline mat4 OrthographicProjection(
 }
 
 inline mat4 OrthographicUnproject(
-	u32 Width, u32 Height,
+	int Width, int Height,
 	float Far, float Near)
 {
 	mat4 Result = {};
@@ -856,7 +856,7 @@ inline mat4 OrthographicUnproject(
 	return(Result);
 }
 
-inline mat4 OrthographicProjection(u32 Width, u32 Height) {
+inline mat4 OrthographicProjection(int Width, int Height) {
 	mat4 Result = {};
 
 	Result.E[0] = 2.0f / (float)Width;

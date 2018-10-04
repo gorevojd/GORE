@@ -272,6 +272,28 @@ gl_lpter_water_shader OpenGLLoadLpterWaterShader() {
 	return(Result);
 }
 
+gl_sprite_shader OpenGLLoadSpriteShader() {
+	gl_sprite_shader Result = {};
+
+	char* VertexPath = "../Data/Shaders/SpriteShader.vert";
+	char* FragmentPath = "../Data/Shaders/SpriteShader.frag";
+
+	Result.Program = OpenGLLoadShader(VertexPath, FragmentPath);
+
+	Result.PosIndex = GLGET_ATTRIB("inPosition");
+	Result.TexIndex = GLGET_ATTRIB("inTexCoords");
+
+	Result.ProjectionMatrixLocation = GLGET_UNIFORM("Projection");
+	Result.ViewMatrixLocation = GLGET_UNIFORM("View");
+
+	Result.Bitmap1Location = GLGET_UNIFORM("Bitmap1");
+	Result.Bitmap1IsSetLocation = GLGET_UNIFORM("Bitmap1IsSet");
+	Result.ModulationColorLocation = GLGET_UNIFORM("ModulationColor");
+	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
+
+	return(Result);
+}
+
 gl_voxel_shader OpenGLLoadVoxelShader() {
 	gl_voxel_shader Result = {};
 
@@ -502,6 +524,88 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					render_stack_entry_bitmap* EntryBitmap = (render_stack_entry_bitmap*)At;
 
 					OpenGLRenderBitmap(GLState, EntryBitmap->Bitmap, EntryBitmap->P, EntryBitmap->Dim, EntryBitmap->ModulationColor);
+				}break;
+
+				case(RenderEntry_Sprite): {
+					render_stack_entry_sprite* EntrySprite = (render_stack_entry_sprite*)At;
+
+					gl_sprite_shader* SpriteShader = &GLState->SpriteShader;
+
+					if (EntrySprite->BitmapIsSet) {
+						if (!EntrySprite->Bitmap->TextureHandle) {
+							OpenGLAllocateTexture(EntrySprite->Bitmap, 0, GLState);
+						}
+					}
+
+					rect2* Rc = &EntrySprite->SpriteRect;
+				
+					u32 VerticesCount = 6;
+
+					float VerticesData[] = {
+						Rc->Min.x, Rc->Min.y, 0.0f, 0.0f, 1.0f,
+						Rc->Max.x, Rc->Min.y, 0.0f, 1.0f, 1.0f,
+						Rc->Max.x, Rc->Max.y, 0.0f, 1.0f, 0.0f,
+
+						Rc->Min.x, Rc->Min.y, 0.0f, 0.0f, 1.0f,
+						Rc->Max.x, Rc->Max.y, 0.0f, 1.0f, 0.0f,
+						Rc->Min.x, Rc->Max.y, 0.0f, 0.0f, 0.0f,
+					};
+
+					GLuint VAO;
+					GLuint VBO;
+
+					glGenVertexArrays(1, &VAO);
+					glGenBuffers(1, &VBO);
+
+					glBindVertexArray(VAO);
+					glBindBuffer(GL_ARRAY_BUFFER, VBO);
+					glBufferData(GL_ARRAY_BUFFER, sizeof(VerticesData), VerticesData, GL_DYNAMIC_DRAW);
+					
+					if (OpenGLArrayIsValid(SpriteShader->PosIndex)) {
+						glEnableVertexAttribArray(SpriteShader->PosIndex);
+						glVertexAttribPointer(
+							SpriteShader->PosIndex,
+							3, GL_FLOAT, 0,
+							5 * sizeof(float), 0);
+					}
+
+					if (OpenGLArrayIsValid(SpriteShader->TexIndex)) {
+						glEnableVertexAttribArray(SpriteShader->TexIndex);
+						glVertexAttribPointer(
+							SpriteShader->TexIndex, 
+							2, GL_FLOAT, 0, 
+							5 * sizeof(float), 
+							(void*)(3 * sizeof(float)));
+					}
+					glBindVertexArray(0);
+
+					glBindVertexArray(VAO);
+
+					glUseProgram(SpriteShader->Program.Handle);
+					glUniform4f(
+						SpriteShader->ModulationColorLocation,
+						EntrySprite->ModulationColor.x,
+						EntrySprite->ModulationColor.y,
+						EntrySprite->ModulationColor.z,
+						EntrySprite->ModulationColor.w);
+					glUniform1i(SpriteShader->Bitmap1IsSetLocation, EntrySprite->BitmapIsSet);
+
+					u32 BitmapToBind = 0;
+					if (EntrySprite->BitmapIsSet) {
+						BitmapToBind = (u32)EntrySprite->Bitmap->TextureHandle;
+					}
+
+					glUniform1i(SpriteShader->Bitmap1Location, 0);
+					_glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, BitmapToBind);
+
+					glDrawArrays(GL_TRIANGLES, 0, VerticesCount);
+					glBindVertexArray(0);
+
+					glUseProgram(0);
+
+					glDeleteBuffers(1, &VBO);
+					glDeleteVertexArrays(1, &VAO);
 				}break;
 
 				case(RenderEntry_Clear): {
@@ -910,27 +1014,14 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->WtfShader.ViewMatrixLocation,
 				GLState->WtfShader.ProjectionMatrixLocation,
 				GLState->WtfShader.CameraPLocation,
-				&MainRenderStack->CameraSetup);
+				MainRenderStack->CameraSetup);
 
-			//OpenGLUniformCameraSetup(
-			//	GLState->LpterShader.Program.Handle,
-			//	GLState->LpterShader.ViewMatrixLocation,
-			//	GLState->LpterShader.ProjectionMatrixLocation,
-			//	GLState->LpterShader.CameraPLocation,
-			//	&MainRenderStack->CameraSetup);
-
-			//OpenGLUniformCameraSetup(
-			//	GLState->LpterWaterShader.Program.Handle,
-			//	GLState->LpterWaterShader.ViewMatrixLocation,
-			//	GLState->LpterWaterShader.ProjectionMatrixLocation,
-			//	GLState->LpterWaterShader.CameraPLocation,
-			//	&MainRenderStack->CameraSetup);
-
-			//	glUseProgram(GLState->LpterWaterShader.Program.Handle);
-			//	glUniform1f(
-			//		GLState->LpterWaterShader.GlobalTimeLocation,
-			//		RenderState->InputSystem->Time);
-			//	glUseProgram(0);
+			OpenGLUniformCameraSetup(
+				GLState->SpriteShader.Program.Handle,
+				GLState->SpriteShader.ViewMatrixLocation,
+				GLState->SpriteShader.ProjectionMatrixLocation,
+				GLState->SpriteShader.CameraPLocation,
+				MainRenderStack->CameraSetup);
 		}
 
 		if (MainRenderStack->CameraSetupIsSet) {
@@ -939,7 +1030,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->VoxelShader.ViewMatrixLocation,
 				GLState->VoxelShader.ProjectionMatrixLocation,
 				GLState->VoxelShader.CameraPLocation,
-				&MainRenderStack->CameraSetup);
+				MainRenderStack->CameraSetup);
 		}
 	}
 
@@ -950,7 +1041,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->LpterShader.ViewMatrixLocation,
 				GLState->LpterShader.ProjectionMatrixLocation,
 				GLState->LpterShader.CameraPLocation,
-				&LpterRenderStack->CameraSetup);
+				LpterRenderStack->CameraSetup);
 		}
 	}
 
@@ -961,7 +1052,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 				GLState->LpterWaterShader.ViewMatrixLocation,
 				GLState->LpterWaterShader.ProjectionMatrixLocation,
 				GLState->LpterWaterShader.CameraPLocation,
-				&LpterWaterRenderStack->CameraSetup);
+				LpterWaterRenderStack->CameraSetup);
 		}
 
 		glUseProgram(GLState->LpterWaterShader.Program.Handle);
@@ -1283,6 +1374,7 @@ void OpenGLInitState(
 	State->FXAAShader = OpenGLLoadFXAAShader();
 	State->LpterShader = OpenGLLoadLpterShader();
 	State->LpterWaterShader = OpenGLLoadLpterWaterShader();
+	State->SpriteShader = OpenGLLoadSpriteShader();
 
 	//NOTE(dima): Checking for OpenGL extensions support
 	//TODO(dima): Load parameters from game_settings

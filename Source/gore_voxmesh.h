@@ -303,6 +303,7 @@ struct voxworld_generation_state {
 	b32 CapturingMouse;
 	b32 CameraAutoMove;
 	game_camera Camera;
+	game_camera_setup CameraSetup;
 
 #define MESH_REGEN_FREQUENCY 5.0f
 	input_system* Input;
