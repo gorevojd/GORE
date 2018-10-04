@@ -290,6 +290,7 @@ gl_sprite_shader OpenGLLoadSpriteShader() {
 	Result.Bitmap1IsSetLocation = GLGET_UNIFORM("Bitmap1IsSet");
 	Result.ModulationColorLocation = GLGET_UNIFORM("ModulationColor");
 	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
+	Result.FacingLeftLocation = GLGET_UNIFORM("FacingLeft");
 
 	return(Result);
 }
@@ -533,22 +534,26 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 
 					if (EntrySprite->BitmapIsSet) {
 						if (!EntrySprite->Bitmap->TextureHandle) {
-							OpenGLAllocateTexture(EntrySprite->Bitmap, 0, GLState);
+							u32 AllocateFlags = TextureAllocation_NearestFiltering | TextureAllocation_GenerateMipmaps;
+							OpenGLAllocateTexture(
+								EntrySprite->Bitmap, 
+								AllocateFlags, 
+								GLState);
 						}
 					}
 
-					rect2* Rc = &EntrySprite->SpriteRect;
+					rect2* Rc = &EntrySprite->Rectangle.SpriteRect;
 				
 					u32 VerticesCount = 6;
 
 					float VerticesData[] = {
-						Rc->Min.x, Rc->Min.y, 0.0f, 0.0f, 1.0f,
-						Rc->Max.x, Rc->Min.y, 0.0f, 1.0f, 1.0f,
-						Rc->Max.x, Rc->Max.y, 0.0f, 1.0f, 0.0f,
+						Rc->Min.x, Rc->Min.y, 0.0f, 1.0f, 1.0f,
+						Rc->Max.x, Rc->Min.y, 0.0f, 0.0f, 1.0f,
+						Rc->Max.x, Rc->Max.y, 0.0f, 0.0f, 0.0f,
 
-						Rc->Min.x, Rc->Min.y, 0.0f, 0.0f, 1.0f,
-						Rc->Max.x, Rc->Max.y, 0.0f, 1.0f, 0.0f,
-						Rc->Min.x, Rc->Max.y, 0.0f, 0.0f, 0.0f,
+						Rc->Min.x, Rc->Min.y, 0.0f, 1.0f, 1.0f,
+						Rc->Max.x, Rc->Max.y, 0.0f, 0.0f, 0.0f,
+						Rc->Min.x, Rc->Max.y, 0.0f, 1.0f, 0.0f,
 					};
 
 					GLuint VAO;
@@ -599,7 +604,10 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					_glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, BitmapToBind);
 
+					glUniform1i(SpriteShader->FacingLeftLocation, EntrySprite->FacingLeft);
+
 					glDrawArrays(GL_TRIANGLES, 0, VerticesCount);
+					glBindTexture(GL_TEXTURE_2D, 0);
 					glBindVertexArray(0);
 
 					glUseProgram(0);
@@ -1100,6 +1108,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		GL_COLOR_BUFFER_BIT,
 		GL_NEAREST);
 
+#if 1
 	//NOTE(dima): FXAA antialiasing
 	GLState->FXAAEnabled = GameSettings->Named.FXAAEnabledSetting->BoolValue;
 	if (GLState->FXAAEnabled) {
@@ -1120,6 +1129,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		OpenGLUseProgramEnd();
 		END_TIMING();
 	}
+#endif
 
 	//NOTE(dima): Finalizing screen shader
 	BEGIN_TIMING("Final shader postprocess");

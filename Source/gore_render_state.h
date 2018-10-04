@@ -81,11 +81,30 @@ struct render_stack_entry_bitmap {
 	v4 ModulationColor;
 };
 
+
+enum sprite_type {
+	SpriteType_Rectangle,
+	SpriteType_Circle,
+};
+
 struct render_stack_entry_sprite {
 	b32 BitmapIsSet;
 	bitmap_info* Bitmap;
-	rect2 SpriteRect;
+
+	union {
+		struct {
+			rect2 SpriteRect;
+		}Rectangle;
+
+		struct {
+			v2 At;
+			float Radius;
+		}Circle;
+	};
+
 	v4 ModulationColor;
+	u32 SpriteType;
+	b32 FacingLeft;
 };
 
 struct render_stack_entry_clear {
@@ -196,13 +215,33 @@ inline void RENDERPushBitmap(render_stack* Stack, bitmap_info* Bitmap, v2 P, flo
 	Entry->Bitmap = Bitmap;
 }
 
-inline void RENDERPushSprite(render_stack* Stack, bitmap_info* Bitmap, rect2 Rect, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushRectSprite(render_stack* Stack, bitmap_info* Bitmap, rect2 Rect, b32 FacingLeft, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
 	render_stack_entry_sprite* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_sprite, RenderEntry_Sprite);
 
-	Entry->SpriteRect = Rect;
+	Entry->SpriteType = SpriteType_Rectangle;
+
 	Entry->Bitmap = Bitmap;
 	Entry->BitmapIsSet = Bitmap ? 1 : 0;
 	Entry->ModulationColor = ModulationColor;
+
+	Entry->Rectangle.SpriteRect = Rect;
+
+	Entry->FacingLeft = FacingLeft ? 1 : 0;
+}
+
+inline void RENDERPushCircleSprite(render_stack* Stack, bitmap_info* Bitmap, v2 At, float Radius, b32 FacingLeft, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+	render_stack_entry_sprite* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_sprite, RenderEntry_Sprite);
+	
+	Entry->SpriteType = SpriteType_Circle;
+
+	Entry->Bitmap = Bitmap;
+	Entry->BitmapIsSet = Bitmap ? 1 : 0;
+	Entry->ModulationColor = ModulationColor;
+
+	Entry->Circle.At = At;
+	Entry->Circle.Radius = Radius;
+
+	Entry->FacingLeft = FacingLeft;
 }
 
 inline void RENDERPushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {

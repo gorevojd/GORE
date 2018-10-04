@@ -145,6 +145,7 @@ struct gl_sprite_shader {
 	GLint Bitmap1Location;
 	GLint ModulationColorLocation;
 	GLint CameraPLocation;
+	GLint FacingLeftLocation;
 
 	gl_program Program;
 };

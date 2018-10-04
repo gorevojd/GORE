@@ -20,8 +20,17 @@ struct row_state {
 	b32 IsInitialized;
 	stacked_memory* GameModeMemory;
 
+	bitmap_id PlayerBitmapID;
+
 	v2 PlayerP;
+	v2 PlayerVelocity;
 	v2 PlayerDim;
+	b32 PlayerFacingLeft;
+	v2 InitJumpVelocity;
+
+	v2 Gravity;
+
+	float PixelsPerMeter;
 
 	game_camera Camera;
 	game_camera_setup CameraSetup;

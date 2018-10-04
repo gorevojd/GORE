@@ -11,6 +11,8 @@ enum game_asset_tag_id {
 };
 
 enum game_asset_group_id {
+	GameAsset_Lilboy,
+
 	GameAsset_OblivonMemeImage,
 	GameAsset_PotImage,
 	GameAsset_AlphaImage,

@@ -6,6 +6,8 @@ layout (location = 1) in vec2 inTexCoords;
 uniform mat4 Projection;
 uniform mat4 View;
 
+uniform bool FacingLeft;
+
 out VS_OUT{
 	vec3 FragPos;
 	vec2 TexCoords;
@@ -13,7 +15,13 @@ out VS_OUT{
 
 void main(){
 	vs_out.FragPos = inPosition;
-	vs_out.TexCoords = inTexCoords;
+
+	if(FacingLeft){
+		vs_out.TexCoords = vec2(inTexCoords.x, inTexCoords.y);
+	}
+	else{
+		vs_out.TexCoords = vec2(1.0f - inTexCoords.x, inTexCoords.y);
+	}
 
 	gl_Position = Projection * View * vec4(vs_out.FragPos, 1.0f);
 }
