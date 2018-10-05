@@ -15,7 +15,7 @@ enum game_mode_type {
 
 	GameMode_Geometrica,
 	GameMode_VoxelWorld,
-	GameMode_RoadOfWarrior,
+	GameMode_GoreGame,
 };
 
 

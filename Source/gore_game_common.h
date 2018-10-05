@@ -33,6 +33,7 @@ enum camera_projection_type {
 	CameraProjection_InfiniteOrthographic,
 	CameraProjection_Orthographic,
 	CameraProjection_Perspective,
+	CameraProjection_GoreCustom,
 };
 
 inline game_camera GAMECreateCamera() {
@@ -67,7 +68,8 @@ extern game_camera_setup GAMECameraSetup(
 	u32 ProjectionType = CameraProjection_InfiniteOrthographic,
 	float Far = 1000.0f,
 	float Near = 0.1f,
-	float FieldOfView = 45.0f);
+	float FieldOfView = 45.0f,
+	float OrthographicScale = 1.0f);
 
 extern void GAMEUpdateCameraVectorsBasedOnUpAndFront(
 	game_camera* Camera,

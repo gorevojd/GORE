@@ -78,7 +78,7 @@
     <ClCompile Include="..\Source\gore_font.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\Source\row.cpp">
+    <ClCompile Include="..\Source\gore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -200,7 +200,7 @@
     <ClInclude Include="..\Source\stb_perlin.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Source\row.h">
+    <ClInclude Include="..\Source\gore.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

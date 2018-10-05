@@ -1571,6 +1571,7 @@ void ASSETSInit(asset_system* System) {
 	//NOTE(dima): Bitmaps
 	BeginAssetGroup(System, GameAsset_Lilboy);
 	AddBitmapAsset(System, "../Data/Images/Game/lilboy.png");
+	AddBitmapAsset(System, "../Data/Images/Game/hellboy.png");
 	AddBitmapAsset(System, "../Data/Images/Game/wtf.png");
 	AddBitmapAsset(System, "../Data/Images/Game/lilboyhoodie.png");
 	EndAssetGroup(System);
