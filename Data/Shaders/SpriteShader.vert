@@ -6,7 +6,7 @@ layout (location = 1) in vec2 inTexCoords;
 uniform mat4 Projection;
 uniform mat4 View;
 
-uniform bool FacingLeft;
+uniform bool MirrorUVsHorizontally;
 
 out VS_OUT{
 	vec3 FragPos;
@@ -16,7 +16,7 @@ out VS_OUT{
 void main(){
 	vs_out.FragPos = inPosition;
 
-	if(FacingLeft){
+	if(MirrorUVsHorizontally){
 		vs_out.TexCoords = vec2(inTexCoords.x, inTexCoords.y);
 	}
 	else{

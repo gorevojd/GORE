@@ -290,7 +290,7 @@ gl_sprite_shader OpenGLLoadSpriteShader() {
 	Result.Bitmap1IsSetLocation = GLGET_UNIFORM("Bitmap1IsSet");
 	Result.ModulationColorLocation = GLGET_UNIFORM("ModulationColor");
 	Result.CameraPLocation = GLGET_UNIFORM("CameraP");
-	Result.FacingLeftLocation = GLGET_UNIFORM("FacingLeft");
+	Result.MirrorUVsHorizontallyLocation = GLGET_UNIFORM("MirrorUVsHorizontally");
 
 	return(Result);
 }
@@ -604,7 +604,7 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					_glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, BitmapToBind);
 
-					glUniform1i(SpriteShader->FacingLeftLocation, EntrySprite->FacingLeft);
+					glUniform1i(SpriteShader->MirrorUVsHorizontallyLocation, EntrySprite->MirrorUVsHorizontally);
 
 					glDrawArrays(GL_TRIANGLES, 0, VerticesCount);
 					glBindTexture(GL_TEXTURE_2D, 0);

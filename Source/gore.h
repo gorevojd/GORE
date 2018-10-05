@@ -5,6 +5,10 @@
 #include "gore_game_mode.h"
 #include "gore_game_common.h"
 
+enum entity_type {
+	Entity_Player,
+	Entity_Wall,
+};
 
 struct gore_state {
 	b32 IsInitialized;
@@ -25,6 +29,10 @@ struct gore_state {
 	b32 PlayerFacingLeft;
 	float PlayerHealth;
 	float PlayerMaxHealth;
+
+	v2 WallAt;
+	v2 WallDim;
+	v2 WallTopLeftAlign;
 
 	v2 Gravity;
 

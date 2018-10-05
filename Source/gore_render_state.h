@@ -104,7 +104,7 @@ struct render_stack_entry_sprite {
 
 	v4 ModulationColor;
 	u32 SpriteType;
-	b32 FacingLeft;
+	b32 MirrorUVsHorizontally;
 };
 
 struct render_stack_entry_clear {
@@ -226,7 +226,7 @@ inline void RENDERPushRectSprite(render_stack* Stack, bitmap_info* Bitmap, rect2
 
 	Entry->Rectangle.SpriteRect = Rect;
 
-	Entry->FacingLeft = FacingLeft ? 1 : 0;
+	Entry->MirrorUVsHorizontally = FacingLeft ? 1 : 0;
 }
 
 inline void RENDERPushCircleSprite(render_stack* Stack, bitmap_info* Bitmap, v2 At, float Radius, b32 FacingLeft, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
@@ -241,7 +241,7 @@ inline void RENDERPushCircleSprite(render_stack* Stack, bitmap_info* Bitmap, v2 
 	Entry->Circle.At = At;
 	Entry->Circle.Radius = Radius;
 
-	Entry->FacingLeft = FacingLeft;
+	Entry->MirrorUVsHorizontally = FacingLeft ? 1 : 0;
 }
 
 inline void RENDERPushRect(render_stack* Stack, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
