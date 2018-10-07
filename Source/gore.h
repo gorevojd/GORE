@@ -24,7 +24,8 @@ struct gore_state {
 	v2 PlayerP;
 	v2 PlayerVelocity;
 	v2 PlayerDim;
-	v2 InitJumpVelocity;
+	v2 PlayerGravity;
+	v2 PlayerInitJumpVelocity;
 
 	b32 PlayerFacingLeft;
 	float PlayerHealth;
@@ -34,7 +35,7 @@ struct gore_state {
 	v2 WallDim;
 	v2 WallTopLeftAlign;
 
-	v2 Gravity;
+	v2 MasterGravity;
 
 	float PixelsPerMeter;
 

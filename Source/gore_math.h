@@ -990,4 +990,33 @@ inline b32 BoxIntersectsWithBox(rect2 Box1, rect2 Box2) {
 	return(IntersectionHappens);
 }
 
+inline b32 PointIsInRectangle(v2 Point, rect2 Rect) {
+	b32 Result = 0;
+
+	if (Point.x >= Rect.Min.x && Point.x <= Rect.Max.x &&
+		Point.y >= Rect.Min.y && Point.y <= Rect.Max.y)
+	{
+		Result = 1;
+	}
+
+	return(Result);
+}
+
+inline b32 MinkovskiBoxIntersectionTest(
+	v2 P1, v2 Dim1, v2 Align1,
+	rect2 TestRect)
+{
+	v2 LeftRightAddition = V2(Dim1.x * Align1.x, Dim1.x * (1.0f - Align1.x));
+	v2 TopBottomAddition = V2(Dim1.y * Align1.y, Dim1.y * (1.0f - Align1.y));
+
+	TestRect.Min.x -= LeftRightAddition.x;
+	TestRect.Max.x += LeftRightAddition.y;
+	TestRect.Min.y -= TopBottomAddition.x;
+	TestRect.Max.y += TopBottomAddition.y;
+
+	b32 Result = PointIsInRectangle(P1, TestRect);
+
+	return(Result);
+}
+
 #endif

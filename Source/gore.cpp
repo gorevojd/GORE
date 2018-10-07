@@ -94,7 +94,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 		GoreState->PlayerBitmapID = GetFirstBitmap(EngineSystems->AssetSystem, GameAsset_Lilboy);
 		
-		GoreState->PlayerP = {};
+		GoreState->PlayerP = V2(0.0f, 4.0f);
 		GoreState->PlayerVelocity = {};
 		GoreState->PlayerDim = V2(0.7f, 3.0f / 2.0f * 0.7f);
 		GoreState->PlayerVelocity = V2(0.0f, 0.0f);
@@ -108,8 +108,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 		float TimeForHalfJump = 0.35f;
 		float JumpHeight = 4.0f;
-		GoreState->Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
-		GoreState->InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
+		GoreState->PlayerGravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
+		GoreState->PlayerInitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
 
 		GoreState->IsInitialized = 1;
 	}
@@ -125,38 +125,89 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	float dt = EngineSystems->InputSystem->DeltaTime;
 
 	float Speed = 10.0f;
+	float PlayerHorizontalDelta = 0.0f;
 	if (ButtonIsDown(EngineSystems->InputSystem, KeyType_A) || 
 		ButtonIsDown(EngineSystems->InputSystem, KeyType_Left)) 
 	{
-		GoreState->PlayerP.x += Speed * dt;
+		PlayerHorizontalDelta = Speed * dt;
 		GoreState->PlayerFacingLeft = 1;
 	}
 
 	if (ButtonIsDown(EngineSystems->InputSystem, KeyType_D) || 
 		ButtonIsDown(EngineSystems->InputSystem, KeyType_Right)) 
 	{
-		GoreState->PlayerP.x -= Speed * dt;
+		PlayerHorizontalDelta = -Speed * dt;
 		GoreState->PlayerFacingLeft = 0;
 	}
 
-	GoreState->PlayerP += GoreState->PlayerVelocity * dt + GoreState->Gravity * dt * dt * 0.5f;
+	v2 PlayerDeltaP = GoreState->PlayerVelocity * dt + GoreState->PlayerGravity * dt * dt * 0.5f + V2(PlayerHorizontalDelta, 0.0f);
+	v2 PlayerDeltaVelocity = GoreState->PlayerGravity * dt;
 
-	GoreState->PlayerVelocity += GoreState->Gravity * dt;
-
+	v2 NextSupposedPlayerPosition = GoreState->PlayerP + PlayerDeltaP;
 
 	//NOTE(dima): Collision detection code
-
 	rect2 PlayerRect = GoreGetEntityRect(GoreState->PlayerP, GoreState->PlayerDim, V2(0.5f, 1.0f));
 	rect2 WallRect = GoreGetEntityRect(GoreState->WallAt, GoreState->WallDim, GoreState->WallTopLeftAlign);
 
 	v4 WallColor = V4(0.0f, 1.0f, 0.0f, 1.0f);
-	if (BoxIntersectsWithBox(PlayerRect, WallRect)) {
 
-		GoreState->PlayerP.y = WallRect.Max.y;
-		GoreState->PlayerVelocity.y = 0.0f;
+	v2 PlayerAlign = V2(0.5f, 1.0f);
+
+	v2 LeftRightAddition = V2(GoreState->PlayerDim.x * PlayerAlign.x, GoreState->PlayerDim.x * (1.0f - PlayerAlign.x));
+	v2 TopBottomAddition = V2(GoreState->PlayerDim.y * PlayerAlign.y, GoreState->PlayerDim.y * (1.0f - PlayerAlign.y));
+
+	rect2 MinkovskiRect = WallRect;
+
+	MinkovskiRect.Min.x -= LeftRightAddition.x;
+	MinkovskiRect.Max.x += LeftRightAddition.y;
+	MinkovskiRect.Min.y -= TopBottomAddition.x;
+	MinkovskiRect.Max.y += TopBottomAddition.y;
+
+	float MinkovskiOffsetEpsilon = 0.01f;
+	rect2 MinkovskiInflatedRect = Rect2MinMax(
+		MinkovskiRect.Min - V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon),
+		MinkovskiRect.Max + V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon));
+
+	b32 MinkovskiTest = PointIsInRectangle(NextSupposedPlayerPosition, MinkovskiRect);
+	if (MinkovskiTest) {
+
+		v2 NextSupposedHorizontalP = V2(NextSupposedPlayerPosition.x, GoreState->PlayerP.y);
+		b32 MinkovskiHorizontalTest = PointIsInRectangle(NextSupposedHorizontalP, MinkovskiRect);
+
+		v2 NextSupposedVerticalP = V2(GoreState->PlayerP.x, NextSupposedPlayerPosition.y);
+		b32 MinkovskiVerticalTest = PointIsInRectangle(NextSupposedVerticalP, MinkovskiRect);
+
+		v2 PlayerTargetP;
+		if (MinkovskiHorizontalTest) {
+			PlayerTargetP.x = Clamp(
+				GoreState->PlayerP.x, MinkovskiInflatedRect.Min.x, MinkovskiInflatedRect.Max.x);
+			PlayerTargetP.y = NextSupposedPlayerPosition.y;
+
+			PlayerDeltaVelocity.x = 0.0f;
+		}
+		else if (MinkovskiVerticalTest){
+			PlayerTargetP.x = NextSupposedPlayerPosition.x;
+			PlayerTargetP.y = Clamp(
+				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
+
+			PlayerDeltaVelocity.y = 0.0f;
+		}
+		else {
+			PlayerTargetP.x = Clamp(
+				GoreState->PlayerP.x, MinkovskiInflatedRect.Min.x, MinkovskiInflatedRect.Max.x);
+			PlayerTargetP.y = Clamp(
+				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
+
+			PlayerDeltaVelocity = V2(0.0f, 0.0f);
+		}
+
+		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
 
 		WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
+
+	GoreState->PlayerP += PlayerDeltaP;
+	GoreState->PlayerVelocity += PlayerDeltaVelocity;
 
 #if 1
 	if (GoreState->PlayerP.y < 0.0f) 
@@ -169,7 +220,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	if (ButtonWentDown(EngineSystems->InputSystem, KeyType_Space) || 
 		ButtonWentDown(EngineSystems->InputSystem, KeyType_Up)) 
 	{
-		GoreState->PlayerVelocity = GoreState->InitJumpVelocity;
+		GoreState->PlayerVelocity = GoreState->PlayerInitJumpVelocity;
 	}
 
 	//NOTE(dima): Camera setup code
@@ -215,6 +266,24 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerFacingLeft);
 
 	//Wall
+	GorePushRectEntity(RenderStack, MinkovskiInflatedRect, 1, GetColor(EngineSystems->ColorsState, Color_PrettyBlue));
+	GorePushRectEntity(RenderStack, MinkovskiRect, 1, GetColor(EngineSystems->ColorsState, Color_Purple));
+	//NOTE(dima): 
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(V2(MinkovskiInflatedRect.Min.x, MinkovskiInflatedRect.Max.y),
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.4f, 0.0f, 1.0f));
+
+	//NOTE(dima): 
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(MinkovskiInflatedRect.Max,
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.4f, 0.0f, 1.0f));
+
 	GorePushRectEntity(RenderStack, WallRect, 1, WallColor);
 
 	float HealthPercentage = GoreState->PlayerHealth / GoreState->PlayerMaxHealth;
@@ -286,7 +355,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		RenderStack,
 		GoreGetEntityRect(GoreState->PlayerP,
 		V2(0.1f, 0.1f),
-		V2(0.5f, 0.5f)), 1);
+		V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.4f, 0.0f, 1.0f));
 
 	//NOTE(dima): Floor
 	for (int i = -5; i <= 5; i++) {

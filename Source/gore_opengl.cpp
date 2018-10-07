@@ -1108,7 +1108,7 @@ void OpenGLRenderStateToOutput(gl_state* GLState, render_state* RenderState, gam
 		GL_COLOR_BUFFER_BIT,
 		GL_NEAREST);
 
-#if 0
+#if 1
 	//NOTE(dima): FXAA antialiasing
 	GLState->FXAAEnabled = GameSettings->Named.FXAAEnabledSetting->BoolValue;
 	if (GLState->FXAAEnabled) {
