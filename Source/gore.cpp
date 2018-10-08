@@ -102,7 +102,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerHealth = 0.75f;
 		GoreState->PlayerMaxHealth = 1.0f;
 
-		GoreState->WallAt = V2(0.0f, 2.0f);
+		GoreState->WallAt = V2(0.0f, 5.0f);
 		GoreState->WallDim = V2(5.0f, 1.0f);
 		GoreState->WallTopLeftAlign = V2(0.5f, 0.0f);
 
@@ -183,14 +183,16 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 				GoreState->PlayerP.x, MinkovskiInflatedRect.Min.x, MinkovskiInflatedRect.Max.x);
 			PlayerTargetP.y = NextSupposedPlayerPosition.y;
 
-			PlayerDeltaVelocity.x = 0.0f;
+			//PlayerDeltaVelocity.x = 0.0f;
+			GoreState->PlayerVelocity.x = 0.0f;
 		}
 		else if (MinkovskiVerticalTest){
 			PlayerTargetP.x = NextSupposedPlayerPosition.x;
 			PlayerTargetP.y = Clamp(
 				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
 
-			PlayerDeltaVelocity.y = 0.0f;
+			//PlayerDeltaVelocity.y = 0.0f;
+			GoreState->PlayerVelocity.y = 0.0f;
 		}
 		else {
 			PlayerTargetP.x = Clamp(
@@ -198,7 +200,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			PlayerTargetP.y = Clamp(
 				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
 
-			PlayerDeltaVelocity = V2(0.0f, 0.0f);
+			//PlayerDeltaVelocity = V2(0.0f, 0.0f);
+			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
 		}
 
 		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
@@ -266,6 +269,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerFacingLeft);
 
 	//Wall
+#if 0
 	GorePushRectEntity(RenderStack, MinkovskiInflatedRect, 1, GetColor(EngineSystems->ColorsState, Color_PrettyBlue));
 	GorePushRectEntity(RenderStack, MinkovskiRect, 1, GetColor(EngineSystems->ColorsState, Color_Purple));
 	//NOTE(dima): 
@@ -283,6 +287,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			V2(0.1f, 0.1f),
 			V2(0.5f, 0.5f)), 1,
 		V4(1.0f, 0.4f, 0.0f, 1.0f));
+#endif
 
 	GorePushRectEntity(RenderStack, WallRect, 1, WallColor);
 
