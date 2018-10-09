@@ -141,7 +141,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	v2 PlayerDeltaP = GoreState->PlayerVelocity * dt + GoreState->PlayerGravity * dt * dt * 0.5f + V2(PlayerHorizontalDelta, 0.0f);
-	v2 PlayerDeltaVelocity = GoreState->PlayerGravity * dt;
+	GoreState->PlayerVelocity += GoreState->PlayerGravity * dt;
 
 	v2 NextSupposedPlayerPosition = GoreState->PlayerP + PlayerDeltaP;
 
@@ -183,7 +183,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 				GoreState->PlayerP.x, MinkovskiInflatedRect.Min.x, MinkovskiInflatedRect.Max.x);
 			PlayerTargetP.y = NextSupposedPlayerPosition.y;
 
-			//PlayerDeltaVelocity.x = 0.0f;
 			GoreState->PlayerVelocity.x = 0.0f;
 		}
 		else if (MinkovskiVerticalTest){
@@ -191,7 +190,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			PlayerTargetP.y = Clamp(
 				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
 
-			//PlayerDeltaVelocity.y = 0.0f;
 			GoreState->PlayerVelocity.y = 0.0f;
 		}
 		else {
@@ -200,7 +198,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			PlayerTargetP.y = Clamp(
 				GoreState->PlayerP.y, MinkovskiInflatedRect.Min.y, MinkovskiInflatedRect.Max.y);
 
-			//PlayerDeltaVelocity = V2(0.0f, 0.0f);
 			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
 		}
 
@@ -210,7 +207,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	GoreState->PlayerP += PlayerDeltaP;
-	GoreState->PlayerVelocity += PlayerDeltaVelocity;
 
 #if 1
 	if (GoreState->PlayerP.y < 0.0f) 
