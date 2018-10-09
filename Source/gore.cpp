@@ -102,8 +102,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerHealth = 0.75f;
 		GoreState->PlayerMaxHealth = 1.0f;
 
-		GoreState->WallAt = V2(0.0f, 5.0f);
-		GoreState->WallDim = V2(5.0f, 1.0f);
+		GoreState->WallAt = V2(0.0f, 3.0f);
+		GoreState->WallDim = V2(3.0f, 0.5f);
 		GoreState->WallTopLeftAlign = V2(0.5f, 0.0f);
 
 		float TimeForHalfJump = 0.35f;
