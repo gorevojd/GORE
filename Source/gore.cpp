@@ -141,7 +141,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	v2 PlayerDeltaP = GoreState->PlayerVelocity * dt + GoreState->PlayerGravity * dt * dt * 0.5f + V2(PlayerHorizontalDelta, 0.0f);
-	GoreState->PlayerVelocity += GoreState->PlayerGravity * dt;
 
 	v2 NextSupposedPlayerPosition = GoreState->PlayerP + PlayerDeltaP;
 
@@ -207,6 +206,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	GoreState->PlayerP += PlayerDeltaP;
+	GoreState->PlayerVelocity += GoreState->PlayerGravity * dt;
 
 #if 1
 	if (GoreState->PlayerP.y < 0.0f) 
