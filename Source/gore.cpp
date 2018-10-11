@@ -200,7 +200,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->WallCount = 1;
 		GoreState->Walls = PushArray(GoreState->GameModeMemory, gore_wall, GoreState->WallCount);
 
-		GoreState->Walls[0].At = V2(0.0f, 4.0f);
+		GoreState->Walls[0].At = V2(0.0f, 5.5f);
 		GoreState->Walls[0].Dim = V2(3.0f, 3.0f);
 		GoreState->Walls[0].TopLeftAlign = V2(0.5f, 0.0f);
 		GoreState->Walls[0].IsDynamic = 0;
@@ -265,7 +265,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	MinkovskiRect.Min.y -= TopBottomAddition.x;
 	MinkovskiRect.Max.y += TopBottomAddition.y;
 
-	float MinkovskiOffsetEpsilon = 0.1f;
+	float MinkovskiOffsetEpsilon = 0.01f;
 
 	/*
 		NOTE(dima): So now we have minkovski rect and 
@@ -303,18 +303,25 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 	if (AtLeastOneHitHappened) {
 		v2 PlayerTargetP;
+
+		v2 HitWithOffset = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon;
+
 		if (HorzMoveHitHappened) {
+			PlayerTargetP = V2(HitWithOffset.x, NextSupposedPlayerPosition.y);
 
 			GoreState->PlayerVelocity.x = 0.0f;
 		}
 		else if(VertMoveHitHappened){
+			PlayerTargetP = V2(NextSupposedPlayerPosition.x, HitWithOffset.y);
+
 			GoreState->PlayerVelocity.y = 0.0f;
 		}
 		else {
+			PlayerTargetP = HitWithOffset;
 
+			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
 		}
 
-		PlayerTargetP = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon;
 
 		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
 
