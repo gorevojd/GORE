@@ -1029,7 +1029,7 @@ inline v3 LineEquationFrom2Points(v2 P1, v2 P2) {
 	v3 Result;
 
 	Result.A = P2.y - P1.y;
-	Result.B = -(P2.x - P1.y);
+	Result.B = -(P2.x - P1.x);
 	Result.C = P1.y * P2.x - P1.x * P2.y;
 
 	return(Result);

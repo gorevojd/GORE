@@ -887,6 +887,11 @@ PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory) {
 
 int main(int ArgsCount, char** Args) {
 
+	v2 P1 = V2(0.0f, 5.0f);
+	v2 P2 = V2(5.0f, 0.0f);
+
+	v3 Line = LineEquationFrom2Points(P1, P2);
+
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
 	//NOTE(dima): Initializing of threads
