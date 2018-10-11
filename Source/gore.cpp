@@ -72,6 +72,101 @@ v2 UnprojectScreenToWorldspace(gore_state* GoreState, v2 ScreenP) {
 //
 //}
 
+//NOTE(dima): Now those only just for player :(((
+b32 GoreRaycast2DWallsForDimensionalEntity(
+	gore_state* GoreState,
+	v2 EntityDim, 
+	v2 EntityTopLeftAlign,
+	gore_ray2d* Ray, 
+	gore_raycast_hit* OutHitData) 
+{
+
+	b32 AtLeastOneHitHappened = 0;
+	gore_raycast_hit* ClosestHit = 0;
+	float MinDistanceToHit = 99999999.0f;
+
+	for (int WallIndex = 0; WallIndex < GoreState->WallCount; WallIndex++) {
+
+		gore_wall* Wall = GoreState->Walls + WallIndex;
+
+		rect2 WallRect = GoreGetEntityRect(Wall->At, Wall->Dim, Wall->TopLeftAlign);
+
+		//NOTE(dima): Theese values should be precalculated for static elements
+		gore_raycast_hit HitDatas[4];
+
+		rect2 MinkovskiRect = WallRect;
+
+		//NOTE(dima): Minkovski based collision detection
+		v2 LeftRightAddition = V2(EntityDim.x * EntityTopLeftAlign.x, EntityDim.x * (1.0f - EntityTopLeftAlign.x));
+		v2 TopBottomAddition = V2(EntityDim.y * EntityTopLeftAlign.y, EntityDim.y * (1.0f - EntityTopLeftAlign.y));
+
+		MinkovskiRect.Min.x -= LeftRightAddition.x;
+		MinkovskiRect.Max.x += LeftRightAddition.y;
+		MinkovskiRect.Min.y -= TopBottomAddition.x;
+		MinkovskiRect.Max.y += TopBottomAddition.y;
+
+		gore_edge MinkovskiRectEdges[4];
+		MinkovskiRectEdges[0] = GoreEdge(MinkovskiRect.Min, V2(MinkovskiRect.Max.x, MinkovskiRect.Min.y));
+		MinkovskiRectEdges[1] = GoreEdge(V2(MinkovskiRect.Max.x, MinkovskiRect.Min.y), MinkovskiRect.Max);
+		MinkovskiRectEdges[2] = GoreEdge(MinkovskiRect.Max, V2(MinkovskiRect.Min.x, MinkovskiRect.Max.y));
+		MinkovskiRectEdges[3] = GoreEdge(V2(MinkovskiRect.Min.x, MinkovskiRect.Max.y), MinkovskiRect.Min);
+
+		for (int EdgeIndex = 0; EdgeIndex < 4; EdgeIndex++)
+		{
+			gore_edge* Edge = MinkovskiRectEdges + EdgeIndex;
+			gore_raycast_hit* HitData = HitDatas + EdgeIndex;
+
+			HitData->HitHappened = 0;
+
+			v2 EdgeN = V2(Edge->EdgeLineEqation.A, Edge->EdgeLineEqation.B);
+
+			float ON = Dot(Ray->Origin, EdgeN);
+			float RN = Dot(Ray->Direction, EdgeN);
+
+			//NOTE(dima): If ray and line normal are not parallel
+			if (Abs(RN) > 0.0001f) {
+
+				HitData->DistanseFromRayOrigin = (-Edge->EdgeLineEqation.C - ON) / RN;
+				HitData->HitNormal = EdgeN;
+				HitData->HitPoint = Ray->Origin + Ray->Direction * HitData->DistanseFromRayOrigin;
+
+				b32 RayHitsTheLine = HitData->DistanseFromRayOrigin * HitData->DistanseFromRayOrigin < Ray->SqLen;
+				if (RayHitsTheLine) {
+
+					v2 HitPP1 = Edge->Min - HitData->HitPoint;
+					v2 HitPP2 = Edge->Max - HitData->HitPoint;
+
+					//NOTE(dima): If hit point is between edge min and max points
+					if (Dot(HitPP1, HitPP2) < 0.0f) {
+						HitData->HitHappened = 1;
+						AtLeastOneHitHappened = 1;
+					}
+
+				}
+			}
+		}
+
+		for (int HitIndex = 0; HitIndex < 4; HitIndex++) {
+			gore_raycast_hit* HitData = HitDatas + HitIndex;
+
+			if (HitData->HitHappened) {
+				if (HitData->DistanseFromRayOrigin < MinDistanceToHit) {
+					ClosestHit = HitData;
+					MinDistanceToHit = HitData->DistanseFromRayOrigin;
+				}
+			}
+		}
+
+
+	}
+
+	if (AtLeastOneHitHappened && OutHitData) {
+		*OutHitData = *ClosestHit;
+	}
+
+	return(AtLeastOneHitHappened);
+}
+
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_state* GoreState = (gore_state*)GameModeState->GameModeMemory.BaseAddress;
 
@@ -102,9 +197,14 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerHealth = 0.75f;
 		GoreState->PlayerMaxHealth = 1.0f;
 
-		GoreState->WallAt = V2(0.0f, 3.0f);
-		GoreState->WallDim = V2(3.0f, 0.5f);
-		GoreState->WallTopLeftAlign = V2(0.5f, 0.0f);
+		GoreState->WallCount = 1;
+		GoreState->Walls = PushArray(GoreState->GameModeMemory, gore_wall, GoreState->WallCount);
+
+		GoreState->Walls[0].At = V2(0.0f, 4.0f);
+		GoreState->Walls[0].Dim = V2(3.0f, 3.0f);
+		GoreState->Walls[0].TopLeftAlign = V2(0.5f, 0.0f);
+		GoreState->Walls[0].IsDynamic = 0;
+
 
 		float TimeForHalfJump = 0.35f;
 		float JumpHeight = 4.0f;
@@ -143,15 +243,18 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	v2 PlayerDeltaP = GoreState->PlayerVelocity * dt + GoreState->PlayerGravity * dt * dt * 0.5f + V2(PlayerHorizontalDelta, 0.0f);
 
 	v2 NextSupposedPlayerPosition = GoreState->PlayerP + PlayerDeltaP;
+	v2 NextSupposedHorizontalP = V2(NextSupposedPlayerPosition.x, GoreState->PlayerP.y);
+	v2 NextSupposedVerticalP = V2(GoreState->PlayerP.x, NextSupposedPlayerPosition.y);
 
 	//NOTE(dima): Collision detection code
 	rect2 PlayerRect = GoreGetEntityRect(GoreState->PlayerP, GoreState->PlayerDim, V2(0.5f, 1.0f));
-	rect2 WallRect = GoreGetEntityRect(GoreState->WallAt, GoreState->WallDim, GoreState->WallTopLeftAlign);
+	rect2 WallRect = GoreGetEntityRect(GoreState->Walls[0].At, GoreState->Walls[0].Dim, GoreState->Walls[0].TopLeftAlign);
 
 	v4 WallColor = V4(0.0f, 1.0f, 0.0f, 1.0f);
 
 	v2 PlayerAlign = V2(0.5f, 1.0f);
 
+	//NOTE(dima): Minkovski based collision detection
 	v2 LeftRightAddition = V2(GoreState->PlayerDim.x * PlayerAlign.x, GoreState->PlayerDim.x * (1.0f - PlayerAlign.x));
 	v2 TopBottomAddition = V2(GoreState->PlayerDim.y * PlayerAlign.y, GoreState->PlayerDim.y * (1.0f - PlayerAlign.y));
 
@@ -162,7 +265,63 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	MinkovskiRect.Min.y -= TopBottomAddition.x;
 	MinkovskiRect.Max.y += TopBottomAddition.y;
 
-	float MinkovskiOffsetEpsilon = 0.01f;
+	float MinkovskiOffsetEpsilon = 0.1f;
+
+	/*
+		NOTE(dima): So now we have minkovski rect and 
+		the point that we can test it against with.
+
+		We can check point at discrete positions and we
+		also can cast a ray and test it against 4 edges
+		of rectangle. Maybe i should imlement both
+	*/
+
+	gore_ray2d MoveRay = GoreRay2D(GoreState->PlayerP, NextSupposedPlayerPosition);
+	gore_raycast_hit MoveRayHit;
+
+	gore_ray2d MoveHorizontalRay = GoreRay2D(GoreState->PlayerP, NextSupposedHorizontalP);
+	gore_raycast_hit HorzRayHit;
+
+	gore_ray2d MoveVerticalRay = GoreRay2D(GoreState->PlayerP, NextSupposedVerticalP);
+	gore_raycast_hit VertRayHit;
+
+	b32 AtLeastOneHitHappened = GoreRaycast2DWallsForDimensionalEntity(
+		GoreState,
+		GoreState->PlayerDim, PlayerAlign,
+		&MoveRay, &MoveRayHit);
+
+	b32 HorzMoveHitHappened = GoreRaycast2DWallsForDimensionalEntity(
+		GoreState,
+		GoreState->PlayerDim, PlayerAlign,
+		&MoveHorizontalRay, &HorzRayHit);
+
+	b32 VertMoveHitHappened = GoreRaycast2DWallsForDimensionalEntity(
+		GoreState,
+		GoreState->PlayerDim, PlayerAlign,
+		&MoveVerticalRay, &VertRayHit);
+
+
+	if (AtLeastOneHitHappened) {
+		v2 PlayerTargetP;
+		if (HorzMoveHitHappened) {
+
+			GoreState->PlayerVelocity.x = 0.0f;
+		}
+		else if(VertMoveHitHappened){
+			GoreState->PlayerVelocity.y = 0.0f;
+		}
+		else {
+
+		}
+
+		PlayerTargetP = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon;
+
+		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
+
+		WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
+	}
+
+#if 0
 	rect2 MinkovskiInflatedRect = Rect2MinMax(
 		MinkovskiRect.Min - V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon),
 		MinkovskiRect.Max + V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon));
@@ -170,10 +329,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	b32 MinkovskiTest = PointIsInRectangle(NextSupposedPlayerPosition, MinkovskiRect);
 	if (MinkovskiTest) {
 
-		v2 NextSupposedHorizontalP = V2(NextSupposedPlayerPosition.x, GoreState->PlayerP.y);
 		b32 MinkovskiHorizontalTest = PointIsInRectangle(NextSupposedHorizontalP, MinkovskiRect);
-
-		v2 NextSupposedVerticalP = V2(GoreState->PlayerP.x, NextSupposedPlayerPosition.y);
 		b32 MinkovskiVerticalTest = PointIsInRectangle(NextSupposedVerticalP, MinkovskiRect);
 
 		v2 PlayerTargetP;
@@ -204,6 +360,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 		WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
+#endif
 
 	GoreState->PlayerP += PlayerDeltaP;
 	GoreState->PlayerVelocity += GoreState->PlayerGravity * dt;
@@ -358,6 +515,51 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(0.1f, 0.1f),
 		V2(0.5f, 0.5f)), 1,
 		V4(1.0f, 0.4f, 0.0f, 1.0f));
+
+#if 1
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(
+			MinkovskiRect.Min,
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(
+			MinkovskiRect.Max,
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(
+			V2(MinkovskiRect.Max.x, MinkovskiRect.Min.y),
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+	GorePushRectEntity(
+		RenderStack,
+		GoreGetEntityRect(
+			V2(MinkovskiRect.Min.x, MinkovskiRect.Max.y),
+			V2(0.1f, 0.1f),
+			V2(0.5f, 0.5f)), 1,
+		V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+	if (AtLeastOneHitHappened) {
+		GorePushRectEntity(
+			RenderStack,
+			GoreGetEntityRect(
+				MoveRayHit.HitPoint,
+				V2(0.1f, 0.1f),
+				V2(0.5f, 0.5f)), 1,
+			V4(1.0f, 1.0f, 0.0f, 1.0f));
+	}
+
+#endif
 
 	//NOTE(dima): Floor
 	for (int i = -5; i <= 5; i++) {
