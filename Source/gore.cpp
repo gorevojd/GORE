@@ -130,18 +130,25 @@ b32 GoreRaycast2DWallsForDimensionalEntity(
 				HitData->HitNormal = EdgeN;
 				HitData->HitPoint = Ray->Origin + Ray->Direction * HitData->DistanseFromRayOrigin;
 
-				b32 RayHitsTheLine = HitData->DistanseFromRayOrigin * HitData->DistanseFromRayOrigin < Ray->SqLen;
-				if (RayHitsTheLine) {
+				//NOTE(dima): We need to check if ray is before the line
+				if (HitData->DistanseFromRayOrigin >= 0.0f) {
 
-					v2 HitPP1 = Edge->Min - HitData->HitPoint;
-					v2 HitPP2 = Edge->Max - HitData->HitPoint;
+					//NOTE(dima): Checking if ray is long enough to hit the line
+					b32 RayHitsTheLine = HitData->DistanseFromRayOrigin * HitData->DistanseFromRayOrigin < Ray->SqLen;
+					if (RayHitsTheLine) {
 
-					//NOTE(dima): If hit point is between edge min and max points
-					if (Dot(HitPP1, HitPP2) < 0.0f) {
-						HitData->HitHappened = 1;
-						AtLeastOneHitHappened = 1;
+						v2 HitPP1 = Edge->Min - HitData->HitPoint;
+						v2 HitPP2 = Edge->Max - HitData->HitPoint;
+
+						//HitPP1 = Normalize(HitPP1);
+						//HitPP2 = Normalize(HitPP2);
+
+						//NOTE(dima): If hit point is between edge min and max points
+						if (Dot(HitPP1, HitPP2) <= 0.0f) {
+							HitData->HitHappened = 1;
+							AtLeastOneHitHappened = 1;
+						}
 					}
-
 				}
 			}
 		}
@@ -156,8 +163,6 @@ b32 GoreRaycast2DWallsForDimensionalEntity(
 				}
 			}
 		}
-
-
 	}
 
 	if (AtLeastOneHitHappened && OutHitData) {
@@ -287,7 +292,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	MinkovskiRect.Min.y -= TopBottomAddition.x;
 	MinkovskiRect.Max.y += TopBottomAddition.y;
 
-	float MinkovskiOffsetEpsilon = 0.01f;
+	float MinkovskiOffsetEpsilon = 0.001f;
 
 	/*
 		NOTE(dima): So now we have minkovski rect and 
@@ -323,14 +328,12 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		&MoveVerticalRay, &VertRayHit);
 
 #if 1
-	if (MoveHitHappened || HorzMoveHitHappened || VertMoveHitHappened) 
+	if (MoveHitHappened) 
 	{
 		v2 PlayerTargetP;
 
 		v2 HitWithOffset = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon * 10;
 
-
-#if 0
 		if (HorzMoveHitHappened) {
 			PlayerTargetP = V2(HitWithOffset.x, NextSupposedPlayerPosition.y);
 
@@ -346,26 +349,12 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
 		}
-#else
-		if (VertMoveHitHappened) {
-			PlayerTargetP = V2(NextSupposedPlayerPosition.x, HitWithOffset.y);
-
-			GoreState->PlayerVelocity.y = 0.0f;
-		}
-		else {
-			PlayerTargetP = HitWithOffset;
-			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
-		}
-
-#endif
 
 		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
 
-		//WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
+		WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
-#endif
-
-#if 0
+#else
 	rect2 MinkovskiInflatedRect = Rect2MinMax(
 		MinkovskiRect.Min - V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon),
 		MinkovskiRect.Max + V2(MinkovskiOffsetEpsilon, MinkovskiOffsetEpsilon));
@@ -608,6 +597,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 #endif
 
 	VisualizeRay(RenderStack, &MoveRay, V4(1.0f, 0.0f, 1.0f, 1.0f));
+	VisualizeRay(RenderStack, &MoveHorizontalRay, V4(1.0f, 0.0f, 0.0f, 1.0f));
 
 	//NOTE(dima): Floor
 	for (int i = -5; i <= 5; i++) {
