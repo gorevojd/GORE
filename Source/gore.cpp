@@ -167,6 +167,27 @@ b32 GoreRaycast2DWallsForDimensionalEntity(
 	return(AtLeastOneHitHappened);
 }
 
+void VisualizeRay(render_stack* Stack, gore_ray2d* Ray, v4 Color) {
+	int AnchorCount = 10;
+
+	v2 Dim = V2(0.05f, 0.05f);
+
+	for (int  AnchorIndex = 0; AnchorIndex <= AnchorCount; AnchorIndex++)
+	{
+		float Percentage = AnchorIndex / (float)(AnchorCount + 1);
+
+		v2 TargetP = Ray->Origin + Ray->Direction * Ray->Len * Percentage ;
+
+		GorePushRectEntity(
+			Stack,
+			GoreGetEntityRect(
+				TargetP,
+				Dim,
+				V2(0.5f, 0.5f)), 1,
+			Color);
+	}
+}
+
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_state* GoreState = (gore_state*)GameModeState->GameModeMemory.BaseAddress;
 
@@ -221,6 +242,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V3(GoreState->PlayerP.x, GoreState->PlayerP.y, 0.0f) + InitCameraOffset,
 		EngineSystems->InputSystem->DeltaTime * 3.0f);
 
+	//GoreState->Camera.Position = V3(GoreState->PlayerP.x, GoreState->PlayerP.y, 0.0f) + InitCameraOffset;
 
 	float dt = EngineSystems->InputSystem->DeltaTime;
 
@@ -285,7 +307,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_ray2d MoveVerticalRay = GoreRay2D(GoreState->PlayerP, NextSupposedVerticalP);
 	gore_raycast_hit VertRayHit;
 
-	b32 AtLeastOneHitHappened = GoreRaycast2DWallsForDimensionalEntity(
+	b32 MoveHitHappened = GoreRaycast2DWallsForDimensionalEntity(
 		GoreState,
 		GoreState->PlayerDim, PlayerAlign,
 		&MoveRay, &MoveRayHit);
@@ -300,12 +322,15 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->PlayerDim, PlayerAlign,
 		&MoveVerticalRay, &VertRayHit);
 
-
-	if (AtLeastOneHitHappened) {
+#if 1
+	if (MoveHitHappened || HorzMoveHitHappened || VertMoveHitHappened) 
+	{
 		v2 PlayerTargetP;
 
-		v2 HitWithOffset = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon;
+		v2 HitWithOffset = MoveRayHit.HitPoint + MoveRayHit.HitNormal * MinkovskiOffsetEpsilon * 10;
 
+
+#if 0
 		if (HorzMoveHitHappened) {
 			PlayerTargetP = V2(HitWithOffset.x, NextSupposedPlayerPosition.y);
 
@@ -321,12 +346,24 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
 		}
+#else
+		if (VertMoveHitHappened) {
+			PlayerTargetP = V2(NextSupposedPlayerPosition.x, HitWithOffset.y);
 
+			GoreState->PlayerVelocity.y = 0.0f;
+		}
+		else {
+			PlayerTargetP = HitWithOffset;
+			GoreState->PlayerVelocity = V2(0.0f, 0.0f);
+		}
+
+#endif
 
 		PlayerDeltaP = PlayerTargetP - GoreState->PlayerP;
 
-		WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
+		//WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
+#endif
 
 #if 0
 	rect2 MinkovskiInflatedRect = Rect2MinMax(
@@ -515,6 +552,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 	GoreState->PlayerHealth = Sin(EngineSystems->InputSystem->Time) * 0.5f + 0.5f;
 
+#if 0
 	//NOTE(dima): Center anchor
 	GorePushRectEntity(
 		RenderStack,
@@ -522,6 +560,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(0.1f, 0.1f),
 		V2(0.5f, 0.5f)), 1,
 		V4(1.0f, 0.4f, 0.0f, 1.0f));
+#endif
 
 #if 1
 	GorePushRectEntity(
@@ -556,7 +595,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			V2(0.5f, 0.5f)), 1,
 		V4(1.0f, 0.0f, 1.0f, 1.0f));
 
-	if (AtLeastOneHitHappened) {
+	if (MoveHitHappened) {
 		GorePushRectEntity(
 			RenderStack,
 			GoreGetEntityRect(
@@ -567,6 +606,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 #endif
+
+	VisualizeRay(RenderStack, &MoveRay, V4(1.0f, 0.0f, 1.0f, 1.0f));
 
 	//NOTE(dima): Floor
 	for (int i = -5; i <= 5; i++) {
