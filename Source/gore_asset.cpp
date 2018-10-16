@@ -1577,6 +1577,9 @@ void ASSETSInit(asset_system* System) {
 	AddBitmapAsset(System, "../Data/Images/Game/lilboyhoodie.png");
 	AddFloatTag(System, GameAssetTag_Lilboy, 1.0f);
 
+	AddBitmapAsset(System, "../Data/Images/Game/lilboyhair.png");
+	AddFloatTag(System, GameAssetTag_Lilboy, 2.0f);
+
 	AddBitmapAsset(System, "../Data/Images/Game/zsmile.png");
 	AddBitmapAsset(System, "../Data/Images/Game/hellboy.png");
 	AddBitmapAsset(System, "../Data/Images/Game/wtf.png");

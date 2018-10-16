@@ -85,6 +85,7 @@ struct gore_player {
 	v2 Align;
 	v2 Gravity;
 	v2 InitJumpVelocity;
+	int JumpCounter;
 
 	float Speed;
 
@@ -92,11 +93,6 @@ struct gore_player {
 
 	float Health;
 	float MaxHealth;
-};
-
-struct gore_player_input_preset {
-	float PlayerHorizontalDelta;
-	b32 PlayerShouldJump;
 };
 
 enum entity_type {
@@ -121,9 +117,12 @@ struct gore_state {
 	int WallCount;
 	gore_wall* Walls;
 
-	gore_edge WallEdges[4];
-
-	v2 MasterGravity;
+	v2 FlyingAt;
+	v2 FlyingDim;
+	v2 FlyingAlign;
+	v2 FlyingVelocity;
+	float FlyingTimeToLive;
+	float FlyingTimeLived;
 
 	float PixelsPerMeter;
 

@@ -193,9 +193,6 @@ void VisualizeRay(render_stack* Stack, gore_ray2d* Ray, v4 Color) {
 	}
 }
 
-static gore_player_input_preset GoreUpdatePlayerInput(gore_player* Player, input_system* Input) {
-
-}
 
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_state* GoreState = (gore_state*)GameModeState->GameModeMemory.BaseAddress;
@@ -223,15 +220,10 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		float TimeForHalfJump = 0.35f;
 		float JumpHeight = 4.0f;
 		
-		GoreState->PlayerCount = 2;
+		GoreState->PlayerCount = 3;
 		GoreState->Players = PushArray(GoreState->GameModeMemory, gore_player, GoreState->PlayerCount);
 
 		
-		GoreState->Players[0].PlayerBitmapID = GetAssetByBestFloatTag(
-			EngineSystems->AssetSystem,
-			GameAsset_Lilboy,
-			GameAssetTag_Lilboy,
-			0, AssetType_Bitmap);
 		GoreState->Players[0].P = V2(0.0f, 4.0f);
 		GoreState->Players[0].Velocity = {};
 		GoreState->Players[0].Dim = V2(0.7f, 3.0f / 2.0f * 0.7f);
@@ -243,12 +235,12 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Players[0].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
 		GoreState->Players[0].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
 		GoreState->Players[0].Speed = 10.0f;
-
-		GoreState->Players[1].PlayerBitmapID = GetAssetByBestFloatTag(
+		GoreState->Players[0].PlayerBitmapID = GetAssetByBestFloatTag(
 			EngineSystems->AssetSystem,
 			GameAsset_Lilboy,
 			GameAssetTag_Lilboy,
-			1, AssetType_Bitmap);
+			0, AssetType_Bitmap);
+
 		GoreState->Players[1].P = V2(3.0f, 0.0f);
 		GoreState->Players[1].Velocity = {};
 		GoreState->Players[1].Dim = V2(0.7f, 3.0f / 2.0f * 0.7f);
@@ -260,6 +252,28 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Players[1].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
 		GoreState->Players[1].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
 		GoreState->Players[1].Speed = 10.0f;
+		GoreState->Players[1].PlayerBitmapID = GetAssetByBestFloatTag(
+			EngineSystems->AssetSystem,
+			GameAsset_Lilboy,
+			GameAssetTag_Lilboy,
+			1, AssetType_Bitmap);
+
+		GoreState->Players[2].P = V2(5.0f, 0.0f);
+		GoreState->Players[2].Velocity = {};
+		GoreState->Players[2].Dim = V2(0.7f, 3.0f / 2.0f * 0.7f);
+		GoreState->Players[2].Align = V2(0.5f, 1.0f);
+		GoreState->Players[2].Velocity = V2(0.0f, 0.0f);
+		GoreState->Players[2].FacingLeft = 1;
+		GoreState->Players[2].Health = 0.75f;
+		GoreState->Players[2].MaxHealth = 1.0f;
+		GoreState->Players[2].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
+		GoreState->Players[2].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
+		GoreState->Players[2].Speed = 10.0f;
+		GoreState->Players[2].PlayerBitmapID = GetAssetByBestFloatTag(
+			EngineSystems->AssetSystem,
+			GameAsset_Lilboy,
+			GameAssetTag_Lilboy,
+			2, AssetType_Bitmap);
 
 		//NOTE(dima): Walls
 		GoreState->WallCount = 3;
@@ -279,6 +293,11 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Walls[2].Dim = V2(7.0f, 1.0f);
 		GoreState->Walls[2].TopLeftAlign = V2(0.5f, 0.0f);
 		GoreState->Walls[2].IsDynamic = 0;
+
+		//NOTE(dima): Flying
+		GoreState->FlyingDim = V2(0.5f, 0.2f);
+		GoreState->FlyingAlign = V2(0.5f, 0.5f);
+		GoreState->FlyingTimeToLive = 5.0f;
 
 		GoreState->IsInitialized = 1;
 	}
@@ -307,22 +326,23 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	{
 		gore_player* Player = GoreState->Players + PlayerIndex;
 
-
-		float PlayerHorizontalDelta = 0.0f;
 		b32 PlayerShouldJump = 0;
+
+		//NOTE(dima): Clearing velocity before input processing
+		Player->Velocity.x = 0.0f;
 
 		if (Player == CameraFollowEntity) {
 			if (ButtonIsDown(EngineSystems->InputSystem, KeyType_A) || 
 				ButtonIsDown(EngineSystems->InputSystem, KeyType_Left)) 
 			{
-				PlayerHorizontalDelta = Player->Speed * dt;
+				Player->Velocity.x = Player->Speed;
 				Player->FacingLeft = 1;
 			}
 
 			if (ButtonIsDown(EngineSystems->InputSystem, KeyType_D) || 
 				ButtonIsDown(EngineSystems->InputSystem, KeyType_Right)) 
 			{
-				PlayerHorizontalDelta = -Player->Speed * dt;
+				Player->Velocity.x = -Player->Speed;
 				Player->FacingLeft = 0;
 			}
 		
@@ -332,7 +352,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		}
 
 		
-		v2 PlayerDeltaP = Player->Velocity * dt + Player->Gravity * dt * dt * 0.5f + V2(PlayerHorizontalDelta, 0.0f);
+		v2 PlayerDeltaP = Player->Velocity * dt + Player->Gravity * dt * dt * 0.5f;
 
 		v2 NextSupposedPlayerPosition = Player->P + PlayerDeltaP;
 		v2 NextSupposedHorizontalP = V2(NextSupposedPlayerPosition.x, Player->P.y);
@@ -365,6 +385,9 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		gore_ray2d MoveVerticalRay = GoreRay2D(Player->P, NextSupposedVerticalP);
 		gore_raycast_hit VertRayHit;
 
+		gore_ray2d JumpRay = GoreRay2D(Player->P + V2(0.0f, 0.1f), V2(0.0f, -1.0f), 0.3f);
+		gore_raycast_hit JumpRayHit;
+
 		b32 MoveHitHappened = GoreRaycast2DWallsForDimensionalEntity(
 			GoreState,
 			Player->Dim, Player->Align,
@@ -379,9 +402,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			GoreState,
 			Player->Dim, Player->Align,
 			&MoveVerticalRay, &VertRayHit);
-
-
-
 
 #if 1
 		/*
@@ -465,7 +485,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			WallColor = V4(1.0f, 0.0f, 0.0f, 1.0f);
 		}
 #endif
-
+		//NOTE(dima): Player movement finalizing
 		Player->P += PlayerDeltaP;
 		Player->Velocity += Player->Gravity * dt;
 
@@ -476,13 +496,41 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			Player->Velocity.y = 0.0f;
 		}
 #endif
+		//NOTE(dima): Flying updating
+		if (MouseButtonWentDown(EngineSystems->InputSystem, MouseButton_Left)) {
+			GoreState->FlyingTimeLived = 0.0f;
+			GoreState->FlyingAt = Player->P + V2(0.0f, 0.5f);
+
+			float InitialSpeed = 5.0f;
+			v2 ThrowDirection = Player->FacingLeft ? V2(1.0f, 0.0f) : V2(-1.0f, 0.0f);
+			GoreState->FlyingVelocity = V2(Player->Velocity.x, 0.0f) + ThrowDirection * InitialSpeed;
+		}
+
+		//NOTE(dima): Jump
+		if (PlayerShouldJump) {
+
+			b32 JumpRayHitsFloor = GoreRaycast2DWallsForDimensionalEntity(
+				GoreState, Player->Dim,
+				Player->Align, &JumpRay,
+				&JumpRayHit);
+
+			if (JumpRayHitsFloor || Player->P.y < 0.1f) {
+				Player->JumpCounter = 0;
+			}
+
+			if (Player->JumpCounter < 1) {
+				Player->Velocity.y = Player->InitJumpVelocity.y;
+
+				Player->JumpCounter++;
+			}
+		}
 
 		Player->Health = Sin(EngineSystems->InputSystem->Time) * 0.5f + 0.5f;
-
-		if (PlayerShouldJump) {
-			Player->Velocity = Player->InitJumpVelocity;
-		}
 	}
+
+	//NOTE(dima): Flying updating
+	GoreState->FlyingAt = GoreState->FlyingAt + GoreState->FlyingVelocity * dt;
+	GoreState->FlyingTimeLived += dt;
 
 	//NOTE(dima): Camera setup code
 	GAMEUpdateCameraVectorsBasedOnUpAndFront(
@@ -632,6 +680,15 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			HealthBorderColor);
 
 	}
+
+	//NOTE(dima): Flying entity rendering
+	GorePushRectEntity(
+		RenderStack,
+		GoreState->FlyingAt,
+		GoreState->FlyingDim,
+		GoreState->FlyingAlign,
+		1,
+		V4(1.0f, 1.0f, 1.0f, 1.0f));
 	
 
 #if 0
