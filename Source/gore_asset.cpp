@@ -114,9 +114,9 @@ static game_asset* GetAssetByBestIntTagInternal(asset_system* System, u32 GroupI
 		game_asset_tag* Tag = FindTagInAsset(Asset, TagType);
 
 		if (Tag) {
-			int Diff = Tag->Value_Float - TagValue;
+			int Diff = Tag->Value_Int - TagValue;
 			//NOTE(dima): Getting absolute value of the diff
-			if (Diff < 0.0f) {
+			if (Diff < 0) {
 				Diff = -Diff;
 			}
 
@@ -1570,11 +1570,16 @@ void ASSETSInit(asset_system* System) {
 
 	//NOTE(dima): Bitmaps
 	BeginAssetGroup(System, GameAsset_Lilboy);
+
 	AddBitmapAsset(System, "../Data/Images/Game/lilboy.png");
+	AddFloatTag(System, GameAssetTag_Lilboy, 0.0f);
+
+	AddBitmapAsset(System, "../Data/Images/Game/lilboyhoodie.png");
+	AddFloatTag(System, GameAssetTag_Lilboy, 1.0f);
+
 	AddBitmapAsset(System, "../Data/Images/Game/zsmile.png");
 	AddBitmapAsset(System, "../Data/Images/Game/hellboy.png");
 	AddBitmapAsset(System, "../Data/Images/Game/wtf.png");
-	AddBitmapAsset(System, "../Data/Images/Game/lilboyhoodie.png");
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_AlphaImage);

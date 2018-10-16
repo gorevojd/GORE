@@ -7,6 +7,8 @@ enum game_asset_tag_id {
 	GameAssetTag_Font_Debug,
 	GameAssetTag_Font_Golden,
 
+	GameAssetTag_Lilboy,
+
 	GameAssetTag_LOD,
 };
 

@@ -76,6 +76,29 @@ struct gore_wall {
 	b32 IsDynamic;
 };
 
+struct gore_player {
+	bitmap_id PlayerBitmapID;
+
+	v2 P;
+	v2 Velocity;
+	v2 Dim;
+	v2 Align;
+	v2 Gravity;
+	v2 InitJumpVelocity;
+
+	float Speed;
+
+	b32 FacingLeft;
+
+	float Health;
+	float MaxHealth;
+};
+
+struct gore_player_input_preset {
+	float PlayerHorizontalDelta;
+	b32 PlayerShouldJump;
+};
+
 enum entity_type {
 	Entity_Player,
 	Entity_Wall,
@@ -85,22 +108,15 @@ struct gore_state {
 	b32 IsInitialized;
 	stacked_memory* GameModeMemory;
 
-	bitmap_id PlayerBitmapID;
-
 	float ScreenWidth;
 	float ScreenHeight;
 	float OneOverScreenWidth;
 	float OneOverScreenHeight;
 
-	v2 PlayerP;
-	v2 PlayerVelocity;
-	v2 PlayerDim;
-	v2 PlayerGravity;
-	v2 PlayerInitJumpVelocity;
+	int ViewPlayerIndex;
 
-	b32 PlayerFacingLeft;
-	float PlayerHealth;
-	float PlayerMaxHealth;
+	int PlayerCount;
+	gore_player* Players;
 
 	int WallCount;
 	gore_wall* Walls;
