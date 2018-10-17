@@ -73,16 +73,18 @@ struct gore_wall {
 	v2 At;
 	v2 Dim;
 	v2 TopLeftAlign;
+
 	b32 IsDynamic;
 };
 
 struct gore_player {
-	bitmap_id PlayerBitmapID;
 
 	v2 P;
-	v2 Velocity;
 	v2 Dim;
 	v2 Align;
+
+	bitmap_id PlayerBitmapID;
+	v2 Velocity;
 	v2 Gravity;
 	v2 InitJumpVelocity;
 	int JumpCounter;
@@ -95,9 +97,16 @@ struct gore_player {
 	float MaxHealth;
 };
 
+struct gore_flying_weapon {
+	v2 P;
+	v2 Dim;
+	v2 Align;
+};
+
 enum entity_type {
 	Entity_Player,
 	Entity_Wall,
+	Entity_FlyingWeapon,
 };
 
 struct gore_state {
@@ -116,6 +125,9 @@ struct gore_state {
 
 	int WallCount;
 	gore_wall* Walls;
+
+	int FlyingQueueCount;
+	gore_flying_weapon* Flyings;
 
 	v2 FlyingAt;
 	v2 FlyingDim;

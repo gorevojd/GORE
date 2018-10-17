@@ -72,6 +72,37 @@ v2 UnprojectScreenToWorldspace(gore_state* GoreState, v2 ScreenP) {
 //
 //}
 
+/*
+	NOTE(dima):
+		Raycasting implemented
+
+		Raycasting was implemented here only for
+		rectangular shapes. 
+
+		1) It works through 
+		first using Minkowski difference to build
+		rectangle across which we will test 
+		our point. 
+
+		2) Then linear equations of wall lines 
+		are built
+
+		3) Then hit point is found
+
+		4) At the end of the algorighm closest hit 
+		point is found
+
+	IMPORTANT(dima): Need to optimize this because
+		test happens across all the walls and all 
+		the lines that walls contain. For every player
+		the same line equations are calculated. 
+		Maybe I should precalculate line equations
+		for static walls. But there will be some 
+		problems with the minkovski difference...
+
+		Maybe we should SIMD this!!!
+*/
+
 //NOTE(dima): Now those only just for player :(((
 b32 GoreRaycast2DWallsForDimensionalEntity(
 	gore_state* GoreState,
@@ -219,10 +250,10 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		//NOTE(dima): Players
 		float TimeForHalfJump = 0.35f;
 		float JumpHeight = 4.0f;
-		
+		float PlayersInitSpeed = 10.0f;
+
 		GoreState->PlayerCount = 3;
 		GoreState->Players = PushArray(GoreState->GameModeMemory, gore_player, GoreState->PlayerCount);
-
 		
 		GoreState->Players[0].P = V2(0.0f, 4.0f);
 		GoreState->Players[0].Velocity = {};
@@ -234,7 +265,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Players[0].MaxHealth = 1.0f;
 		GoreState->Players[0].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
 		GoreState->Players[0].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
-		GoreState->Players[0].Speed = 10.0f;
+		GoreState->Players[0].Speed = PlayersInitSpeed;
 		GoreState->Players[0].PlayerBitmapID = GetAssetByBestFloatTag(
 			EngineSystems->AssetSystem,
 			GameAsset_Lilboy,
@@ -251,7 +282,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Players[1].MaxHealth = 1.0f;
 		GoreState->Players[1].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
 		GoreState->Players[1].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
-		GoreState->Players[1].Speed = 10.0f;
+		GoreState->Players[1].Speed = PlayersInitSpeed;
 		GoreState->Players[1].PlayerBitmapID = GetAssetByBestFloatTag(
 			EngineSystems->AssetSystem,
 			GameAsset_Lilboy,
@@ -268,7 +299,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Players[2].MaxHealth = 1.0f;
 		GoreState->Players[2].Gravity = V2(0.0f, -2.0f * JumpHeight / (TimeForHalfJump * TimeForHalfJump));
 		GoreState->Players[2].InitJumpVelocity = V2(0.0f, 2.0f * JumpHeight / TimeForHalfJump);
-		GoreState->Players[2].Speed = 10.0f;
+		GoreState->Players[2].Speed = PlayersInitSpeed;
 		GoreState->Players[2].PlayerBitmapID = GetAssetByBestFloatTag(
 			EngineSystems->AssetSystem,
 			GameAsset_Lilboy,
@@ -297,7 +328,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		//NOTE(dima): Flying
 		GoreState->FlyingDim = V2(0.5f, 0.2f);
 		GoreState->FlyingAlign = V2(0.5f, 0.5f);
-		GoreState->FlyingTimeToLive = 5.0f;
+		GoreState->FlyingTimeToLive = 2.0f;
 
 		GoreState->IsInitialized = 1;
 	}
