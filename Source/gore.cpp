@@ -72,6 +72,33 @@ v2 UnprojectScreenToWorldspace(gore_state* GoreState, v2 ScreenP) {
 //
 //}
 
+void GoreSpawnFlyingWeapon(gore_state* GoreState, v2 P, v2 Direction, u32 FlyingDatabaseIndex) 
+{
+	int SpawnFlyingWeaponArrayIndex = GoreState->FlyingQueueCurrent % GoreState->FlyingQueueCount;
+
+	gore_flying_weapon* Weap = GoreState->FlyingQueue + SpawnFlyingWeaponArrayIndex;
+
+	gore_flying_weapon_data* WeaponData = &GoreState->FlyingWeaponDatabase[FlyingDatabaseIndex];
+
+	Weap->IsActive = 1;
+	Weap->TimeLived = 0.0f;
+	Weap->P = P;
+	Weap->dP = Normalize(Direction) * WeaponData->Speed;
+	Weap->FlWeaponDatabaseIndex = FlyingDatabaseIndex;
+	Weap->Dim = WeaponData->Dim;
+	Weap->Align = WeaponData->Align;
+
+	/*
+		NOTE(dima): If player have bonuses to speed of shot or range
+		we need to apply them here
+	*/
+
+	Weap->TimeToLive = WeaponData->Range / WeaponData->Speed;
+
+	//NOTE(dima): Incrementing queue current
+	GoreState->FlyingQueueCurrent = (GoreState->FlyingQueueCurrent + 1) % GoreState->FlyingQueueCount;
+}
+
 /*
 	NOTE(dima):
 		Raycasting implemented
@@ -325,10 +352,23 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->Walls[2].TopLeftAlign = V2(0.5f, 0.0f);
 		GoreState->Walls[2].IsDynamic = 0;
 
+		//NOTE(dima): Initializing flying database
+		GoreState->FlyingWeaponDatabase[FlyingWeapon_Knife] = GoreFlWeapon(
+			V2(0.5f, 0.2f),
+			V2(0.5f, 0.5f),
+			10.0f,
+			10.0f);
+		
+		GoreState->FlyingWeaponDatabase[FlyingWeapon_Bottle] = GoreFlWeapon(
+			V2(0.5f, 0.2f),
+			V2(0.5f, 0.5f),
+			10.0f,
+			10.0f);
+
 		//NOTE(dima): Flying
-		GoreState->FlyingDim = V2(0.5f, 0.2f);
-		GoreState->FlyingAlign = V2(0.5f, 0.5f);
-		GoreState->FlyingTimeToLive = 2.0f;
+		GoreState->FlyingQueueCount = 2048;
+		GoreState->FlyingQueueCurrent = 0;
+		GoreState->FlyingQueue = PushArray(GoreState->GameModeMemory, gore_flying_weapon, GoreState->FlyingQueueCount);
 
 		GoreState->IsInitialized = 1;
 	}
@@ -338,10 +378,29 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 	float dt = EngineSystems->InputSystem->DeltaTime;
 
+#if 1
+	float NewCamPosX = Lerp(
+		GoreState->Camera.Position.x,
+		CameraFollowEntity->P.x + InitCameraOffset.x,
+		dt * 3.0f);
+
+	float NewCamPosY = Lerp(
+		GoreState->Camera.Position.y,
+		CameraFollowEntity->P.y + InitCameraOffset.y,
+		dt * 4.5);
+
+	float NewCamPosZ = Lerp(
+		GoreState->Camera.Position.z,
+		InitCameraOffset.z,
+		dt * 3.0f);
+
+	GoreState->Camera.Position = V3(NewCamPosX, NewCamPosY, NewCamPosZ);
+#else
 	GoreState->Camera.Position = Lerp(
 		GoreState->Camera.Position,
 		V3(CameraFollowEntity->P.x, CameraFollowEntity->P.y, 0.0f) + InitCameraOffset,
 		dt * 3.0f);
+#endif
 
 	if (ButtonWentDown(EngineSystems->InputSystem, KeyType_E)) {
 		GoreState->ViewPlayerIndex = (GoreState->ViewPlayerIndex + 1) % GoreState->PlayerCount;
@@ -358,6 +417,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		gore_player* Player = GoreState->Players + PlayerIndex;
 
 		b32 PlayerShouldJump = 0;
+		b32 PlayerShouldFire = 0;
 
 		//NOTE(dima): Clearing velocity before input processing
 		Player->Velocity.x = 0.0f;
@@ -380,6 +440,9 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			PlayerShouldJump =
 				ButtonWentDown(EngineSystems->InputSystem, KeyType_Space) ||
 				ButtonWentDown(EngineSystems->InputSystem, KeyType_Up);
+
+			PlayerShouldFire =
+				MouseButtonWentDown(EngineSystems->InputSystem, MouseButton_Left);
 		}
 
 		
@@ -528,13 +591,11 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		}
 #endif
 		//NOTE(dima): Flying updating
-		if (MouseButtonWentDown(EngineSystems->InputSystem, MouseButton_Left)) {
-			GoreState->FlyingTimeLived = 0.0f;
-			GoreState->FlyingAt = Player->P + V2(0.0f, 0.5f);
-
-			float InitialSpeed = 5.0f;
+		if (PlayerShouldFire) {
+			v2 SpawnAt = Player->P + V2(0.0f, 0.5f);
 			v2 ThrowDirection = Player->FacingLeft ? V2(1.0f, 0.0f) : V2(-1.0f, 0.0f);
-			GoreState->FlyingVelocity = V2(Player->Velocity.x, 0.0f) + ThrowDirection * InitialSpeed;
+
+			GoreSpawnFlyingWeapon(GoreState, SpawnAt, ThrowDirection, FlyingWeapon_Knife);
 		}
 
 		//NOTE(dima): Jump
@@ -549,7 +610,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 				Player->JumpCounter = 0;
 			}
 
-			if (Player->JumpCounter < 1) {
+			if (Player->JumpCounter < 2) {
 				Player->Velocity.y = Player->InitJumpVelocity.y;
 
 				Player->JumpCounter++;
@@ -560,8 +621,17 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	//NOTE(dima): Flying updating
-	GoreState->FlyingAt = GoreState->FlyingAt + GoreState->FlyingVelocity * dt;
-	GoreState->FlyingTimeLived += dt;
+	for (int FlyingIndex = 0; FlyingIndex < GoreState->FlyingQueueCount; FlyingIndex++) {
+		gore_flying_weapon* Weap = GoreState->FlyingQueue + FlyingIndex;
+
+		Weap->P = Weap->P + Weap->dP * dt;
+
+		if (Weap->TimeLived > Weap->TimeToLive) {
+			Weap->IsActive = 0;
+		}
+
+		Weap->TimeLived += dt;
+	}
 
 	//NOTE(dima): Camera setup code
 	GAMEUpdateCameraVectorsBasedOnUpAndFront(
@@ -713,13 +783,22 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	}
 
 	//NOTE(dima): Flying entity rendering
-	GorePushRectEntity(
-		RenderStack,
-		GoreState->FlyingAt,
-		GoreState->FlyingDim,
-		GoreState->FlyingAlign,
-		1,
-		V4(1.0f, 1.0f, 1.0f, 1.0f));
+	for (int FlyingIndex = 0;
+		FlyingIndex < GoreState->FlyingQueueCount;
+		FlyingIndex++)
+	{
+		gore_flying_weapon* Weap = GoreState->FlyingQueue + FlyingIndex;
+
+		if (Weap->IsActive) {
+			GorePushRectEntity(
+				RenderStack,
+				Weap->P,
+				Weap->Dim,
+				Weap->Align,
+				1,
+				V4(1.0f, 1.0f, 1.0f, 1.0f));
+		}
+	}
 	
 
 #if 0

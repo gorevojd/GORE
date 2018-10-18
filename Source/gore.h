@@ -83,13 +83,13 @@ struct gore_player {
 	v2 Dim;
 	v2 Align;
 
-	bitmap_id PlayerBitmapID;
 	v2 Velocity;
 	v2 Gravity;
 	v2 InitJumpVelocity;
 	int JumpCounter;
 
 	float Speed;
+	bitmap_id PlayerBitmapID;
 
 	b32 FacingLeft;
 
@@ -97,10 +97,49 @@ struct gore_player {
 	float MaxHealth;
 };
 
-struct gore_flying_weapon {
-	v2 P;
+enum gore_flying_weapon_type {
+	FlyingWeapon_Knife,
+	FlyingWeapon_Bottle,
+
+	FlyingWeapon_Count,
+};
+
+struct gore_flying_weapon_data {
 	v2 Dim;
 	v2 Align;
+	float Speed;
+	float Range;
+};
+
+inline gore_flying_weapon_data GoreFlWeapon(
+	v2 Dim,
+	v2 Align,
+	float Speed,
+	float Range) 
+{
+	gore_flying_weapon_data Result = {};
+
+	Result.Align = Align;
+	Result.Dim = Dim;
+	Result.Speed = Speed;
+	Result.Range = Range;
+
+	return(Result);
+}
+
+struct gore_flying_weapon {
+	v2 P;
+	v2 dP;
+
+	v2 Dim;
+	v2 Align;
+
+	b32 IsActive;
+	float TimeLived;
+
+	float TimeToLive;
+
+	int FlWeaponDatabaseIndex;
 };
 
 enum entity_type {
@@ -126,15 +165,13 @@ struct gore_state {
 	int WallCount;
 	gore_wall* Walls;
 
-	int FlyingQueueCount;
-	gore_flying_weapon* Flyings;
+	//NOTE(dima): Flying weapons database
+	gore_flying_weapon_data FlyingWeaponDatabase[FlyingWeapon_Count];
 
-	v2 FlyingAt;
-	v2 FlyingDim;
-	v2 FlyingAlign;
-	v2 FlyingVelocity;
-	float FlyingTimeToLive;
-	float FlyingTimeLived;
+	//NOTE(dima): Flying entities
+	int FlyingQueueCurrent;
+	int FlyingQueueCount;
+	gore_flying_weapon* FlyingQueue;
 
 	float PixelsPerMeter;
 

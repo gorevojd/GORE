@@ -204,6 +204,16 @@ inline v2 V2(float x, float y) {
 	return(Result);
 }
 
+inline v3 V3(v2 xy, float z) {
+	v3 Result;
+
+	Result.x = xy.x;
+	Result.y = xy.y;
+	Result.z = z;
+
+	return(Result);
+}
+
 inline v3 V3(float x, float y, float z) {
 	v3 Result;
 
