@@ -5,6 +5,8 @@
 #include "gore_game_mode.h"
 #include "gore_game_common.h"
 
+#include "gore_debug.h"
+
 struct gore_edge {
 	v2 Min;
 	v2 Max;

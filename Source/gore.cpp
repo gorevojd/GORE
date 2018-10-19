@@ -255,6 +255,8 @@ void VisualizeRay(render_stack* Stack, gore_ray2d* Ray, v4 Color) {
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_state* GoreState = (gore_state*)GameModeState->GameModeMemory.BaseAddress;
 
+	BEGIN_TIMING("GameUpdate");
+
 	if (!GoreState->IsInitialized) {
 
 		PushStruct(&GameModeState->GameModeMemory, gore_state);
@@ -354,7 +356,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 		//NOTE(dima): Initializing flying database
 		GoreState->FlyingWeaponDatabase[FlyingWeapon_Knife] = GoreFlWeapon(
-			V2(0.5f, 0.2f),
+			V2(0.6f, 0.25f),
 			V2(0.5f, 0.5f),
 			10.0f,
 			10.0f);
@@ -590,7 +592,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			Player->Velocity.y = 0.0f;
 		}
 #endif
-		//NOTE(dima): Flying updating
+		//NOTE(dima): Fire
 		if (PlayerShouldFire) {
 			v2 SpawnAt = Player->P + V2(0.0f, 0.5f);
 			v2 ThrowDirection = Player->FacingLeft ? V2(1.0f, 0.0f) : V2(-1.0f, 0.0f);
@@ -699,7 +701,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		bitmap_info* PlayerBitmap = GetBitmapFromID(EngineSystems->AssetSystem, Player->PlayerBitmapID);
 
 		//NOTE(dima): Pushing player bitmap
-#if 1
+#if 0
 		GorePushRectEntity(
 			RenderStack,
 			Player->P,
@@ -779,7 +781,6 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			RenderStack,
 			RightRect, 1,
 			HealthBorderColor);
-
 	}
 
 	//NOTE(dima): Flying entity rendering
@@ -799,26 +800,17 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 				V4(1.0f, 1.0f, 1.0f, 1.0f));
 		}
 	}
-	
-
-#if 0
-	//NOTE(dima): Center anchor
-	GorePushRectEntity(
-		RenderStack,
-		GoreGetEntityRect(GoreState->PlayerP,
-		V2(0.1f, 0.1f),
-		V2(0.5f, 0.5f)), 1,
-		V4(1.0f, 0.4f, 0.0f, 1.0f));
-#endif
 
 	//NOTE(dima): Floor
-	for (int i = -5; i <= 5; i++) {
+	for (int i = -10; i <= 10; i++) {
 		GorePushRectEntity(
 			RenderStack,
 			V2((float)i, 0.0f),
 			V2(1.0f, 1.0f),
 			V2(0.5f, 0.0f),
 			0,
-			GetColor(EngineSystems->ColorsState, Color_Red + i + 5));
+			GetColor(EngineSystems->ColorsState, Color_Red + i + 10));
 	}
+
+	END_TIMING();
 }
