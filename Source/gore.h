@@ -99,6 +99,25 @@ struct gore_player {
 	float MaxHealth;
 };
 
+//NOTE(dima): Weapon stuff
+enum weapon_state_type {
+	WeaponState_IsNotActive,
+	WeaponState_Idle,
+	WeaponState_Active,
+	WeaponState_Falling,
+	WeaponState_Dissappearing,
+};
+
+enum weapon_type {
+	Weapon_Flying,
+	Weapon_Near,
+};
+
+struct weapon {
+	
+};
+
+//NOTE(dima): Flying weapon stuff
 enum gore_flying_weapon_type {
 	FlyingWeapon_Knife,
 	FlyingWeapon_Bottle,
@@ -107,6 +126,9 @@ enum gore_flying_weapon_type {
 };
 
 struct gore_flying_weapon_data {
+	bitmap_id BitmapID;
+	float BitmapScale;
+
 	v2 Dim;
 	v2 Align;
 	float Speed;
@@ -114,12 +136,17 @@ struct gore_flying_weapon_data {
 };
 
 inline gore_flying_weapon_data GoreFlWeapon(
+	bitmap_id BitmapID,
+	float BitmapScale,
 	v2 Dim,
 	v2 Align,
 	float Speed,
 	float Range) 
 {
 	gore_flying_weapon_data Result = {};
+
+	Result.BitmapID = BitmapID;
+	Result.BitmapScale = BitmapScale;
 
 	Result.Align = Align;
 	Result.Dim = Dim;
@@ -135,6 +162,9 @@ struct gore_flying_weapon {
 
 	v2 Dim;
 	v2 Align;
+
+	bitmap_id BitmapID;
+	float BitmapScale;
 
 	b32 IsActive;
 	float TimeLived;

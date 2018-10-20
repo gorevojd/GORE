@@ -34,14 +34,16 @@ void GorePushRectEntity(
 void GorePushBitmapEntity(
 	render_stack* Stack, 
 	bitmap_info* Bitmap, 
-	float BitmapHeight, 
+	float BitmapScale, 
 	v2 P, v2 Dim, 
 	v2 AlignFromTopLeft, 
 	b32 FacingLeft,
 	v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f))
 {
 	if (Bitmap) {
-		Dim = V2(Bitmap->WidthOverHeight * BitmapHeight, BitmapHeight);
+		Dim = V2(
+			Bitmap->WidthOverHeight * Dim.y * BitmapScale, 
+			Dim.y * BitmapScale);
 	}
 
 	rect2 ResultEntityRect = GoreGetEntityRect(P, Dim, AlignFromTopLeft);
@@ -87,6 +89,8 @@ void GoreSpawnFlyingWeapon(gore_state* GoreState, v2 P, v2 Direction, u32 Flying
 	Weap->FlWeaponDatabaseIndex = FlyingDatabaseIndex;
 	Weap->Dim = WeaponData->Dim;
 	Weap->Align = WeaponData->Align;
+	Weap->BitmapID = WeaponData->BitmapID;
+	Weap->BitmapScale = WeaponData->BitmapScale;
 
 	/*
 		NOTE(dima): If player have bonuses to speed of shot or range
@@ -356,13 +360,17 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 
 		//NOTE(dima): Initializing flying database
 		GoreState->FlyingWeaponDatabase[FlyingWeapon_Knife] = GoreFlWeapon(
-			V2(0.6f, 0.25f),
+			GetFirstBitmap(EngineSystems->AssetSystem, GameAsset_Knife),
+			1.0f,
+			V2(0.75f, 0.35f),
 			V2(0.5f, 0.5f),
 			10.0f,
 			10.0f);
 		
 		GoreState->FlyingWeaponDatabase[FlyingWeapon_Bottle] = GoreFlWeapon(
-			V2(0.5f, 0.2f),
+			GetFirstBitmap(EngineSystems->AssetSystem, GameAsset_Bottle),
+			1.0f,
+			V2(0.7f, 0.35f),
 			V2(0.5f, 0.5f),
 			10.0f,
 			10.0f);
@@ -384,17 +392,17 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	float NewCamPosX = Lerp(
 		GoreState->Camera.Position.x,
 		CameraFollowEntity->P.x + InitCameraOffset.x,
-		dt * 3.0f);
+		dt * 4.0f);
 
 	float NewCamPosY = Lerp(
 		GoreState->Camera.Position.y,
 		CameraFollowEntity->P.y + InitCameraOffset.y,
-		dt * 4.5);
+		dt * 7.0f);
 
 	float NewCamPosZ = Lerp(
 		GoreState->Camera.Position.z,
 		InitCameraOffset.z,
-		dt * 3.0f);
+		dt * 4.0f);
 
 	GoreState->Camera.Position = V3(NewCamPosX, NewCamPosY, NewCamPosZ);
 #else
@@ -597,7 +605,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			v2 SpawnAt = Player->P + V2(0.0f, 0.5f);
 			v2 ThrowDirection = Player->FacingLeft ? V2(1.0f, 0.0f) : V2(-1.0f, 0.0f);
 
-			GoreSpawnFlyingWeapon(GoreState, SpawnAt, ThrowDirection, FlyingWeapon_Knife);
+			GoreSpawnFlyingWeapon(GoreState, SpawnAt, ThrowDirection, FlyingWeapon_Bottle);
 		}
 
 		//NOTE(dima): Jump
@@ -713,7 +721,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GorePushBitmapEntity(
 			RenderStack,
 			PlayerBitmap,
-			Player->Dim.y * 2.2f,
+			2.2f,
 			Player->P,
 			Player->Dim,
 			V2(0.5f, 1.0f),
@@ -791,6 +799,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		gore_flying_weapon* Weap = GoreState->FlyingQueue + FlyingIndex;
 
 		if (Weap->IsActive) {
+#if 0
 			GorePushRectEntity(
 				RenderStack,
 				Weap->P,
@@ -798,6 +807,20 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 				Weap->Align,
 				1,
 				V4(1.0f, 1.0f, 1.0f, 1.0f));
+#endif
+
+			bitmap_info* BitmapInfo = GetBitmapFromID(
+				EngineSystems->AssetSystem,
+				Weap->BitmapID);
+
+			GorePushBitmapEntity(
+				RenderStack,
+				BitmapInfo,
+				Weap->BitmapScale,
+				Weap->P,
+				Weap->Dim,
+				Weap->Align,
+				1);
 		}
 	}
 

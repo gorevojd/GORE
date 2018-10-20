@@ -14,6 +14,7 @@ void SwitchGameMode(game_mode_state* GameModeState, u32 NewGameModeType) {
 
 void GameModeUpdate(engine_systems* EngineSystems) {
 
+	BEGIN_TIMING("GameModeUpdate");
 	game_mode_state* GameModeState = (game_mode_state*)PlatformApi.GameModeMemoryBlock.BaseAddress;
 	if (!GameModeState->IsInitialized) {
 
@@ -34,7 +35,6 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 	GUIBeginFrame(EngineSystems->DEBUGState->GUIState);
 #endif
 
-	BEGIN_TIMING("GameModeUpdate");
 	switch (GameModeState->GameModeType)
 	{
 		case GameMode_MainMenu: {

@@ -1569,6 +1569,7 @@ void ASSETSInit(asset_system* System) {
 	EndAssetGroup(System);
 
 	//NOTE(dima): Bitmaps
+	//NOTE(dima): Player asset
 	BeginAssetGroup(System, GameAsset_Lilboy);
 
 	AddBitmapAsset(System, "../Data/Images/Game/lilboy.png");
@@ -1583,6 +1584,16 @@ void ASSETSInit(asset_system* System) {
 	AddBitmapAsset(System, "../Data/Images/Game/zsmile.png");
 	AddBitmapAsset(System, "../Data/Images/Game/hellboy.png");
 	AddBitmapAsset(System, "../Data/Images/Game/wtf.png");
+	EndAssetGroup(System);
+
+	//NOTE(dima): Knife
+	BeginAssetGroup(System, GameAsset_Knife);
+	AddBitmapAsset(System, "../Data/Images/Game/Knife.png");
+	EndAssetGroup(System);
+
+	//NOTE(dima): Bottle
+	BeginAssetGroup(System, GameAsset_Bottle);
+	AddBitmapAsset(System, "../Data/Images/Game/cola_bottle.png");
 	EndAssetGroup(System);
 
 	BeginAssetGroup(System, GameAsset_AlphaImage);
