@@ -10,6 +10,8 @@ enum game_asset_tag_id {
 	GameAssetTag_Lilboy,
 
 	GameAssetTag_LOD,
+
+	GameAssetTag_Count,
 };
 
 enum game_asset_group_id {

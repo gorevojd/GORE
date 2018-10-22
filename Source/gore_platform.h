@@ -86,10 +86,10 @@ typedef unsigned long platform_type_u32;
 typedef __int64 platform_type_i64;
 typedef unsigned long long platform_type_u64;
 
-typedef platform_type_i32 platform_atomic_type_i32;
-typedef platform_type_u32 platform_atomic_type_u32;
-typedef platform_type_i64 platform_atomic_type_i64;
-typedef platform_type_u64 platform_atomic_type_u64;
+typedef volatile platform_type_i32 platform_atomic_type_i32;
+typedef volatile platform_type_u32 platform_atomic_type_u32;
+typedef volatile platform_type_i64 platform_atomic_type_i64;
+typedef volatile platform_type_u64 platform_atomic_type_u64;
 
 //NOTE(dima): Atomic CAS operations macros. Must return true if value being set, or false othervise
 #define PLATFORM_ATOMIC_CAS_I32(name) platform_type_i32 name(platform_atomic_type_i32* Value, platform_type_i32 New, platform_type_i32 Old)
