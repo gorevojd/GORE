@@ -22,11 +22,10 @@ enum game_asset_group_id {
 	GameAsset_OblivonMemeImage,
 	GameAsset_PotImage,
 	GameAsset_AlphaImage,
-
 	GameAsset_Checkerboard,
-
 	GameAsset_ContainerDiffImage,
 	GameAsset_ContainerSpecImage,
+	GameAsset_VoxelAtlasBitmap,
 
 	GameAsset_Cube,
 	GameAsset_Plane,
@@ -36,7 +35,6 @@ enum game_asset_group_id {
 	GameAsset_Font,
 	GameAsset_MainMenuFont,
 
-	GameAsset_MyVoxelAtlas,
 
 	GameAsset_Count,
 };

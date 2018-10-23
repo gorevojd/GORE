@@ -203,5 +203,8 @@
     <ClInclude Include="..\Source\gore.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\gore_file_formats.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

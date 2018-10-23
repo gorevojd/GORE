@@ -6,13 +6,13 @@
 #include "gore_asset_types.h"
 #include "gore_asset_common.h"
 #include "gore_game_settings.h"
+#include "gore_file_formats.h"
 
 typedef u32 bitmap_id;
 typedef u32 font_id;
 typedef u32 sound_id;
 typedef u32 model_id;
 typedef u32 mesh_id;
-typedef u32 voxel_atlas_id;
 
 enum game_asset_state {
 	GameAssetState_Unloaded,
@@ -26,12 +26,13 @@ struct game_asset_group {
 	u32 GroupAssetCount;
 };
 
-#define MAX_TAGS_PER_ASSET 4
 struct game_asset_tag {
 	u32 Type;
 
-	float Value_Float;
-	int Value_Int;
+	union{
+		float Value_Float;
+		int Value_Int;
+	};
 };
 
 struct game_asset {
@@ -41,7 +42,7 @@ struct game_asset {
 
 	u32 Type;
 
-	game_asset_tag Tags[MAX_TAGS_PER_ASSET];
+	game_asset_tag* Tags;
 	int TagCount;
 
 	union {
@@ -50,25 +51,6 @@ struct game_asset {
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;
-		voxel_atlas_info* VoxelAtlas;
-	};
-
-	/*
-		TODO(dima): Its important here is that it's done through the union.
-		If you imagine that we store only bitmaps that have a little 
-		memory to deal with(sizeof(bitmap_info)), than everything is ok.
-		BUT THATS NOT. We will always have memory as big as the biggest 
-		element in the union.. I will need to make better memory management
-		on assets code as soon as i can...
-	*/
-
-	union {
-		bitmap_info Bitmap_;
-		font_info Font_;
-		sound_info Sound_;
-		model_info Model_;
-		mesh_info Mesh_;
-		voxel_atlas_info VoxelAtlas_;
 	};
 };
 
@@ -76,6 +58,7 @@ struct game_asset {
 struct asset_system {
 	stacked_memory* MemAllocPointer;
 
+	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];
 	game_asset_group AssetGroups[GameAsset_Count];
 };
@@ -87,7 +70,6 @@ sound_id GetFirstSound(asset_system* System, u32 GroupID);
 font_id GetFirstFont(asset_system* System, u32 GroupID);
 model_id GetFirstModel(asset_system* System, u32 GroupID);
 mesh_id GetFirstMesh(asset_system* System, u32 GroupID);
-voxel_atlas_id GetFirstVoxelAtlas(asset_system* System, u32 GroupID);
 
 u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType);
 u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType);
@@ -172,16 +154,4 @@ inline model_info* GetModelFromID(asset_system* System, model_id ID) {
 
 	return(Result);
 }
-
-inline voxel_atlas_info* GetVoxelAtlasFromID(asset_system* System, voxel_atlas_id ID) {
-	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_VoxelAtlas);
-
-	voxel_atlas_info* Result = 0;
-	if (Asset) {
-		Result = Asset->VoxelAtlas;
-	}
-
-	return(Result);
-}
-
 #endif

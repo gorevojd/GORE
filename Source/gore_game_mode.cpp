@@ -50,7 +50,8 @@ void GameModeUpdate(engine_systems* EngineSystems) {
 				GameModeState,
 				EngineSystems->RenderState,
 				PlatformApi.GetThreadQueueInfo(PlatformApi.SuperHighQueue).WorkingThreadsCount,
-				EngineSystems->InputSystem);
+				EngineSystems->InputSystem,
+				EngineSystems->AssetSystem);
 		}break;
 
 		case GameMode_GoreGame: {

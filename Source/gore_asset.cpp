@@ -218,17 +218,62 @@ mesh_id GetFirstMesh(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
-voxel_atlas_id GetFirstVoxelAtlas(asset_system* System, u32 GroupID) {
-	game_asset* FirstAsset = GetFirstAssetInternal(System, GroupID);
-
-	Assert(FirstAsset->Type == AssetType_VoxelAtlas);
-
-	u32 Result = FirstAsset->ID;
-
-	return(Result);
-}
-
 void ASSETSInit(asset_system* System) {
 
-	
+	System->Assets[0] = {};
+	System->AssetCount = 1;
+
+	//NOTE(dima): INitializing groups
+	for (int GroupIndex = 0; GroupIndex < GameAsset_Count; GroupIndex++) {
+		game_asset_group* Group = System->AssetGroups + GroupIndex;
+
+		Group->FirstAssetIndex = 0;
+		Group->GroupAssetCount = 0;
+	}
+
+	for (AssetFiles) {
+		u32 CurrentOffset;
+		u32 StartOffset = sizeof(asset_file_header);
+		asset_file_header* FileHeader = (asset_file_header*)File->Data;
+
+		b32 HeaderIsEqual =
+			FileHeader->AssetFileHeader[0] == 'G' &&
+			FileHeader->AssetFileHeader[1] == 'A' &&
+			FileHeader->AssetFileHeader[2] == 'S' &&
+			FileHeader->AssetFileHeader[3] == 'S';
+
+		Assert(HeaderIsEqual);
+		Assert(FileHeader->Version >= ASSET_FILE_VERSION);
+		Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
+
+		CurrentOffset = StartOffset;
+		while (CurrentOffset < File->DataSize) {
+			u32 FromAssetIndex = 1;
+
+			gass_header* GASS = (gass_header*)((u8*)File->Data + CurrentOffset);
+			game_asset* Asset = 
+
+			game_asset_group* GroupOfThisAsset = System->AssetGroups + GASS->GroupIndex;
+
+			switch (GASS->AssetType) {
+				case AssetType_Bitmap: {
+					
+				}break;
+
+				case AssetType_Font: {
+
+				}break;
+
+				case AssetType_FontGlyph: {
+
+				}break;
+
+				case AssetType_Mesh: {
+
+				}break;
+			}
+
+			CurrentOffset += sizeof(gass_header) + GASS->TotalAssetDataSize;
+		}
+	}
 }

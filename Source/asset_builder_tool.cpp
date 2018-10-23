@@ -140,13 +140,6 @@ static void AddMeshAsset(asset_system* System, mesh_info* Mesh) {
 	Source->MeshSource.MeshInfo = Mesh;
 }
 
-static void AddVoxelAtlasAsset(asset_system* System, voxel_atlas_info* Info) {
-	added_asset Added = AddAsset(System, AssetType_VoxelAtlas);
-
-	game_asset_source* Source = Added.Source;
-	Source->VoxelAtlasSource.Info = Info;
-}
-
 static void AddFontAsset(
 	asset_system* System,
 	char* Path,
@@ -1201,114 +1194,6 @@ mesh_info ASSETGenerateCylynder(float Height, float Radius, int SidesCount) {
 	return(Result);
 }
 
-voxel_atlas_info* LoadVoxelAtlas(char* FileName, u32 OneTextureWidth)
-{
-	voxel_atlas_info* Atlas = (voxel_atlas_info*)malloc(sizeof(voxel_atlas_info));
-	Atlas->Materials = (voxel_tex_coords_set*)malloc(sizeof(voxel_tex_coords_set) * VoxelMaterial_Count);
-
-	Atlas->Bitmap = LoadIMG(FileName);
-
-	int AtlasWidth = Atlas->Bitmap.Width;
-
-	/*AtlasWidth must be multiple of OneTextureWidth*/
-	Assert((AtlasWidth & (OneTextureWidth - 1)) == 0);
-
-	u32 TexturesByWidth = AtlasWidth / OneTextureWidth;
-	Atlas->MaxTexturesCount = TexturesByWidth * TexturesByWidth;
-	Atlas->TexturesCount = 0;
-
-	Atlas->AtlasWidth = AtlasWidth;
-	Atlas->OneTextureWidth = OneTextureWidth;
-
-
-	for (int MaterialIndex = 0;
-		MaterialIndex < VoxelMaterial_Count;
-		MaterialIndex++)
-	{
-		for (int i = 0;
-			i < VoxelFaceTypeIndex_Count;
-			i++)
-		{
-			Atlas->Materials[MaterialIndex].Sets[i] = 0;
-		}
-	}
-
-	return(Atlas);
-}
-
-void DescribeVoxelAtlasTexture(
-	voxel_atlas_info* Atlas,
-	u32 MaterialType,
-	voxel_face_type_index FaceTypeIndex,
-	int CurrTextureIndex)
-{
-	u32 TexturesByWidth = Atlas->AtlasWidth / Atlas->OneTextureWidth;
-
-	Assert(CurrTextureIndex < Atlas->MaxTexturesCount);
-
-	voxel_tex_coords_set* MatTexSet = &Atlas->Materials[MaterialType];
-
-	switch (FaceTypeIndex) {
-		case(VoxelFaceTypeIndex_Top): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Bottom): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Left): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Right): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Front): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Back): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_All): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_Side): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
-		}break;
-
-		case(VoxelFaceTypeIndex_TopBottom): {
-			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
-			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
-		}break;
-
-		default: {
-			Assert(!"Invalid code path");
-		}break;
-	}
-}
-
-static void DescribeByIndex(
-	voxel_atlas_info* Atlas,
-	int HorzIndex, int VertIndex,
-	u32 MaterialType,
-	voxel_face_type_index FaceTypeIndex)
-{
-	DescribeVoxelAtlasTexture(Atlas, MaterialType, FaceTypeIndex, VertIndex * 16 + HorzIndex);
-}
-
 void InitAssetFile(asset_system* Assets) {
 	//NOTE(dima): Reserving first asset to make it NULL asset
 	Assets->AssetCount = 1;
@@ -1330,6 +1215,18 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 	FILE* fp = fopen(FileName, "wb");
 
 	if (fp) {
+
+		//NOTE(dima): Writing asset file header
+		asset_file_header FileHeader = {};
+
+		FileHeader.Version = ASSET_FILE_VERSION;
+		FileHeader.AssetGroupsCount = GameAsset_Count;
+		FileHeader.AssetFileHeader[0] = 'G';
+		FileHeader.AssetFileHeader[1] = 'A';
+		FileHeader.AssetFileHeader[2] = 'S';
+		FileHeader.AssetFileHeader[3] = 'S';
+
+		fwrite(&FileHeader, sizeof(asset_file_header), 1, fp);
 
 		for (int AssetIndex = 1;
 			AssetIndex < Assets->AssetCount;
@@ -1380,20 +1277,16 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 
 					Asset->Mesh = &Asset->Mesh_;
 				}break;
-
-				case AssetType_VoxelAtlas: {
-					Asset->VoxelAtlas_ = *Source->VoxelAtlasSource.Info;
-
-					Asset->VoxelAtlas = &Asset->VoxelAtlas_;
-				} break;
 			}
+
+
 		}
 
 		fclose(fp);
 	}
 }
 
-void WriteFonts(asset_system* System) {
+void WriteFonts() {
 	asset_system System_ = {};
 	asset_system* System = &System_;
 	InitAssetFile(System);
@@ -1418,15 +1311,11 @@ void WriteFonts(asset_system* System) {
 	WriteAssetFile(System, "Fonts.gass");
 }
 
-int main() {
+void WriteBitmaps() {
+	asset_system System_ = {};
+	asset_system* System = &System_;
+	InitAssetFile(System);
 
-	BeginAssetGroup(System, GameAsset_MainMenuFont);
-	AddFontAssetManual(System, &AntiqueOliveFontInfo);
-	//AddFontAssetManual(System, &PressStartFontInfo);
-	//AddFontAssetManual(System, &SuperMarioFontInfo);
-	EndAssetGroup(System);
-
-	//NOTE(dima): Bitmaps
 	//NOTE(dima): Player asset
 	BeginAssetGroup(System, GameAsset_Lilboy);
 
@@ -1474,11 +1363,23 @@ int main() {
 	AddBitmapAsset(System, "../Data/Images/container_spec.png");
 	EndAssetGroup(System);
 
+	BeginAssetGroup(System, GameAsset_VoxelAtlasBitmap);
+	AddBitmapAsset(System, "../Data/Images/VoxelAtlas/VoxelAtlas.png");
+	EndAssetGroup(System);
+
 	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64, V3(1.0f, 0.0f, 0.0f), V3(0.0f, 1.0f, 0.0f));
 
 	BeginAssetGroup(System, GameAsset_Checkerboard);
 	AddBitmapAssetManual(System, &Checker1);
 	EndAssetGroup(System);
+
+	WriteAssetFile(System, "../data/Bitmaps.gass");
+}
+
+void WriteMeshPrimitives() {
+	asset_system System_ = {};
+	asset_system* System = &System_;
+	InitAssetFile(System);
 
 	float PlaneVertices[] = {
 		//P N UV C
@@ -1593,41 +1494,14 @@ int main() {
 	AddFloatTag(System, GameAssetTag_LOD, 1.0f);
 	EndAssetGroup(System);
 
-	voxel_atlas_info* Atlas = LoadVoxelAtlas("../Data/Images/VoxelAtlas/VoxelAtlas.png", 16);
-	DescribeByIndex(Atlas, 0, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Top);
-	DescribeByIndex(Atlas, 1, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Bottom);
-	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_Ground, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 3, 1, VoxelMaterial_Tree, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Tree, VoxelFaceTypeIndex_TopBottom);
-	DescribeByIndex(Atlas, 5, 0, VoxelMaterial_Stone, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 6, 0, VoxelMaterial_Sand, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 7, 0, VoxelMaterial_Leaves, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 8, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_TopBottom);
-	DescribeByIndex(Atlas, 15, 15, VoxelMaterial_Lava, VoxelFaceTypeIndex_All);
+	WriteAssetFile(System, "../Data/MeshPrimitives.gass");
+}
 
-	DescribeByIndex(Atlas, 0, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Top);
-	DescribeByIndex(Atlas, 1, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 2, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Bottom);
-	DescribeByIndex(Atlas, 2, 1, VoxelMaterial_WinterGround, VoxelFaceTypeIndex_All);
-
-	DescribeByIndex(Atlas, 0, 2, VoxelMaterial_Brick, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 1, 2, VoxelMaterial_GrassyBigBrick, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_DecorateBrick, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 3, 2, VoxelMaterial_BigBrick, VoxelFaceTypeIndex_All);
-	DescribeByIndex(Atlas, 4, 2, VoxelMaterial_BookShelf, VoxelFaceTypeIndex_Side);
-	DescribeByIndex(Atlas, 3, 3, VoxelMaterial_BookShelf, VoxelFaceTypeIndex_TopBottom);
-
-	DescribeByIndex(Atlas, 0, 15, VoxelMaterial_Secret, VoxelFaceTypeIndex_All);
-
-	BeginAssetGroup(System, GameAsset_MyVoxelAtlas);
-	AddVoxelAtlasAsset(System, Atlas);
-	EndAssetGroup(System);
-
-#if 1
-
-#endif
+int main() {
+	
+	WriteFonts();
+	WriteBitmaps();
+	WriteMeshPrimitives();
 
 	system("pause");
 	return(0);

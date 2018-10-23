@@ -159,9 +159,9 @@ enum asset_type {
 	AssetType_Bitmap,
 	AssetType_Sound,
 	AssetType_Font,
+	AssetType_FontGlyph,
 	AssetType_Model,
 	AssetType_Mesh,
-	AssetType_VoxelAtlas,
 };
 
 #endif

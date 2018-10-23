@@ -307,6 +307,7 @@ struct voxworld_generation_state {
 
 #define MESH_REGEN_FREQUENCY 5.0f
 	input_system* Input;
+	asset_system* Assets;
 
 	threadwork_data_set ChunkSet;
 	threadwork_data_set MeshSet;
@@ -343,7 +344,7 @@ struct voxworld_generation_state {
 	voxworld_table_entry* FreeTableEntrySentinel;
 	voxworld_table_entry* WorkTableEntrySentinel;
 
-	//voxel_atlas_info* VoxelAtlas;
+	voxel_atlas_info VoxelAtlas;
 
 	volatile u32 SmoothRandomIndex;
 
@@ -354,6 +355,7 @@ void VoxelChunksGenerationUpdate(
 	game_mode_state* GameModeState,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	input_system* Input);
+	input_system* Input,
+	asset_system* Assets);
 
 #endif

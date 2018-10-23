@@ -1,11 +1,12 @@
 #ifndef ASSET_BUILDER_TOOL_H_INCLUDED
 #define ASSET_BUILDER_TOOL_H_INCLUDED
 
-#include "gore_types.h"
-#include "gore_math.h"
 #include "gore_asset_types.h"
+#include "gore_math.h"
+#include "gore_types.h"
 
 #include "gore_asset_identifiers.h"
+#include "gore_file_formats.h"
 
 
 struct game_asset_group {
@@ -36,7 +37,6 @@ struct game_asset {
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;
-		voxel_atlas_info* VoxelAtlas;
 	};
 
 	/*
@@ -54,7 +54,6 @@ struct game_asset {
 		sound_info Sound_;
 		model_info Model_;
 		mesh_info Mesh_;
-		voxel_atlas_info VoxelAtlas_;
 	};
 };
 
@@ -90,10 +89,6 @@ struct game_asset_source_font {
 	font_info* FontInfo;
 };
 
-struct game_asset_source_voxel_atlas {
-	voxel_atlas_info* Info;
-};
-
 struct game_asset_source {
 	union {
 		game_asset_source_bitmap BitmapSource;
@@ -101,7 +96,6 @@ struct game_asset_source {
 		game_asset_source_font FontSource;
 		game_asset_source_model ModelSource;
 		game_asset_source_mesh MeshSource;
-		game_asset_source_voxel_atlas VoxelAtlasSource;
 	};
 };
 

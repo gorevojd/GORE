@@ -18,6 +18,18 @@
     <ClInclude Include="..\Source\asset_builder_tool.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\gore_asset_identifiers.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_file_formats.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_math.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_types.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\asset_builder_tool.cpp">

@@ -151,6 +151,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\asset_builder_tool.h" />
+    <ClInclude Include="..\Source\gore_asset_identifiers.h" />
+    <ClInclude Include="..\Source\gore_file_formats.h" />
+    <ClInclude Include="..\Source\gore_math.h" />
+    <ClInclude Include="..\Source\gore_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\asset_builder_tool.cpp" />

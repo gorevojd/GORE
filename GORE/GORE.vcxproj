@@ -201,6 +201,7 @@
     <ClInclude Include="..\Source\gore_debug_layer.h" />
     <ClInclude Include="..\Source\gore_debug_layer_types.h" />
     <ClInclude Include="..\Source\gore_engine.h" />
+    <ClInclude Include="..\Source\gore_file_formats.h" />
     <ClInclude Include="..\Source\gore_font.h" />
     <ClInclude Include="..\Source\gore_game_common.h" />
     <ClInclude Include="..\Source\gore_game_main_menu.h" />

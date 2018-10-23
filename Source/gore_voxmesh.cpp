@@ -384,6 +384,147 @@ void VoxmeshGenerate(
 	}
 }
 
+
+static void DescribeVoxelAtlasTexture(
+	voxel_atlas_info* Atlas,
+	u32 MaterialType,
+	voxel_face_type_index FaceTypeIndex,
+	int CurrTextureIndex)
+{
+	u32 TexturesByWidth = Atlas->AtlasWidth / Atlas->OneTextureWidth;
+
+	Assert(CurrTextureIndex < Atlas->MaxTexturesCount);
+
+	voxel_tex_coords_set* MatTexSet = &Atlas->Materials[MaterialType];
+
+	switch (FaceTypeIndex) {
+		case(VoxelFaceTypeIndex_Top): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Bottom): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Left): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Right): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Front): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Back): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_All): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_Side): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Left] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Right] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Front] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Back] = CurrTextureIndex;
+		}break;
+
+		case(VoxelFaceTypeIndex_TopBottom): {
+			MatTexSet->Sets[VoxelFaceTypeIndex_Bottom] = CurrTextureIndex;
+			MatTexSet->Sets[VoxelFaceTypeIndex_Top] = CurrTextureIndex;
+		}break;
+
+		default: {
+			Assert(!"Invalid code path");
+		}break;
+	}
+}
+
+static void DescribeByIndex(
+	voxel_atlas_info* Atlas,
+	int HorzIndex, int VertIndex,
+	u32 MaterialType,
+	voxel_face_type_index FaceTypeIndex)
+{
+	DescribeVoxelAtlasTexture(Atlas, MaterialType, FaceTypeIndex, VertIndex * 16 + HorzIndex);
+}
+
+static void InitVoxelAtlas(
+	voxel_atlas_info* Atlas,
+	asset_system* Assets, 
+	bitmap_id AtlasBitmapID, 
+	u32 OneTextureWidth)
+{
+	Atlas->Materials = (voxel_tex_coords_set*)malloc(sizeof(voxel_tex_coords_set) * VoxelMaterial_Count);
+
+	bitmap_info* AtlasBitmap = GetBitmapFromID(Assets, AtlasBitmapID);
+
+	Assert(AtlasBitmap);
+
+	Atlas->Bitmap = *AtlasBitmap;
+
+	int AtlasWidth = Atlas->Bitmap.Width;
+
+	/*AtlasWidth must be multiple of OneTextureWidth*/
+	Assert((AtlasWidth & (OneTextureWidth - 1)) == 0);
+
+	u32 TexturesByWidth = AtlasWidth / OneTextureWidth;
+	Atlas->MaxTexturesCount = TexturesByWidth * TexturesByWidth;
+	Atlas->TexturesCount = 0;
+
+	Atlas->AtlasWidth = AtlasWidth;
+	Atlas->OneTextureWidth = OneTextureWidth;
+
+	for (int MaterialIndex = 0;
+		MaterialIndex < VoxelMaterial_Count;
+		MaterialIndex++)
+	{
+		for (int i = 0;
+			i < VoxelFaceTypeIndex_Count;
+			i++)
+		{
+			Atlas->Materials[MaterialIndex].Sets[i] = 0;
+		}
+	}
+
+	DescribeByIndex(Atlas, 0, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Top);
+	DescribeByIndex(Atlas, 1, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_GrassyGround, VoxelFaceTypeIndex_Bottom);
+	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_Ground, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 3, 1, VoxelMaterial_Tree, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Tree, VoxelFaceTypeIndex_TopBottom);
+	DescribeByIndex(Atlas, 5, 0, VoxelMaterial_Stone, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 6, 0, VoxelMaterial_Sand, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 7, 0, VoxelMaterial_Leaves, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 8, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 4, 0, VoxelMaterial_Birch, VoxelFaceTypeIndex_TopBottom);
+	DescribeByIndex(Atlas, 15, 15, VoxelMaterial_Lava, VoxelFaceTypeIndex_All);
+
+	DescribeByIndex(Atlas, 0, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Top);
+	DescribeByIndex(Atlas, 1, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 2, 1, VoxelMaterial_SnowGround, VoxelFaceTypeIndex_Bottom);
+	DescribeByIndex(Atlas, 2, 1, VoxelMaterial_WinterGround, VoxelFaceTypeIndex_All);
+
+	DescribeByIndex(Atlas, 0, 2, VoxelMaterial_Brick, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 1, 2, VoxelMaterial_GrassyBigBrick, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 2, 2, VoxelMaterial_DecorateBrick, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 3, 2, VoxelMaterial_BigBrick, VoxelFaceTypeIndex_All);
+	DescribeByIndex(Atlas, 4, 2, VoxelMaterial_BookShelf, VoxelFaceTypeIndex_Side);
+	DescribeByIndex(Atlas, 3, 3, VoxelMaterial_BookShelf, VoxelFaceTypeIndex_TopBottom);
+
+	DescribeByIndex(Atlas, 0, 15, VoxelMaterial_Secret, VoxelFaceTypeIndex_All);
+}
+
+
 static void BuildColumnInChunk(
 	voxel_chunk_info* Chunk, 
 	int InChunkX, int InChunkY, 
@@ -452,6 +593,7 @@ inline float GetNextRandomSmoothFloat(voxworld_generation_state* Generation) {
 #define STB_PERLIN_STATIC
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
+
 
 struct biome_based_params {
 	int TreeMinHeight;
@@ -758,61 +900,6 @@ void FillNeighboursSetInfoBasedOnNeighbours(
 {
 	*SetInfo = {};
 
-#if 0
-	//NOTE(dima): This is for left chunk
-	if (Neighbours->LeftChunk) {
-		if (Neighbours->LeftChunk->State == VoxelChunkState_Ready) {
-			SetInfo->LeftExist = 1;
-
-			int CurrentBit = 0;
-			for (int DepthIndex = VOXEL_CHUNK_WIDTH - 1;
-				DepthIndex >= 0;
-				DepthIndex--)
-			{
-				for (int HeightIndex = 0;
-					HeightIndex < VOXEL_CHUNK_HEIGHT;
-					HeightIndex++)
-				{
-					u8 Src = Neighbours->LeftChunk->Voxels[GET_VOXEL_INDEX(VOXEL_CHUNK_WIDTH - 1, DepthIndex, HeightIndex)];
-					
-					int TargetByte = CurrentBit / 8;
-					int TargetBit = CurrentBit & 7;
-
-					SetInfo->Left[TargetByte] = ((1 & (Src != 0)) << TargetBit) | SetInfo->Left[TargetByte];
-
-					CurrentBit++;
-				}
-			}
-		}
-	}
-
-	//NOTE(dima): This is for right chunk
-	if (Neighbours->RightChunk) {
-		if (Neighbours->RightChunk->State == VoxelChunkState_Ready) {
-			SetInfo->RightExist = 1;
-
-			int CurrentBit = 0;
-			for (int DepthIndex = 0;
-				DepthIndex < VOXEL_CHUNK_WIDTH;
-				DepthIndex++)
-			{
-				for (int HeightIndex = 0;
-					HeightIndex < VOXEL_CHUNK_HEIGHT;
-					HeightIndex++)
-				{
-					u8 Src = Neighbours->RightChunk->Voxels[GET_VOXEL_INDEX(0, DepthIndex, HeightIndex)];
-
-					int TargetByte = CurrentBit / 8;
-					int TargetBit = CurrentBit & 7;
-
-					SetInfo->Right[TargetByte] = ((1 & (Src != 0)) << TargetBit) | SetInfo->Right[TargetByte];
-
-					CurrentBit++;
-				}
-			}
-		}
-	}
-#else
 	FillNeighbourSetBasedOnChunk(
 		SetInfo->Left, &SetInfo->LeftExist,
 		Neighbours->LeftChunk,
@@ -854,7 +941,6 @@ void FillNeighboursSetInfoBasedOnNeighbours(
 		0, VOXEL_CHUNK_WIDTH - 1,
 		0, VOXEL_CHUNK_WIDTH - 1,
 		VOXEL_CHUNK_HEIGHT - 1, VOXEL_CHUNK_HEIGHT - 1);
-#endif
 }
 
 #include "stb_sprintf.h"
@@ -1617,7 +1703,8 @@ static void VoxelChunksGenerationInit(
 	voxworld_generation_state* Generation,
 	stacked_memory* Memory,
 	int VoxelThreadQueueSize,
-	input_system* Input)
+	input_system* Input,
+	asset_system* Assets)
 {
 	int ChunksViewDistanceCount = 20;
 	int ChunksHeightCount = 1;
@@ -1638,6 +1725,7 @@ static void VoxelChunksGenerationInit(
 	Generation->MeshGenerationsStartedThisFrame = 0;
 
 	Generation->Input = Input;
+	Generation->Assets = Assets;
 
 	Generation->TotalMemory = Memory;
 	Generation->FCPMemoryBlock = SplitStackedMemory(Generation->TotalMemory, KILOBYTES(100));
@@ -1746,6 +1834,10 @@ static void VoxelChunksGenerationInit(
 	//NOTE(dima): Initialization of random state
 	Generation->SmoothRandomIndex = 0;
 
+	//NOTE(dima): Initialization of voxel atlas
+	bitmap_id AtlasBitmapID = GetFirstBitmap(Assets, GameAsset_VoxelAtlasBitmap);
+	InitVoxelAtlas(&Generation->VoxelAtlas, Assets, AtlasBitmapID, 16);
+
 	Generation->Initialized = 1;
 }
 
@@ -1753,7 +1845,8 @@ void VoxelChunksGenerationUpdate(
 	game_mode_state* GameModeState,
 	render_state* RenderState,
 	int VoxelThreadQueueSize,
-	input_system* Input)
+	input_system* Input,
+	asset_system* Assets)
 {
 	FUNCTION_TIMING();
 
@@ -1788,7 +1881,7 @@ void VoxelChunksGenerationUpdate(
 
 		PushStruct(Memory, voxworld_generation_state);
 
-		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize, Input);
+		VoxelChunksGenerationInit(Generation, Memory, VoxelThreadQueueSize, Input, Assets);
 
 		Generation->CapturingMouse = 1;
 		Generation->CameraAutoMove = 0;
@@ -1799,8 +1892,7 @@ void VoxelChunksGenerationUpdate(
 
 	render_stack* RenderStack = RenderState->NamedStacks.Main;
 
-	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(RenderState->AssetSystem, GameAsset_MyVoxelAtlas);
-	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(RenderState->AssetSystem, VoxelAtlasID);
+	voxel_atlas_info* VoxelAtlas = &Generation->VoxelAtlas;
 	
 	int CamChunkIndexX;
 	int CamChunkIndexY;
