@@ -21,6 +21,8 @@
 
 
 	Byte size of the Line is Pitch. Pitch stored in asset header
+
+
 */
 
 struct gass_tag {

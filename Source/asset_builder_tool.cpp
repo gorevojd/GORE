@@ -1369,6 +1369,7 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 				}break;
 			}
 
+
 			//NOTE(dima): Forming tags
 			int NumberOfTagsToWrite = Asset->TagCount;
 			gass_tag WriteTags[MAX_TAGS_PER_ASSET];
