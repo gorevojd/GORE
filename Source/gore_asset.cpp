@@ -151,6 +151,32 @@ u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int Tag
 	return(Result);
 }
 
+u32 GetAssetByTag(asset_system* System, u32 GroupID, u32 TagType, u32 AssetType) {
+	u32 ResultAssetIndex = 0;
+
+	game_asset_group* Group = System->AssetGroups + GroupID;
+
+	for (int AssetIndex = 0;
+		AssetIndex < Group->GroupAssetCount;
+		AssetIndex++)
+	{
+		int ExactAssetIndex = Group->FirstAssetIndex + AssetIndex;
+		game_asset* Asset = System->Assets + ExactAssetIndex;
+
+		game_asset_tag* Tag = FindTagInAsset(Asset, TagType);
+
+		if (Tag) {
+			ResultAssetIndex = ExactAssetIndex;
+			break;
+		}
+	}
+
+	game_asset* ResultAsset = System->Assets + ResultAssetIndex;
+	Assert(ResultAsset->Type == AssetType);
+
+	return(ResultAssetIndex);
+}
+
 inline game_asset* GetFirstAssetInternal(asset_system* System, u32 GroupID) {
 	u32 TargetAssetIndex = System->AssetGroups[GroupID].FirstAssetIndex;
 	game_asset* Result = &System->Assets[TargetAssetIndex];

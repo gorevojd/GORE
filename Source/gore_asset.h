@@ -8,12 +8,6 @@
 #include "gore_game_settings.h"
 #include "gore_file_formats.h"
 
-typedef u32 bitmap_id;
-typedef u32 font_id;
-typedef u32 sound_id;
-typedef u32 model_id;
-typedef u32 mesh_id;
-
 enum game_asset_state {
 	GameAssetState_Unloaded,
 

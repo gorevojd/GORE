@@ -6,6 +6,7 @@ enum game_asset_tag_id {
 
 	GameAssetTag_Font_Debug,
 	GameAssetTag_Font_Golden,
+	GameAssetTag_Font_MainMenuFont,
 
 	GameAssetTag_Lilboy,
 
@@ -33,8 +34,7 @@ enum game_asset_group_id {
 	GameAsset_Cylynder,
 
 	GameAsset_Font,
-	GameAsset_MainMenuFont,
-
+	GameAsset_FontGlyph,
 
 	GameAsset_Count,
 };

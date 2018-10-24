@@ -4,22 +4,46 @@
 #include "gore_types.h"
 
 #define ASSET_FILE_VERSION 1
-#define ASSET_FILE_HEADER ('G', 'A', 'S', 'S')
 
 #pragma pack(push, 1)
+
+/*
+	//NOTE(dima): asset data is stored in the next pattern
+
+	(Asset file header)
+	(Asset1 header) | (Asset1 data) | (Asset1 tags) -> Line. 
+	(Asset2 header) | (Asset2 data) | (Asset2 tags)
+	(Asset3 header) | (Asset3 data) | (Asset3 tags)
+	(Asset4 header) | (Asset4 data) | (Asset4 tags)
+	(Asset5 header) | (Asset5 data) | (Asset5 tags)
+	...............................................
+	(AssetN header) | (AssetN data) | (AssetN tags)
+
+
+	Byte size of the Line is Pitch. Pitch stored in asset header
+*/
+
+struct gass_tag {
+	u32 Type;
+
+	union {
+		float Value_Float;
+		int Value_Int;
+	};
+};
+
+//Bitmap pixels should be stored right after this header
 struct gass_bitmap {
 	u32 Width;
 	u32 Height;
-
-	u32 OffsetToPixelsData;
 };
 
+//Glyph bitmap pixels should be stored right after this header
 struct gass_font_glyph {
 	int Codepoint;
 
 	u32 BitmapWidth;
 	u32 BitmapHeight;
-	u32 OffsetToBitmapPixels;
 
 	float XOffset;
 	float YOffset;
@@ -37,6 +61,7 @@ struct gass_font {
 	float DescenderHeight;
 	float LineGap;
 
+	u32 FirstGlyphID;
 	int GlyphsCount;
 
 	u32 OffsetToKerningPairs;
@@ -60,17 +85,12 @@ struct gass_mesh {
 struct gass_header {
 	u32 AssetType;
 
-	u32 FirstTagOffset;
+	u32 LineFirstTagOffset;
 	u32 TagCount;
 
 	u32 GroupIndex;
 
-	/*
-		NOTE(dima): Asset data is written right
-		after asset header. So we need actually
-		know how big is it to advance to next asset
-	*/
-	u32 TotalAssetDataSize;
+	u32 Pitch;
 
 	union {
 		gass_bitmap Bitmap;

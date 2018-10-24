@@ -1,6 +1,16 @@
 #ifndef GORE_ASSET_TYPES_H_INCLUDED
 #define GORE_ASSET_TYPES_H_INCLUDED
 
+#include "gore_types.h"
+#include "gore_math.h"
+
+typedef u32 bitmap_id;
+typedef u32 font_id;
+typedef u32 font_glyph_id;
+typedef u32 sound_id;
+typedef u32 model_id;
+typedef u32 mesh_id;
+
 //NOTE(dima): DO NOT CHANGE ORDER OF THEESE
 struct vertex_info {
 	v3 P;
@@ -95,63 +105,6 @@ struct font_info {
 
 	bitmap_info FontAtlasImage;
 };
-
-enum voxel_face_type_index {
-	VoxelFaceTypeIndex_Top = 0,
-	VoxelFaceTypeIndex_Bottom,
-	VoxelFaceTypeIndex_Left,
-	VoxelFaceTypeIndex_Right,
-	VoxelFaceTypeIndex_Front,
-	VoxelFaceTypeIndex_Back,
-
-	VoxelFaceTypeIndex_Count,
-
-	VoxelFaceTypeIndex_All,
-	VoxelFaceTypeIndex_Side,
-	VoxelFaceTypeIndex_TopBottom,
-};
-
-struct voxel_tex_coords_set{
-	union {
-		struct {
-			union {
-				struct {
-					u8 Top;
-					u8 Bottom;
-				};
-				u8 TopBottom;
-			};
-			union {
-				struct {
-					u8 Left;
-					u8 Right;
-					u8 Front;
-					u8 Back;
-				};
-				u8 Side;
-			};
-		};
-
-		u8 All;
-		u8 Sets[VoxelFaceTypeIndex_Count];
-	};
-};
-
-struct voxel_atlas_info {
-	bitmap_info Bitmap;
-
-	int MaxTexturesCount;
-	int TexturesCount;
-
-	int AtlasWidth;
-	int OneTextureWidth;
-
-	voxel_tex_coords_set* Materials;
-	int MaterialsCount;
-};
-
-struct voxel_mesh_info;
-struct voxel_chunk_info;
 
 enum asset_type {
 	AssetType_None,

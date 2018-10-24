@@ -5,9 +5,29 @@
 #include <iostream>
 
 
+static void BeginAssetGroup(asset_system* System, u32 GroupID) {
+	System->CurrentGroup = System->AssetGroups + GroupID;
+	System->PrevAssetPointer = 0;
+
+	game_asset_group* Group = System->CurrentGroup;
+
+	Group->FirstAssetIndex = System->AssetCount;
+	Group->GroupAssetCount = 0;
+}
+
+static void EndAssetGroup(asset_system* System) {
+	Assert(System->CurrentGroup);
+	game_asset_group* Group = System->CurrentGroup;
+
+	System->CurrentGroup = 0;
+	System->PrevAssetPointer = 0;
+}
+
 struct added_asset {
 	game_asset* Asset;
 	game_asset_source* Source;
+	game_asset_freearea* Freearea;
+	gass_header* FileHeader;
 };
 
 static added_asset AddAsset(asset_system* System, u32 AssetType) {
@@ -22,6 +42,9 @@ static added_asset AddAsset(asset_system* System, u32 AssetType) {
 	Result.Asset = System->Assets + AssetIndex;
 	Result.Asset->Type = AssetType;
 	Result.Source = System->AssetSources + AssetIndex;
+	Result.Freearea = System->AssetFreeareas + AssetIndex;
+	Result.FileHeader = System->FileHeaders + AssetIndex;
+	Result.FileHeader->AssetType = AssetType;
 
 	Result.Asset->ID = System->AssetCount;
 	++System->AssetCount;
@@ -29,6 +52,15 @@ static added_asset AddAsset(asset_system* System, u32 AssetType) {
 	System->PrevAssetPointer = Result.Asset;
 
 	return(Result);
+}
+
+static void AddFreeareaToAsset(asset_system* System, game_asset* Asset, void* Pointer) {
+	game_asset_freearea* Free = System->AssetFreeareas + Asset->ID;
+
+	int TargetFreeAreaIndex = Free->SetCount++;
+	Assert(TargetFreeAreaIndex < FREEAREA_SLOTS_COUNT);
+
+	Free->Pointers[TargetFreeAreaIndex] = Pointer;
 }
 
 inline game_asset_tag* FindTagInAsset(game_asset* Asset, u32 TagType) {
@@ -86,58 +118,77 @@ static void AddIntTag(asset_system* System, u32 TagType, int TagValue) {
 	}
 }
 
-static void BeginAssetGroup(asset_system* System, u32 AssetID) {
-	System->CurrentGroup = System->AssetGroups + AssetID;
-	System->PrevAssetPointer = 0;
+static void AddEmptyTag(asset_system* System, u32 TagType) {
+	game_asset_tag* Tag = AddTag(System, TagType);
 
-	game_asset_group* Group = System->CurrentGroup;
-
-	Group->FirstAssetIndex = System->AssetCount;
-	Group->GroupAssetCount = 0;
+	if (Tag) {
+		Tag->Value_Int = 1;
+	}
 }
 
-static void EndAssetGroup(asset_system* System) {
-	Assert(System->CurrentGroup);
-	game_asset_group* Group = System->CurrentGroup;
-
-	System->CurrentGroup = 0;
-	System->PrevAssetPointer = 0;
-}
-
-static void AddBitmapAsset(asset_system* System, char* Path) {
+static bitmap_id AddBitmapAsset(asset_system* System, char* Path) {
 	added_asset Added = AddAsset(System, AssetType_Bitmap);
 
+	gass_header* FileHeader = Added.FileHeader;
 	game_asset_source* Source = Added.Source;
+	game_asset_freearea* Free = Added.Freearea;
+
 	Source->BitmapSource.Path = Path;
 	Source->BitmapSource.BitmapInfo = 0;
+
+	AddFreeareaToAsset(System, Added.Asset, Source->BitmapSource.BitmapInfo->Pixels);
+
+	bitmap_id Result = Added.Asset->ID;
+
+	return(Result);
 }
 
-static void AddBitmapAssetManual(asset_system* System, bitmap_info* Bitmap) {
+static bitmap_id AddBitmapAssetManual(asset_system* System, bitmap_info* Bitmap) {
 	added_asset Added = AddAsset(System, AssetType_Bitmap);
 
+	gass_header* FileHeader = Added.FileHeader;
 	game_asset_source* Source = Added.Source;
+
 	Source->BitmapSource.BitmapInfo = Bitmap;
+
+	AddFreeareaToAsset(System, Added.Asset, Source->BitmapSource.BitmapInfo->Pixels);
+
+	bitmap_id Result = Added.Asset->ID;
+
+	return(Result);
 }
 
-static void AddSoundAsset(asset_system* System, char* Path) {
+static sound_id AddSoundAsset(asset_system* System, char* Path) {
 	added_asset Added = AddAsset(System, AssetType_Sound);
 
 	game_asset_source* Source = Added.Source;
 	Source->SoundSource.Path = Path;
+
+	sound_id Result = Added.Asset->ID;
+
+	return(Result);
 }
 
-static void AddModelAsset(asset_system* System, model_info* Model) {
+static model_id AddModelAsset(asset_system* System, model_info* Model) {
 	added_asset Added = AddAsset(System, AssetType_Model);
 
 	game_asset_source* Source = Added.Source;
 	Source->ModelSource.ModelInfo = Model;
+
+	model_id Result = Added.Asset->ID;
+
+	return(Result);
 }
 
-static void AddMeshAsset(asset_system* System, mesh_info* Mesh) {
+static mesh_id AddMeshAsset(asset_system* System, mesh_info* Mesh) {
 	added_asset Added = AddAsset(System, AssetType_Mesh);
 
 	game_asset_source* Source = Added.Source;
 	Source->MeshSource.MeshInfo = Mesh;
+
+	mesh_id Result = Added.Asset->ID;
+
+	return(Result);
 }
 
 static void AddFontAsset(
@@ -169,6 +220,16 @@ static void AddFontAssetManual(
 
 	game_asset_source* Source = Added.Source;
 	Source->FontSource.FontInfo = FontInfo;
+}
+
+static void AddFontGlyphAsset(
+	asset_system* System,
+	glyph_info* GlyphInfo)
+{
+	added_asset Added = AddAsset(System, AssetType_FontGlyph);
+
+	game_asset_source* Source = Added.Source;
+	Source->FontGlyphSource.Glyph = GlyphInfo;
 }
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -1209,6 +1270,21 @@ void InitAssetFile(asset_system* Assets) {
 		Group->FirstAssetIndex = 0;
 		Group->GroupAssetCount = 0;
 	}
+
+	//NOTE(dima): Clearing free areas
+	for (int FreeAreaIndex = 0;
+		FreeAreaIndex < TEMP_STORED_ASSET_COUNT;
+		FreeAreaIndex++) 
+	{
+		game_asset_freearea* Free = Assets->AssetFreeareas + FreeAreaIndex;
+
+		*Free = {};
+
+		Free->SetCount = 0;
+		for (int PointerIndex = 0; PointerIndex < FREEAREA_SLOTS_COUNT; PointerIndex++) {
+			Free->Pointers[PointerIndex] = 0;
+		}
+	}
 }
 
 void WriteAssetFile(asset_system* Assets, char* FileName) {
@@ -1234,6 +1310,11 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 		{
 			game_asset* Asset = Assets->Assets + AssetIndex;
 			game_asset_source* Source = Assets->AssetSources + AssetIndex;
+			game_asset_freearea* Free = Assets->AssetFreeareas + AssetIndex;
+
+			u32 HeaderByteSize = sizeof(gass_header);
+			u32 TagsByteSize = Asset->TagCount * sizeof(gass_tag);
+			u32 DataByteSize = 0;
 
 			switch (Assets->AssetTypes[AssetIndex]) {
 				case AssetType_Bitmap: {
@@ -1243,12 +1324,13 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 					else {
 						Asset->Bitmap_ = *Source->BitmapSource.BitmapInfo;
 					}
-
 					Asset->Bitmap = &Asset->Bitmap_;
+
+					//NOTE(dima): Set data size
+					DataByteSize = Asset->Bitmap->Width * Asset->Bitmap->Height * 4;
 				}break;
 
 				case AssetType_Font: {
-
 					if (!Source->FontSource.FontInfo) {
 						if (Source->FontSource.LoadFromImage) {
 							Asset->Font_ = LoadFontInfoFromImage(
@@ -1268,8 +1350,13 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 					else {
 						Asset->Font_ = *Source->FontSource.FontInfo;
 					}
-
 					Asset->Font = &Asset->Font_;
+
+
+				}break;
+
+				case AssetType_FontGlyph: {
+					//NOTE(dima): 
 				}break;
 
 				case AssetType_Mesh: {
@@ -1279,14 +1366,34 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 				}break;
 			}
 
+			//NOTE(dima): Forming tags
+			int NumberOfTagsToWrite = Asset->TagCount;
+			gass_tag WriteTags[MAX_TAGS_PER_ASSET];
 
+			for (int AssetTagIndex = 0;
+				AssetTagIndex < Asset->TagCount;
+				AssetTagIndex++)
+			{
+				game_asset_tag* From = Asset->Tags + AssetTagIndex;
+				gass_tag* To = WriteTags + AssetTagIndex;
+
+				To->Type = From->Type;
+				To->Value_Float = From->Value_Float;
+			}
+			fwrite(WriteTags, TagsByteSize, 1, fp);
+
+			//NOTE(dima): Freeing freareas
+			for (int FreeIndex = 0; FreeIndex < Free->SetCount; FreeIndex++) {
+				free(Free->Pointers[FreeIndex]);
+			}
 		}
 
 		fclose(fp);
 	}
 }
 
-void WriteFonts() {
+void WriteFonts() 
+{
 	asset_system System_ = {};
 	asset_system* System = &System_;
 	InitAssetFile(System);
@@ -1295,17 +1402,36 @@ void WriteFonts() {
 	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-	font_info ChurchFontInfo = LoadFontInfoWithSTB("../Data/Fonts/11550.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 	//font_info SuperMarioFontInfo = LoadFontInfoWithSTB("../Data/Fonts/Super Mario Bros.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 	//font_info PressStartFontInfo = LoadFontInfoWithSTB("../Data/Fonts/PressStart2P.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
 	AddFontAssetManual(System, &UbuntuFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_Debug);
 	AddFontAssetManual(System, &AntiqueOliveFontInfo);
-	AddFontAssetManual(System, &DebugFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_MainMenuFont);
 	AddFontAssetManual(System, &GoldenFontInfo);
-	AddFontAssetManual(System, &ChurchFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_Golden);
+	AddFontAssetManual(System, &DebugFontInfo);
+	EndAssetGroup(System);
+
+	font_info Fonts[] = {
+		GoldenFontInfo, 
+		DebugFontInfo,
+		UbuntuFontInfo,
+		AntiqueOliveFontInfo,
+	};
+
+	BeginAssetGroup(System, GameAsset_FontGlyph);
+	for (int FontIndex = 0;
+		FontIndex < ArrayCount(Fonts);
+		FontIndex++)
+	{
+		font_info* Font = Fonts + FontIndex;
+
+		AddFontGlyphAsset();
+	}
 	EndAssetGroup(System);
 
 	WriteAssetFile(System, "Fonts.gass");

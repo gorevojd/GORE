@@ -10,7 +10,6 @@
 
 
 struct game_asset_group {
-
 	u32 FirstAssetIndex;
 	u32 GroupAssetCount;
 };
@@ -19,8 +18,10 @@ struct game_asset_group {
 struct game_asset_tag {
 	u32 Type;
 
-	float Value_Float;
-	int Value_Int;
+	union {
+		float Value_Float;
+		int Value_Int;
+	};
 };
 
 struct game_asset {
@@ -37,6 +38,7 @@ struct game_asset {
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;
+		glyph_info* FontGlyph;
 	};
 
 	/*
@@ -56,6 +58,11 @@ struct game_asset {
 		mesh_info Mesh_;
 	};
 };
+
+
+/*
+	NOTE(dima): Asset sources
+*/
 
 struct game_asset_source_bitmap {
 	char* Path;
@@ -89,21 +96,38 @@ struct game_asset_source_font {
 	font_info* FontInfo;
 };
 
+struct game_asset_source_fontglyph {
+	glyph_info* Glyph;
+};
+
 struct game_asset_source {
 	union {
 		game_asset_source_bitmap BitmapSource;
 		game_asset_source_sound SoundSource;
 		game_asset_source_font FontSource;
+		game_asset_source_fontglyph FontGlyphSource;
 		game_asset_source_model ModelSource;
 		game_asset_source_mesh MeshSource;
 	};
 };
 
+
+//NOTE(dima): Assets freeareas
+#define FREEAREA_SLOTS_COUNT 4
+struct game_asset_freearea {
+	void* Pointers[FREEAREA_SLOTS_COUNT];
+	int SetCount;
+};
+
+
+//NOTE(dima): Asset system
 #define TEMP_STORED_ASSET_COUNT 2048
 struct asset_system {
 	u32 AssetTypes[TEMP_STORED_ASSET_COUNT];
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];
 	game_asset_source AssetSources[TEMP_STORED_ASSET_COUNT];
+	game_asset_freearea AssetFreeareas[TEMP_STORED_ASSET_COUNT];
+	gass_header FileHeaders[TEMP_STORED_ASSET_COUNT];
 
 	game_asset_group AssetGroups[GameAsset_Count];
 
