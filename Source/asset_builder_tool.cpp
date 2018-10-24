@@ -1328,6 +1328,9 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 
 					//NOTE(dima): Set data size
 					DataByteSize = Asset->Bitmap->Width * Asset->Bitmap->Height * 4;
+
+					//NOTE(dima): Writing bitmap pixel data
+					fwrite(Asset->Bitmap->Pixels, DataByteSize, 1, fp);
 				}break;
 
 				case AssetType_Font: {
