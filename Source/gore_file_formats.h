@@ -10,19 +10,38 @@
 /*
 	//NOTE(dima): asset data is stored in the next pattern
 
-	(Asset file header)
+	type: asset_file_header
+	{
+		(Asset file header)
+	}
+
+	type: asset_file_asset_group
+	{
+		(Asset group0)
+		(Asset group1)
+		(Asset group2)
+		..............
+		(Asset groupN)									N = AssetFileHeader->AssetGroupsCount
+	}
+
+	type: unsigned integer(4 bytes)
+	{
+		(Asset1 line byte offset)
+		(Asset2 line byte offset)
+		(Asset3 line byte offset)
+		.........................
+		(AssetN line byte offset)						N = AssetFileHeader->AssetsCount;
+	}
+
+
 	(Asset1 header) | (Asset1 data) | (Asset1 tags) -> Line. 
 	(Asset2 header) | (Asset2 data) | (Asset2 tags)
 	(Asset3 header) | (Asset3 data) | (Asset3 tags)
-	(Asset4 header) | (Asset4 data) | (Asset4 tags)
-	(Asset5 header) | (Asset5 data) | (Asset5 tags)
 	...............................................
 	(AssetN header) | (AssetN data) | (AssetN tags)
 
 
 	Byte size of the Line is Pitch. Pitch stored in asset header
-
-
 */
 
 struct gass_tag {
@@ -34,7 +53,12 @@ struct gass_tag {
 	};
 };
 
-//Bitmap pixels should be stored right after this header
+/*
+	NOTE(dima): 
+		Bitmap pixels should be stored right after this header
+
+		Bitmap data byte size is equal to Width * Height * 4(bytes per pixel)
+*/
 struct gass_bitmap {
 	u32 Width;
 	u32 Height;
@@ -58,20 +82,31 @@ struct gass_font_glyph {
 	float AtlasMaxUV_y;
 };
 
+/*
+	NOTE(dima):
+
+	Asset data for fonts stored next way:
+	1) (sizeof(int) * MaxGlyphCount)				bytes of mapping data
+	2) (sizeof(float) * GlyphCount * GlyphCount)	bytes of kerning data
+	3) (AtlasWidth * AtlasHeight * 4)				bytes of atlas bitmap pixel data
+	
+*/
 struct gass_font {
 	float AscenderHeight;
 	float DescenderHeight;
 	float LineGap;
 
 	u32 FirstGlyphID;
-	int GlyphsCount;
 
-	u32 OffsetToKerningPairs;
-	u32 OffsetToGlyphs;
+	int GlyphsCount;
+	int MaxGlyphsCount;
 
 	u32 AtlasBitmapWidth;
 	u32 AtlasBitmapHeight;
-	u32 OffsetToAtlasBitmapPixels;
+
+	u32 LineOffsetToMapping;
+	u32 LineOffsetToKerningPairs;
+	u32 LineOffsetToAtlasBitmapPixels;
 };
 
 struct gass_mesh {
@@ -90,8 +125,6 @@ struct gass_header {
 	u32 LineFirstTagOffset;
 	u32 TagCount;
 
-	u32 GroupIndex;
-
 	u32 Pitch;
 
 	union {
@@ -99,6 +132,11 @@ struct gass_header {
 		gass_font Font;
 		gass_font_glyph Glyph;
 	};
+};
+
+struct asset_file_asset_group {
+	u32 FirstAssetIndex;
+	u32 GroupAssetCount;
 };
 
 struct asset_file_header{
@@ -114,6 +152,12 @@ struct asset_file_header{
 		have in our game...
 	*/
 	u32 AssetGroupsCount;
+
+	u32 AssetsCount;
+
+	u32 GroupsByteOffset;
+	u32 LinesOffsetsByteOffset;
+	u32 AssetLinesByteOffset;
 };
 #pragma pack(pop)
 

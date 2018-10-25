@@ -272,6 +272,41 @@ void ASSETSInit(asset_system* System) {
 		Assert(FileHeader->Version >= ASSET_FILE_VERSION);
 		Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
 
+		//NOTE(dima): Reading file asset groups
+		game_asset_group FileGroups[GameAsset_Count];
+		for (int GroupIndex = 0;
+			GroupIndex < FileHeader->AssetGroupsCount;
+			GroupIndex++)
+		{
+			game_asset_group* ToGroup = &FileGroups[GroupIndex];
+
+			asset_file_asset_group* ReadGroup =
+				(asset_file_asset_group*)
+				((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
+
+			ToGroup->FirstAssetIndex = ReadGroup->FirstAssetIndex;
+			ToGroup->GroupAssetCount = ReadGroup->GroupAssetCount;
+		}
+		StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
+
+		for (int ToGroupIndex = 0;
+			ToGroupIndex < GameAsset_Count;
+			ToGroupIndex++)
+		{
+			game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
+
+			for (int FileGroupIndex = 0;
+				FileGroupIndex < FileHeader->AssetGroupsCount;
+				FileGroupIndex++)
+			{
+				game_asset_group* FileGroup = FileGroups + FileGroupIndex;
+
+				if (ToGroupIndex == FileGroupIndex) {
+
+				}
+			}
+		}
+
 		CurrentOffset = StartOffset;
 		while (CurrentOffset < File->DataSize) {
 			u32 FromAssetIndex = 1;

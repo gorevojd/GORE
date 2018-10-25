@@ -3,9 +3,12 @@
 
 #define GLOBAL_VARIABLE static
 
+#define STRONG_ASSERT(cond) if(!(cond)){ *((int*)0) = 0;}
+
 #define Assert(cond) if(!(cond)){ *((int*)0) = 0;}
 #define ArrayCount(arr) (sizeof(arr) / sizeof((arr)[0]))
 #define InvalidCodePath Assert(!"Invalid code path!");
+#define INVALID_CODE_PATH Assert(!"Invalid code path!");
 
 
 #ifndef PRETTY_TYPES_DEFINED

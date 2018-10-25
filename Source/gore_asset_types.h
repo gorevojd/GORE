@@ -99,11 +99,15 @@ struct font_info {
 	float DescenderHeight;
 	float LineGap;
 
+	int MaxGlyphsCount;
 	int GlyphsCount;
-	int* KerningPairs;
+	float* KerningPairs;
 	glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
 
 	bitmap_info FontAtlasImage;
+
+	//NOTE(dima): It used in asset packer to store temp First glyph ID
+	u32 Reserved;
 };
 
 enum asset_type {

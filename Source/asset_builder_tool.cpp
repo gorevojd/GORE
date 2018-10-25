@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <iostream>
 
-
 static void BeginAssetGroup(asset_system* System, u32 GroupID) {
 	System->CurrentGroup = System->AssetGroups + GroupID;
 	System->PrevAssetPointer = 0;
@@ -129,14 +128,12 @@ static void AddEmptyTag(asset_system* System, u32 TagType) {
 static bitmap_id AddBitmapAsset(asset_system* System, char* Path) {
 	added_asset Added = AddAsset(System, AssetType_Bitmap);
 
+
 	gass_header* FileHeader = Added.FileHeader;
 	game_asset_source* Source = Added.Source;
-	game_asset_freearea* Free = Added.Freearea;
 
 	Source->BitmapSource.Path = Path;
 	Source->BitmapSource.BitmapInfo = 0;
-
-	AddFreeareaToAsset(System, Added.Asset, Source->BitmapSource.BitmapInfo->Pixels);
 
 	bitmap_id Result = Added.Asset->ID;
 
@@ -147,11 +144,9 @@ static bitmap_id AddBitmapAssetManual(asset_system* System, bitmap_info* Bitmap)
 	added_asset Added = AddAsset(System, AssetType_Bitmap);
 
 	gass_header* FileHeader = Added.FileHeader;
+
 	game_asset_source* Source = Added.Source;
-
 	Source->BitmapSource.BitmapInfo = Bitmap;
-
-	AddFreeareaToAsset(System, Added.Asset, Source->BitmapSource.BitmapInfo->Pixels);
 
 	bitmap_id Result = Added.Asset->ID;
 
@@ -191,28 +186,7 @@ static mesh_id AddMeshAsset(asset_system* System, mesh_info* Mesh) {
 	return(Result);
 }
 
-static void AddFontAsset(
-	asset_system* System,
-	char* Path,
-	int Height,
-	b32 LoadFromImage,
-	int OneCharWidth,
-	int OneCharHeight,
-	u32 Flags)
-{
-	added_asset Added = AddAsset(System, AssetType_Font);
-
-	game_asset_source* Source = Added.Source;
-	Source->FontSource.Path = Path;
-	Source->FontSource.Height = Height;
-	Source->FontSource.LoadFromImage = LoadFromImage;
-	Source->FontSource.OneCharWidth = OneCharWidth;
-	Source->FontSource.OneCharHeight = OneCharHeight;
-	Source->FontSource.Flags = Flags;
-	Source->FontSource.FontInfo = 0;
-}
-
-static void AddFontAssetManual(
+static font_id AddFontAsset(
 	asset_system* System,
 	font_info* FontInfo)
 {
@@ -220,9 +194,34 @@ static void AddFontAssetManual(
 
 	game_asset_source* Source = Added.Source;
 	Source->FontSource.FontInfo = FontInfo;
+	Added.Asset->Font = FontInfo;
+
+	gass_header* Header = Added.FileHeader;
+	Header->Font.AscenderHeight = FontInfo->AscenderHeight;
+	Header->Font.DescenderHeight = FontInfo->DescenderHeight;
+	Header->Font.LineGap = FontInfo->LineGap;
+	Header->Font.GlyphsCount = FontInfo->GlyphsCount;
+	Header->Font.MaxGlyphsCount = MAX_FONT_INFO_GLYPH_COUNT;
+	Header->Font.AtlasBitmapHeight = FontInfo->FontAtlasImage.Height;
+	Header->Font.AtlasBitmapWidth = FontInfo->FontAtlasImage.Width;
+	Header->Font.FirstGlyphID = FontInfo->Reserved;
+
+	Header->Font.LineOffsetToMapping = sizeof(gass_header);
+	Header->Font.LineOffsetToKerningPairs =
+		Header->Font.LineOffsetToMapping +
+		sizeof(int) * Header->Font.MaxGlyphsCount;
+	Header->Font.LineOffsetToAtlasBitmapPixels =
+		Header->Font.LineOffsetToKerningPairs +
+		sizeof(float) * Header->Font.GlyphsCount * Header->Font.GlyphsCount;
+
+	AddFreeareaToAsset(System, Added.Asset, FontInfo->KerningPairs);
+	AddFreeareaToAsset(System, Added.Asset, FontInfo->FontAtlasImage.Pixels);
+
+	font_id Result = Added.Asset->ID;
+	return(Result);
 }
 
-static void AddFontGlyphAsset(
+static u32 AddFontGlyphAsset(
 	asset_system* System,
 	glyph_info* GlyphInfo)
 {
@@ -230,6 +229,25 @@ static void AddFontGlyphAsset(
 
 	game_asset_source* Source = Added.Source;
 	Source->FontGlyphSource.Glyph = GlyphInfo;
+
+	gass_header* Header = Added.FileHeader;
+	Header->Glyph.Codepoint = GlyphInfo->Codepoint;
+	Header->Glyph.BitmapWidth = GlyphInfo->Bitmap.Width;
+	Header->Glyph.BitmapHeight = GlyphInfo->Bitmap.Height;
+	Header->Glyph.XOffset = GlyphInfo->XOffset;
+	Header->Glyph.YOffset = GlyphInfo->YOffset;
+	Header->Glyph.Advance = GlyphInfo->Advance;
+	Header->Glyph.LeftBearingX = GlyphInfo->LeftBearingX;
+
+	Header->Glyph.AtlasMinUV_x = GlyphInfo->AtlasMinUV.x;
+	Header->Glyph.AtlasMinUV_y = GlyphInfo->AtlasMinUV.y;
+	Header->Glyph.AtlasMaxUV_x = GlyphInfo->AtlasMaxUV.x;
+	Header->Glyph.AtlasMaxUV_y = GlyphInfo->AtlasMaxUV.y;
+
+	AddFreeareaToAsset(System, Added.Asset, GlyphInfo->Bitmap.Pixels);
+
+	font_glyph_id Result = Added.Asset->ID;
+	return(Result);
 }
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -274,7 +292,7 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 #define GET_ALIGN_OFFSET(val, align) (((align) - ((size_t)val & ((align) - 1))) & (Align - 1))
 #endif
 
-bitmap_info AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
+bitmap_info AllocateRGBABuffer(u32 Width, u32 Height) {
 	bitmap_info Result = {};
 
 	Result.Width = Width;
@@ -286,11 +304,7 @@ bitmap_info AllocateRGBABuffer(u32 Width, u32 Height, u32 Align) {
 	Result.WidthOverHeight = (float)Width / (float)Height;
 
 	u32 MemoryForBufRequired = Width * Height * 4;
-	u32 AlignedMemoryBufSize = MemoryForBufRequired + Align;
-	Result.Pixels = (u8*)calloc(AlignedMemoryBufSize, 1);
-
-	u32 AlignOffset = GET_ALIGN_OFFSET(Result.Pixels, Align);
-	Result.Pixels += AlignOffset;
+	Result.Pixels = (u8*)calloc(MemoryForBufRequired, 1);
 
 	return(Result);
 }
@@ -523,8 +537,8 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Processing kerning
-	u32 KerningOneRowSize = sizeof(int) * Result.GlyphsCount;
-	Result.KerningPairs = (int*)malloc(KerningOneRowSize * KerningOneRowSize);
+	u32 KerningOneRowSize = sizeof(float) * Result.GlyphsCount;
+	Result.KerningPairs = (float*)malloc(KerningOneRowSize * KerningOneRowSize);
 
 	for (int FirstGlyphIndex = 0; FirstGlyphIndex < Result.GlyphsCount; FirstGlyphIndex++) {
 		for (int SecondGlyphIndex = 0; SecondGlyphIndex < Result.GlyphsCount; SecondGlyphIndex++) {
@@ -727,8 +741,8 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	}
 
 	//NOTE(dima): Processing kerning
-	u32 KerningOneRowSize = sizeof(int) * Result.GlyphsCount;
-	Result.KerningPairs = (int*)malloc(KerningOneRowSize * KerningOneRowSize);
+	u32 KerningOneRowSize = sizeof(float) * Result.GlyphsCount;
+	Result.KerningPairs = (float*)malloc(KerningOneRowSize * KerningOneRowSize);
 
 	for (int FirstGlyphIndex = 0; FirstGlyphIndex < Result.GlyphsCount; FirstGlyphIndex++) {
 		for (int SecondGlyphIndex = 0; SecondGlyphIndex < Result.GlyphsCount; SecondGlyphIndex++) {
@@ -1290,6 +1304,11 @@ void InitAssetFile(asset_system* Assets) {
 void WriteAssetFile(asset_system* Assets, char* FileName) {
 	FILE* fp = fopen(FileName, "wb");
 
+	u32 AssetsLinesOffsetsSize = sizeof(u32) * (Assets->AssetCount - 1);
+	u32* AssetsLinesOffsets = (u32*)malloc(AssetsLinesOffsetsSize);
+
+	u32 AssetFileBytesWritten = 0;
+	u32 AssetLinesBytesWritten = 0;
 	if (fp) {
 
 		//NOTE(dima): Writing asset file header
@@ -1297,81 +1316,158 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 
 		FileHeader.Version = ASSET_FILE_VERSION;
 		FileHeader.AssetGroupsCount = GameAsset_Count;
+		FileHeader.AssetsCount = Assets->AssetCount - 1;
+
 		FileHeader.AssetFileHeader[0] = 'G';
 		FileHeader.AssetFileHeader[1] = 'A';
 		FileHeader.AssetFileHeader[2] = 'S';
 		FileHeader.AssetFileHeader[3] = 'S';
 
 		fwrite(&FileHeader, sizeof(asset_file_header), 1, fp);
+		AssetFileBytesWritten += sizeof(asset_file_header);
+		
+		//NOTE(dima): Writing asset groups after asset file header
+		for (int GroupIndex = 0;
+			GroupIndex < FileHeader.AssetGroupsCount;
+			GroupIndex++)
+		{
+			asset_file_asset_group Group;
+			Group.FirstAssetIndex = Assets->AssetGroups[GroupIndex].FirstAssetIndex;
+			Group.GroupAssetCount = Assets->AssetGroups[GroupIndex].GroupAssetCount;
+
+			fwrite(&Group, sizeof(asset_file_asset_group), 1, fp);
+			AssetFileBytesWritten += sizeof(asset_file_asset_group);
+		}
 
 		for (int AssetIndex = 1;
 			AssetIndex < Assets->AssetCount;
 			AssetIndex++)
 		{
+			//NOTE(dima): Setting asset line offset
+			AssetsLinesOffsets[AssetIndex - 1] = ftell(fp);
+
 			game_asset* Asset = Assets->Assets + AssetIndex;
 			game_asset_source* Source = Assets->AssetSources + AssetIndex;
 			game_asset_freearea* Free = Assets->AssetFreeareas + AssetIndex;
+			gass_header* Header = Assets->FileHeaders + AssetIndex;
 
 			u32 HeaderByteSize = sizeof(gass_header);
 			u32 TagsByteSize = Asset->TagCount * sizeof(gass_tag);
 			u32 DataByteSize = 0;
 
-			switch (Assets->AssetTypes[AssetIndex]) {
+			/*
+				NOTE(dima): Loading assets and setting assets
+				headers data byte size.
+			*/
+
+			switch (Asset->Type) {
 				case AssetType_Bitmap: {
-					if (!Source->BitmapSource.BitmapInfo) {
-						Asset->Bitmap_ = LoadIMG(Source->BitmapSource.Path);
+					b32 BitmapAllocatedHere = 0;
+					if (!Source->BitmapSource.BitmapInfo) 
+					{
+						Asset->Bitmap = (bitmap_info*)malloc(sizeof(bitmap_info));
+						*Asset->Bitmap = LoadIMG(Source->BitmapSource.Path);
+
+						BitmapAllocatedHere = 1;
 					}
 					else {
-						Asset->Bitmap_ = *Source->BitmapSource.BitmapInfo;
+						Asset->Bitmap = Source->BitmapSource.BitmapInfo;
 					}
-					Asset->Bitmap = &Asset->Bitmap_;
+					AddFreeareaToAsset(Assets, Asset, Asset->Bitmap->Pixels);
+
+					if (BitmapAllocatedHere) {
+						AddFreeareaToAsset(Assets, Asset, Asset->Bitmap);
+					}
+
+					//NOTE(dima): Setting asset header
+					Header->Bitmap.Width = Asset->Bitmap->Width;
+					Header->Bitmap.Height = Asset->Bitmap->Height;
 
 					//NOTE(dima): Set data size
 					DataByteSize = Asset->Bitmap->Width * Asset->Bitmap->Height * 4;
+				}break;
 
+				case AssetType_Font: {
+					Asset->Font = Source->FontSource.FontInfo;
+
+					/*
+					NOTE(dima): This needs to be set here because
+					glyphs are added after fonts are added and 
+					first glyph index is remembered in Font->Reserved
+					variable
+					*/
+					Header->Font.FirstGlyphID = Asset->Font->Reserved;
+
+					u32 SizeOfMapping = sizeof(int) * MAX_FONT_INFO_GLYPH_COUNT;
+					u32 SizeOfKerning = sizeof(float) * Asset->Font->GlyphsCount * Asset->Font->GlyphsCount;
+					u32 SizeOfAtlasBitmap = Asset->Font->FontAtlasImage.Width * Asset->Font->FontAtlasImage.Height * 4;
+
+					DataByteSize = SizeOfMapping + SizeOfKerning + SizeOfAtlasBitmap;
+				}break;
+
+				case AssetType_FontGlyph: {
+					Asset->FontGlyph = Source->FontGlyphSource.Glyph;
+
+					u32 GlyphBitmapSize =
+						Asset->FontGlyph->Bitmap.Width *
+						Asset->FontGlyph->Bitmap.Height * 4;
+
+					DataByteSize = GlyphBitmapSize;
+				}break;
+
+				case AssetType_Mesh: {
+					Asset->Mesh = Source->MeshSource.MeshInfo;
+
+
+				}break;
+			}
+
+			//NOTE(dima): Forming and writing header
+			Header->Pitch = HeaderByteSize + DataByteSize + TagsByteSize;
+			Header->LineFirstTagOffset = HeaderByteSize + DataByteSize;
+			Header->TagCount = Asset->TagCount;
+			Header->AssetType = Asset->Type;
+
+			fwrite(Header, sizeof(gass_header), 1, fp);
+
+			//NOTE(dima): Writing asset data
+			switch (Asset->Type) {
+				case AssetType_Bitmap: {
 					//NOTE(dima): Writing bitmap pixel data
 					fwrite(Asset->Bitmap->Pixels, DataByteSize, 1, fp);
 				}break;
 
 				case AssetType_Font: {
-					if (!Source->FontSource.FontInfo) {
-						if (Source->FontSource.LoadFromImage) {
-							Asset->Font_ = LoadFontInfoFromImage(
-								Source->FontSource.Path,
-								Source->FontSource.Height,
-								Source->FontSource.OneCharWidth,
-								Source->FontSource.OneCharHeight,
-								Source->FontSource.Flags);
-						}
-						else {
-							Asset->Font_ = LoadFontInfoWithSTB(
-								Source->FontSource.Path,
-								Source->FontSource.Height,
-								Source->FontSource.Flags);
-						}
-					}
-					else {
-						Asset->Font_ = *Source->FontSource.FontInfo;
-					}
-					Asset->Font = &Asset->Font_;
+					//NOTE(dima): Writing mapping data
+					fwrite(
+						Asset->Font->CodepointToGlyphMapping,
+						sizeof(int) * MAX_FONT_INFO_GLYPH_COUNT,
+						1, fp);
 
+					//NOTE(dima): Writing kerning pairs
+					fwrite(
+						Asset->Font->KerningPairs,
+						sizeof(float) * Asset->Font->GlyphsCount * Asset->Font->GlyphsCount,
+						1, fp);
 
+					//NOTE(dima): Writing atlas bitmap pixel data
+					fwrite(
+						Asset->Font->FontAtlasImage.Pixels,
+						Asset->Font->FontAtlasImage.Width * Asset->Font->FontAtlasImage.Height * 4,
+						1, fp);
 				}break;
 
 				case AssetType_FontGlyph: {
-					//NOTE(dima): 
+					//NOTE(dima):
+					fwrite(Asset->FontGlyph->Bitmap.Pixels, DataByteSize, 1, fp);
 				}break;
 
 				case AssetType_Mesh: {
-					Asset->Mesh_ = *Source->MeshSource.MeshInfo;
 
-					Asset->Mesh = &Asset->Mesh_;
 				}break;
 			}
 
-
 			//NOTE(dima): Forming tags
-			int NumberOfTagsToWrite = Asset->TagCount;
 			gass_tag WriteTags[MAX_TAGS_PER_ASSET];
 
 			for (int AssetTagIndex = 0;
@@ -1390,10 +1486,84 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 			for (int FreeIndex = 0; FreeIndex < Free->SetCount; FreeIndex++) {
 				free(Free->Pointers[FreeIndex]);
 			}
+
+			//NOTE(dima): Incrementing file written data size
+			AssetFileBytesWritten += Header->Pitch;
+			AssetLinesBytesWritten += Header->Pitch;
 		}
 
 		fclose(fp);
 	}
+	else {
+		INVALID_CODE_PATH;
+	}
+
+
+	//NOTE(dima): Reading file contents
+	void* FileData = 0;
+	fp = fopen(FileName, "rb");
+	if (fp) {
+		//NOTE(dima): Getting file size
+		fseek(fp, 0, SEEK_END);
+		u32 FileSize = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+
+		STRONG_ASSERT(FileSize == AssetFileBytesWritten);
+
+		//NOTE(dima): Reading file contents
+		FileData = malloc(FileSize);
+		fread(FileData, FileSize, 1, fp);
+
+		fclose(fp);
+	}
+	else {
+		INVALID_CODE_PATH;
+	}
+
+
+	//NOTE(dima): Inserting asset lines offsets after groups
+	fp = fopen(FileName, "wb");
+	if (fp) {
+		asset_file_header* Header = (asset_file_header*)FileData;
+
+		u32 GroupsByteSize = Header->AssetGroupsCount * sizeof(asset_file_asset_group);
+		u32 LinesOffsetsSize = Header->AssetsCount * sizeof(u32);
+		u32 AssetsLinesByteSize = AssetLinesBytesWritten;
+
+		u32 GroupsByteOffset = sizeof(asset_file_header);
+		u32 LinesOffsetsByteOffset = GroupsByteOffset + GroupsByteSize;
+		u32 AssetLinesByteOffset = LinesOffsetsByteOffset + LinesOffsetsSize;
+		
+		Header->GroupsByteOffset = GroupsByteOffset;
+		Header->LinesOffsetsByteOffset = LinesOffsetsByteOffset;
+		Header->AssetLinesByteOffset = AssetLinesByteOffset;
+
+		//NOTE(dima): Rewriting header
+		fwrite(Header, sizeof(asset_file_header), 1, fp);
+
+		//NOTE(dima): Rewriting groups
+		STRONG_ASSERT(GroupsByteOffset == ftell(fp));
+		fwrite((u8*)FileData + GroupsByteOffset, GroupsByteSize, 1, fp);
+
+		//NOTE(dima): Writing asset lines offsets
+		STRONG_ASSERT(LinesOffsetsByteOffset == ftell(fp));
+		fwrite(AssetsLinesOffsets, AssetsLinesOffsetsSize, 1, fp);
+
+		//NOTE(dima): Rewriting asset data lines
+		STRONG_ASSERT(AssetLinesByteOffset == ftell(fp));
+		fwrite(
+			(u8*)FileData + GroupsByteOffset + GroupsByteSize, 
+			AssetLinesBytesWritten, 1, fp);
+	}
+	else {
+		INVALID_CODE_PATH;
+	}
+
+	if (FileData) {
+		free(FileData);
+	}
+
+	free(AssetsLinesOffsets);
 }
 
 void WriteFonts() 
@@ -1407,17 +1577,15 @@ void WriteFonts()
 	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
 	font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
-	//font_info SuperMarioFontInfo = LoadFontInfoWithSTB("../Data/Fonts/Super Mario Bros.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
-	//font_info PressStartFontInfo = LoadFontInfoWithSTB("../Data/Fonts/PressStart2P.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
-	AddFontAssetManual(System, &UbuntuFontInfo);
+	AddFontAsset(System, &UbuntuFontInfo);
 	AddEmptyTag(System, GameAssetTag_Font_Debug);
-	AddFontAssetManual(System, &AntiqueOliveFontInfo);
+	AddFontAsset(System, &AntiqueOliveFontInfo);
 	AddEmptyTag(System, GameAssetTag_Font_MainMenuFont);
-	AddFontAssetManual(System, &GoldenFontInfo);
+	AddFontAsset(System, &GoldenFontInfo);
 	AddEmptyTag(System, GameAssetTag_Font_Golden);
-	AddFontAssetManual(System, &DebugFontInfo);
+	AddFontAsset(System, &DebugFontInfo);
 	EndAssetGroup(System);
 
 	font_info Fonts[] = {
@@ -1427,6 +1595,8 @@ void WriteFonts()
 		AntiqueOliveFontInfo,
 	};
 
+	u32 FirstBitmapIDs[ArrayCount(Fonts)];
+
 	BeginAssetGroup(System, GameAsset_FontGlyph);
 	for (int FontIndex = 0;
 		FontIndex < ArrayCount(Fonts);
@@ -1434,11 +1604,20 @@ void WriteFonts()
 	{
 		font_info* Font = Fonts + FontIndex;
 
-		AddFontGlyphAsset();
+		for (int GlyphIndex = 0;
+			GlyphIndex < Font->GlyphsCount;
+			GlyphIndex++)
+		{
+			u32 AddedGlyphID = AddFontGlyphAsset(System, &Font->Glyphs[GlyphIndex]);
+
+			if (GlyphIndex == 0) {
+				Font->Reserved = AddedGlyphID;
+			}
+		}
 	}
 	EndAssetGroup(System);
 
-	WriteAssetFile(System, "Fonts.gass");
+	WriteAssetFile(System, "../Data/Fonts.gass");
 }
 
 void WriteBitmaps() {

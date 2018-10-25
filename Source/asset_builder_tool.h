@@ -8,7 +8,6 @@
 #include "gore_asset_identifiers.h"
 #include "gore_file_formats.h"
 
-
 struct game_asset_group {
 	u32 FirstAssetIndex;
 	u32 GroupAssetCount;
@@ -40,23 +39,6 @@ struct game_asset {
 		mesh_info* Mesh;
 		glyph_info* FontGlyph;
 	};
-
-	/*
-	TODO(dima): Its important here is that it's done through the union.
-	If you imagine that we store only bitmaps that have a little
-	memory to deal with(sizeof(bitmap_info)), than everything is ok.
-	BUT THATS NOT. We will always have memory as big as the biggest
-	element in the union.. I will need to make better memory management
-	on assets code as soon as i can...
-	*/
-
-	union {
-		bitmap_info Bitmap_;
-		font_info Font_;
-		sound_info Sound_;
-		model_info Model_;
-		mesh_info Mesh_;
-	};
 };
 
 
@@ -83,16 +65,6 @@ struct game_asset_source_sound {
 };
 
 struct game_asset_source_font {
-	char* Path;
-
-	int Height;
-
-	b32 LoadFromImage;
-	int OneCharWidth;
-	int OneCharHeight;
-
-	u32 Flags;
-
 	font_info* FontInfo;
 };
 
@@ -163,9 +135,5 @@ mesh_info LoadMeshFromVertices(
 	u32 VertexLayout,
 	b32 CalculateNormals = 0,
 	b32 CalculateTangents = 0);
-
-bitmap_info AllocateRGBABuffer(u32 Width, u32 Height, u32 Align = 16);
-void CopyRGBABuffer(bitmap_info* Dst, bitmap_info* Src);
-void DeallocateRGBABuffer(bitmap_info* Buffer);
 
 #endif
