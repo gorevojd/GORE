@@ -289,6 +289,11 @@ void ASSETSInit(asset_system* System) {
 		}
 		StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
 
+		//NOTE(dima): Reading file asset lines offsets
+		u32 FileAssetCount = FileHeader->AssetsCount;
+		u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
+
+		//NOTE(dima): integrating file groups to asset system
 		for (int ToGroupIndex = 0;
 			ToGroupIndex < GameAsset_Count;
 			ToGroupIndex++)
@@ -302,39 +307,16 @@ void ASSETSInit(asset_system* System) {
 				game_asset_group* FileGroup = FileGroups + FileGroupIndex;
 
 				if (ToGroupIndex == FileGroupIndex) {
-
+					for (int FileAssetIndex = 0;
+						FileAssetIndex < FileAssetCount;
+						FileAssetIndex++)
+					{
+						gass_header* GASS = (gass_header*)((u8*)File->Data + AssetLinesOffsets[FileAssetIndex]);
+						
+						
+					}
 				}
 			}
-		}
-
-		CurrentOffset = StartOffset;
-		while (CurrentOffset < File->DataSize) {
-			u32 FromAssetIndex = 1;
-
-			gass_header* GASS = (gass_header*)((u8*)File->Data + CurrentOffset);
-			game_asset* Asset = 
-
-			game_asset_group* GroupOfThisAsset = System->AssetGroups + GASS->GroupIndex;
-
-			switch (GASS->AssetType) {
-				case AssetType_Bitmap: {
-					
-				}break;
-
-				case AssetType_Font: {
-
-				}break;
-
-				case AssetType_FontGlyph: {
-
-				}break;
-
-				case AssetType_Mesh: {
-
-				}break;
-			}
-
-			CurrentOffset += sizeof(gass_header) + GASS->TotalAssetDataSize;
 		}
 	}
 }
