@@ -7,6 +7,7 @@
 
 #include "gore_asset_identifiers.h"
 #include "gore_file_formats.h"
+#include "gore_asset_common.h"
 
 struct game_asset_group {
 	u32 FirstAssetIndex;

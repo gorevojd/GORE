@@ -292,101 +292,6 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 #define GET_ALIGN_OFFSET(val, align) (((align) - ((size_t)val & ((align) - 1))) & (Align - 1))
 #endif
 
-bitmap_info AllocateRGBABuffer(u32 Width, u32 Height) {
-	bitmap_info Result = {};
-
-	Result.Width = Width;
-	Result.Height = Height;
-	Result.Pitch = 4 * Width;
-
-	Result.Align.x = 0.0f;
-	Result.Align.y = 0.0f;
-	Result.WidthOverHeight = (float)Width / (float)Height;
-
-	u32 MemoryForBufRequired = Width * Height * 4;
-	Result.Pixels = (u8*)calloc(MemoryForBufRequired, 1);
-
-	return(Result);
-}
-
-void CopyRGBABuffer(bitmap_info* Dst, bitmap_info* Src) {
-	Assert(Dst->Width == Src->Width);
-	Assert(Dst->Height == Src->Height);
-
-	u32* DestOut = (u32*)Dst->Pixels;
-	u32* ScrPix = (u32*)Src->Pixels;
-	for (int j = 0; j < Src->Height; j++) {
-		for (int i = 0; i < Src->Width; i++) {
-			*DestOut++ = *ScrPix++;
-		}
-	}
-}
-
-void DeallocateRGBABuffer(bitmap_info* Buffer) {
-	if (Buffer->Pixels) {
-		free(Buffer->Pixels);
-	}
-}
-
-bitmap_info LoadIMG(char* Path) {
-	bitmap_info Result = {};
-
-	int Width;
-	int Height;
-	int Channels;
-	u8* ImageMemory = stbi_load(Path, &Width, &Height, &Channels, 4);
-
-	Result.Width = Width;
-	Result.Height = Height;
-	Result.Pitch = 4 * Width;
-	Result.WidthOverHeight = (float)Width / (float)Height;
-
-	u32 RawImageSize = Width * Height * 4;
-	u32 PixelsCount = Width * Height;
-	Result.Pixels = (u8*)malloc(RawImageSize);
-
-	for (u32 PixelIndex = 0;
-		PixelIndex < PixelsCount;
-		PixelIndex++)
-	{
-		u32 Value = *((u32*)ImageMemory + PixelIndex);
-
-		u32 Color =
-			((Value >> 24) & 0x000000FF) |
-			((Value & 0xFF) << 24) |
-			((Value & 0xFF00) << 8) |
-			((Value & 0x00FF0000) >> 8);
-
-		v4 Col = UnpackRGBA(Color);
-		Col.r *= Col.a;
-		Col.g *= Col.a;
-		Col.b *= Col.a;
-		Color = PackRGBA(Col);
-
-		*((u32*)Result.Pixels + PixelIndex) = Color;
-	}
-#if 0
-	else if (Channels == 3) {
-		for (u32 PixelIndex = 0;
-			PixelIndex < PixelsCount;
-			PixelIndex++)
-		{
-			u8* Out = (u8*)((u32*)(Result.Pixels + PixelIndex));
-			u8* Src = ImageMemory + PixelIndex * 3;
-
-			for (int i = 0; i < 3; i++) {
-				Out[i] = Src[i];
-			}
-			Out[3] = 0xFF;
-		}
-	}
-#endif
-
-	stbi_image_free(ImageMemory);
-
-	return(Result);
-}
-
 bitmap_info GenerateCheckerboardBitmap(
 	int Width,
 	int CellCountPerWidth,
@@ -482,7 +387,7 @@ font_info LoadFontInfoFromImage(
 		Glyph->XOffset = 0.0f;
 		Glyph->YOffset = -TargetCharHeight;
 
-		Glyph->Bitmap = AllocateRGBABuffer(Glyph->Width, Glyph->Height);
+		Glyph->Bitmap = AllocateBitmap(Glyph->Width, Glyph->Height);
 
 		//NOTE(dima): Initializing every single bitmap to empty
 		u32* DstPixel = (u32*)Glyph->Bitmap.Pixels;
@@ -531,7 +436,7 @@ font_info LoadFontInfoFromImage(
 			for (TempCodepointIndex = 'a'; TempCodepointIndex < 'z'; TempCodepointIndex++) {
 				glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
 				glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
-				CopyRGBABuffer(&Glyph->Bitmap, &SrcGlyph->Bitmap);
+				CopyBitmap(&Glyph->Bitmap, &SrcGlyph->Bitmap);
 			}
 		}
 	}
@@ -549,7 +454,7 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Building font atlas
-	Result.FontAtlasImage = AllocateRGBABuffer(AtlasWidth, AtlasHeight);
+	Result.FontAtlasImage = AllocateBitmap(AtlasWidth, AtlasHeight);
 
 	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
 	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
@@ -573,7 +478,7 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Freing font image
-	DeallocateRGBABuffer(&FontImage);
+	DeallocateBitmap(&FontImage);
 
 	return(Result);
 }
@@ -645,7 +550,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 		Glyph->Width = CharWidth + 2 + ShadowOffset;
 		Glyph->Height = CharHeight + 2 + ShadowOffset;
-		Glyph->Bitmap = AllocateRGBABuffer(Glyph->Width, Glyph->Height);
+		Glyph->Bitmap = AllocateBitmap(Glyph->Width, Glyph->Height);
 		Glyph->Advance = Advance * Scale;
 		Glyph->LeftBearingX = LeftBearingX * Scale;
 		Glyph->XOffset = XOffset;
@@ -758,7 +663,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	}
 
 	//NOTE(dima): Building font atlas
-	Result.FontAtlasImage = AllocateRGBABuffer(AtlasWidth, AtlasHeight);
+	Result.FontAtlasImage = AllocateBitmap(AtlasWidth, AtlasHeight);
 
 	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
 	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
@@ -1427,6 +1332,10 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 			Header->LineFirstTagOffset = HeaderByteSize + DataByteSize;
 			Header->TagCount = Asset->TagCount;
 			Header->AssetType = Asset->Type;
+			Header->AssetTotalDataSize = DataByteSize;
+			Header->AssetTotalTagsSize = TagsByteSize;
+
+			STRONG_ASSERT(Header->AssetTotalTagsSize == Asset->TagCount * sizeof(gass_tag));
 
 			fwrite(Header, sizeof(gass_header), 1, fp);
 

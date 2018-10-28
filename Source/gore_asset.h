@@ -30,18 +30,17 @@ struct game_asset_tag {
 };
 
 struct game_asset {
-	platform_atomic_type_u32 State;
-
 	u32 ID;
 
 	u32 Type;
 
-	game_asset_tag* Tags;
+	game_asset_tag Tags[4];
 	int TagCount;
 
 	union {
 		bitmap_info* Bitmap;
 		font_info* Font;
+		glyph_info* Glyph;
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;

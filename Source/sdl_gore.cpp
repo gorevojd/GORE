@@ -4,6 +4,7 @@
 #include "stb_sprintf.h"
 
 #include "gore_game_mode.h"
+#include "gore_asset_common.h"
 
 /*
 	NOTE(Dima):
@@ -889,6 +890,32 @@ int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
+#if 0
+	int DisplayModeCount = SDL_GetNumDisplayModes(0);
+
+	for (int DisplayModeIndex = 0;
+		DisplayModeIndex < DisplayModeCount;
+		DisplayModeIndex++)
+	{
+		SDL_DisplayMode DisplayMode;
+		if (SDL_GetDisplayMode(0, DisplayModeIndex, &DisplayMode)) {
+			SDL_Log("SDL_GetDisplayModef failed: %s", SDL_GetError());
+		}
+
+		u32 Format = DisplayMode.format;
+		u32 Width = DisplayMode.w;
+		u32 Height = DisplayMode.h;
+		u32 RefreshRate = DisplayMode.refresh_rate;
+		
+		SDL_Log("Mode index %i \t %ibpp, %s, %ux%u, %uhz",
+			DisplayModeIndex,
+			SDL_BITSPERPIXEL(Format),
+			SDL_GetPixelFormatName(Format),
+			Width, Height,
+			RefreshRate);
+	}
+#endif
+
 	//NOTE(dima): Initializing of threads
 	platform_thread_queue SuperHighPriorityQueue;
 	platform_thread_queue HighPriorityQueue;
@@ -1105,7 +1132,7 @@ int main(int ArgsCount, char** Args) {
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
 
-	GlobalBuffer = AllocateRGBABuffer(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+	GlobalBuffer = AllocateBitmap(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalInput.WindowDim.x = GlobalBuffer.Width;
 	GlobalInput.WindowDim.y = GlobalBuffer.Height;
 
@@ -1406,7 +1433,7 @@ int main(int ArgsCount, char** Args) {
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(Window);
 
-	DeallocateRGBABuffer(&GlobalBuffer);
+	DeallocateBitmap(&GlobalBuffer);
 
 	printf("Program has been succesfully ended\n");
 

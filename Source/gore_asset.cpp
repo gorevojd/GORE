@@ -244,6 +244,37 @@ mesh_id GetFirstMesh(asset_system* System, u32 GroupID) {
 	return(Result);
 }
 
+static game_asset* AddGameAsset(asset_system* System) {
+	game_asset* Result = System->Assets + System->AssetCount;
+
+	Result->ID = System->AssetCount++;
+
+	return(Result);
+}
+
+#include <experimental/filesystem>
+
+void OpenDirectoryBegin(char* DirectoryPath){
+
+}
+
+void OpenDirectoryEnd(){
+
+}
+
+static void AssetAllocateBitmap(
+	bitmap_info* Bitmap, 
+	void* BitmapDataMemory, 
+	int Width, int Height) 
+{
+	Bitmap->Width = Width;
+	Bitmap->Height = Height;
+	Bitmap->WidthOverHeight = (float)Width / (float)Height;
+	Bitmap->Pitch = Width * 4;
+	Bitmap->Pixels = (u8*)BitmapDataMemory;
+	Bitmap->TextureHandle = 0;
+}
+
 void ASSETSInit(asset_system* System) {
 
 	System->Assets[0] = {};
@@ -257,48 +288,50 @@ void ASSETSInit(asset_system* System) {
 		Group->GroupAssetCount = 0;
 	}
 
-	for (AssetFiles) {
-		u32 CurrentOffset;
-		u32 StartOffset = sizeof(asset_file_header);
-		asset_file_header* FileHeader = (asset_file_header*)File->Data;
+	//NOTE(dima): integrating file groups to asset system
+	for (int ToGroupIndex = 0;
+		ToGroupIndex < GameAsset_Count;
+		ToGroupIndex++)
+	{
+		game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
 
-		b32 HeaderIsEqual =
-			FileHeader->AssetFileHeader[0] == 'G' &&
-			FileHeader->AssetFileHeader[1] == 'A' &&
-			FileHeader->AssetFileHeader[2] == 'S' &&
-			FileHeader->AssetFileHeader[3] == 'S';
+		ToGroup->FirstAssetIndex = System->AssetCount;
 
-		Assert(HeaderIsEqual);
-		Assert(FileHeader->Version >= ASSET_FILE_VERSION);
-		Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
+		for (AssetFiles) {
+			u32 CurrentOffset;
+			u32 StartOffset = sizeof(asset_file_header);
+			asset_file_header* FileHeader = (asset_file_header*)File->Data;
 
-		//NOTE(dima): Reading file asset groups
-		game_asset_group FileGroups[GameAsset_Count];
-		for (int GroupIndex = 0;
-			GroupIndex < FileHeader->AssetGroupsCount;
-			GroupIndex++)
-		{
-			game_asset_group* ToGroup = &FileGroups[GroupIndex];
+			b32 HeaderIsEqual =
+				FileHeader->AssetFileHeader[0] == 'G' &&
+				FileHeader->AssetFileHeader[1] == 'A' &&
+				FileHeader->AssetFileHeader[2] == 'S' &&
+				FileHeader->AssetFileHeader[3] == 'S';
 
-			asset_file_asset_group* ReadGroup =
-				(asset_file_asset_group*)
-				((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
+			Assert(HeaderIsEqual);
+			Assert(FileHeader->Version >= ASSET_FILE_VERSION);
+			Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
 
-			ToGroup->FirstAssetIndex = ReadGroup->FirstAssetIndex;
-			ToGroup->GroupAssetCount = ReadGroup->GroupAssetCount;
-		}
-		StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
+			//NOTE(dima): Reading file asset groups
+			game_asset_group FileGroups[GameAsset_Count];
+			for (int GroupIndex = 0;
+				GroupIndex < FileHeader->AssetGroupsCount;
+				GroupIndex++)
+			{
+				game_asset_group* Grp = &FileGroups[GroupIndex];
 
-		//NOTE(dima): Reading file asset lines offsets
-		u32 FileAssetCount = FileHeader->AssetsCount;
-		u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
+				asset_file_asset_group* RdGroup =
+					(asset_file_asset_group*)
+					((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
 
-		//NOTE(dima): integrating file groups to asset system
-		for (int ToGroupIndex = 0;
-			ToGroupIndex < GameAsset_Count;
-			ToGroupIndex++)
-		{
-			game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
+				Grp->FirstAssetIndex = RdGroup->FirstAssetIndex;
+				Grp->GroupAssetCount = RdGroup->GroupAssetCount;
+			}
+			StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
+
+			//NOTE(dima): Reading file asset lines offsets
+			u32 FileAssetCount = FileHeader->AssetsCount;
+			u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
 
 			for (int FileGroupIndex = 0;
 				FileGroupIndex < FileHeader->AssetGroupsCount;
@@ -312,8 +345,85 @@ void ASSETSInit(asset_system* System) {
 						FileAssetIndex++)
 					{
 						gass_header* GASS = (gass_header*)((u8*)File->Data + AssetLinesOffsets[FileAssetIndex]);
-						
-						
+						game_asset* Asset = AddGameAsset(System);
+
+						Asset->Type = GASS->AssetType;
+
+						//NOTE(dima): Reading asset tags
+						Asset->TagCount = GASS->TagCount;
+
+						u32 TagMemoryRequired = Asset->TagCount * sizeof(game_asset_tag);
+						Assert(GASS->AssetTotalTagsSize == TagMemoryRequired);
+
+						for (int TagIndex = 0;
+							TagIndex < Asset->TagCount;
+							TagIndex++)
+						{
+							gass_tag* ReadTag = (gass_tag*)((u8*)GASS + GASS->LineFirstTagOffset + TagIndex * sizeof(gass_tag));
+							game_asset_tag* ToTag = Asset->Tags + TagIndex;
+
+							ToTag->Type = ReadTag->Type;
+							ToTag->Value_Int = ReadTag->Value_Int;
+						}
+
+						//NOTE(dima): Incrementing target group asset count
+						ToGroup->GroupAssetCount++;
+
+						//NOTE(dima): Allocating memory for storing asset
+						void* AssetNeededMemory = AssetRequestMemory(? ? ? );
+						stacked_memory AssetMem = InitStackedMemory(
+							AssetNeededMemory, 
+							GASS->AssetTotalDataSize);
+
+						switch (Asset->Type) {
+							case AssetType_Bitmap: {
+								Asset->Bitmap = PushStruct(???);
+
+								bitmap_info* TargetBitmap = Asset->Bitmap;
+
+								AssetAllocateBitmap(
+									TargetBitmap,
+									AssetNeededMemory,
+									GASS->Bitmap.Width, 
+									GASS->Bitmap.Height);
+							}break;
+
+							case AssetType_Font: {
+								Asset->Font = PushStruct(???);
+
+								font_info* Font = Asset->Font;
+
+								Font->AscenderHeight = GASS->Font.AscenderHeight;
+								Font->DescenderHeight = GASS->Font.DescenderHeight;
+								Font->LineGap = GASS->Font.LineGap;
+
+							}break;
+
+							case AssetType_FontGlyph: {
+								Asset->Glyph = PushStruct(???);
+
+								glyph_info* Glyph = Asset->Glyph;
+
+								Glyph->Codepoint = GASS->Glyph.Codepoint;
+
+								Glyph->Advance = GASS->Glyph.Advance;
+								Glyph->XOffset = GASS->Glyph.XOffset;
+								Glyph->YOffset = GASS->Glyph.YOffset;
+								Glyph->LeftBearingX = GASS->Glyph.LeftBearingX;
+								Glyph->Width = GASS->Glyph.BitmapWidth;
+								Glyph->Height = GASS->Glyph.BitmapHeight;
+
+								AssetAllocateBitmap(
+									&Glyph->Bitmap,
+									AssetNeededMemory,
+									GASS->Glyph.BitmapWidth,
+									GASS->Glyph.BitmapHeight);
+
+								Glyph->AtlasMinUV = V2(GASS->Glyph.AtlasMinUV_x, GASS->Glyph.AtlasMinUV_y);
+								Glyph->AtlasMaxUV = V2(GASS->Glyph.AtlasMaxUV_x, GASS->Glyph.AtlasMaxUV_y);
+
+							}break;
+						}
 					}
 				}
 			}

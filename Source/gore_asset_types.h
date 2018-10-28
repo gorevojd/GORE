@@ -64,7 +64,6 @@ struct bitmap_info {
 
 	u32 Width;
 	u32 Height;
-	v2 Align;
 
 	u32 Pitch;
 

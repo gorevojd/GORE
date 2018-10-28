@@ -125,6 +125,9 @@ struct gass_header {
 	u32 LineFirstTagOffset;
 	u32 TagCount;
 
+	u32 AssetTotalDataSize;
+	u32 AssetTotalTagsSize;
+
 	u32 Pitch;
 
 	union {

@@ -30,9 +30,15 @@
     <ClInclude Include="..\Source\gore_types.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\Source\gore_asset_common.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\asset_builder_tool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Source\gore_asset_common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
