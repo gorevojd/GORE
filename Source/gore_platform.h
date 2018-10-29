@@ -404,6 +404,19 @@ typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 #define PLATFORM_END_GAME_LOOP(name) void name()
 typedef PLATFORM_END_GAME_LOOP(platform_end_game_loop);
 
+struct platform_file_entry {
+	platform_file_entry* Next;
+
+	void* Data;
+	u32 DataSize;
+};
+
+struct platform_file_set {
+	platform_file_entry* FirstFileEntry;
+};
+
+
+
 struct dealloc_queue_bitmap_data {
 	void* TextureHandle;
 };
