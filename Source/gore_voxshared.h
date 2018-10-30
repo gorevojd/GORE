@@ -17,9 +17,6 @@
 
 #define VOXEL_WATER_LEVEL 100
 
-typedef u32 voxel_vert_t;
-#define VOXEL_VERTEX_SIZE sizeof(voxel_vert_t)
-
 enum voxel_chunk_state {
 	VoxelChunkState_None,
 	VoxelChunkState_InProcess,
@@ -33,17 +30,11 @@ enum voxel_mesh_state {
 	VoxelMeshState_Unloaded,
 };
 
-struct voxel_mesh_info {
+struct voxel_mesh {
 	platform_atomic_type_u32 State;
-
-	void* MeshHandle;
-	//NOTE(dima): MeshHandle2 used to store VBO in openGL
-	void* MeshHandle2;
-
-	voxel_vert_t* Vertices;
-	u32 VerticesCount;
-
 	platform_mutex MeshUseMutex;
+
+	voxel_mesh_info MeshInfo;
 };
 
 inline b32 IsVoxelSetInNeighbour(u8* Array, int Index) {
@@ -109,7 +100,7 @@ struct voxel_chunk_info {
 	//u8* Voxels;
 	u8 Voxels[VOXEL_CHUNK_TOTAL_VOXELS_COUNT];
 
-	voxel_mesh_info MeshInfo;
+	voxel_mesh MeshInfo;
 
 	neighbours_chunks OldNeighbours;
 

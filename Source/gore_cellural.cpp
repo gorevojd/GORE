@@ -549,7 +549,7 @@ void CelluralGenerateCave(cellural_buffer* Buffer, float FillPercentage, random_
 
 #define CELLURAL_CELL_WIDTH 4
 bitmap_info CelluralBufferToBitmap(cellural_buffer* Buffer) {
-	bitmap_info Res = AllocateRGBABuffer(
+	bitmap_info Res = AssetAllocateBitmap(
 		Buffer->Width * CELLURAL_CELL_WIDTH, 
 		Buffer->Height * CELLURAL_CELL_WIDTH);
 
@@ -776,7 +776,7 @@ mesh_info CelluralBufferToMesh(cellural_buffer* Buffer, int Height, voxel_atlas_
 		}
 	}
 
-	Result = LoadMeshFromVertices(TempVerts, VertexAt, TempIndices, IndexAt, MeshVertexLayout_PUV, 1, 1);
+	Result = AssetLoadMeshFromVertices(TempVerts, VertexAt, TempIndices, IndexAt, MeshVertexLayout_PUV, 1, 1);
 
 	free(TempVerts);
 	free(TempIndices);

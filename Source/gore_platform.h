@@ -404,6 +404,11 @@ typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 #define PLATFORM_END_GAME_LOOP(name) void name()
 typedef PLATFORM_END_GAME_LOOP(platform_end_game_loop);
 
+enum open_file_type {
+	FileType_Asset,
+	FileType_SavedGame,
+};
+
 struct platform_file_entry {
 	platform_file_entry* Next;
 
@@ -411,11 +416,17 @@ struct platform_file_entry {
 	u32 DataSize;
 };
 
-struct platform_file_set {
+struct platform_file_group {
+	u32 FileCount;
+
 	platform_file_entry* FirstFileEntry;
 };
 
+#define PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(name) platform_file_group name(char* FolderPath, u32 Type)
+typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(platform_open_all_files_of_type_begin);
 
+#define PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(name) void name(platform_file_group* Group)
+typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(platform_open_all_files_of_type_end);
 
 struct dealloc_queue_bitmap_data {
 	void* TextureHandle;
@@ -489,6 +500,8 @@ struct platform_api {
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;
 	platform_free_file_memory* FreeFileMemory;
+	platform_open_all_files_of_type_begin* OpenAllFilesOfTypeBegin;
+	platform_open_all_files_of_type_end* OpenAllFilesOfTypeEnd;
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;

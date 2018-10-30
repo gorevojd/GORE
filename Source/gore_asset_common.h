@@ -1,12 +1,35 @@
 #ifndef GORE_ASSET_COMMON_H_INCLUDED
 #define GORE_ASSET_COMMON_H_INCLUDED
 
-#include "gore_asset_identifiers.h"
-#include "gore_math.h"
+#include <stdio.h>
 
-bitmap_info AllocateBitmap(u32 Width, u32 Height);
-void CopyBitmap(bitmap_info* Dst, bitmap_info* Src);
-void DeallocateBitmap(bitmap_info* Buffer);
-bitmap_info LoadIMG(char* Path);
+#include "gore_math.h"
+#include "gore_types.h"
+#include "gore_asset_types.h"
+
+bitmap_info AssetAllocateBitmapInternal(u32 Width, u32 Height, void* PixelsData);
+bitmap_info AssetAllocateBitmap(u32 Width, u32 Height);
+void AssetDeallocateBitmap(bitmap_info* Buffer);
+
+void AssetCopyBitmapData(bitmap_info* Dst, bitmap_info* Src);
+
+
+bitmap_info AssetLoadIMG(char* Path);
+
+bitmap_info AssetGenerateCheckerboardBitmap(
+	int Width,
+	int CellCountPerWidth,
+	v3 FirstColor = V3(1.0f, 1.0f, 1.0f),
+	v3 SecondColor = V3(0.0f, 0.0f, 0.0f));
+
+mesh_info AssetLoadMeshFromVertices(
+	float* Verts, u32 VertsCount,
+	u32* Indices, u32 IndicesCount,
+	u32 VertexLayout,
+	b32 CalculateNormals = 0,
+	b32 CalculateTangents = 0);
+
+mesh_info AssetGenerateSphere(int Segments, int Rings);
+mesh_info AssetGenerateCylynder(float Height, float Radius, int SidesCount);
 
 #endif

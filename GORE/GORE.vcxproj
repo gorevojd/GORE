@@ -167,6 +167,7 @@
   <ItemGroup>
     <ClCompile Include="..\Source\geometrika.cpp" />
     <ClCompile Include="..\Source\gore_asset.cpp" />
+    <ClCompile Include="..\Source\gore_asset_common.cpp" />
     <ClCompile Include="..\Source\gore_cellural.cpp" />
     <ClCompile Include="..\Source\gore_colors.cpp" />
     <ClCompile Include="..\Source\gore_debug.cpp" />

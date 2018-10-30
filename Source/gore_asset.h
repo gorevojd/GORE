@@ -4,7 +4,7 @@
 #include "gore_platform.h"
 
 #include "gore_asset_types.h"
-#include "gore_asset_common.h"
+#include "gore_asset_identifiers.h"
 #include "gore_game_settings.h"
 #include "gore_file_formats.h"
 
@@ -31,6 +31,8 @@ struct game_asset_tag {
 
 struct game_asset {
 	u32 ID;
+
+	u32 State;
 
 	u32 Type;
 

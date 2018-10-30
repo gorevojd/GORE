@@ -4,7 +4,6 @@
 #include "stb_sprintf.h"
 
 #include "gore_game_mode.h"
-#include "gore_asset_common.h"
 
 /*
 	NOTE(Dima):
@@ -424,7 +423,7 @@ inline SDL_Surface* SDLSurfaceFromBuffer(bitmap_info* Buffer) {
 
 static void SDLSetWindowIcon(SDL_Window* Window) {
 	SDL_Surface *Surface;     // Declare an SDL_Surface to be filled in with pixel data from an image file
-	bitmap_info Image = LoadIMG("../Data/Images/pot32.png");
+	bitmap_info Image = AssetLoadIMG("../Data/Images/pot32.png");
 	Surface = SDLSurfaceFromBuffer(&Image);
 	// The icon is attached to the window pointer
 	SDL_SetWindowIcon(Window, Surface);
@@ -689,6 +688,60 @@ PLATFORM_DEALLOCATE_MEMORY(WindaDeallocateMemory) {
 	}
 	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
 #endif
+}
+
+PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
+	platform_file_group Result = {};
+
+	char FindPattern[256];
+	CopyStrings(FindPattern, FolderPath);
+	int FolderPathLen = StringLength(FolderPath) - 1;
+	char LastCharacter = FolderPath[FolderPathLen - 1];
+	//NOTE(dima): Adding slash at the end of path if it not exist
+	if (LastCharacter != '/' &&
+		LastCharacter != '\\')
+	{
+		FindPattern[FolderPathLen] = '/';
+		FindPattern[FolderPathLen + 1] = 0;
+	}
+
+	char WildCard[32];
+	switch (Type) {
+		case FileType_Asset: {
+			CopyStrings(WildCard, "*.gass");
+		}break;
+
+		case FileType_SavedGame: {
+			CopyStrings(WildCard, "*.gsav");
+		}break;
+	}
+
+	ConcatStringsUnsafe(FindPattern, FindPattern, WildCard);
+
+	WIN32_FIND_DATAA FileFindData;
+	HANDLE FindHandle = FindFirstFileA(FindPattern, &FileFindData);
+
+	b32 NextFileFound = 1;
+	if (FindHandle != INVALID_HANDLE_VALUE) {
+		while (NextFileFound) {
+
+			
+
+			b32 NextFileFound = FindNextFileA(FindHandle, &FileFindData);
+		}
+	}
+	FindClose(FindHandle);
+
+	return(Result);
+}
+
+PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(WindaOpenAllFilesOfTypeEnd) {
+	platform_file_entry* FirstFileEntry = Group->FirstFileEntry;
+
+	platform_file_entry* At = FirstFileEntry;
+	for (At; At; At = At->Next) {
+
+	}
 }
 
 #else
@@ -1019,6 +1072,9 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.NativeMemoryAllocatorMutex = {};
 	PlatformApi.AllocateMemory = WindaAllocateMemory;
 	PlatformApi.DeallocateMemory = WindaDeallocateMemory;
+
+	PlatformApi.OpenAllFilesOfTypeBegin = WindaOpenAllFilesOfTypeBegin;
+	PlatformApi.OpenAllFilesOfTypeEnd = WindaOpenAllFilesOfTypeEnd;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
@@ -1132,7 +1188,7 @@ int main(int ArgsCount, char** Args) {
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
 
-	GlobalBuffer = AllocateBitmap(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
+	GlobalBuffer = AssetAllocateBitmap(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 	GlobalInput.WindowDim.x = GlobalBuffer.Width;
 	GlobalInput.WindowDim.y = GlobalBuffer.Height;
 
@@ -1294,18 +1350,6 @@ int main(int ArgsCount, char** Args) {
 		printf("ERROR: Renderer is not created");
 	}
 
-	/*
-	voxel_atlas_id VoxelAtlasID = GetFirstVoxelAtlas(&GlobalAssets, GameAsset_MyVoxelAtlas);
-	voxel_atlas_info* VoxelAtlas = GetVoxelAtlasFromID(&GlobalAssets, VoxelAtlasID);
-	random_state CellRandom = InitRandomStateWithSeed(1234);
-	cellural_buffer Cellural = AllocateCelluralBuffer(127, 127);
-	//CelluralGenerateCave(&Cellural, 55, &CellRandom);
-	CelluralGenerateLaby(&Cellural, &CellRandom);
-	//CelluralGenerateSquadLaby(&Cellural, &CellRandom);
-	bitmap_info CaveBitmap = CelluralBufferToBitmap(&Cellural);
-	mesh_info CaveMesh = CelluralBufferToMesh(&Cellural, 3, VoxelAtlas);
-	*/
-
 #if 0
 	int FloatsPerRow = 8;
 	
@@ -1433,7 +1477,7 @@ int main(int ArgsCount, char** Args) {
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(Window);
 
-	DeallocateBitmap(&GlobalBuffer);
+	AssetDeallocateBitmap(&GlobalBuffer);
 
 	printf("Program has been succesfully ended\n");
 

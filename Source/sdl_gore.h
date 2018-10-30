@@ -6,6 +6,7 @@
 
 #include "gore_render_state.h"
 #include "gore_renderer.h"
+#include "gore_asset_common.h"
 #include "gore_engine.h"
 
 #include "gore_opengl.h"
@@ -102,6 +103,10 @@ PFNGLCLEARBUFFERFIPROC glClearBufferfi;
 
 MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 MYPFNGLACTIVETEXTURE _glActiveTexture;
+
+struct platform_dependent_state {
+
+};
 
 #if defined(PLATFORM_WINDA)
 

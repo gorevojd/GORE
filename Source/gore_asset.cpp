@@ -252,16 +252,6 @@ static game_asset* AddGameAsset(asset_system* System) {
 	return(Result);
 }
 
-#include <experimental/filesystem>
-
-void OpenDirectoryBegin(char* DirectoryPath){
-
-}
-
-void OpenDirectoryEnd(){
-
-}
-
 static void AssetAllocateBitmap(
 	bitmap_info* Bitmap, 
 	void* BitmapDataMemory, 
@@ -287,6 +277,8 @@ void ASSETSInit(asset_system* System) {
 		Group->FirstAssetIndex = 0;
 		Group->GroupAssetCount = 0;
 	}
+
+#if 0
 
 	//NOTE(dima): integrating file groups to asset system
 	for (int ToGroupIndex = 0;
@@ -429,4 +421,6 @@ void ASSETSInit(asset_system* System) {
 			}
 		}
 	}
+
+#endif
 }

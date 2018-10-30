@@ -11,6 +11,14 @@ typedef u32 sound_id;
 typedef u32 model_id;
 typedef u32 mesh_id;
 
+enum load_mesh_vertex_layout {
+	MeshVertexLayout_PUV,
+	MeshVertexLayout_PUVN,
+	MeshVertexLayout_PNUV,
+	MeshVertexLayout_PUVNC,
+	MeshVertexLayout_PNUVC,
+};
+
 //NOTE(dima): DO NOT CHANGE ORDER OF THEESE
 struct vertex_info {
 	v3 P;
@@ -109,6 +117,72 @@ struct font_info {
 	u32 Reserved;
 };
 
+enum voxel_face_type_index {
+	VoxelFaceTypeIndex_Top = 0,
+	VoxelFaceTypeIndex_Bottom,
+	VoxelFaceTypeIndex_Left,
+	VoxelFaceTypeIndex_Right,
+	VoxelFaceTypeIndex_Front,
+	VoxelFaceTypeIndex_Back,
+
+	VoxelFaceTypeIndex_Count,
+
+	VoxelFaceTypeIndex_All,
+	VoxelFaceTypeIndex_Side,
+	VoxelFaceTypeIndex_TopBottom,
+};
+
+struct voxel_tex_coords_set {
+	union {
+		struct {
+			union {
+				struct {
+					u8 Top;
+					u8 Bottom;
+				};
+				u8 TopBottom;
+			};
+			union {
+				struct {
+					u8 Left;
+					u8 Right;
+					u8 Front;
+					u8 Back;
+				};
+				u8 Side;
+			};
+		};
+
+		u8 All;
+		u8 Sets[VoxelFaceTypeIndex_Count];
+	};
+};
+
+struct voxel_atlas_info {
+	bitmap_info Bitmap;
+
+	int MaxTexturesCount;
+	int TexturesCount;
+
+	int AtlasWidth;
+	int OneTextureWidth;
+
+	voxel_tex_coords_set* Materials;
+	int MaterialsCount;
+};
+
+typedef u32 voxel_vert_t;
+#define VOXEL_VERTEX_SIZE sizeof(voxel_vert_t)
+
+struct voxel_mesh_info {
+	void* MeshHandle;
+	//NOTE(dima): MeshHandle2 used to store VBO in openGL
+	void* MeshHandle2;
+
+	voxel_vert_t* Vertices;
+	u32 VerticesCount;
+};
+
 enum asset_type {
 	AssetType_None,
 
@@ -119,5 +193,7 @@ enum asset_type {
 	AssetType_Model,
 	AssetType_Mesh,
 };
+
+
 
 #endif

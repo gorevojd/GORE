@@ -119,22 +119,10 @@ enum asset_load_font_flags {
 	AssetLoadFontFlag_BakeOffsetShadows = 1,
 };
 
-enum load_mesh_vertex_layout {
-	MeshVertexLayout_PUV,
-	MeshVertexLayout_PUVN,
-	MeshVertexLayout_PNUV,
-	MeshVertexLayout_PUVNC,
-	MeshVertexLayout_PNUVC,
-};
+
 
 font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f, u32 Flags = 0);
 font_info LoadFontInfoFromImage(char* ImagePath, int Height, int OneCharPixelWidth, int OneCharPixelHeight, u32 Flags);
-bitmap_info LoadIMG(char* Path);
-mesh_info LoadMeshFromVertices(
-	float* Verts, u32 VertsCount,
-	u32* Indices, u32 IndicesCount,
-	u32 VertexLayout,
-	b32 CalculateNormals = 0,
-	b32 CalculateTangents = 0);
+
 
 #endif

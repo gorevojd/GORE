@@ -1,6 +1,7 @@
 #ifndef GORE_GUI_H
 #define GORE_GUI_H
 
+#include "gore_asset_types.h"
 #include "gore_render_state.h"
 
 #include "gore_asset.h"

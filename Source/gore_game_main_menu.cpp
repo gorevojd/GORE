@@ -362,7 +362,6 @@ static void MenuWalkThrough(main_menu_state* MenuState, menu_element* Elem, u32 
 
 							Target->Width = u32(GetRectWidth(AtElem->Layout.Rect) + 0.5f);
 							Target->Height = u32(GetRectHeight(AtElem->Layout.Rect) + 0.5f);
-							Target->Align = V2(0.0f, 0.0f);
 							Target->Pitch = Target->Width * 4;
 							Target->Pixels = PushArray(MenuState->GameModeMemory, u8, Target->Width * Target->Height * 4);
 							Target->TextureHandle = 0;
@@ -478,7 +477,7 @@ void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystem
 			V2(EngineSystems->RenderState->RenderWidth, EngineSystems->RenderState->RenderHeight));
 
 		//NOTE(dima): Loading needed fonts
-		font_id FontID = GetFirstFont(EngineSystems->AssetSystem, GameAsset_MainMenuFont);
+		font_id FontID = GetFirstFont(EngineSystems->AssetSystem, GameAsset_Font);
 		MenuState->MainFontInfo = GetFontFromID(EngineSystems->AssetSystem, FontID);
 
 		MenuState->InactiveColorPercentage = 0.5f;

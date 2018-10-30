@@ -3,6 +3,7 @@
 
 #include "gore_math.h"
 #include "gore_render_state.h"
+#include "gore_asset_types.h"
 
 enum font_print_operation_type {
 	FontPrint_PrintText,

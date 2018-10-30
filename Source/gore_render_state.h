@@ -137,16 +137,16 @@ struct render_stack_entry_mesh {
 	surface_material Material;
 };
 
-struct render_stack_entry_voxel_mesh {
-	voxel_mesh_info* MeshInfo;
-
-	bitmap_info* VoxelAtlasBitmap;
+struct render_stack_entry_lpter_mesh {
+	lpter_mesh* Mesh;
 
 	v3 P;
 };
 
-struct render_stack_entry_lpter_mesh {
-	lpter_mesh* Mesh;
+struct render_stack_entry_voxel_mesh {
+	voxel_mesh_info* MeshInfo;
+
+	bitmap_info* VoxelAtlasBitmap;
 
 	v3 P;
 };
@@ -314,14 +314,6 @@ inline void RENDERPushMesh(render_stack* State, mesh_id MeshID, mat4 TransformMa
 	else {
 		//TODO(dima): Load mesh asset
 	}
-}
-
-inline void RENDERPushVoxelMesh(render_stack* State, voxel_mesh_info* Mesh, v3 P, bitmap_info* VoxelAtlasBitmap) {
-	render_stack_entry_voxel_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_mesh, RenderEntry_VoxelMesh);
-
-	Entry->MeshInfo = Mesh;
-	Entry->P = P;
-	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
 }
 
 inline void RENDERPushLpterMesh(render_stack* State, lpter_mesh* Mesh, v3 P) {

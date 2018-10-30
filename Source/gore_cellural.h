@@ -8,6 +8,8 @@
 #include "gore_asset_types.h"
 #include "gore_voxshared.h"
 
+#include "gore_asset_common.h"
+
 typedef u8 cellural_t;
 
 struct cellural_buffer {

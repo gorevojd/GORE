@@ -1,5 +1,13 @@
 #include "gore_voxmesh.h"
 
+inline void RENDERPushVoxelMesh(render_stack* State, voxel_mesh_info* Mesh, v3 P, bitmap_info* VoxelAtlasBitmap) {
+	render_stack_entry_voxel_mesh* Entry = PUSH_RENDER_ENTRY(State, render_stack_entry_voxel_mesh, RenderEntry_VoxelMesh);
+
+	Entry->MeshInfo = Mesh;
+	Entry->P = P;
+	Entry->VoxelAtlasBitmap = VoxelAtlasBitmap;
+}
+
 inline u32 GetEncodedVertexData32(
 	v3 Pos,
 	u8 TexIndex,
@@ -1244,7 +1252,7 @@ struct generate_voxel_mesh_threadwork_data {
 };
 
 static void GenerateMeshInternal(
-	voxel_mesh_info* MeshInfo,
+	voxel_mesh* MeshInfo,
 	voxmesh_generate_data* MeshGenerateData,
 	voxworld_generation_state* Generation) 
 {
@@ -1260,13 +1268,13 @@ static void GenerateMeshInternal(
 
 	//NOTE(dima): Allocated buffer with needed size
 	int SizeForNewMesh = TempMeshInfo.VerticesCount * VOXEL_VERTEX_SIZE;
-	MeshInfo->Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
-	Assert(MeshInfo->Vertices);
+	MeshInfo->MeshInfo.Vertices = (voxel_vert_t*)malloc(SizeForNewMesh);
+	Assert(MeshInfo->MeshInfo.Vertices);
 
-	MeshInfo->VerticesCount = TempMeshInfo.VerticesCount;
+	MeshInfo->MeshInfo.VerticesCount = TempMeshInfo.VerticesCount;
 
 	//NOTE(dima): Copy generated mesh into new buffer
-	memcpy(MeshInfo->Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
+	memcpy(MeshInfo->MeshInfo.Vertices, TempMeshInfo.Vertices, SizeForNewMesh);
 
 	EndThreadworkData(MeshThreadwork, &Generation->MeshSet);
 
@@ -1276,31 +1284,31 @@ static void GenerateMeshInternal(
 }
 
 static void UnloadMeshInternal(
-	voxel_mesh_info* MeshInfo,
+	voxel_mesh* MeshInfo,
 	voxworld_generation_state* Generation)
 {
 	PlatformApi.ReadBarrier();
 
 	Assert(MeshInfo->State == VoxelMeshState_Generated);
 
-	if (MeshInfo->Vertices) {
-		free(MeshInfo->Vertices);
+	if (MeshInfo->MeshInfo.Vertices) {
+		free(MeshInfo->MeshInfo.Vertices);
 	}
 	else {
 		Assert(!"Vertices should be allocated");
 	}
 
-	MeshInfo->Vertices = 0;
-	MeshInfo->VerticesCount = 0;
+	MeshInfo->MeshInfo.Vertices = 0;
+	MeshInfo->MeshInfo.VerticesCount = 0;
 
 	dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
 	AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
-	AllocEntry->Data.VoxelMeshData.Handle1 = MeshInfo->MeshHandle;
-	AllocEntry->Data.VoxelMeshData.Handle2 = MeshInfo->MeshHandle2;
+	AllocEntry->Data.VoxelMeshData.Handle1 = MeshInfo->MeshInfo.MeshHandle;
+	AllocEntry->Data.VoxelMeshData.Handle2 = MeshInfo->MeshInfo.MeshHandle2;
 	PlatformInsertDellocEntry(AllocEntry);
 
-	MeshInfo->MeshHandle = 0;
-	MeshInfo->MeshHandle2 = 0;
+	MeshInfo->MeshInfo.MeshHandle = 0;
+	MeshInfo->MeshInfo.MeshHandle2 = 0;
 
 	PlatformApi.WriteBarrier();
 	MeshInfo->State = VoxelMeshState_Unloaded;
@@ -1311,7 +1319,7 @@ PLATFORM_THREADWORK_CALLBACK(GenerateVoxelMeshThreadwork) {
 	generate_voxel_mesh_threadwork_data* GenData = (generate_voxel_mesh_threadwork_data*)Data;
 
 	voxel_chunk_info* ChunkInfo = GenData->MeshGenerateData.Chunk;
-	voxel_mesh_info* MeshInfo = &ChunkInfo->MeshInfo;
+	voxel_mesh* MeshInfo = &ChunkInfo->MeshInfo;
 	voxworld_generation_state* Generation = GenData->Generation;
 
 	if (PlatformApi.AtomicCAS_U32(
@@ -1335,7 +1343,7 @@ PLATFORM_THREADWORK_CALLBACK(RegenerateVoxelMeshThreadwork) {
 	generate_voxel_mesh_threadwork_data* GenData = (generate_voxel_mesh_threadwork_data*)Data;
 
 	voxel_chunk_info* ChunkInfo = GenData->MeshGenerateData.Chunk;
-	voxel_mesh_info* MeshInfo = &ChunkInfo->MeshInfo;
+	voxel_mesh* MeshInfo = &ChunkInfo->MeshInfo;
 	voxworld_generation_state* Generation = GenData->Generation;
 
 	PlatformApi.ReadBarrier();
@@ -1441,7 +1449,7 @@ PLATFORM_THREADWORK_CALLBACK(UnloadVoxelChunkThreadwork) {
 
 	voxel_chunk_info* WorkChunk = UnloadData->Chunk;
 
-	voxel_mesh_info* MeshInfo = &WorkChunk->MeshInfo;
+	voxel_mesh* MeshInfo = &WorkChunk->MeshInfo;
 
 	PlatformApi.ReadBarrier();
 
@@ -1583,13 +1591,13 @@ PLATFORM_THREADWORK_CALLBACK(VoxelCellWalkaroundThreadwork) {
 								RenderEntry->Next = ThreadworkData->FirstRenderEntry;
 								ThreadworkData->FirstRenderEntry = RenderEntry;
 								RenderEntry->Pos = ChunkPos;
-								RenderEntry->MeshInfo = &NeededChunk->MeshInfo;
+								RenderEntry->MeshInfo = &NeededChunk->MeshInfo.MeshInfo;
 
 								ThreadworkData->ChunksPushed++;
-								ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.VerticesCount / 3;
+								ThreadworkData->TrianglesPushed += NeededChunk->MeshInfo.MeshInfo.VerticesCount / 3;
 							}
 
-							ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.VerticesCount / 3;
+							ThreadworkData->TrianglesLoaded += NeededChunk->MeshInfo.MeshInfo.VerticesCount / 3;
 						}
 
 						ThreadworkData->ChunksLoaded++;

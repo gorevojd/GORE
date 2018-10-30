@@ -780,66 +780,61 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 
 					mat4 ModelTransform = Translate(Identity(), EntryVoxelMesh->P);
 
-					if (Mesh->State == VoxelMeshState_Generated) {
+					u32 TextureToBind = 0;
+					if (EntryVoxelMesh->VoxelAtlasBitmap) {
+						if (EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle) {
+							TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
+						}
+						else {
+							TextureToBind = OpenGLAllocateTexture(
+								EntryVoxelMesh->VoxelAtlasBitmap,
+								TextureAllocation_NearestFiltering | TextureAllocation_EnableAnisotropic,
+								GLState);
+						}
+					}
 
-						u32 TextureToBind = 0;
-						if (EntryVoxelMesh->VoxelAtlasBitmap) {
-							if (EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle) {
-								TextureToBind = (u32)EntryVoxelMesh->VoxelAtlasBitmap->TextureHandle;
-							}
-							else {
-								TextureToBind = OpenGLAllocateTexture(
-									EntryVoxelMesh->VoxelAtlasBitmap,
-									TextureAllocation_NearestFiltering | TextureAllocation_EnableAnisotropic,
-									GLState);
-							}
+					if (!Mesh->MeshHandle) {
+						GLuint MeshVAO;
+						GLuint MeshVBO;
+
+						glGenVertexArrays(1, &MeshVAO);
+						glGenBuffers(1, &MeshVBO);
+
+						glBindVertexArray(MeshVAO);
+
+						glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
+						glBufferData(GL_ARRAY_BUFFER,
+							Mesh->VerticesCount * sizeof(u32),
+							&Mesh->Vertices[0], GL_DYNAMIC_DRAW);
+
+						if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
+							glEnableVertexAttribArray(Shader->VertexDataIndex);
+							glVertexAttribPointer(Shader->VertexDataIndex, 1, GL_FLOAT, GL_FALSE, 4, 0);
 						}
 
-						if (!Mesh->MeshHandle) {
-							BeginMutexAccess(&Mesh->MeshUseMutex);
-							GLuint MeshVAO;
-							GLuint MeshVBO;
-
-							glGenVertexArrays(1, &MeshVAO);
-							glGenBuffers(1, &MeshVBO);
-
-							glBindVertexArray(MeshVAO);
-
-							glBindBuffer(GL_ARRAY_BUFFER, MeshVBO);
-							glBufferData(GL_ARRAY_BUFFER,
-								Mesh->VerticesCount * sizeof(u32),
-								&Mesh->Vertices[0], GL_DYNAMIC_DRAW);
-
-							if (OpenGLArrayIsValid(Shader->VertexDataIndex)) {
-								glEnableVertexAttribArray(Shader->VertexDataIndex);
-								glVertexAttribPointer(Shader->VertexDataIndex, 1, GL_FLOAT, GL_FALSE, 4, 0);
-							}
-
-							glBindBuffer(GL_ARRAY_BUFFER, 0);
-							glBindVertexArray(0);
-
-							Mesh->MeshHandle = (void*)MeshVAO;
-							Mesh->MeshHandle2 = (void*)MeshVBO;
-							EndMutexAccess(&Mesh->MeshUseMutex);
-						}
-
-						glEnable(GL_DEPTH_TEST);
-						glUseProgram((u32)Shader->Program.Handle);
-
-						_glActiveTexture(GL_TEXTURE0);
-						glBindTexture(GL_TEXTURE_2D, TextureToBind);
-						glUniform1i(Shader->DiffuseMapLocation, 0);
-
-						glUniformMatrix4fv(
-							Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
-
-						glBindVertexArray((u32)Mesh->MeshHandle);
-						glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
 						glBindVertexArray(0);
 
-						glUseProgram(0);
-						glDisable(GL_DEPTH_TEST);
+						Mesh->MeshHandle = (void*)MeshVAO;
+						Mesh->MeshHandle2 = (void*)MeshVBO;
 					}
+
+					glEnable(GL_DEPTH_TEST);
+					glUseProgram((u32)Shader->Program.Handle);
+
+					_glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, TextureToBind);
+					glUniform1i(Shader->DiffuseMapLocation, 0);
+
+					glUniformMatrix4fv(
+						Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+
+					glBindVertexArray((u32)Mesh->MeshHandle);
+					glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
+					glBindVertexArray(0);
+
+					glUseProgram(0);
+					glDisable(GL_DEPTH_TEST);
 				}break;
 
 				case RenderEntry_LpterWaterMesh: {

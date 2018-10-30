@@ -8,61 +8,6 @@
 #include "gore_threadwork_memory.h"
 #include "gore_game_mode.h"
 
-
-enum voxel_face_type_index {
-	VoxelFaceTypeIndex_Top = 0,
-	VoxelFaceTypeIndex_Bottom,
-	VoxelFaceTypeIndex_Left,
-	VoxelFaceTypeIndex_Right,
-	VoxelFaceTypeIndex_Front,
-	VoxelFaceTypeIndex_Back,
-
-	VoxelFaceTypeIndex_Count,
-
-	VoxelFaceTypeIndex_All,
-	VoxelFaceTypeIndex_Side,
-	VoxelFaceTypeIndex_TopBottom,
-};
-
-struct voxel_tex_coords_set {
-	union {
-		struct {
-			union {
-				struct {
-					u8 Top;
-					u8 Bottom;
-				};
-				u8 TopBottom;
-			};
-			union {
-				struct {
-					u8 Left;
-					u8 Right;
-					u8 Front;
-					u8 Back;
-				};
-				u8 Side;
-			};
-		};
-
-		u8 All;
-		u8 Sets[VoxelFaceTypeIndex_Count];
-	};
-};
-
-struct voxel_atlas_info {
-	bitmap_info Bitmap;
-
-	int MaxTexturesCount;
-	int TexturesCount;
-
-	int AtlasWidth;
-	int OneTextureWidth;
-
-	voxel_tex_coords_set* Materials;
-	int MaterialsCount;
-};
-
 enum voxel_normal_type_index{
 	VoxelNormalIndex_Up,
 	VoxelNormalIndex_Down,
