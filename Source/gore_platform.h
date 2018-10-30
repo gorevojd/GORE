@@ -412,12 +412,17 @@ enum open_file_type {
 struct platform_file_entry {
 	platform_file_entry* Next;
 
-	void* Data;
-	u32 DataSize;
+	char* FileName;
+
+	u64 FileHandle;
+
+	u32 FileSize;
 };
 
 struct platform_file_group {
 	u32 FileCount;
+
+	void* FreeFileGroupMemory;
 
 	platform_file_entry* FirstFileEntry;
 };
@@ -496,6 +501,7 @@ struct platform_api {
 
 	stacked_memory GameModeMemoryBlock;
 	stacked_memory EngineSystemsMemoryBlock;
+	stacked_memory PlatformMemoryBlock;
 
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;

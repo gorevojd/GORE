@@ -693,17 +693,42 @@ PLATFORM_DEALLOCATE_MEMORY(WindaDeallocateMemory) {
 PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 	platform_file_group Result = {};
 
-	char FindPattern[256];
-	CopyStrings(FindPattern, FolderPath);
-	int FolderPathLen = StringLength(FolderPath) - 1;
-	char LastCharacter = FolderPath[FolderPathLen - 1];
-	//NOTE(dima): Adding slash at the end of path if it not exist
-	if (LastCharacter != '/' &&
-		LastCharacter != '\\')
+	u32 FileGroupMemorySize = KILOBYTES(128);
+	Result.FreeFileGroupMemory = VirtualAlloc(
+		0, 
+		FileGroupMemorySize,
+		MEM_COMMIT | MEM_RESERVE,
+		PAGE_READWRITE);
+
+	stacked_memory Mem = InitStackedMemory(
+		Result.FreeFileGroupMemory, 
+		FileGroupMemorySize);
+
+	//NOTE(dima): Replacing back slashes with forward slashes
+	int FolderPathLen = StringLength(FolderPath);
+	char* CorrectedFolderPath = PushArray(&Mem, char, FolderPathLen + 4);
+	int ScanIndex;
+	for (ScanIndex = 0;
+		ScanIndex < FolderPathLen;
+		ScanIndex++)
 	{
-		FindPattern[FolderPathLen] = '/';
-		FindPattern[FolderPathLen + 1] = 0;
+		CorrectedFolderPath[ScanIndex] = FolderPath[ScanIndex];
+		if (CorrectedFolderPath[ScanIndex] == '\\') {
+			CorrectedFolderPath[ScanIndex] = '/';
+		}
 	}
+
+	//NOTE(dima): If last char isn't slash then set it
+	char LastFolderPathChar = FolderPath[ScanIndex - 1];
+	if (LastFolderPathChar != '\\' &&
+		LastFolderPathChar != '/') 
+	{
+		CorrectedFolderPath[ScanIndex++] = '/';
+	}
+	CorrectedFolderPath[ScanIndex++] = 0;
+
+	char* FindPattern = PushArray(&Mem, char, MAX_PATH);
+	CopyStrings(FindPattern, CorrectedFolderPath);
 
 	char WildCard[32];
 	switch (Type) {
@@ -721,13 +746,35 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 	WIN32_FIND_DATAA FileFindData;
 	HANDLE FindHandle = FindFirstFileA(FindPattern, &FileFindData);
 
+	char* FullFileRelativePath = PushArray(&Mem, char, MAX_PATH);
+
 	b32 NextFileFound = 1;
 	if (FindHandle != INVALID_HANDLE_VALUE) {
 		while (NextFileFound) {
+			platform_file_entry* File = PushStruct(&Mem, platform_file_entry);
 
-			
+			File->Next = Result.FirstFileEntry;
+			File->FileSize = (FileFindData.nFileSizeLow) | (FileFindData.nFileSizeHigh << 32);
 
-			b32 NextFileFound = FindNextFileA(FindHandle, &FileFindData);
+			ConcatStringsUnsafe(FullFileRelativePath, CorrectedFolderPath, FileFindData.cFileName);
+			File->FileName = PushString(&Mem, FullFileRelativePath);
+			CopyStrings(File->FileName, FullFileRelativePath);
+
+			/*
+			HANDLE FileHandle = CreateFileA(
+				File->FileName,
+				GENERIC_READ,
+				FILE_SHARE_READ,
+				0,
+				OPEN_EXISTING,
+				FILE_ATTRIBUTE_NORMAL,
+				0);
+			*/
+
+			Result.FirstFileEntry = File;
+			Result.FileCount++;
+
+			NextFileFound = FindNextFileA(FindHandle, &FileFindData);
 		}
 	}
 	FindClose(FindHandle);
@@ -738,9 +785,8 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(WindaOpenAllFilesOfTypeEnd) {
 	platform_file_entry* FirstFileEntry = Group->FirstFileEntry;
 
-	platform_file_entry* At = FirstFileEntry;
-	for (At; At; At = At->Next) {
-
+	if (Group->FreeFileGroupMemory) {
+		VirtualFree(Group->FreeFileGroupMemory, 0, MEM_RELEASE);
 	}
 }
 
@@ -942,6 +988,9 @@ PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory) {
 int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+
+	platform_file_group FileGroup = WindaOpenAllFilesOfTypeBegin("../Data/", FileType_Asset);
+	WindaOpenAllFilesOfTypeEnd(&FileGroup);
 
 #if 0
 	int DisplayModeCount = SDL_GetNumDisplayModes(0);

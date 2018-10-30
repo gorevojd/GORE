@@ -4,16 +4,6 @@
 
 #include "gore_types.h"
 
-enum memory_allocation_flag {
-	MemAllocFlag_None = 0,
-
-	MemAllocFlag_ClearTo0 = 1,
-
-	MemAllocFlag_Align4 = 2,
-	MemAllocFlag_Align8 = 4,
-	MemAllocFlag_Align16 = 8,
-};
-
 struct stacked_memory {
 	void* BaseAddress;
 	u32 Used;
@@ -27,25 +17,7 @@ struct stacked_memory {
 	u32 InitUsed;
 };
 
-inline u32 GetAlignValueFromAllocationFlag(u32 AllocationFlag) {
-	u32 Result = 4;
-
-	if (AllocationFlag & MemAllocFlag_Align4) {
-		Result = 4;
-	}
-	
-	if (AllocationFlag & MemAllocFlag_Align8) {
-		Result = 8;
-	}
-
-	if (AllocationFlag & MemAllocFlag_Align16) {
-		Result = 16;
-	}
-
-	return(Result);
-}
-
-inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize, u32 AllocationFlag = 0) {
+inline stacked_memory InitStackedMemory(void* Memory, u32 MaxSize) {
 	stacked_memory Result = {};
 
 	Result.BaseAddress = (u8*)Memory;
@@ -85,7 +57,6 @@ inline stacked_memory SplitStackedMemory(stacked_memory* Stack, u32 Size) {
 	Result.BaseAddress = (u8*)Stack->BaseAddress + Stack->Used;
 	Result.Used = 0;
 	Result.MaxSize = Size;
-	Result.FragmentationBytesCount = 0;
 
 	Stack->Used += Size;
 
@@ -98,13 +69,8 @@ inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 
 	Assert(Mem->Used + ByteSize + AlignOffset <= Mem->MaxSize);
 
-#if 1
 	u8* Result = (u8*)Mem->BaseAddress + Mem->Used + AlignOffset;
 	Mem->Used = Mem->Used + ByteSize + AlignOffset;
-#else
-	u32 MemUsedPrev = PlatformApi.AtomicAdd_U32((platform_atomic_type_u32*)&Mem->Used, ByteSize + AlignOffset);
-	u8* Result = (u8*)Mem->BaseAddress + MemUsedPrev + AlignOffset;
-#endif
 
 	Mem->FragmentationBytesCount += AlignOffset;
 

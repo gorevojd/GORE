@@ -7,34 +7,6 @@ struct asset_load_font_asset_work {
 
 };
 
-PLATFORM_THREADWORK_CALLBACK(ASSETLoadFontAssetWork) {
-	asset_load_font_asset_work* Work = (asset_load_font_asset_work*)Data;
-
-	
-}
-
-/*
-	NOTE(dima): Thanks to Minsk Gameloft office programming
-	teamlead Kirill who found the mistake here xD.
-	This is my forever-ever mistake that I had and will 
-	always do in atomic operations - forget to put & in front
-	of the first parameter. Lol
-*/
-
-void LoadAsset(asset_system* System, u32 Id, b32 Immediate) {
-	game_asset* Asset = GetByAssetID(System, Id);
-
-	if (PlatformApi.AtomicCAS_U32(
-		(platform_atomic_type_u32*)&Asset->State, 
-		GameAssetState_InProgress, 
-		GameAssetState_Unloaded) == GameAssetState_Unloaded) 
-	{
-
-	}
-	else {
-
-	}
-}
 
 inline game_asset_tag* FindTagInAsset(game_asset* Asset, u32 TagType) {
 	game_asset_tag* Result = 0;

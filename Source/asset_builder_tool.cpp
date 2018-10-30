@@ -311,7 +311,7 @@ font_info LoadFontInfoFromImage(
 	u32 AtlasWidth = 0;
 
 	//NOTE(dima): Loading font atlas image
-	bitmap_info FontImage = LoadIMG(ImagePath);
+	bitmap_info FontImage = AssetLoadIMG(ImagePath);
 
 	Result.AscenderHeight = TargetCharHeight;
 	Result.DescenderHeight = 0;
@@ -335,7 +335,7 @@ font_info LoadFontInfoFromImage(
 		Glyph->XOffset = 0.0f;
 		Glyph->YOffset = -TargetCharHeight;
 
-		Glyph->Bitmap = AllocateBitmap(Glyph->Width, Glyph->Height);
+		Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
 
 		//NOTE(dima): Initializing every single bitmap to empty
 		u32* DstPixel = (u32*)Glyph->Bitmap.Pixels;
@@ -385,7 +385,7 @@ font_info LoadFontInfoFromImage(
 				glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
 				glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
 
-				CopyBitmapData(&Glyph->Bitmap, &SrcGlyph->Bitmap);
+				AssetCopyBitmapData(&Glyph->Bitmap, &SrcGlyph->Bitmap);
 			}
 		}
 	}
@@ -403,7 +403,7 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Building font atlas
-	Result.FontAtlasImage = AllocateBitmap(AtlasWidth, AtlasHeight);
+	Result.FontAtlasImage = AssetAllocateBitmap(AtlasWidth, AtlasHeight);
 
 	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
 	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
@@ -427,7 +427,7 @@ font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Freing font image
-	DeallocateBitmap(&FontImage);
+	AssetDeallocateBitmap(&FontImage);
 
 	return(Result);
 }
@@ -499,7 +499,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 		Glyph->Width = CharWidth + 2 + ShadowOffset;
 		Glyph->Height = CharHeight + 2 + ShadowOffset;
-		Glyph->Bitmap = AllocateBitmap(Glyph->Width, Glyph->Height);
+		Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
 		Glyph->Advance = Advance * Scale;
 		Glyph->LeftBearingX = LeftBearingX * Scale;
 		Glyph->XOffset = XOffset;
@@ -609,7 +609,7 @@ font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	}
 
 	//NOTE(dima): Building font atlas
-	Result.FontAtlasImage = AllocateBitmap(AtlasWidth, AtlasHeight);
+	Result.FontAtlasImage = AssetAllocateBitmap(AtlasWidth, AtlasHeight);
 
 	float OneOverAtlasWidth = 1.0f / (float)AtlasWidth;
 	float OneOverAtlasHeight = 1.0f / (float)AtlasHeight;
@@ -735,7 +735,7 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 					if (!Source->BitmapSource.BitmapInfo) 
 					{
 						Asset->Bitmap = (bitmap_info*)malloc(sizeof(bitmap_info));
-						*Asset->Bitmap = LoadIMG(Source->BitmapSource.Path);
+						*Asset->Bitmap = AssetLoadIMG(Source->BitmapSource.Path);
 
 						BitmapAllocatedHere = 1;
 					}
@@ -1049,7 +1049,7 @@ void WriteBitmaps() {
 	AddBitmapAsset(System, "../Data/Images/VoxelAtlas/VoxelAtlas.png");
 	EndAssetGroup(System);
 
-	bitmap_info Checker1 = GenerateCheckerboardBitmap(512, 64, V3(1.0f, 0.0f, 0.0f), V3(0.0f, 1.0f, 0.0f));
+	bitmap_info Checker1 = AssetGenerateCheckerboardBitmap(512, 64, V3(1.0f, 0.0f, 0.0f), V3(0.0f, 1.0f, 0.0f));
 
 	BeginAssetGroup(System, GameAsset_Checkerboard);
 	AddBitmapAssetManual(System, &Checker1);
