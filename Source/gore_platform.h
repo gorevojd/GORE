@@ -429,7 +429,7 @@ struct platform_file_entry {
 
 	u64 PlatformLastWriteTime;
 
-	u32 FileSize;
+	u64 FileSize;
 };
 
 struct platform_file_group {
@@ -448,6 +448,9 @@ typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(platform_open_all_files_of_type_be
 
 #define PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(name) void name(platform_file_group* Group)
 typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(platform_open_all_files_of_type_end);
+
+#define PLATFORM_READ_DATA_FROM_FILE_ENTRY(name) void name(platform_file_entry* File, void* Dest, u64 StartOffset, u64 BytesCountToRead)
+typedef PLATFORM_READ_DATA_FROM_FILE_ENTRY(platform_read_data_from_file_entry);
 
 struct dealloc_queue_bitmap_data {
 	void* TextureHandle;
@@ -522,8 +525,22 @@ struct platform_api {
 	platform_read_file* ReadFile;
 	platform_write_file* WriteFile;
 	platform_free_file_memory* FreeFileMemory;
+
+	/*
+		IMPORTANT(dima): File group operations are not thread safe 
+		and can't be nested.
+
+		Theese operations use precalculated memory block in the 
+		platform layer. So 2 or more concurrent file group openings,
+		or 2 nested openings will overlap.
+
+		NOTE(dima): Make sure you perform file group operations 
+		synchronously!!!
+	*/
 	platform_open_all_files_of_type_begin* OpenAllFilesOfTypeBegin;
 	platform_open_all_files_of_type_end* OpenAllFilesOfTypeEnd;
+	platform_read_data_from_file_entry* ReadDataFromFileEntry;
+
 	platform_get_time_from_time_handle* GetFileTimeFromTimeHandle;
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;

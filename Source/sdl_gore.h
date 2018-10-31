@@ -104,11 +104,27 @@ PFNGLCLEARBUFFERFIPROC glClearBufferfi;
 MYPFNGLDRAWELEMENTSPROC _glDrawElements;
 MYPFNGLACTIVETEXTURE _glActiveTexture;
 
-struct platform_dependent_state {
-
-};
-
 #if defined(PLATFORM_WINDA)
+
+struct winda_state {
+	stacked_memory PlatformMemStack;
+	void* PlatformLayerMemory;
+	u32 PlatformLayerMemorySize;
+
+	void* EngineLayerMemory;
+	u32 EngineLayerMemorySize;
+
+	stacked_memory GameModeStack;
+	stacked_memory EngineSystemsStack;
+
+	u32 WindowWidth;
+	u32 WindowHeight;
+
+	b32 GlobalRunning;
+	input_system GlobalInput;
+	u64 GlobalPerfomanceCounterFrequency;
+	float GlobalTime;
+};
 
 struct platform_thread_queue {
 	platform_threadwork* Entries;

@@ -61,17 +61,13 @@
 			Correct aspect ratio handling
 */
 
-GLOBAL_VARIABLE b32 GlobalRunning;
-GLOBAL_VARIABLE bitmap_info GlobalBuffer;
-GLOBAL_VARIABLE input_system GlobalInput;
-
-GLOBAL_VARIABLE u64 GlobalPerfomanceCounterFrequency;
-GLOBAL_VARIABLE float GlobalTime;
+//NOTE(dima): Global variables
+static winda_state WindaState;
 
 platform_api PlatformApi;
+
 #if GORE_DEBUG_ENABLED
-debug_record_table GlobalRecordTable_ = {};
-debug_record_table *GlobalRecordTable = &GlobalRecordTable_;
+debug_record_table *GlobalRecordTable;
 #endif
 
 static u64 SDLGetClocks() {
@@ -84,7 +80,7 @@ static float SDLGetMSElapsed(u64 BeginClocks) {
 	float Result;
 
 	u64 ClocksElapsed = SDLGetClocks() - BeginClocks;
-	Result = (float)ClocksElapsed / GlobalPerfomanceCounterFrequency;
+	Result = (float)ClocksElapsed / WindaState.GlobalPerfomanceCounterFrequency;
 
 	return(Result);
 }
@@ -265,7 +261,7 @@ static void SDLProcessEvents(SDL_Window* Window, input_system* Input) {
 
 					if (IsDown) {
 						if (KeyCode == SDLK_F4 && AltIsDown) {
-							GlobalRunning = false;
+							WindaState.GlobalRunning = false;
 						}
 
 						if (KeyCode == SDLK_RETURN && AltIsDown) {
@@ -292,7 +288,7 @@ static void SDLProcessEvents(SDL_Window* Window, input_system* Input) {
 				switch (WindowEvent->event) {
 					/*Close is sent to window*/
 					case(SDL_WINDOWEVENT_CLOSE): {
-						GlobalRunning = false;
+						WindaState.GlobalRunning = false;
 					}break;
 
 						/*Mouse entered window*/
@@ -479,16 +475,19 @@ PLATFORM_PLACE_CURSOR_AT_CENTER(SDLPlaceCursorAtCenter) {
 #else
 	SDL_Window* Window = SDL_GL_GetCurrentWindow();
 
-	SDL_WarpMouseInWindow(Window, GlobalInput.CenterP.x, GlobalInput.CenterP.y);
+	SDL_WarpMouseInWindow(
+		Window, 
+		WindaState.GlobalInput.CenterP.x, 
+		WindaState.GlobalInput.CenterP.y);
 #endif
 }
 
 PLATFORM_TERMINATE_PROGRAM(SDLTerminateProgram) {
-	GlobalRunning = 0;
+	WindaState.GlobalRunning = 0;
 }
 
 PLATFORM_END_GAME_LOOP(SDLEndGameLoop) {
-	GlobalRunning = 0;
+	WindaState.GlobalRunning = 0;
 }
 
 #if defined(PLATFORM_WINDA)
@@ -572,18 +571,26 @@ PLATFORM_COMPLETE_THREAD_WORKS(WindaCompleteThreadWorks) {
 
 void WindaInitThreadQueue(
 	platform_thread_queue* Queue, 
-	winda_thread_worker* Workers, 
 	int WorkersCount, 
 	char* QueueName,
-	platform_threadwork* Entries,
 	u32 EntriesCount) 
 {
 	Queue->AddIndex = 0;
 	Queue->DoIndex = 0;
 	Queue->FinishedEntries = 0;
 	Queue->StartedEntries = 0;
-	Queue->Entries = Entries;
+
+	winda_thread_worker* Workers = PushArray(
+		&WindaState.PlatformMemStack,
+		winda_thread_worker,
+		WorkersCount);
+
+	Queue->Entries = PushArray(
+		&WindaState.PlatformMemStack,
+		platform_threadwork,
+		EntriesCount);
 	Queue->EntriesCount = EntriesCount;
+
 	Queue->WorkingThreadsCount = WorkersCount;
 	Queue->AddMutex = {};
 
@@ -752,6 +759,7 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 	char* FindPattern = PushArray(&Mem, char, MAX_PATH);
 	CopyStrings(FindPattern, CorrectedFolderPath);
 
+	//NOTE(dima): Adding corresponding wildcards
 	char WildCard[32];
 	switch (Type) {
 		case FileType_Asset: {
@@ -765,6 +773,7 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 
 	ConcatStringsUnsafe(FindPattern, FindPattern, WildCard);
 
+	//NOTE(dima): Iterating through matching files
 	WIN32_FIND_DATAA FileFindData;
 	HANDLE FindHandle = FindFirstFileA(FindPattern, &FileFindData);
 
@@ -788,7 +797,7 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 				FILE_SHARE_READ,
 				0,
 				OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL,
+				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
 				0);
 
 			File->PlatformFileHandle = (u64)FileHandle;
@@ -796,7 +805,11 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 				(FileFindData.ftLastWriteTime.dwLowDateTime) |
 				((u64)FileFindData.ftLastWriteTime.dwHighDateTime << 32);
 
-#if 1
+			LARGE_INTEGER FileSizeLI;
+			GetFileSizeEx(FileHandle, &FileSizeLI);
+
+			File->FileSize = FileSizeLI.QuadPart; 
+#if 0
 			platform_time Time = WindaGetTimeFromTimeHandle(File->PlatformLastWriteTime);
 #endif
 
@@ -814,12 +827,34 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(WindaOpenAllFilesOfTypeEnd) {
 	platform_file_entry* FirstFileEntry = Group->FirstFileEntry;
 
+	//NOTE(dima): Closing file handles
+	platform_file_entry* At = Group->FirstFileEntry;
+	for (At; At; At = At->Next) {
+		CloseHandle((HANDLE)At->PlatformFileHandle);
+	}
+
+	//NOTE(dima): Freeing file group memory
 	if (Group->FreeFileGroupMemory) {
 		VirtualFree(Group->FreeFileGroupMemory, 0, MEM_RELEASE);
 	}
 }
 
+PLATFORM_READ_DATA_FROM_FILE_ENTRY(WindaReadDataFromFileEntry) {
+	OVERLAPPED Overlapped;
+	Overlapped.Offset = StartOffset & 0xFFFFFFFF;
+	Overlapped.OffsetHigh = (StartOffset >> 32) & 0xFFFFFFFF;
 
+	DWORD BytesRead;
+
+	ReadFile(
+		(HANDLE)File->PlatformFileHandle,
+		Dest,
+		BytesCountToRead,
+		&BytesRead,
+		&Overlapped);
+
+	Assert(BytesRead == BytesCountToRead);
+}
 
 #else
 
@@ -1016,110 +1051,73 @@ PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory) {
 
 #endif
 
-int main(int ArgsCount, char** Args) {
-
-	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
-
-	platform_file_group FileGroup = WindaOpenAllFilesOfTypeBegin("../Data/", FileType_Asset);
-	WindaOpenAllFilesOfTypeEnd(&FileGroup);
-
-#if 0
-	int DisplayModeCount = SDL_GetNumDisplayModes(0);
-
-	for (int DisplayModeIndex = 0;
-		DisplayModeIndex < DisplayModeCount;
-		DisplayModeIndex++)
-	{
-		SDL_DisplayMode DisplayMode;
-		if (SDL_GetDisplayMode(0, DisplayModeIndex, &DisplayMode)) {
-			SDL_Log("SDL_GetDisplayModef failed: %s", SDL_GetError());
-		}
-
-		u32 Format = DisplayMode.format;
-		u32 Width = DisplayMode.w;
-		u32 Height = DisplayMode.h;
-		u32 RefreshRate = DisplayMode.refresh_rate;
-		
-		SDL_Log("Mode index %i \t %ibpp, %s, %ux%u, %uhz",
-			DisplayModeIndex,
-			SDL_BITSPERPIXEL(Format),
-			SDL_GetPixelFormatName(Format),
-			Width, Height,
-			RefreshRate);
-	}
+void WindaInitState(winda_state* State) {
+	//NOTE(dima): Allocating platform layer memory
+#if GORE_DEBUG_ENABLED
+	WindaState.PlatformLayerMemorySize = MEGABYTES(150);
+#else
+	WindaState.PlatformLayerMemorySize = MEGABYTES(10);
 #endif
+	WindaState.PlatformLayerMemory = VirtualAlloc(
+		0,
+		WindaState.PlatformLayerMemorySize,
+		MEM_RESERVE | MEM_COMMIT,
+		PAGE_READWRITE);
+
+	WindaState.PlatformMemStack = InitStackedMemory(
+		WindaState.PlatformLayerMemory,
+		WindaState.PlatformLayerMemorySize);
+
+	//NOTE(dima): Initialization of the memory
+	u32 GameModeMemorySize = MEGABYTES(256);
+	u32 PermanentMemorySize = MEGABYTES(512);
+	State->EngineLayerMemorySize =
+		GameModeMemorySize +
+		PermanentMemorySize;
+
+	State->EngineLayerMemory = VirtualAlloc(
+		0,
+		State->EngineLayerMemorySize,
+		MEM_COMMIT | MEM_RESERVE,
+		PAGE_READWRITE);
+
+	void* GameModeMemPointer = State->EngineLayerMemory;
+	void* EngineSystemsMemPointer = (u8*)State->EngineLayerMemory + GameModeMemorySize;
+
+	State->GameModeStack = InitStackedMemory(GameModeMemPointer, GameModeMemorySize);
+	State->EngineSystemsStack = InitStackedMemory(EngineSystemsMemPointer, PermanentMemorySize);
+
+	PlatformApi.GameModeMemoryBlock = State->GameModeStack;
+	PlatformApi.EngineSystemsMemoryBlock = State->EngineSystemsStack;
 
 	//NOTE(dima): Initializing of threads
-	platform_thread_queue SuperHighPriorityQueue;
-	platform_thread_queue HighPriorityQueue;
-	platform_thread_queue LowPriorityQueue;
+	platform_thread_queue* SuperHighPriorityQueue = PushStruct(&WindaState.PlatformMemStack, platform_thread_queue);
+	platform_thread_queue* HighPriorityQueue = PushStruct(&WindaState.PlatformMemStack, platform_thread_queue);
+	platform_thread_queue* LowPriorityQueue = PushStruct(&WindaState.PlatformMemStack, platform_thread_queue);
 
-	platform_threadwork SuperHighQueueEntries[16384];
-	platform_threadwork HighQueueEntries[4096];
-	platform_threadwork LowQueueEntries[4096];
 
 #define PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT 5
+	WindaInitThreadQueue(
+		SuperHighPriorityQueue,
+		PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT,
+		"SuperHighQueue",
+		16384);
+
 #define PLATFORM_HIGH_QUEUE_THREADS_COUNT 4
+	WindaInitThreadQueue(
+		HighPriorityQueue,
+		PLATFORM_HIGH_QUEUE_THREADS_COUNT,
+		"HighQueue",
+		4096);
+
 #define PLATFORM_LOW_QUEUE_THREADS_COUNT 2
-
-#if defined(PLATFORM_WINDA)
-	winda_thread_worker SuperHighThreadWorkers[PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT];
 	WindaInitThreadQueue(
-		&SuperHighPriorityQueue,
-		SuperHighThreadWorkers,
-		ArrayCount(SuperHighThreadWorkers),
-		"SuperHighQueue",
-		SuperHighQueueEntries,
-		ArrayCount(SuperHighQueueEntries));
-
-	winda_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
-	WindaInitThreadQueue(
-		&HighPriorityQueue, 
-		HighThreadWorkers, 
-		ArrayCount(HighThreadWorkers), 
-		"HighQueue",
-		HighQueueEntries,
-		ArrayCount(HighQueueEntries));
-
-	winda_thread_worker LowThreadWorkers[PLATFORM_LOW_QUEUE_THREADS_COUNT];
-	WindaInitThreadQueue(
-		&LowPriorityQueue, 
-		LowThreadWorkers, 
-		ArrayCount(LowThreadWorkers), 
+		LowPriorityQueue,
+		PLATFORM_LOW_QUEUE_THREADS_COUNT,
 		"LowQueue",
-		LowQueueEntries,
-		ArrayCount(LowQueueEntries));
-#else
-	sdl_thread_worker SuperHighThreadWorkers[PLATFORM_SUPERHIGH_QUEUE_THREADS_COUNT];
-	SDLInitThreadQueue(
-		&SuperHighPriorityQueue,
-		SuperHighThreadWorkers,
-		ArrayCount(SuperHighThreadWorkers),
-		"SuperHighQueue",
-		SuperHighQueueEntries,
-		ArrayCount(SuperHighQueueEntries));
-
-	sdl_thread_worker HighThreadWorkers[PLATFORM_HIGH_QUEUE_THREADS_COUNT];
-	SDLInitThreadQueue(
-		&HighPriorityQueue, 
-		HighThreadWorkers, 
-		ArrayCount(HighThreadWorkers), 
-		"HighQueue",
-		HighQueueEntries,
-		ArrayCount(HighQueueEntries));
-
-	sdl_thread_worker LowThreadWorkers[PLATFORM_LOW_QUEUE_THREADS_COUNT];
-	SDLInitThreadQueue(
-		&LowPriorityQueue, 
-		LowThreadWorkers, 
-		ArrayCount(LowThreadWorkers), 
-		"LowQueue",
-		LowQueueEntries,
-		ArrayCount(LowQueueEntries));
-#endif
+		4096);
 
 	//NOTE(dima): Initializing of Platform API
-#if defined(PLATFORM_WINDA)
 	PlatformApi.AddThreadworkEntry = WindaAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = WindaCompleteThreadWorks;
 	PlatformApi.GetThreadID = WindaGetThreadID;
@@ -1156,45 +1154,10 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.OpenAllFilesOfTypeBegin = WindaOpenAllFilesOfTypeBegin;
 	PlatformApi.OpenAllFilesOfTypeEnd = WindaOpenAllFilesOfTypeEnd;
 	PlatformApi.GetFileTimeFromTimeHandle = WindaGetTimeFromTimeHandle;
-#else
-	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
-	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;
-	PlatformApi.GetThreadID = SDLGetThreadID;
-	PlatformApi.GetThreadQueueInfo = SDLGetThreadQueueInfo;
 
-
-	PlatformApi.ReadWriteBarrier = SDLCompilerBarrier;
-	PlatformApi.ReadBarrier = SDLCompilerBarrier;
-	PlatformApi.WriteBarrier = SDLCompilerBarrier;
-
-	PlatformApi.AtomicCAS_I32 = SDLAtomicCAS_I32;
-	PlatformApi.AtomicCAS_U32 = SDLAtomicCAS_U32;
-	PlatformApi.AtomicCAS_I64 = SDLAtomicCAS_I64;
-	PlatformApi.AtomicCAS_U64 = SDLAtomicCAS_U64;
-
-	PlatformApi.AtomicInc_I32 = SDLAtomicInc_I32;
-	PlatformApi.AtomicInc_U32 = SDLAtomicInc_U32;
-	PlatformApi.AtomicInc_I64 = SDLAtomicInc_I64;
-	PlatformApi.AtomicInc_U64 = SDLAtomicInc_U64;
-
-	PlatformApi.AtomicAdd_I32 = SDLAtomicAdd_I32;
-	PlatformApi.AtomicAdd_U32 = SDLAtomicAdd_U32;
-	PlatformApi.AtomicAdd_I64 = SDLAtomicAdd_I64;
-	PlatformApi.AtomicAdd_U64 = SDLAtomicAdd_U64;
-
-	PlatformApi.AtomicSet_I32 = SDLAtomicSet_I32;
-	PlatformApi.AtomicSet_U32 = SDLAtomicSet_U32;
-	PlatformApi.AtomicSet_I64 = SDLAtomicSet_I64;
-	PlatformApi.AtomicSet_U64 = SDLAtomicSet_U64;
-
-	PlatformApi.NativeMemoryAllocatorMutex = {};
-	PlatformApi.AllocateMemory = SDLAllocateMemory;
-	PlatformApi.DeallocateMemory = SDLDeallocateMemory;
-#endif
-
-	PlatformApi.SuperHighQueue = &SuperHighPriorityQueue;
-	PlatformApi.HighPriorityQueue = &HighPriorityQueue;
-	PlatformApi.LowPriorityQueue = &LowPriorityQueue;
+	PlatformApi.SuperHighQueue = SuperHighPriorityQueue;
+	PlatformApi.HighPriorityQueue = HighPriorityQueue;
+	PlatformApi.LowPriorityQueue = LowPriorityQueue;
 	PlatformApi.ReadFile = SDLReadEntireFile;
 	PlatformApi.WriteFile = SDLWriteEntireFile;
 	PlatformApi.FreeFileMemory = SDLFreeFileMemory;
@@ -1203,16 +1166,20 @@ int main(int ArgsCount, char** Args) {
 	PlatformApi.EndGameLoop = SDLEndGameLoop;
 
 	//NOTE(dima): Allocation of alloc queue entries
-	int PlatformAllocEntriesCount = 1 << 14;
+	int PlatformAllocEntriesCount = 1 << 12;
 	int MemoryForAllocEntriesRequired = PlatformAllocEntriesCount * sizeof(dealloc_queue_entry);
 	int AllocQueueEntryIndex = 0;
-	dealloc_queue_entry* Entries = (dealloc_queue_entry*)malloc(MemoryForAllocEntriesRequired);
 
-	PlatformApi.FirstUseAllocQueueEntry = Entries + AllocQueueEntryIndex++;
+	dealloc_queue_entry* AllocQueueEntries = PushArray(
+		&WindaState.PlatformMemStack,
+		dealloc_queue_entry,
+		PlatformAllocEntriesCount);
+
+	PlatformApi.FirstUseAllocQueueEntry = AllocQueueEntries + AllocQueueEntryIndex++;
 	PlatformApi.FirstUseAllocQueueEntry->Next = PlatformApi.FirstUseAllocQueueEntry;
 	PlatformApi.FirstUseAllocQueueEntry->Prev = PlatformApi.FirstUseAllocQueueEntry;
 
-	PlatformApi.FirstFreeAllocQueueEntry = Entries + AllocQueueEntryIndex++;
+	PlatformApi.FirstFreeAllocQueueEntry = AllocQueueEntries + AllocQueueEntryIndex++;
 	PlatformApi.FirstFreeAllocQueueEntry->Next = PlatformApi.FirstFreeAllocQueueEntry;
 	PlatformApi.FirstFreeAllocQueueEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
 
@@ -1220,7 +1187,7 @@ int main(int ArgsCount, char** Args) {
 		AllocQueueEntryIndex < PlatformAllocEntriesCount;
 		AllocQueueEntryIndex++)
 	{
-		dealloc_queue_entry* Entry = Entries + AllocQueueEntryIndex;
+		dealloc_queue_entry* Entry = AllocQueueEntries + AllocQueueEntryIndex;
 
 		Entry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
 		Entry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
@@ -1232,11 +1199,11 @@ int main(int ArgsCount, char** Args) {
 		Entry->Data = {};
 	}
 
-	//NOTE(dima): Loading game settings from settings file
-	game_settings GameSettings = {};
-	TryReadGameSettings(&GameSettings);
-	
+	//NOTE(dima): Initializing debug table if needed
 #if GORE_DEBUG_ENABLED
+	GlobalRecordTable = PushStruct(&WindaState.PlatformMemStack, debug_record_table);
+	memset(GlobalRecordTable, 0, sizeof(debug_record_table));
+
 	//NOTE(dima): Initializing of debug layer global record table
 	DEBUGSetRecording(1);
 	DEBUGSetLogRecording(1);
@@ -1249,32 +1216,67 @@ int main(int ArgsCount, char** Args) {
 		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
 	}
 #endif
+}
 
-	//NOTE(dima): Initialization of the memory
-	u32 GameModeMemorySize = MEGABYTES(256);
-	u32 PermanentMemorySize = MEGABYTES(512);
+void WindaFreeState(winda_state* State) {
+	//NOTE(dima): Freing platform layer memory
+	if (State->PlatformLayerMemory) {
+		VirtualFree(State->PlatformLayerMemory, 0, MEM_RELEASE);
+	}
 
-	u64 TotalMemoryBlockSize =
-		GameModeMemorySize +
-		PermanentMemorySize;
+	//NOTE(dima); Freeing engine layer memory
+	if (State->EngineLayerMemory) {
+		VirtualFree(State->EngineLayerMemory, 0, MEM_RELEASE);
+	}
+}
 
-	void* PlatformMemoryBlock = calloc(TotalMemoryBlockSize, 1);
+int main(int ArgsCount, char** Args) {
 
-	void* GameModeMemPointer = PlatformMemoryBlock;
-	void* EngineSystemsMemPointer = (u8*)GameModeMemPointer + GameModeMemorySize;
+	WindaInitState(&WindaState);
 
-	PlatformApi.GameModeMemoryBlock = InitStackedMemory(PlatformMemoryBlock, GameModeMemorySize);
-	PlatformApi.EngineSystemsMemoryBlock = InitStackedMemory(EngineSystemsMemPointer, PermanentMemorySize);
+	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
+
+#if 0
+	int DisplayModeCount = SDL_GetNumDisplayModes(0);
+
+	for (int DisplayModeIndex = 0;
+		DisplayModeIndex < DisplayModeCount;
+		DisplayModeIndex++)
+	{
+		SDL_DisplayMode DisplayMode;
+		if (SDL_GetDisplayMode(0, DisplayModeIndex, &DisplayMode)) {
+			SDL_Log("SDL_GetDisplayModef failed: %s", SDL_GetError());
+		}
+
+		u32 Format = DisplayMode.format;
+		u32 Width = DisplayMode.w;
+		u32 Height = DisplayMode.h;
+		u32 RefreshRate = DisplayMode.refresh_rate;
+		
+		SDL_Log("Mode index %i \t %ibpp, %s, %ux%u, %uhz",
+			DisplayModeIndex,
+			SDL_BITSPERPIXEL(Format),
+			SDL_GetPixelFormatName(Format),
+			Width, Height,
+			RefreshRate);
+	}
+#endif
+
+	//NOTE(dima): Loading game settings from settings file
+	game_settings GameSettings = {};
+	TryReadGameSettings(&GameSettings);
 
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
 
-	GlobalBuffer = AssetAllocateBitmap(GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
-	GlobalInput.WindowDim.x = GlobalBuffer.Width;
-	GlobalInput.WindowDim.y = GlobalBuffer.Height;
+	WindaState.WindowWidth = GORE_WINDOW_WIDTH;
+	WindaState.WindowHeight = GORE_WINDOW_HEIGHT;
 
-	GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
-	GlobalTime = 0.0f;
+	WindaState.GlobalInput.WindowDim.x = WindaState.WindowWidth;
+	WindaState.GlobalInput.WindowDim.y = WindaState.WindowHeight;
+
+	WindaState.GlobalPerfomanceCounterFrequency = SDL_GetPerformanceFrequency();
+	WindaState.GlobalTime = 0.0f;
 
 	if (SdlInitCode < 0) {
 		printf("ERROR: SDL has been not initialized");
@@ -1295,8 +1297,8 @@ int main(int ArgsCount, char** Args) {
 		"GORE",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		GlobalBuffer.Width,
-		GlobalBuffer.Height,
+		WindaState.WindowWidth,
+		WindaState.WindowHeight,
 		SDL_WINDOW_OPENGL);
 
 	SDL_GLContext SDLOpenGLRenderContext = SDL_GL_CreateContext(Window);
@@ -1468,8 +1470,15 @@ int main(int ArgsCount, char** Args) {
 	}
 #endif
 
-	engine_systems* EngineSystems = EngineSystemsInit(&GlobalInput, &GameSettings);
-	OpenGLInitState(GLState, GlobalBuffer.Width, GlobalBuffer.Height, &GameSettings);
+	engine_systems* EngineSystems = EngineSystemsInit(
+		&WindaState.GlobalInput, 
+		&GameSettings);
+
+	OpenGLInitState(
+		GLState, 
+		WindaState.WindowWidth, 
+		WindaState.WindowHeight, 
+		&GameSettings);
 
 	float TempFloatForSlider = 4.0f;
 	float TempFloatForVertSlider = 0.0f;
@@ -1477,8 +1486,8 @@ int main(int ArgsCount, char** Args) {
 
 	float DeltaTime = 0.0f;
 
-	GlobalRunning = true;
-	while (GlobalRunning) {
+	WindaState.GlobalRunning = true;
+	while (WindaState.GlobalRunning) {
 		u64 FrameBeginClocks = SDLGetClocks();
 
 		DEBUG_FRAME_BARRIER(DeltaTime);
@@ -1487,16 +1496,16 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_SECTION("Platform");
 
 		BEGIN_TIMING("Input processing");
-		SDLProcessEvents(Window, &GlobalInput);
+		SDLProcessEvents(Window, &WindaState.GlobalInput);
 
-		SDLProcessInput(&GlobalInput);
+		SDLProcessInput(&WindaState.GlobalInput);
 
-		if (ButtonWentDown(&GlobalInput, KeyType_Esc)) {
-			GlobalRunning = false;
+		if (ButtonWentDown(&WindaState.GlobalInput, KeyType_Esc)) {
+			WindaState.GlobalRunning = false;
 			break;
 		}
 
-		if (ButtonWentDown(&GlobalInput, KeyType_F12)) {
+		if (ButtonWentDown(&WindaState.GlobalInput, KeyType_F12)) {
 			SDLGoFullscreen(Window);
 		}
 		END_TIMING();
@@ -1548,19 +1557,17 @@ int main(int ArgsCount, char** Args) {
 		END_TIMING();
 
 		DeltaTime = SDLGetMSElapsed(FrameBeginClocks);
-		GlobalInput.DeltaTime = DeltaTime;
-		GlobalInput.Time = GlobalTime;
+		WindaState.GlobalInput.DeltaTime = DeltaTime;
+		WindaState.GlobalInput.Time = WindaState.GlobalTime;
 
-		GlobalTime += DeltaTime;
+		WindaState.GlobalTime += DeltaTime;
 	}
 
 	SDL_GL_DeleteContext(SDLOpenGLRenderContext);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(Window);
 
-	AssetDeallocateBitmap(&GlobalBuffer);
-
-	printf("Program has been succesfully ended\n");
+	WindaFreeState(&WindaState);
 
 	return(0);
 }

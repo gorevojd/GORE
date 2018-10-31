@@ -340,7 +340,7 @@ void ASSETSInit(asset_system* System) {
 
 						switch (Asset->Type) {
 							case AssetType_Bitmap: {
-								Asset->Bitmap = PushStruct(???);
+								Asset->Bitmap = PushStruct(????);
 
 								bitmap_info* TargetBitmap = Asset->Bitmap;
 
