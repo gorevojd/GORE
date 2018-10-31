@@ -690,6 +690,28 @@ PLATFORM_DEALLOCATE_MEMORY(WindaDeallocateMemory) {
 #endif
 }
 
+PLATFORM_GET_TIME_FROM_TIME_HANDLE(WindaGetTimeFromTimeHandle) {
+	platform_time Result = {};
+
+	FILETIME WinFileTime;
+	WinFileTime.dwLowDateTime = Time & 0xFFFFFFFF;
+	WinFileTime.dwHighDateTime = (Time >> 32) & 0xFFFFFFFF;
+
+	SYSTEMTIME SysTime;
+	FileTimeToSystemTime(&WinFileTime, &SysTime);
+
+	Result.Day = SysTime.wDay;
+	Result.Month = SysTime.wMonth;
+	Result.Year = SysTime.wYear;
+	Result.Hour = SysTime.wHour;
+	Result.Minute = SysTime.wMinute;
+	Result.Second = SysTime.wSecond;
+	Result.DayOfWeek = SysTime.wDayOfWeek;
+	Result.Millisecond = SysTime.wMilliseconds;
+
+	return(Result);
+}
+
 PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 	platform_file_group Result = {};
 
@@ -754,13 +776,12 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 			platform_file_entry* File = PushStruct(&Mem, platform_file_entry);
 
 			File->Next = Result.FirstFileEntry;
-			File->FileSize = (FileFindData.nFileSizeLow) | (FileFindData.nFileSizeHigh << 32);
+			File->FileSize = (FileFindData.nFileSizeLow) | (((u64)FileFindData.nFileSizeHigh) << 32);
 
 			ConcatStringsUnsafe(FullFileRelativePath, CorrectedFolderPath, FileFindData.cFileName);
 			File->FileName = PushString(&Mem, FullFileRelativePath);
 			CopyStrings(File->FileName, FullFileRelativePath);
 
-			/*
 			HANDLE FileHandle = CreateFileA(
 				File->FileName,
 				GENERIC_READ,
@@ -769,7 +790,15 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 				OPEN_EXISTING,
 				FILE_ATTRIBUTE_NORMAL,
 				0);
-			*/
+
+			File->PlatformFileHandle = (u64)FileHandle;
+			File->PlatformLastWriteTime =
+				(FileFindData.ftLastWriteTime.dwLowDateTime) |
+				((u64)FileFindData.ftLastWriteTime.dwHighDateTime << 32);
+
+#if 1
+			platform_time Time = WindaGetTimeFromTimeHandle(File->PlatformLastWriteTime);
+#endif
 
 			Result.FirstFileEntry = File;
 			Result.FileCount++;
@@ -789,6 +818,8 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(WindaOpenAllFilesOfTypeEnd) {
 		VirtualFree(Group->FreeFileGroupMemory, 0, MEM_RELEASE);
 	}
 }
+
+
 
 #else
 
@@ -1124,6 +1155,7 @@ int main(int ArgsCount, char** Args) {
 
 	PlatformApi.OpenAllFilesOfTypeBegin = WindaOpenAllFilesOfTypeBegin;
 	PlatformApi.OpenAllFilesOfTypeEnd = WindaOpenAllFilesOfTypeEnd;
+	PlatformApi.GetFileTimeFromTimeHandle = WindaGetTimeFromTimeHandle;
 #else
 	PlatformApi.AddThreadworkEntry = SDLAddThreadworkEntry;
 	PlatformApi.CompleteThreadWorks = SDLCompleteThreadWorks;

@@ -56,6 +56,7 @@ enum render_entry_type {
 
 	//NOTE(dima): Bitmap is the screenspace bitmap
 	RenderEntry_Bitmap,
+
 	//NOTE(dima): Sprite is the bitmap that would be rendered in worldspace
 	RenderEntry_Sprite,
 	RenderEntry_Clear,

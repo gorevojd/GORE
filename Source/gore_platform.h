@@ -409,12 +409,25 @@ enum open_file_type {
 	FileType_SavedGame,
 };
 
+struct platform_time {
+	u16 Year;
+	u16 Month;
+	u16 DayOfWeek;
+	u16 Day;
+	u16 Hour;
+	u16 Minute;
+	u16 Second;
+	u16 Millisecond;
+};
+
 struct platform_file_entry {
 	platform_file_entry* Next;
 
 	char* FileName;
 
-	u64 FileHandle;
+	u64 PlatformFileHandle;
+
+	u64 PlatformLastWriteTime;
 
 	u32 FileSize;
 };
@@ -426,6 +439,9 @@ struct platform_file_group {
 
 	platform_file_entry* FirstFileEntry;
 };
+
+#define PLATFORM_GET_TIME_FROM_TIME_HANDLE(name) platform_time name(u64 Time)
+typedef PLATFORM_GET_TIME_FROM_TIME_HANDLE(platform_get_time_from_time_handle);
 
 #define PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(name) platform_file_group name(char* FolderPath, u32 Type)
 typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(platform_open_all_files_of_type_begin);
@@ -508,6 +524,7 @@ struct platform_api {
 	platform_free_file_memory* FreeFileMemory;
 	platform_open_all_files_of_type_begin* OpenAllFilesOfTypeBegin;
 	platform_open_all_files_of_type_end* OpenAllFilesOfTypeEnd;
+	platform_get_time_from_time_handle* GetFileTimeFromTimeHandle;
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;
