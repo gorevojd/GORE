@@ -249,58 +249,61 @@ void ASSETSInit(asset_system* System) {
 		Group->GroupAssetCount = 0;
 	}
 
-#if 0
-
+#if 1
 	//NOTE(dima): integrating file groups to asset system
-	for (int ToGroupIndex = 0;
-		ToGroupIndex < GameAsset_Count;
-		ToGroupIndex++)
+	platform_file_group FileGroup = PlatformApi.OpenAllFilesOfTypeBegin("../Data/", FileType_Asset);
+	for (platform_file_entry* File = FileGroup.FirstFileEntry;
+		File != 0;
+		File = File->Next) 
 	{
-		game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
+		u32 CurrentOffset;
+		u32 StartOffset = sizeof(asset_file_header);
+		asset_file_header* FileHeader = (asset_file_header*)File->Data;
 
-		ToGroup->FirstAssetIndex = System->AssetCount;
+		b32 HeaderIsEqual =
+			FileHeader->AssetFileHeader[0] == 'G' &&
+			FileHeader->AssetFileHeader[1] == 'A' &&
+			FileHeader->AssetFileHeader[2] == 'S' &&
+			FileHeader->AssetFileHeader[3] == 'S';
 
-		for (AssetFiles) {
-			u32 CurrentOffset;
-			u32 StartOffset = sizeof(asset_file_header);
-			asset_file_header* FileHeader = (asset_file_header*)File->Data;
+		Assert(HeaderIsEqual);
+		Assert(FileHeader->Version >= ASSET_FILE_VERSION);
+		Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
 
-			b32 HeaderIsEqual =
-				FileHeader->AssetFileHeader[0] == 'G' &&
-				FileHeader->AssetFileHeader[1] == 'A' &&
-				FileHeader->AssetFileHeader[2] == 'S' &&
-				FileHeader->AssetFileHeader[3] == 'S';
+		//NOTE(dima): Reading file asset groups
+		game_asset_group FileGroups[GameAsset_Count];
+		for (int GroupIndex = 0;
+			GroupIndex < FileHeader->AssetGroupsCount;
+			GroupIndex++)
+		{
+			game_asset_group* Grp = &FileGroups[GroupIndex];
 
-			Assert(HeaderIsEqual);
-			Assert(FileHeader->Version >= ASSET_FILE_VERSION);
-			Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
+			asset_file_asset_group* RdGroup =
+				(asset_file_asset_group*)
+				((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
 
-			//NOTE(dima): Reading file asset groups
-			game_asset_group FileGroups[GameAsset_Count];
-			for (int GroupIndex = 0;
-				GroupIndex < FileHeader->AssetGroupsCount;
-				GroupIndex++)
+			Grp->FirstAssetIndex = RdGroup->FirstAssetIndex;
+			Grp->GroupAssetCount = RdGroup->GroupAssetCount;
+		}
+		StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
+
+		//NOTE(dima): Reading file asset lines offsets
+		u32 FileAssetCount = FileHeader->AssetsCount;
+		u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
+
+		for (int FileGroupIndex = 0;
+			FileGroupIndex < FileHeader->AssetGroupsCount;
+			FileGroupIndex++)
+		{
+			game_asset_group* FileGroup = FileGroups + FileGroupIndex;
+
+			for (int ToGroupIndex = 0;
+				ToGroupIndex < GameAsset_Count;
+				ToGroupIndex++)
 			{
-				game_asset_group* Grp = &FileGroups[GroupIndex];
+				game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
 
-				asset_file_asset_group* RdGroup =
-					(asset_file_asset_group*)
-					((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
-
-				Grp->FirstAssetIndex = RdGroup->FirstAssetIndex;
-				Grp->GroupAssetCount = RdGroup->GroupAssetCount;
-			}
-			StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
-
-			//NOTE(dima): Reading file asset lines offsets
-			u32 FileAssetCount = FileHeader->AssetsCount;
-			u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
-
-			for (int FileGroupIndex = 0;
-				FileGroupIndex < FileHeader->AssetGroupsCount;
-				FileGroupIndex++)
-			{
-				game_asset_group* FileGroup = FileGroups + FileGroupIndex;
+				ToGroup->FirstAssetIndex = System->AssetCount;
 
 				if (ToGroupIndex == FileGroupIndex) {
 					for (int FileAssetIndex = 0;
@@ -359,7 +362,7 @@ void ASSETSInit(asset_system* System) {
 								Font->AscenderHeight = GASS->Font.AscenderHeight;
 								Font->DescenderHeight = GASS->Font.DescenderHeight;
 								Font->LineGap = GASS->Font.LineGap;
-
+								
 							}break;
 
 							case AssetType_FontGlyph: {
@@ -392,6 +395,6 @@ void ASSETSInit(asset_system* System) {
 			}
 		}
 	}
-
+	PlatformApi.OpenAllFilesOfTypeEnd(&FileGroup);
 #endif
 }

@@ -58,8 +58,6 @@ struct asset_system {
 	game_asset_group AssetGroups[GameAsset_Count];
 };
 
-void LoadAsset(asset_system* System, u32 Id, b32 Immediate);
-
 bitmap_id GetFirstBitmap(asset_system* System, u32 GroupID);
 sound_id GetFirstSound(asset_system* System, u32 GroupID);
 font_id GetFirstFont(asset_system* System, u32 GroupID);

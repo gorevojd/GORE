@@ -1236,7 +1236,7 @@ int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
-#if 0
+#if 1
 	int DisplayModeCount = SDL_GetNumDisplayModes(0);
 
 	for (int DisplayModeIndex = 0;
@@ -1269,6 +1269,7 @@ int main(int ArgsCount, char** Args) {
 #define GORE_WINDOW_WIDTH 1366
 #define GORE_WINDOW_HEIGHT 768
 
+	//TODO(dima): Load window width and height from settings
 	WindaState.WindowWidth = GORE_WINDOW_WIDTH;
 	WindaState.WindowHeight = GORE_WINDOW_HEIGHT;
 
