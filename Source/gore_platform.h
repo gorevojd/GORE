@@ -5,6 +5,7 @@
 #include "gore_math.h"
 #include "gore_random.h"
 #include "gore_memory.h"
+#include "gore_strings.h"
 
 #include <intrin.h>
 
@@ -159,227 +160,6 @@ inline void MEMCopy(void* Dest, void* Src, u64 Size) {
 	}
 }
 
-inline b32 StringsAreEqual(char* A, char* B) {
-	b32 Result = false;
-
-	while (*A && *B) {
-
-		if (*A != *B) {
-			Result = false;
-			break;
-		}
-
-		A++;
-		B++;
-	}
-
-	if (*A == 0 && *B == 0) {
-		Result = true;
-	}
-
-	return(Result);
-}
-
-inline void CopyStrings(char* Dst, char* Src) {
-	if (Src) {
-		while (*Src) {
-			*Dst++ = *Src++;
-		}
-	}
-	*Dst = 0;
-}
-
-inline void ConcatStringsUnsafe(char* Dst, char* Src1, char* Src2) {
-	int Index = 0;
-
-	char* To = Dst;
-	char* At = Src1;
-	while (*At != 0) {
-		*To++ = *At++;
-	}
-
-	At = Src2;
-	while (*At) {
-		*To++ = *At++;
-	}
-
-	*To = 0;
-}
-
-inline int StringLength(char* Text) {
-	int Res = 0;
-
-	char* At = Text;
-	while (*At) {
-		Res++;
-
-		At++;
-	}
-
-	return(Res);
-}
-
-inline u32 StringHashFNV(char* Name) {
-	u32 Result = 2166136261;
-
-	char* At = Name;
-	while (*At) {
-
-		Result *= 16777619;
-		Result ^= *At;
-
-		At++;
-	}
-
-	return(Result);
-}
-
-inline b32 StringIsDecimalInteger(char* String) {
-	b32 Result = 1;
-
-	int FirstCheckIndex = 0;
-	if (String[0] == '-') {
-		FirstCheckIndex = 1;
-	}
-
-	char* At = String + FirstCheckIndex;
-	while (*At)
-	{
-		if (*At >= '0' &&
-			*At <= '9')
-		{
-
-		}
-		else {
-			return(0);
-		}
-
-		*At++;
-	}
-
-	return(Result);
-}
-
-inline int StringToInteger(char* String) {
-	int Result = 0;
-
-	char* At = String;
-
-	int Len = StringLength(String);
-
-	int NumberIsNegative = 1;
-	int FirstNumberIndex = 0;
-	if (String[0] == '-') {
-		FirstNumberIndex = 1;
-		NumberIsNegative = -1;
-	}
-
-	int CurrentMultiplier = 1;
-	for (int CharIndex = Len - 1;
-		CharIndex >= FirstNumberIndex;
-		CharIndex--)
-	{
-		Result += (String[CharIndex] - '0') * CurrentMultiplier;
-		CurrentMultiplier *= 10;
-	}
-
-	Result *= NumberIsNegative;
-
-	return(Result);
-}
-
-inline float StringToFloat(char* String) {
-	float Result = 0.0f;
-
-	//NOTE(dima): Detecting if negative and whole part start index
-	float IsNegative = 1.0f;
-	int WholeStart = 0;
-	if (String[0] == '-') {
-		IsNegative = -1.0f;
-		WholeStart = 1;
-	}
-
-	char* At = String + WholeStart;
-	b32 DotExist = 0;
-	char* DotAt = 0;
-	//NOTE(dima): Detecting whole part end
-	int WholeEndIndex = WholeStart;
-	while (*At) {
-		if (*At == '.') {
-			DotExist = 1;
-			DotAt = At;
-			break;
-		}
-		At++;
-		WholeEndIndex++;
-	}
-
-	//NOTE(dima): Converting whole part
-	float CurrentMultiplier = 1.0f;
-	for (int Index = WholeEndIndex - 1;
-		Index >= WholeStart;
-		Index--)
-	{
-		Result += (float)(String[Index] - '0') * CurrentMultiplier;
-		CurrentMultiplier *= 10.0f;
-	}
-
-	//NOTE(dima): Converting fractional part if exist
-	if (DotExist) {
-		int FractionalPartLen = 0;
-		At = DotAt;
-		++At;
-		while (*At) {
-			FractionalPartLen++;
-
-			At++;
-		}
-
-		if (FractionalPartLen) {
-			char* FractionalBegin = DotAt + 1;
-			char* FractionalEnd = At;
-
-			char* FractionalAt = FractionalBegin;
-			CurrentMultiplier = 0.1f;
-			while (FractionalAt != FractionalEnd) {
-				float CurrentDigit = (float)(*FractionalAt - '0');
-
-				Result += CurrentDigit * CurrentMultiplier;
-				CurrentMultiplier /= 10.0f;
-				FractionalAt++;
-			}
-		}
-	}
-
-	Result *= IsNegative;
-
-	return(Result);
-}
-
-inline void IntegerToString(int Value, char* String) {
-	int DigitIndex = 0;
-
-	do {
-		String[DigitIndex++] = '0' + (Value % 10);
-
-		Value /= 10;
-	} while (Value);
-
-	//NOTE(dima): Reversing string
-	int ScanBeginIndex = 0;
-	int ScanEndIndex = DigitIndex - 1;
-	while (ScanBeginIndex < ScanEndIndex) {
-		char Temp = String[ScanBeginIndex];
-		String[ScanBeginIndex] = String[ScanEndIndex];
-		String[ScanEndIndex] = Temp;
-
-		ScanBeginIndex++;
-		ScanEndIndex--;
-	}
-
-	//NOTE(dima): Null terminating the string
-	String[DigitIndex] = 0;
-}
 
 struct platform_read_file_result {
 	u64 Size;
@@ -451,6 +231,31 @@ typedef PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(platform_open_all_files_of_type_end)
 
 #define PLATFORM_READ_DATA_FROM_FILE_ENTRY(name) void name(platform_file_entry* File, void* Dest, u64 StartOffset, u64 BytesCountToRead)
 typedef PLATFORM_READ_DATA_FROM_FILE_ENTRY(platform_read_data_from_file_entry);
+
+struct platform_display_device {
+	char DeviceName[32];
+	char DeviceString[128];
+	char DeviceRegistryKey[128];
+};
+
+struct platform_display_mode {
+	int PixelWidth;
+	int PixelHeight;
+	int RefreshRate;
+	int BitsPerPixel;
+};
+
+#define PLATFORM_GET_DISPLAY_DEVICE_COUNT(name) int name()
+typedef PLATFORM_GET_DISPLAY_DEVICE_COUNT(platform_get_display_device_count);
+
+#define PLATFORM_TRY_GET_DISPLAY_DEVICE(name) b32 name(int DeviceIndex, platform_display_device* Device)
+typedef PLATFORM_TRY_GET_DISPLAY_DEVICE(platform_try_get_display_device);
+
+#define PLATFORM_GET_DISPLAY_MODE_COUNT(name) int name()
+typedef PLATFORM_GET_DISPLAY_MODE_COUNT(platform_get_display_mode_count);
+
+#define PLATFORM_TRY_GET_DISPLAY_MODE(name) b32 name(int ModeIndex, platform_display_mode* DisplayMode)
+typedef PLATFORM_TRY_GET_DISPLAY_MODE(platform_try_get_display_mode);
 
 struct dealloc_queue_bitmap_data {
 	void* TextureHandle;
@@ -545,6 +350,11 @@ struct platform_api {
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;
+
+	platform_get_display_device_count* GetDisplayDeviceCount;
+	platform_try_get_display_device* TryGetDisplayDevice;
+	platform_get_display_mode_count* GetDisplayModeCount;
+	platform_try_get_display_mode* TryGetDisplayMode;
 
 	platform_mutex DeallocQueueMutex;
 	dealloc_queue_entry* FirstUseAllocQueueEntry;

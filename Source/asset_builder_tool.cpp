@@ -673,7 +673,8 @@ void InitAssetFile(asset_system* Assets) {
 void WriteAssetFile(asset_system* Assets, char* FileName) {
 	FILE* fp = fopen(FileName, "wb");
 
-	u32 AssetsLinesOffsetsSize = sizeof(u32) * (Assets->AssetCount - 1);
+	u32 AssetsLinesOffsetsCount = Assets->AssetCount - 1;
+	u32 AssetsLinesOffsetsSize = sizeof(u32) * AssetsLinesOffsetsCount;
 	u32* AssetsLinesOffsets = (u32*)malloc(AssetsLinesOffsetsSize);
 
 	u32 AssetFileBytesWritten = 0;
@@ -893,6 +894,13 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 		INVALID_CODE_PATH;
 	}
 
+	//NOTE(dima): Incrementing asset lines offsets by size of asset lines offsets array
+	for (int LineIndex = 0;
+		LineIndex < AssetsLinesOffsetsCount;
+		LineIndex++)
+	{
+		AssetsLinesOffsets[LineIndex] += AssetsLinesOffsetsSize;
+	}
 
 	//NOTE(dima): Inserting asset lines offsets after groups
 	fp = fopen(FileName, "wb");

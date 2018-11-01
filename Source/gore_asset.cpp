@@ -236,7 +236,16 @@ static void AssetAllocateBitmap(
 	Bitmap->TextureHandle = 0;
 }
 
-void ASSETSInit(asset_system* System) {
+void* AssetRequestMemory(asset_system* System, u32 MemorySize) {
+	void* Result = malloc(MemorySize);
+
+	return(Result);
+}
+
+void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
+
+	System->AssetSystemMemory = AssetSystemMemory;
+	System->TempMemoryForFileLoading = SplitStackedMemory(System->AssetSystemMemory, KILOBYTES(500));
 
 	System->Assets[0] = {};
 	System->AssetCount = 1;
@@ -248,51 +257,71 @@ void ASSETSInit(asset_system* System) {
 		Group->FirstAssetIndex = 0;
 		Group->GroupAssetCount = 0;
 	}
-
-#if 1
+	 
 	//NOTE(dima): integrating file groups to asset system
 	platform_file_group FileGroup = PlatformApi.OpenAllFilesOfTypeBegin("../Data/", FileType_Asset);
 	for (platform_file_entry* File = FileGroup.FirstFileEntry;
 		File != 0;
 		File = File->Next) 
 	{
+		stacked_memory TempMemory = BeginTempStackedMemory(
+			&System->TempMemoryForFileLoading,
+			System->TempMemoryForFileLoading.MaxSize);
+
 		u32 CurrentOffset;
 		u32 StartOffset = sizeof(asset_file_header);
-		asset_file_header* FileHeader = (asset_file_header*)File->Data;
+
+		//asset_file_header* FileHeader = (asset_file_header*)File->Data;
+		asset_file_header FileHeader;
+
+		PlatformApi.ReadDataFromFileEntry(File, &FileHeader, 0, sizeof(asset_file_header));
 
 		b32 HeaderIsEqual =
-			FileHeader->AssetFileHeader[0] == 'G' &&
-			FileHeader->AssetFileHeader[1] == 'A' &&
-			FileHeader->AssetFileHeader[2] == 'S' &&
-			FileHeader->AssetFileHeader[3] == 'S';
+			FileHeader.AssetFileHeader[0] == 'G' &&
+			FileHeader.AssetFileHeader[1] == 'A' &&
+			FileHeader.AssetFileHeader[2] == 'S' &&
+			FileHeader.AssetFileHeader[3] == 'S';
 
 		Assert(HeaderIsEqual);
-		Assert(FileHeader->Version >= ASSET_FILE_VERSION);
-		Assert(FileHeader->AssetGroupsCount == GameAsset_Count);
+		Assert(FileHeader.Version >= ASSET_FILE_VERSION);
+		Assert(FileHeader.AssetGroupsCount == GameAsset_Count);
 
 		//NOTE(dima): Reading file asset groups
 		game_asset_group FileGroups[GameAsset_Count];
+		asset_file_asset_group BufferForReadFileGroups[GameAsset_Count];
+
+		PlatformApi.ReadDataFromFileEntry(
+			File, 
+			BufferForReadFileGroups, 
+			StartOffset, 
+			sizeof(BufferForReadFileGroups));
+
 		for (int GroupIndex = 0;
-			GroupIndex < FileHeader->AssetGroupsCount;
+			GroupIndex < FileHeader.AssetGroupsCount;
 			GroupIndex++)
 		{
 			game_asset_group* Grp = &FileGroups[GroupIndex];
-
-			asset_file_asset_group* RdGroup =
-				(asset_file_asset_group*)
-				((u8*)File->Data + StartOffset + GroupIndex * sizeof(asset_file_asset_group));
+			asset_file_asset_group* RdGroup = &BufferForReadFileGroups[GroupIndex];
 
 			Grp->FirstAssetIndex = RdGroup->FirstAssetIndex;
 			Grp->GroupAssetCount = RdGroup->GroupAssetCount;
 		}
-		StartOffset += sizeof(asset_file_asset_group) * FileHeader->AssetGroupsCount;
+		StartOffset += sizeof(asset_file_asset_group) * FileHeader.AssetGroupsCount;
 
 		//NOTE(dima): Reading file asset lines offsets
-		u32 FileAssetCount = FileHeader->AssetsCount;
-		u32* AssetLinesOffsets = (u32*)((u8*)File->Data + FileHeader->LinesOffsetsByteOffset);
+		u32 FileAssetCount = FileHeader.AssetsCount;
+		u32* AssetLinesOffsets = PushArray(&TempMemory, u32, FileAssetCount);
+
+		PlatformApi.ReadDataFromFileEntry(
+			File,
+			AssetLinesOffsets,
+			FileHeader.LinesOffsetsByteOffset,
+			FileAssetCount * sizeof(u32));
+
+		gass_tag* HelperTags = PushArray(&TempMemory, gass_tag, 64);
 
 		for (int FileGroupIndex = 0;
-			FileGroupIndex < FileHeader->AssetGroupsCount;
+			FileGroupIndex < FileHeader.AssetGroupsCount;
 			FileGroupIndex++)
 		{
 			game_asset_group* FileGroup = FileGroups + FileGroupIndex;
@@ -310,42 +339,68 @@ void ASSETSInit(asset_system* System) {
 						FileAssetIndex < FileAssetCount;
 						FileAssetIndex++)
 					{
-						gass_header* GASS = (gass_header*)((u8*)File->Data + AssetLinesOffsets[FileAssetIndex]);
+						//gass_header* GASS = (gass_header*)((u8*)File->Data + AssetLinesOffsets[FileAssetIndex]);
+						gass_header GASS_;
+						PlatformApi.ReadDataFromFileEntry(
+							File,
+							&GASS_,
+							AssetLinesOffsets[FileAssetIndex],
+							sizeof(gass_header));
+
+						gass_header* GASS = &GASS_;
+
 						game_asset* Asset = AddGameAsset(System);
 
 						Asset->Type = GASS->AssetType;
-
-						//NOTE(dima): Reading asset tags
-						Asset->TagCount = GASS->TagCount;
-
-						u32 TagMemoryRequired = Asset->TagCount * sizeof(game_asset_tag);
-						Assert(GASS->AssetTotalTagsSize == TagMemoryRequired);
-
-						for (int TagIndex = 0;
-							TagIndex < Asset->TagCount;
-							TagIndex++)
-						{
-							gass_tag* ReadTag = (gass_tag*)((u8*)GASS + GASS->LineFirstTagOffset + TagIndex * sizeof(gass_tag));
-							game_asset_tag* ToTag = Asset->Tags + TagIndex;
-
-							ToTag->Type = ReadTag->Type;
-							ToTag->Value_Int = ReadTag->Value_Int;
-						}
 
 						//NOTE(dima): Incrementing target group asset count
 						ToGroup->GroupAssetCount++;
 
 						//NOTE(dima): Allocating memory for storing asset
-						void* AssetNeededMemory = AssetRequestMemory(? ? ? );
+						u32 AssetRequestMemorySize = GASS->AssetTotalDataSize + GASS->AssetTotalTagsSize;
+						void* AssetNeededMemory = AssetRequestMemory(
+							System, 
+							AssetRequestMemorySize);
+
 						stacked_memory AssetMem = InitStackedMemory(
 							AssetNeededMemory, 
-							GASS->AssetTotalDataSize);
+							AssetRequestMemorySize);
 
+						//NOTE(dima): Reading asset tags
+						Asset->Tags = 0;
+						Asset->TagCount = GASS->TagCount;
+						if (Asset->TagCount) {
+							Asset->Tags = PushArray(&AssetMem, game_asset_tag, Asset->TagCount);
+
+							u32 TagMemoryRequired = Asset->TagCount * sizeof(game_asset_tag);
+							Assert(GASS->AssetTotalTagsSize == TagMemoryRequired);
+
+							PlatformApi.ReadDataFromFileEntry(
+								File,
+								HelperTags,
+								AssetLinesOffsets[FileAssetIndex] + GASS->LineFirstTagOffset,
+								GASS->AssetTotalTagsSize);
+
+							for (int TagIndex = 0;
+								TagIndex < Asset->TagCount;
+								TagIndex++)
+							{
+								gass_tag* ReadTag = HelperTags + TagIndex;
+								game_asset_tag* ToTag = Asset->Tags + TagIndex;
+
+								ToTag->Type = ReadTag->Type;
+								ToTag->Value_Int = ReadTag->Value_Int;
+							}
+						}
+
+#if 0
 						switch (Asset->Type) {
 							case AssetType_Bitmap: {
 								Asset->Bitmap = PushStruct(????);
 
 								bitmap_info* TargetBitmap = Asset->Bitmap;
+
+								void* PixelsData = PushSomeMemory(&AssetMem, GASS->AssetTotalDataSize);
 
 								AssetAllocateBitmap(
 									TargetBitmap,
@@ -390,11 +445,13 @@ void ASSETSInit(asset_system* System) {
 
 							}break;
 						}
+#endif
 					}
 				}
 			}
 		}
+
+		EndTempStackedMemory(&System->TempMemoryForFileLoading, &TempMemory);
 	}
 	PlatformApi.OpenAllFilesOfTypeEnd(&FileGroup);
-#endif
 }

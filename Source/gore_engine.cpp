@@ -17,7 +17,8 @@ engine_systems* EngineSystemsInit(input_system* InputSystem, game_settings* Game
 
 	//NOTE(dima): Assets initialization
 	EngineSystems->AssetSystem = PushStruct(PermMem, asset_system);
-	ASSETSInit(EngineSystems->AssetSystem);
+	EngineSystems->AssetSystemMemory = SplitStackedMemory(PermMem, MEGABYTES(50));
+	ASSETSInit(EngineSystems->AssetSystem, &EngineSystems->AssetSystemMemory);
 
 	//NOTE(dima): Render initialization
 	EngineSystems->RenderState = PushStruct(PermMem, render_state);

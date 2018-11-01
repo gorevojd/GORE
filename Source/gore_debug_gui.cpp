@@ -1422,11 +1422,10 @@ void GUIStackedMemGraph(debug_gui_state* GUIState, char* Name, stacked_memory* M
 				char InfoStr[128];
 				stbsp_sprintf(
 					InfoStr,
-					"Occupied: %llu(%.2f%%); Total: %llu; Fragmentation: %.2f%%",
+					"Occupied: %llu(%.2f%%); Total: %llu;",
 					OccupiedCount,
 					(float)OccupiedCount / (float)TotalCount * 100.0f,
-					TotalCount, 
-					(float)MemoryStack->FragmentationBytesCount / (float)TotalCount);
+					TotalCount);
 
 				GUITooltip(GUIState, InfoStr);
 			}

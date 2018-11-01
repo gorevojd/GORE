@@ -13,6 +13,8 @@ struct engine_systems {
 	stacked_memory SystemsStateMemory;
 
 	input_system* InputSystem;
+
+	stacked_memory AssetSystemMemory;
 	asset_system* AssetSystem;
 
 	stacked_memory ColorsMemory;

@@ -431,11 +431,6 @@ void DEBUGInit(
 		debug_profiled_frame* Frame = &State->Frames[FrameIndex];
 	
 		Frame->FrameMemory = SplitStackedMemory(State->DebugMemory, KILOBYTES(250));
-
-		char TempBuf[256];
-		stbsp_sprintf(TempBuf, "FrameMem_%d", FrameIndex);
-		Frame->FrameMemory.DEBUGName = PushString(&Frame->FrameMemory, TempBuf);
-		CopyStrings(Frame->FrameMemory.DEBUGName, TempBuf);
 	}
 
 	//NOTE(dima): Freing frame data

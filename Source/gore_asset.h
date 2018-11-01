@@ -36,7 +36,7 @@ struct game_asset {
 
 	u32 Type;
 
-	game_asset_tag Tags[4];
+	game_asset_tag* Tags;
 	int TagCount;
 
 	union {
@@ -51,7 +51,9 @@ struct game_asset {
 
 #define TEMP_STORED_ASSET_COUNT 2048
 struct asset_system {
-	stacked_memory* MemAllocPointer;
+	stacked_memory* AssetSystemMemory;
+
+	stacked_memory TempMemoryForFileLoading;
 
 	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];
@@ -67,7 +69,7 @@ mesh_id GetFirstMesh(asset_system* System, u32 GroupID);
 u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType);
 u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType);
 
-void ASSETSInit(asset_system* System);
+void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory);
 
 inline game_asset* GetByAssetID(asset_system* System, u32 ID) {
 	game_asset* Result = System->Assets + ID;

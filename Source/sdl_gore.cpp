@@ -797,8 +797,10 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_BEGIN(WindaOpenAllFilesOfTypeBegin) {
 				FILE_SHARE_READ,
 				0,
 				OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
+				FILE_ATTRIBUTE_NORMAL,
 				0);
+
+			Assert(FileHandle != INVALID_HANDLE_VALUE);
 
 			File->PlatformFileHandle = (u64)FileHandle;
 			File->PlatformLastWriteTime =
@@ -840,21 +842,97 @@ PLATFORM_OPEN_ALL_FILES_OF_TYPE_END(WindaOpenAllFilesOfTypeEnd) {
 }
 
 PLATFORM_READ_DATA_FROM_FILE_ENTRY(WindaReadDataFromFileEntry) {
-	OVERLAPPED Overlapped;
+	OVERLAPPED Overlapped = {};
 	Overlapped.Offset = StartOffset & 0xFFFFFFFF;
 	Overlapped.OffsetHigh = (StartOffset >> 32) & 0xFFFFFFFF;
 
 	DWORD BytesRead;
 
-	ReadFile(
-		(HANDLE)File->PlatformFileHandle,
+	HANDLE FileHandle = (HANDLE)File->PlatformFileHandle;
+	BOOL ReadSuccess = ReadFile(
+		FileHandle,
 		Dest,
-		BytesCountToRead,
+		(u32)BytesCountToRead,
 		&BytesRead,
 		&Overlapped);
 
+	Assert(ReadSuccess);
 	Assert(BytesRead == BytesCountToRead);
 }
+
+PLATFORM_GET_DISPLAY_DEVICE_COUNT(WindaGetDisplayDeviceCount) {
+	DWORD DisplayDeviceIndex = 0;
+
+	DISPLAY_DEVICEA Device = {};
+	Device.cb = sizeof(DISPLAY_DEVICEA);
+	while (EnumDisplayDevicesA(0, DisplayDeviceIndex, &Device, 0)) {
+		DisplayDeviceIndex++;
+	}
+
+	return(DisplayDeviceIndex);
+}
+
+PLATFORM_TRY_GET_DISPLAY_DEVICE(WindaTryGetDisplayDevice) {
+	b32 Result = 0;
+
+	DISPLAY_DEVICEA WinDevice = {};
+	WinDevice.cb = sizeof(DISPLAY_DEVICEA);
+	if (EnumDisplayDevicesA(NULL, DeviceIndex, &WinDevice, 0)) {
+		CopyStrings(Device->DeviceName, WinDevice.DeviceName);
+		CopyStrings(Device->DeviceString, WinDevice.DeviceString);
+		CopyStrings(Device->DeviceRegistryKey, WinDevice.DeviceKey);
+
+		Result = 1;
+	}
+
+	return(Result);
+}
+
+PLATFORM_GET_DISPLAY_MODE_COUNT(WindaGetDisplayModeCount) {
+	int ModeNum = 0;
+	DEVMODE DevMode;
+	DevMode.dmSize = sizeof(DEVMODE);
+
+	/*
+	NOTE(dima):
+
+	A NULL value specifies the current display
+	device on the computer on which the calling
+	thread is running
+	*/
+	while (EnumDisplaySettings(NULL, ModeNum, &DevMode)) {
+		ModeNum++;
+	}
+
+	return(ModeNum);
+}
+
+PLATFORM_TRY_GET_DISPLAY_MODE(WindaTryGetDisplayMode)
+{
+	b32 Result = 0;
+
+	DEVMODEA Mode = {};
+	Mode.dmSize = sizeof(DEVMODEA);
+
+	/*
+	NOTE(dima):
+
+	A NULL value specifies the current display
+	device on the computer on which the calling
+	thread is running
+	*/
+	if (EnumDisplaySettingsA(0, ModeIndex, &Mode)) {
+		DisplayMode->BitsPerPixel = Mode.dmBitsPerPel;
+		DisplayMode->PixelHeight = Mode.dmPelsHeight;
+		DisplayMode->PixelWidth = Mode.dmPelsWidth;
+		DisplayMode->RefreshRate = Mode.dmDisplayFrequency;
+
+		Result = 1;
+	}
+
+	return(Result);
+}
+
 
 #else
 
@@ -1153,7 +1231,13 @@ void WindaInitState(winda_state* State) {
 
 	PlatformApi.OpenAllFilesOfTypeBegin = WindaOpenAllFilesOfTypeBegin;
 	PlatformApi.OpenAllFilesOfTypeEnd = WindaOpenAllFilesOfTypeEnd;
+	PlatformApi.ReadDataFromFileEntry = WindaReadDataFromFileEntry;
 	PlatformApi.GetFileTimeFromTimeHandle = WindaGetTimeFromTimeHandle;
+
+	PlatformApi.GetDisplayDeviceCount = WindaGetDisplayDeviceCount;
+	PlatformApi.GetDisplayModeCount = WindaGetDisplayModeCount;
+	PlatformApi.TryGetDisplayDevice = WindaTryGetDisplayDevice;
+	PlatformApi.TryGetDisplayMode = WindaTryGetDisplayMode;
 
 	PlatformApi.SuperHighQueue = SuperHighPriorityQueue;
 	PlatformApi.HighPriorityQueue = HighPriorityQueue;
@@ -1236,7 +1320,7 @@ int main(int ArgsCount, char** Args) {
 
 	int SdlInitCode = SDL_Init(SDL_INIT_EVERYTHING);
 
-#if 1
+#if 0
 	int DisplayModeCount = SDL_GetNumDisplayModes(0);
 
 	for (int DisplayModeIndex = 0;
@@ -1260,7 +1344,32 @@ int main(int ArgsCount, char** Args) {
 			Width, Height,
 			RefreshRate);
 	}
+#else
+	int DisplayModeCount = WindaGetDisplayModeCount();
+
+	for (int DisplayModeIndex = 0;
+		DisplayModeIndex < DisplayModeCount;
+		DisplayModeIndex++)
+	{
+		platform_display_mode DisplayMode;
+		if (WindaTryGetDisplayMode(DisplayModeIndex, &DisplayMode) == 0) {
+			SDL_Log("WindaGetDisplayMode failed: %s", SDL_GetError());
+		}
+
+		u32 Width = DisplayMode.PixelWidth;
+		u32 Height = DisplayMode.PixelHeight;
+		u32 RefreshRate = DisplayMode.RefreshRate;
+		u32 BitsPerPixel = DisplayMode.BitsPerPixel;
+
+		SDL_Log("Mode index %u \t %ibpp, %ux%u, %uhz",
+			DisplayModeIndex,
+			BitsPerPixel,
+			Width, Height,
+			RefreshRate);
+	}
 #endif
+
+
 
 	//NOTE(dima): Loading game settings from settings file
 	game_settings GameSettings = {};
