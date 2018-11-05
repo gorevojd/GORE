@@ -4,12 +4,6 @@
 #include "gore_types.h"
 #include "gore_math.h"
 
-typedef u32 bitmap_id;
-typedef u32 font_id;
-typedef u32 font_glyph_id;
-typedef u32 sound_id;
-typedef u32 model_id;
-typedef u32 mesh_id;
 
 enum load_mesh_vertex_layout {
 	MeshVertexLayout_PUV,
@@ -98,9 +92,8 @@ struct glyph_info {
 	v2 AtlasMaxUV;
 };
 
-#define MAX_FONT_INFO_GLYPH_COUNT 256
 struct font_info {
-	int CodepointToGlyphMapping[MAX_FONT_INFO_GLYPH_COUNT];
+	int* CodepointToGlyphMapping;
 
 	float AscenderHeight;
 	float DescenderHeight;
@@ -109,12 +102,9 @@ struct font_info {
 	int MaxGlyphsCount;
 	int GlyphsCount;
 	float* KerningPairs;
-	glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
+	u32* GlyphIDs;
 
 	bitmap_info FontAtlasImage;
-
-	//NOTE(dima): It used in asset packer to store temp First glyph ID
-	u32 Reserved;
 };
 
 enum voxel_face_type_index {
@@ -182,18 +172,5 @@ struct voxel_mesh_info {
 	voxel_vert_t* Vertices;
 	u32 VerticesCount;
 };
-
-enum asset_type {
-	AssetType_None,
-
-	AssetType_Bitmap,
-	AssetType_Sound,
-	AssetType_Font,
-	AssetType_FontGlyph,
-	AssetType_Model,
-	AssetType_Mesh,
-};
-
-
 
 #endif

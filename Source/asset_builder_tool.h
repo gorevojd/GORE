@@ -1,13 +1,31 @@
 #ifndef ASSET_BUILDER_TOOL_H_INCLUDED
 #define ASSET_BUILDER_TOOL_H_INCLUDED
 
-#include "gore_asset_types.h"
 #include "gore_math.h"
 #include "gore_types.h"
 
 #include "gore_asset_identifiers.h"
 #include "gore_file_formats.h"
 #include "gore_asset_common.h"
+
+#define MAX_FONT_INFO_GLYPH_COUNT 256
+struct loader_font_info {
+	int CodepointToGlyphMapping[MAX_FONT_INFO_GLYPH_COUNT];
+
+	float AscenderHeight;
+	float DescenderHeight;
+	float LineGap;
+
+	int MaxGlyphsCount;
+	int GlyphsCount;
+	float* KerningPairs;
+	glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
+
+	bitmap_info FontAtlasImage;
+
+	//NOTE(dima): It used in asset packer to store temp First glyph ID
+	u32 Reserved;
+};
 
 struct game_asset_group {
 	u32 FirstAssetIndex;
@@ -34,7 +52,7 @@ struct game_asset {
 
 	union {
 		bitmap_info* Bitmap;
-		font_info* Font;
+		loader_font_info* Font;
 		sound_info* Sound;
 		model_info* Model;
 		mesh_info* Mesh;
@@ -66,7 +84,7 @@ struct game_asset_source_sound {
 };
 
 struct game_asset_source_font {
-	font_info* FontInfo;
+	loader_font_info* FontInfo;
 };
 
 struct game_asset_source_fontglyph {
@@ -118,11 +136,5 @@ enum asset_load_font_flags {
 	AssetLoadFontFlag_None = 0,
 	AssetLoadFontFlag_BakeOffsetShadows = 1,
 };
-
-
-
-font_info LoadFontInfoWithSTB(char* FontName, float Height = 14.0f, u32 Flags = 0);
-font_info LoadFontInfoFromImage(char* ImagePath, int Height, int OneCharPixelWidth, int OneCharPixelHeight, u32 Flags);
-
 
 #endif

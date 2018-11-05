@@ -65,7 +65,7 @@ void RenderInitState(
 	Result->RenderWidth = RenderWidth;
 	Result->RenderHeight = RenderHeight;
 
-	Result->LowPolyCylMeshID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Cylynder, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
+	//Result->LowPolyCylMeshID = GetAssetByBestFloatTag(AssetSystem, GameAsset_Cylynder, GameAssetTag_LOD, 0.0f, AssetType_Mesh);
 
 	//NOTE(dima): Initialization of render stacks
 	Result->Sentinel = {};

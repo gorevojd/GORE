@@ -122,6 +122,7 @@ struct gass_mesh {
 struct gass_header {
 	u32 AssetType;
 
+	u32 LineDataOffset;
 	u32 LineFirstTagOffset;
 	u32 TagCount;
 

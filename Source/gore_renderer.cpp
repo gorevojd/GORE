@@ -844,23 +844,26 @@ void SoftwareRenderStackToOutput(render_stack* Stack, bitmap_info* Buffer, rect2
 
 				font_info* FontInfo = CurrentFontInfo;
 
+				if (EntryGlyph->GlyphBitmapInfo) {
 #if !GORE_FAST_RENDERING
-				RenderBitmap(
-					Buffer,
-					&FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]].Bitmap,
-					EntryGlyph->P,
-					EntryGlyph->Dim.y,
-					EntryGlyph->ModulationColor,
-					ClipRect);
+					RenderBitmap(
+						Buffer,
+						EntryGlyph->GlyphBitmapInfo,
+						EntryGlyph->P,
+						EntryGlyph->Dim.y,
+						EntryGlyph->ModulationColor,
+						ClipRect);
 #else
-				RenderBitmapFast(
-					Buffer,
-					&FontInfo->Glyphs[FontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]].Bitmap,
-					EntryGlyph->P,
-					EntryGlyph->Dim.y,
-					EntryGlyph->ModulationColor,
-					ClipRect);
+
+					RenderBitmapFast(
+						Buffer,
+						EntryGlyph->GlyphBitmapInfo,
+						EntryGlyph->P,
+						EntryGlyph->Dim.y,
+						EntryGlyph->ModulationColor,
+						ClipRect);
 #endif
+				}
 			}break;
 
 			case RenderEntry_GUI_BeginText: {

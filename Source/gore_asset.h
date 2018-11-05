@@ -7,6 +7,7 @@
 #include "gore_asset_identifiers.h"
 #include "gore_game_settings.h"
 #include "gore_file_formats.h"
+#include "gore_asset_common.h"
 
 enum game_asset_state {
 	GameAssetState_Unloaded,
@@ -40,12 +41,12 @@ struct game_asset {
 	int TagCount;
 
 	union {
-		bitmap_info* Bitmap;
-		font_info* Font;
-		glyph_info* Glyph;
-		sound_info* Sound;
-		model_info* Model;
-		mesh_info* Mesh;
+		bitmap_info Bitmap;
+		font_info Font;
+		glyph_info Glyph;
+		sound_info Sound;
+		model_info Model;
+		mesh_info Mesh;
 	};
 };
 
@@ -100,7 +101,7 @@ inline bitmap_info* GetBitmapFromID(asset_system* System, bitmap_id ID) {
 
 	bitmap_info* Result = 0;
 	if (Asset){
-		Result = Asset->Bitmap;
+		Result = &Asset->Bitmap;
 	}
 
 	return(Result);
@@ -111,7 +112,7 @@ inline sound_info* GetSoundFromID(asset_system* System, sound_id ID) {
 
 	sound_info* Result = 0;
 	if (Asset) {
-		Result = Asset->Sound;
+		Result = &Asset->Sound;
 	}
 
 	return(Result);
@@ -122,7 +123,18 @@ inline font_info* GetFontFromID(asset_system* System, font_id ID) {
 
 	font_info* Result = 0;
 	if (Asset) {
-		Result = Asset->Font;
+		Result = &Asset->Font;
+	}
+
+	return(Result);
+}
+
+inline glyph_info* GetGlyphFromID(asset_system* System, font_glyph_id ID) {
+	game_asset* Asset = GetByAssetIDCheck(System, ID, AssetType_FontGlyph);
+
+	glyph_info* Result = 0;
+	if (Asset) {
+		Result = &Asset->Glyph;
 	}
 
 	return(Result);
@@ -133,7 +145,7 @@ inline mesh_info* GetMeshFromID(asset_system* System, mesh_id ID) {
 
 	mesh_info* Result = 0;
 	if (Asset) {
-		Result = Asset->Mesh;
+		Result = &Asset->Mesh;
 	}
 
 	return(Result);
@@ -144,7 +156,7 @@ inline model_info* GetModelFromID(asset_system* System, model_id ID) {
 
 	model_info* Result = 0;
 	if (Asset) {
-		Result = Asset->Model;
+		Result = &Asset->Model;
 	}
 
 	return(Result);

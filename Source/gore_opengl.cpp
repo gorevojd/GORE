@@ -643,12 +643,10 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					render_stack_entry_glyph* EntryGlyph = (render_stack_entry_glyph*)At;
 
 					if (CurrentFontInfo) {
-						glyph_info* Glyph = &CurrentFontInfo->Glyphs[CurrentFontInfo->CodepointToGlyphMapping[EntryGlyph->Codepoint]];
-
 						v4 Color = EntryGlyph->ModulationColor;
 						rect2 Rect = Rect2MinDim(EntryGlyph->P, EntryGlyph->Dim);
-						v2 MinUV = Glyph->AtlasMinUV;
-						v2 MaxUV = Glyph->AtlasMaxUV;
+						v2 MinUV = EntryGlyph->MinAtlasUV;
+						v2 MaxUV = EntryGlyph->MaxAtlasUV;
 
 						glColor4f(Color.r, Color.g, Color.b, Color.a);
 

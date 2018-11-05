@@ -7,6 +7,24 @@
 #include "gore_types.h"
 #include "gore_asset_types.h"
 
+typedef u32 bitmap_id;
+typedef u32 font_id;
+typedef u32 font_glyph_id;
+typedef u32 sound_id;
+typedef u32 model_id;
+typedef u32 mesh_id;
+
+enum asset_type {
+	AssetType_None,
+
+	AssetType_Bitmap,
+	AssetType_Sound,
+	AssetType_Font,
+	AssetType_FontGlyph,
+	AssetType_Model,
+	AssetType_Mesh,
+};
+
 bitmap_info AssetAllocateBitmapInternal(u32 Width, u32 Height, void* PixelsData);
 bitmap_info AssetAllocateBitmap(u32 Width, u32 Height);
 void AssetDeallocateBitmap(bitmap_info* Buffer);

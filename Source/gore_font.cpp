@@ -10,6 +10,8 @@ static rect2 PrintTextInternal(
 {
 	FUNCTION_TIMING();
 
+	asset_system* AssetSystem = RenderStack->ParentRenderState->AssetSystem;
+
 	rect2 TextRect = {};
 
 	b32 IsPrint = (FontPrintOperationType == FontPrint_PrintText);
@@ -31,34 +33,50 @@ static rect2 PrintTextInternal(
 			GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
 		}
 
-		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
-		CurGlyphAdvance = Glyph->Advance;
+		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
+		glyph_info* Glyph = GetGlyphFromID(AssetSystem, GlyphID);
+		if (Glyph) {
+			CurGlyphAdvance = Glyph->Advance;
 
-		float BitmapScale = Glyph->Height * Scale;
+			float BitmapScale = Glyph->Height * Scale;
 		
-		if (IsPrint && CharIsValid)
-		{
-			float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
-			float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
+			if (IsPrint && CharIsValid)
+			{
+				float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
+				float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
 
-			v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
+				v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 
-			//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2}, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(RenderStack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
+				//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2}, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
+				bitmap_info* GlyphBitmap = 0;
+#if 0
+				GlyphBitmap = &Glyph->Bitmap;
+#endif
+
+				RENDERPushGlyph(
+					RenderStack, 
+					*At, 
+					{ BitmapMinX, BitmapMinY }, 
+					BitmapDim, 
+					Glyph->AtlasMinUV,
+					Glyph->AtlasMaxUV,
+					GlyphBitmap,
+					Color);
+			}
+
+			if (*At == '\t') {
+				CurGlyphAdvance = Glyph->Advance * 2.0f;
+			}
+
+			float Kerning = 0.0f;
+			char NextChar = *(At + 1);
+			if (NextChar >= ' ' && NextChar <= '~') {
+				Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
+			}
+
+			CurrentP.x += (CurGlyphAdvance + Kerning) * Scale;
+
 		}
-
-		if (*At == '\t') {
-			CurGlyphAdvance = Glyph->Advance * 2.0f;
-		}
-
-		float Kerning = 0.0f;
-		char NextChar = *(At + 1);
-		if (NextChar >= ' ' && NextChar <= '~') {
-			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
-		}
-
-		CurrentP.x += (CurGlyphAdvance + Kerning) * Scale;
-
 		++At;
 	}
 

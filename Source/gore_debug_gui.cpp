@@ -158,7 +158,9 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 			GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
 		}
 
-		glyph_info* Glyph = &FontInfo->Glyphs[GlyphIndex];
+		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
+		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, GlyphID);
+
 		CurGlyphAdvance = Glyph->Advance;
 
 		float BitmapScale = Glyph->Height * Scale;
@@ -186,8 +188,19 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 
 			v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 
-			//RENDERPushGlyph(Stack, *At, { BitmapMinX + 2, BitmapMinY + 2}, BitmapDim, V4(0.0f, 0.0f, 0.0f, 1.0f));
-			RENDERPushGlyph(Stack, *At, { BitmapMinX, BitmapMinY }, BitmapDim, Color);
+			bitmap_info* GlyphBitmap = 0;
+#if 0
+			GlyphBitmap = &Glyph->Bitmap;
+#endif
+
+			RENDERPushGlyph(
+				Stack,
+				*At,
+				{ BitmapMinX, BitmapMinY }, BitmapDim,
+				Glyph->AtlasMinUV,
+				Glyph->AtlasMaxUV,
+				GlyphBitmap,
+				Color);
 		}
 
 		if (*At == '\t') {

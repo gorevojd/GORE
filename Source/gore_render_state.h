@@ -48,7 +48,7 @@ struct render_state {
 	int RenderWidth;
 	int RenderHeight;
 
-	mesh_id LowPolyCylMeshID;
+	//mesh_id LowPolyCylMeshID;
 };
 
 enum render_entry_type {
@@ -127,6 +127,11 @@ struct render_stack_entry_glyph {
 
 	v2 P;
 	v2 Dim;
+
+	v2 MinAtlasUV;
+	v2 MaxAtlasUV;
+
+	bitmap_info* GlyphBitmapInfo;
 
 	v4 ModulationColor;
 };
@@ -334,6 +339,7 @@ inline void RENDERPushLpterWaterMesh(render_stack* State, lpter_water* Water, v3
 inline void RENDERPushVolumeOutline(render_stack* Stack, v3 Min, v3 Max, v3 Color, float Diameter) {
 	v3 Diff = Max - Min;
 
+#if 0
 	surface_material OutlineMat = LITCreateSurfaceMaterial(1.0f, Color);
 
 	mat4 InitTran = TranslationMatrix(V3(0.0f, 0.5f, 0.0f));
@@ -360,7 +366,7 @@ inline void RENDERPushVolumeOutline(render_stack* Stack, v3 Min, v3 Max, v3 Colo
 	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, 0.0f, 0.0f)), OutlineMat);
 	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(Diff.x, Diff.y, 0.0f)), OutlineMat);
 	RENDERPushMesh(Stack, Stack->ParentRenderState->LowPolyCylMeshID, Translate(VertTran, Min + V3(0.0f, Diff.y, 0.0f)), OutlineMat);
-
+#endif
 }
 
 inline void RENDERPushGradient(render_stack* Stack, v3 Color) {
@@ -379,10 +385,21 @@ inline void RENDERPushEndText(render_stack* Stack) {
 	render_stack_entry_end_text* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_end_text, RenderEntry_GUI_EndText);
 }
 
-inline void RENDERPushGlyph(render_stack* Stack, int Codepoint, v2 P, v2 Dim, v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) {
+inline void RENDERPushGlyph(
+	render_stack* Stack,
+	int Codepoint,
+	v2 P, v2 Dim,
+	v2 MinAtlasUV,
+	v2 MaxAtlasUV,
+	bitmap_info* GlyphBitmapInfo, 
+	v4 ModulationColor = V4(1.0f, 1.0f, 1.0f, 1.0f)) 
+{
 	render_stack_entry_glyph* Entry = PUSH_RENDER_ENTRY(Stack, render_stack_entry_glyph, RenderEntry_GUI_Glyph);
 
 	Entry->Codepoint = Codepoint;
+	Entry->GlyphBitmapInfo = GlyphBitmapInfo;
+	Entry->MinAtlasUV = MinAtlasUV;
+	Entry->MaxAtlasUV = MaxAtlasUV;
 	Entry->P = P;
 	Entry->Dim = Dim;
 	Entry->ModulationColor = ModulationColor;

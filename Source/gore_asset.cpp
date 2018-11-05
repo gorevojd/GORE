@@ -59,7 +59,7 @@ static game_asset* GetAssetByBestFloatTagInternal(asset_system* System, u32 Grou
 	}
 
 	int ResultAssetIndex = Group->FirstAssetIndex + BestMatchAssetIndex;
-	Result = System->Assets + ResultAssetIndex;
+	Result = GetByAssetID(System, ResultAssetIndex);
 
 	return(Result);
 }
@@ -99,7 +99,7 @@ static game_asset* GetAssetByBestIntTagInternal(asset_system* System, u32 GroupI
 	}
 
 	int ResultAssetIndex = Group->FirstAssetIndex + BestMatchAssetIndex;
-	Result = System->Assets + ResultAssetIndex;
+	Result = GetByAssetID(System, ResultAssetIndex);
 
 	return(Result);
 }
@@ -107,8 +107,11 @@ static game_asset* GetAssetByBestIntTagInternal(asset_system* System, u32 GroupI
 u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float TagValue, u32 AssetType) {
 	game_asset* Asset = GetAssetByBestFloatTagInternal(System, GroupID, TagType, TagValue);
 
-	Assert(Asset->Type == AssetType);
-	u32 Result = Asset->ID;
+	u32 Result = 0;
+	if (Asset) {
+		Assert(Asset->Type == AssetType);
+		Result = Asset->ID;
+	}
 
 	return(Result);
 }
@@ -116,8 +119,11 @@ u32 GetAssetByBestFloatTag(asset_system* System, u32 GroupID, u32 TagType, float
 u32 GetAssetByBestIntTag(asset_system* System, u32 GroupID, u32 TagType, int TagValue, u32 AssetType) {
 	game_asset* Asset = GetAssetByBestIntTagInternal(System, GroupID, TagType, TagValue);
 
-	Assert(Asset->Type == AssetType);
-	u32 Result = Asset->ID;
+	u32 Result = 0;
+	if (Asset) {
+		Assert(Asset->Type == AssetType);
+		Result = Asset->ID;
+	}
 
 	return(Result);
 }
@@ -142,8 +148,10 @@ u32 GetAssetByTag(asset_system* System, u32 GroupID, u32 TagType, u32 AssetType)
 		}
 	}
 
-	game_asset* ResultAsset = System->Assets + ResultAssetIndex;
-	Assert(ResultAsset->Type == AssetType);
+	game_asset* ResultAsset = GetByAssetID(System, ResultAssetIndex);
+	if (ResultAsset) {
+		Assert(ResultAsset->Type == AssetType);
+	}
 
 	return(ResultAssetIndex);
 }
@@ -242,6 +250,10 @@ void* AssetRequestMemory(asset_system* System, u32 MemorySize) {
 	return(Result);
 }
 
+void AssetReleaseMemory(asset_system* System) {
+
+}
+
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
 	System->AssetSystemMemory = AssetSystemMemory;
@@ -335,11 +347,13 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 				ToGroup->FirstAssetIndex = System->AssetCount;
 
 				if (ToGroupIndex == FileGroupIndex) {
-					for (int FileAssetIndex = 0;
-						FileAssetIndex < FileAssetCount;
+					u32 FirstAssetIndex = FileGroup->FirstAssetIndex - 1;
+					u32 OnePastLastAssetIndex = FirstAssetIndex + FileGroup->GroupAssetCount;
+
+					for (int FileAssetIndex = FirstAssetIndex;
+						FileAssetIndex < OnePastLastAssetIndex;
 						FileAssetIndex++)
 					{
-						//gass_header* GASS = (gass_header*)((u8*)File->Data + AssetLinesOffsets[FileAssetIndex]);
 						gass_header GASS_;
 						PlatformApi.ReadDataFromFileEntry(
 							File,
@@ -356,21 +370,21 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 						//NOTE(dima): Incrementing target group asset count
 						ToGroup->GroupAssetCount++;
 
-						//NOTE(dima): Allocating memory for storing asset
-						u32 AssetRequestMemorySize = GASS->AssetTotalDataSize + GASS->AssetTotalTagsSize;
-						void* AssetNeededMemory = AssetRequestMemory(
-							System, 
-							AssetRequestMemorySize);
-
-						stacked_memory AssetMem = InitStackedMemory(
-							AssetNeededMemory, 
-							AssetRequestMemorySize);
-
 						//NOTE(dima): Reading asset tags
+						u32 TagsMemorySize = GASS->AssetTotalTagsSize;
+
 						Asset->Tags = 0;
 						Asset->TagCount = GASS->TagCount;
+
+						if (FileAssetIndex == 383) {
+							int a = 1;
+						}
+
 						if (Asset->TagCount) {
-							Asset->Tags = PushArray(&AssetMem, game_asset_tag, Asset->TagCount);
+							Asset->Tags = PushArray(
+								System->AssetSystemMemory, 
+								game_asset_tag, 
+								Asset->TagCount);
 
 							u32 TagMemoryRequired = Asset->TagCount * sizeof(game_asset_tag);
 							Assert(GASS->AssetTotalTagsSize == TagMemoryRequired);
@@ -393,40 +407,89 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 							}
 						}
 
-#if 0
+#if 1
+						u32 AssetLineDataOffset = AssetLinesOffsets[FileAssetIndex] + GASS->LineDataOffset;
+
 						switch (Asset->Type) {
 							case AssetType_Bitmap: {
-								Asset->Bitmap = PushStruct(????);
+								bitmap_info* TargetBitmap = &Asset->Bitmap;
 
-								bitmap_info* TargetBitmap = Asset->Bitmap;
+								u32 DataMemSize = GASS->AssetTotalDataSize;
+								void* DataMem = AssetRequestMemory(System, DataMemSize);
 
-								void* PixelsData = PushSomeMemory(&AssetMem, GASS->AssetTotalDataSize);
+								//NOTE(dima): Reading data from file
+								PlatformApi.ReadDataFromFileEntry(
+									File,
+									DataMem,
+									AssetLineDataOffset,
+									DataMemSize);
 
 								AssetAllocateBitmap(
 									TargetBitmap,
-									AssetNeededMemory,
+									DataMem,
 									GASS->Bitmap.Width, 
 									GASS->Bitmap.Height);
 							}break;
 
 							case AssetType_Font: {
-								Asset->Font = PushStruct(???);
+								font_info* Font = &Asset->Font;
 
-								font_info* Font = Asset->Font;
+								u32 DataMemSize = 
+									GASS->AssetTotalDataSize + 
+									sizeof(u32) * GASS->Font.GlyphsCount;
+								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								//NOTE(dima): Reading data from file
+								PlatformApi.ReadDataFromFileEntry(
+									File,
+									DataMem,
+									AssetLineDataOffset,
+									DataMemSize);
+
+								u32 OffsetToMapping = -sizeof(gass_header) + GASS->Font.LineOffsetToMapping;
+								u32 OffsetToKerning = -sizeof(gass_header) + GASS->Font.LineOffsetToKerningPairs;
+								u32 OffsetToAtlasss = -sizeof(gass_header) + GASS->Font.LineOffsetToAtlasBitmapPixels;
+
+								Font->CodepointToGlyphMapping = (int*)((u8*)DataMem + OffsetToMapping);
+								Font->KerningPairs = (float*)((u8*)DataMem + OffsetToKerning);
+								void* AtlasBitmapPixels = (u8*)DataMem + OffsetToAtlasss;
+								Font->GlyphIDs = (u32*)((u8*)DataMem + GASS->AssetTotalDataSize);
+
+								//NOTE(dima): Restoring asset id's
+								for (int GlyphIndex = 0;
+									GlyphIndex < GASS->Font.GlyphsCount;
+									GlyphIndex++)
+								{
+									Font->GlyphIDs[GlyphIndex] = ToGroup->FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+								}
 
 								Font->AscenderHeight = GASS->Font.AscenderHeight;
 								Font->DescenderHeight = GASS->Font.DescenderHeight;
 								Font->LineGap = GASS->Font.LineGap;
-								
+								Font->GlyphsCount = GASS->Font.GlyphsCount;
+								Font->MaxGlyphsCount = GASS->Font.MaxGlyphsCount;
+
+								AssetAllocateBitmap(
+									&Font->FontAtlasImage,
+									AtlasBitmapPixels,
+									GASS->Font.AtlasBitmapWidth,
+									GASS->Font.AtlasBitmapHeight);
 							}break;
 
 							case AssetType_FontGlyph: {
-								Asset->Glyph = PushStruct(???);
+								glyph_info* Glyph = &Asset->Glyph;
 
-								glyph_info* Glyph = Asset->Glyph;
+								u32 DataMemSize = GASS->AssetTotalDataSize;
+								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								//NOTE(dima): Reading data from file
+								PlatformApi.ReadDataFromFileEntry(
+									File,
+									DataMem,
+									AssetLineDataOffset,
+									DataMemSize);
 
 								Glyph->Codepoint = GASS->Glyph.Codepoint;
-
 								Glyph->Advance = GASS->Glyph.Advance;
 								Glyph->XOffset = GASS->Glyph.XOffset;
 								Glyph->YOffset = GASS->Glyph.YOffset;
@@ -434,15 +497,14 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								Glyph->Width = GASS->Glyph.BitmapWidth;
 								Glyph->Height = GASS->Glyph.BitmapHeight;
 
-								AssetAllocateBitmap(
-									&Glyph->Bitmap,
-									AssetNeededMemory,
-									GASS->Glyph.BitmapWidth,
-									GASS->Glyph.BitmapHeight);
-
 								Glyph->AtlasMinUV = V2(GASS->Glyph.AtlasMinUV_x, GASS->Glyph.AtlasMinUV_y);
 								Glyph->AtlasMaxUV = V2(GASS->Glyph.AtlasMaxUV_x, GASS->Glyph.AtlasMaxUV_y);
-
+								
+								AssetAllocateBitmap(
+									&Glyph->Bitmap,
+									DataMem,
+									GASS->Glyph.BitmapWidth,
+									GASS->Glyph.BitmapHeight);
 							}break;
 						}
 #endif

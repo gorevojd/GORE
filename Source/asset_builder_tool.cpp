@@ -194,7 +194,7 @@ static mesh_id AddMeshAsset(asset_system* System, mesh_info* Mesh) {
 
 static font_id AddFontAsset(
 	asset_system* System,
-	font_info* FontInfo)
+	loader_font_info* FontInfo)
 {
 	added_asset Added = AddAsset(System, AssetType_Font);
 
@@ -287,14 +287,14 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 	}
 }
 
-font_info LoadFontInfoFromImage(
+loader_font_info LoadFontInfoFromImage(
 	char* ImagePath,
 	int Height,
 	int OneCharPixelWidth,
 	int OneCharPixelHeight,
 	u32 Flags)
 {
-	font_info Result = {};
+	loader_font_info Result = {};
 
 	float Scale = (float)Height / (float)OneCharPixelHeight;
 
@@ -432,8 +432,8 @@ font_info LoadFontInfoFromImage(
 	return(Result);
 }
 
-font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
-	font_info Result = {};
+loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
+	loader_font_info Result = {};
 	stbtt_fontinfo FontInfo;
 
 	data_buffer FontFileBuffer = ReadFileToDataBuffer(FontName);
@@ -793,6 +793,7 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 			}
 
 			//NOTE(dima): Forming and writing header
+			Header->LineDataOffset = sizeof(gass_header);
 			Header->Pitch = HeaderByteSize + DataByteSize + TagsByteSize;
 			Header->LineFirstTagOffset = HeaderByteSize + DataByteSize;
 			Header->TagCount = Asset->TagCount;
@@ -954,10 +955,10 @@ void WriteFonts()
 	InitAssetFile(System);
 
 	//NOTE(dima): Fonts
-	font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
-	font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-	font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-	font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
+	loader_font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
+	loader_font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+	loader_font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
+	loader_font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
 
 	BeginAssetGroup(System, GameAsset_Font);
 	AddFontAsset(System, &UbuntuFontInfo);
@@ -969,7 +970,7 @@ void WriteFonts()
 	AddFontAsset(System, &DebugFontInfo);
 	EndAssetGroup(System);
 
-	font_info Fonts[] = {
+	loader_font_info Fonts[] = {
 		GoldenFontInfo, 
 		DebugFontInfo,
 		UbuntuFontInfo,
@@ -983,7 +984,7 @@ void WriteFonts()
 		FontIndex < ArrayCount(Fonts);
 		FontIndex++)
 	{
-		font_info* Font = Fonts + FontIndex;
+		loader_font_info* Font = Fonts + FontIndex;
 
 		for (int GlyphIndex = 0;
 			GlyphIndex < Font->GlyphsCount;
