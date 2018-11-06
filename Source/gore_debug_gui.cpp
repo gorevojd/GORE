@@ -161,6 +161,7 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
 		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, GlyphID);
 
+
 		CurGlyphAdvance = Glyph->Advance;
 
 		float BitmapScale = Glyph->Height * Scale;

@@ -299,15 +299,29 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 		Assert(FileHeader.AssetGroupsCount == GameAsset_Count);
 
 		//NOTE(dima): Reading file asset groups
-		game_asset_group FileGroups[GameAsset_Count];
-		asset_file_asset_group BufferForReadFileGroups[GameAsset_Count];
+		game_asset_group* FileGroups = PushArray(
+			&TempMemory, game_asset_group, GameAsset_Count);
+		asset_file_asset_group* BufferForReadFileGroups = PushArray(
+			&TempMemory, asset_file_asset_group, FileHeader.AssetGroupsCount);
 
 		PlatformApi.ReadDataFromFileEntry(
 			File, 
 			BufferForReadFileGroups, 
 			StartOffset, 
-			sizeof(BufferForReadFileGroups));
+			sizeof(BufferForReadFileGroups) * FileHeader.AssetGroupsCount);
 
+		//NOTE(dima): Clearing target groups
+		for (int GroupIndex = 0;
+			GroupIndex < GameAsset_Count;
+			GroupIndex++)
+		{
+			game_asset_group* Grp = &FileGroups[GroupIndex];
+
+			Grp->FirstAssetIndex = 0;
+			Grp->GroupAssetCount = 0;
+		}
+
+		//NOTE(dima): COpying data to target groups
 		for (int GroupIndex = 0;
 			GroupIndex < FileHeader.AssetGroupsCount;
 			GroupIndex++)
@@ -343,10 +357,17 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 				ToGroupIndex++)
 			{
 				game_asset_group* ToGroup = System->AssetGroups + ToGroupIndex;
-
-				ToGroup->FirstAssetIndex = System->AssetCount;
-
+				
 				if (ToGroupIndex == FileGroupIndex) {
+
+					if (ToGroup->GroupAssetCount == 0) {
+						ToGroup->FirstAssetIndex = System->AssetCount;
+					}
+					
+					/*
+						NOTE(dima): Subtract 1 here because we don't write zero asset
+						to asset lines offset in the asset packer
+					*/
 					u32 FirstAssetIndex = FileGroup->FirstAssetIndex - 1;
 					u32 OnePastLastAssetIndex = FirstAssetIndex + FileGroup->GroupAssetCount;
 
@@ -366,6 +387,7 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 						game_asset* Asset = AddGameAsset(System);
 
 						Asset->Type = GASS->AssetType;
+						Asset->State = GameAssetState_Loaded;
 
 						//NOTE(dima): Incrementing target group asset count
 						ToGroup->GroupAssetCount++;
@@ -375,10 +397,6 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
 						Asset->Tags = 0;
 						Asset->TagCount = GASS->TagCount;
-
-						if (FileAssetIndex == 383) {
-							int a = 1;
-						}
 
 						if (Asset->TagCount) {
 							Asset->Tags = PushArray(
