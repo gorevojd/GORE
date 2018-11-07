@@ -835,5 +835,15 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			GetColor(EngineSystems->ColorsState, Color_Red + i + 10));
 	}
 
+#if 1
+	font_id GUIFontID = GetFirstFont(EngineSystems->AssetSystem, GameAsset_Font);
+	font_info* Font = GetFontFromID(EngineSystems->AssetSystem, GUIFontID);
+	RENDERPushBitmap(
+		RenderStack,
+		&Font->FontAtlasImage,
+		V2(10, 10),
+		20);
+#endif
+
 	END_TIMING();
 }

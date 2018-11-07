@@ -977,6 +977,24 @@ inline u32 PackedRGB16AlphaToRGBA(u16 RGB, u8 Alpha) {
 	return(Result);
 }
 
+inline u16 From01To0xFFFF(float In) {
+	float TargetRange = (float)0xFFFF;
+
+	float ResultF32 = In * TargetRange;
+
+	u16 Result = (u16)(ResultF32 + 0.5f);
+
+	return(Result);
+}
+
+inline float From0xFFFFTo01(u16 In) {
+	float Range = (float)0xFFFF;
+
+	float Result = (float)In / Range;
+
+	return(Result);
+}
+
 //NOTE(dima): Collision math
 
 inline b32 BoxIntersectsWithCircle(rect2 Rect, v2 CircleCenterP, float CircleRadius) {

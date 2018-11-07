@@ -477,7 +477,11 @@ void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystem
 			V2(EngineSystems->RenderState->RenderWidth, EngineSystems->RenderState->RenderHeight));
 
 		//NOTE(dima): Loading needed fonts
-		font_id FontID = GetFirstFont(EngineSystems->AssetSystem, GameAsset_Font);
+		font_id FontID = GetAssetByBestIntTag(
+			EngineSystems->AssetSystem,
+			GameAsset_Font,
+			GameAssetTag_Font_MainMenuFont, 0,
+			AssetType_Font);
 		MenuState->MainFontInfo = GetFontFromID(EngineSystems->AssetSystem, FontID);
 
 		MenuState->InactiveColorPercentage = 0.5f;

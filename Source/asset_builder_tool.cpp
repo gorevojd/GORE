@@ -250,6 +250,17 @@ static u32 AddFontGlyphAsset(
 	Header->Glyph.AtlasMaxUV_x = GlyphInfo->AtlasMaxUV.x;
 	Header->Glyph.AtlasMaxUV_y = GlyphInfo->AtlasMaxUV.y;
 
+	u32 MinUV =
+		(u32)From01To0xFFFF(GlyphInfo->AtlasMinUV.x) | 
+		((u32)From01To0xFFFF(GlyphInfo->AtlasMinUV.y) << 16);
+
+	u32 MaxUV = 
+		(u32)From01To0xFFFF(GlyphInfo->AtlasMaxUV.x) |
+		((u32)From01To0xFFFF(GlyphInfo->AtlasMaxUV.y) << 16);
+
+	Header->Glyph.AtlasMinUV16x16y = MinUV;
+	Header->Glyph.AtlasMaxUV16x16y = MaxUV;
+
 	AddFreeareaToAsset(System, Added.Asset, GlyphInfo->Bitmap.Pixels);
 
 	font_glyph_id Result = Added.Asset->ID;
@@ -970,11 +981,11 @@ void WriteFonts()
 	AddFontAsset(System, &DebugFontInfo);
 	EndAssetGroup(System);
 
-	loader_font_info Fonts[] = {
-		GoldenFontInfo, 
-		DebugFontInfo,
-		UbuntuFontInfo,
-		AntiqueOliveFontInfo,
+	loader_font_info* Fonts[] = {
+		&GoldenFontInfo, 
+		&DebugFontInfo,
+		&UbuntuFontInfo,
+		&AntiqueOliveFontInfo,
 	};
 
 	u32 FirstBitmapIDs[ArrayCount(Fonts)];
@@ -984,7 +995,7 @@ void WriteFonts()
 		FontIndex < ArrayCount(Fonts);
 		FontIndex++)
 	{
-		loader_font_info* Font = Fonts + FontIndex;
+		loader_font_info* Font = Fonts[FontIndex];
 
 		for (int GlyphIndex = 0;
 			GlyphIndex < Font->GlyphsCount;
@@ -1192,7 +1203,7 @@ int main() {
 	
 	WriteFonts();
 	WriteBitmaps();
-	WriteMeshPrimitives();
+	//WriteMeshPrimitives();
 
 	system("pause");
 	return(0);

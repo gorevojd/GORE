@@ -20,7 +20,10 @@ bitmap_info AssetAllocateBitmapInternal(u32 Width, u32 Height, void* PixelsData)
 }
 
 bitmap_info AssetAllocateBitmap(u32 Width, u32 Height) {
-	void* PixelsData = malloc(Width * Height * 4);
+	u32 BitmapDataSize = Width * Height * 4;
+	void* PixelsData = malloc(BitmapDataSize);
+
+	memset(PixelsData, 0, BitmapDataSize);
 
 	bitmap_info Result = AssetAllocateBitmapInternal(Width, Height, PixelsData);
 

@@ -80,6 +80,9 @@ struct gass_font_glyph {
 	float AtlasMinUV_y;
 	float AtlasMaxUV_x;
 	float AtlasMaxUV_y;
+
+	u32 AtlasMinUV16x16y;
+	u32 AtlasMaxUV16x16y;
 };
 
 /*
