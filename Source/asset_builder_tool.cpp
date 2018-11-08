@@ -187,8 +187,31 @@ static mesh_id AddMeshAsset(asset_system* System, mesh_info* Mesh) {
 	game_asset_source* Source = Added.Source;
 	Source->MeshSource.MeshInfo = Mesh;
 
-	mesh_id Result = Added.Asset->ID;
+	gass_header* GASS = Added.FileHeader;
 
+
+	u32 VertexTypeSize = 0;
+	if (Mesh->MeshType == MeshType_Simple) {
+		GASS->Mesh.MeshType = GassMeshType_Simple;
+		VertexTypeSize = sizeof(vertex_info);
+	}
+	else if(Mesh->MeshType == MeshType_Skinned) {
+		GASS->Mesh.MeshType = GassMeshType_Skinned;
+		VertexTypeSize = sizeof(skinned_vertex_info);
+	}
+
+	GASS->Mesh.VertexTypeSize = VertexTypeSize;
+	GASS->Mesh.IndexTypeSize = sizeof(u32);
+	GASS->Mesh.IndicesCount = Mesh->IndicesCount;
+	GASS->Mesh.VerticesCount = Mesh->VerticesCount;
+	GASS->Mesh.LineOffsetToVertices = GASSGetLineOffsetForData();
+	GASS->Mesh.LineOffsetToIndices = GASS->Mesh.LineOffsetToVertices +
+		Mesh->VerticesCount * VertexTypeSize;
+
+	AddFreeareaToAsset(System, Added.Asset, Mesh->Indices);
+	AddFreeareaToAsset(System, Added.Asset, Mesh->Vertices);
+
+	mesh_id Result = Added.Asset->ID;
 	return(Result);
 }
 
@@ -212,7 +235,7 @@ static font_id AddFontAsset(
 	Header->Font.AtlasBitmapWidth = FontInfo->FontAtlasImage.Width;
 	Header->Font.FirstGlyphID = FontInfo->Reserved;
 
-	Header->Font.LineOffsetToMapping = sizeof(gass_header);
+	Header->Font.LineOffsetToMapping = GASSGetLineOffsetForData();
 	Header->Font.LineOffsetToKerningPairs =
 		Header->Font.LineOffsetToMapping +
 		sizeof(int) * Header->Font.MaxGlyphsCount;
@@ -799,12 +822,14 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 				case AssetType_Mesh: {
 					Asset->Mesh = Source->MeshSource.MeshInfo;
 
-
+					DataByteSize = 
+						Header->Mesh.VertexTypeSize * Asset->Mesh->VerticesCount + 
+						Header->Mesh.IndexTypeSize * Asset->Mesh->IndicesCount;
 				}break;
 			}
 
 			//NOTE(dima): Forming and writing header
-			Header->LineDataOffset = sizeof(gass_header);
+			Header->LineDataOffset = GASSGetLineOffsetForData();
 			Header->Pitch = HeaderByteSize + DataByteSize + TagsByteSize;
 			Header->LineFirstTagOffset = HeaderByteSize + DataByteSize;
 			Header->TagCount = Asset->TagCount;
@@ -849,7 +874,28 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 				}break;
 
 				case AssetType_Mesh: {
+					//NOTE(dima): Writing vertices
+					switch (Asset->Mesh->MeshType) {
+						case MeshType_Simple: {
+							fwrite(
+								Asset->Mesh->Vertices,
+								Asset->Mesh->VerticesCount * sizeof(vertex_info),
+								1, fp);
+						}break;
 
+						case MeshType_Skinned: {
+							fwrite(
+								Asset->Mesh->SkinnedVertices,
+								Asset->Mesh->VerticesCount * sizeof(skinned_vertex_info),
+								1, fp);
+						}break;
+					}
+
+					//NOTE(dima): Writing indices
+					fwrite(
+						Asset->Mesh->Indices,
+						Asset->Mesh->IndicesCount * sizeof(u32),
+						1, fp);
 				}break;
 			}
 
@@ -1203,7 +1249,7 @@ int main() {
 	
 	WriteFonts();
 	WriteBitmaps();
-	//WriteMeshPrimitives();
+	WriteMeshPrimitives();
 
 	system("pause");
 	return(0);

@@ -37,8 +37,16 @@ struct game_asset {
 
 	u32 Type;
 
+	game_asset* Next;
+	game_asset* Prev;
+
 	game_asset_tag* Tags;
 	int TagCount;
+
+	void* AssetData;
+	u32 AssetDataSize;
+	u32 AssetDataOffsetInFile;
+	char AssetFilePath[128];
 
 	union {
 		bitmap_info Bitmap;
@@ -50,11 +58,27 @@ struct game_asset {
 	};
 };
 
+
+struct game_asset_pool_block {
+	game_asset_pool_block* NextBlock;
+	game_asset_pool_block* PrevBlock;
+
+	game_asset UseSentinel;
+	game_asset FreeSentinel;
+
+	u32 UseAssetsCount;
+
+	u32 MaxBlockAssetCount;
+	game_asset* BlockAssets;
+};
+
 #define TEMP_STORED_ASSET_COUNT 2048
 struct asset_system {
 	stacked_memory* AssetSystemMemory;
 
 	stacked_memory TempMemoryForFileLoading;
+
+	game_asset_pool_block AssetPoolBlockSentinel;
 
 	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];

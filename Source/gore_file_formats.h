@@ -112,14 +112,30 @@ struct gass_font {
 	u32 LineOffsetToAtlasBitmapPixels;
 };
 
+enum gass_mesh_type {
+	GassMeshType_Simple,
+	GassMeshType_Skinned,
+};
+
+
+/*
+	NOTE(dima):
+	
+	Asset data for fonts stored next way:
+	1) VertexTypeSize * VerticesCount				bytes of vertices data
+	2) sizeof(u32) * IndicesCount					bytes of indices data
+*/
 struct gass_mesh {
 	u32 MeshType;
+
+	u32 VertexTypeSize;
+	u32 IndexTypeSize;
 
 	u32 VerticesCount;
 	u32 IndicesCount;
 
-	u32 OffsetToVertices;
-	u32 OffsetToIndices;
+	u32 LineOffsetToVertices;
+	u32 LineOffsetToIndices;
 };
 
 struct gass_header {
@@ -138,8 +154,15 @@ struct gass_header {
 		gass_bitmap Bitmap;
 		gass_font Font;
 		gass_font_glyph Glyph;
+		gass_mesh Mesh;
 	};
 };
+
+inline u32 GASSGetLineOffsetForData() {
+	u32 Result = sizeof(gass_header);
+
+	return(Result);
+}
 
 struct asset_file_asset_group {
 	u32 FirstAssetIndex;

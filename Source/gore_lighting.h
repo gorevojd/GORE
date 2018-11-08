@@ -2,6 +2,7 @@
 #define GORE_LIGHTING_H_INCLUDED
 
 #include "gore_platform.h"
+#include "gore_asset.h"
 
 struct surface_material {
 	v3 Color;

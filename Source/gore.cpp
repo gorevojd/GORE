@@ -709,7 +709,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		bitmap_info* PlayerBitmap = GetBitmapFromID(EngineSystems->AssetSystem, Player->PlayerBitmapID);
 
 		//NOTE(dima): Pushing player bitmap
-#if 0
+#if 1
 		GorePushRectEntity(
 			RenderStack,
 			Player->P,

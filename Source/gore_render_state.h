@@ -1,7 +1,6 @@
 #ifndef GORE_RENDER_STACK_H_INCLUDED
 #define GORE_RENDER_STACK_H_INCLUDED
 
-#include "gore_asset.h"
 #include "gore_input.h"
 #include "gore_game_common.h"
 #include "gore_lighting.h"
@@ -309,17 +308,6 @@ inline void RENDERPushMesh(render_stack* State, mesh_info* Mesh, mat4 TransformM
 	Entry->MeshInfo = Mesh;
 	Entry->TransformMatrix = TransformMatrix;
 	Entry->Material = Material;
-}
-
-inline void RENDERPushMesh(render_stack* State, mesh_id MeshID, mat4 TransformMatrix, surface_material Material) {
-	mesh_info* MeshInfo = GetMeshFromID(State->ParentRenderState->AssetSystem, MeshID);
-
-	if (MeshInfo) {
-		RENDERPushMesh(State, MeshInfo, TransformMatrix, Material);
-	}
-	else {
-		//TODO(dima): Load mesh asset
-	}
 }
 
 inline void RENDERPushLpterMesh(render_stack* State, lpter_mesh* Mesh, v3 P) {
