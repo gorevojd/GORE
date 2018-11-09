@@ -262,7 +262,7 @@ inline void InsertAssetBefore(game_asset* ToInsert, game_asset* Before) {
 	ToInsert->Prev->Next = ToInsert;
 }
 
-game_asset_pool_block AssetInitAssetBlock(asset_system* System, u32 PullAssetCount) {
+game_asset_pool_block AssetInitAssetPoolBlock(asset_system* System, u32 PullAssetCount) {
 	game_asset_pool_block Result = {};
 
 	Result.UseAssetsCount = 0;
@@ -291,6 +291,38 @@ game_asset_pool_block AssetInitAssetBlock(asset_system* System, u32 PullAssetCou
 	return(Result);
 }
 
+inline asset_memory_entry* AssetAllocateMemoryEntry(asset_system* AssetSystem) {
+	asset_memory_entry* Result = 0;
+
+	if (AssetSystem->FirstFreeMemoryEntry.NextAllocEntry !=
+		&AssetSystem->FirstFreeMemoryEntry) 
+	{
+		Result = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
+
+		Result->NextAllocEntry = AssetSystem->FirstUseMemoryEntry.NextAllocEntry;
+		Result->PrevAllocEntry = &AssetSystem->FirstUseMemoryEntry;
+
+		Result->NextAllocEntry->PrevAllocEntry = Result;
+		Result->PrevAllocEntry->NextAllocEntry = Result;
+	}
+	else {
+		//NOTE(dima): Allocate new entry
+
+	}
+
+	return(Result);
+}
+
+void SplitMemoryEntry(asset_memory_entry* ToSplit, u32 SplitOffset) {
+	/*
+		NOTE(dima): If equal then second block will be 0 bytes,
+		so we dont need equal and the sign is <
+	*/
+	Assert(SplitOffset < ToSplit->DataSize);
+
+
+}
+
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
 	System->AssetSystemMemory = AssetSystemMemory;
@@ -299,6 +331,15 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 	System->AssetPoolBlockSentinel = {};
 	System->AssetPoolBlockSentinel.NextBlock = &System->AssetPoolBlockSentinel;
 	System->AssetPoolBlockSentinel.PrevBlock = &System->AssetPoolBlockSentinel;
+
+	//NOTE(dima): Initializing sentinel memory entries
+	System->FirstFreeMemoryEntry = {};
+	System->FirstFreeMemoryEntry.NextAllocEntry = &System->FirstFreeMemoryEntry;
+	System->FirstFreeMemoryEntry.PrevAllocEntry = &System->FirstFreeMemoryEntry;
+
+	System->FirstUseMemoryEntry = {};
+	System->FirstUseMemoryEntry.NextAllocEntry = &System->FirstUseMemoryEntry;
+	System->FirstUseMemoryEntry.PrevAllocEntry = &System->FirstUseMemoryEntry;
 
 	System->Assets[0] = {};
 	System->AssetCount = 1;

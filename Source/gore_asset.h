@@ -30,6 +30,17 @@ struct game_asset_tag {
 	};
 };
 
+struct asset_memory_entry {
+	asset_memory_entry* NextAllocEntry;
+	asset_memory_entry* PrevAllocEntry;
+
+	asset_memory_entry* NextMem;
+	asset_memory_entry* PrevMem;
+
+	void* Data;
+	u32 DataSize;
+};
+
 struct game_asset {
 	u32 ID;
 
@@ -79,6 +90,8 @@ struct asset_system {
 	stacked_memory TempMemoryForFileLoading;
 
 	game_asset_pool_block AssetPoolBlockSentinel;
+	asset_memory_entry FirstUseMemoryEntry;
+	asset_memory_entry FirstFreeMemoryEntry;
 
 	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];
