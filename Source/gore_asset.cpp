@@ -294,34 +294,98 @@ game_asset_pool_block AssetInitAssetPoolBlock(asset_system* System, u32 PullAsse
 inline asset_memory_entry* AssetAllocateMemoryEntry(asset_system* AssetSystem) {
 	asset_memory_entry* Result = 0;
 
-	if (AssetSystem->FirstFreeMemoryEntry.NextAllocEntry !=
+	if (AssetSystem->FirstFreeMemoryEntry.NextAllocEntry ==
 		&AssetSystem->FirstFreeMemoryEntry) 
 	{
-		Result = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
+		/*
+			NOTE(dima): I don't want memory entries to have
+			bad order in memory. So i will allocate them by
+			arrays and insert to freelist
+		*/
 
-		Result->NextAllocEntry = AssetSystem->FirstUseMemoryEntry.NextAllocEntry;
-		Result->PrevAllocEntry = &AssetSystem->FirstUseMemoryEntry;
+		//NOTE(dima): Allocating new entries array
+		int NewEntriesCount = 256;
+		asset_memory_entry* NewEntriesArray = PushArray(
+			AssetSystem->AssetSystemMemory,
+			asset_memory_entry,
+			NewEntriesCount);
 
-		Result->NextAllocEntry->PrevAllocEntry = Result;
-		Result->PrevAllocEntry->NextAllocEntry = Result;
+		//NOTE(dima): Inserting new entries to freelist
+		for (int EntryIndex = 0;
+			EntryIndex < NewEntriesCount;
+			EntryIndex++)
+		{
+			asset_memory_entry* CurrentEntry = NewEntriesArray + EntryIndex;
+
+			*CurrentEntry = {};
+
+			CurrentEntry->NextAllocEntry = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
+			CurrentEntry->PrevAllocEntry = &AssetSystem->FirstFreeMemoryEntry;
+
+			CurrentEntry->NextAllocEntry->PrevAllocEntry = CurrentEntry;
+			CurrentEntry->PrevAllocEntry->NextAllocEntry = CurrentEntry;
+		}
 	}
-	else {
-		//NOTE(dima): Allocate new entry
 
-	}
+	//NOTE(dima): Allocating entry
+	Result = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
+
+	Result->NextAllocEntry = AssetSystem->FirstUseMemoryEntry.NextAllocEntry;
+	Result->PrevAllocEntry = &AssetSystem->FirstUseMemoryEntry;
+
+	Result->NextAllocEntry->PrevAllocEntry = Result;
+	Result->PrevAllocEntry->NextAllocEntry = Result;
 
 	return(Result);
 }
 
-void SplitMemoryEntry(asset_memory_entry* ToSplit, u32 SplitOffset) {
+inline void AssetDeallocateMemoryEntry(
+	asset_system* AssetSystem,
+	asset_memory_entry* ToDeallocate)
+{
+	ToDeallocate->NextAllocEntry->PrevAllocEntry = ToDeallocate->PrevAllocEntry;
+	ToDeallocate->PrevAllocEntry->NextAllocEntry = ToDeallocate->NextAllocEntry;
+
+	ToDeallocate->NextAllocEntry = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
+	ToDeallocate->PrevAllocEntry = &AssetSystem->FirstFreeMemoryEntry;
+
+	ToDeallocate->PrevAllocEntry->NextAllocEntry = ToDeallocate;
+	ToDeallocate->NextAllocEntry->PrevAllocEntry = ToDeallocate;
+}
+
+void SplitMemoryEntry(
+	asset_system* AssetSystem, 
+	asset_memory_entry* ToSplit, 
+	u32 SplitOffset) 
+{
 	/*
 		NOTE(dima): If equal then second block will be 0 bytes,
 		so we dont need equal and the sign is <
 	*/
 	Assert(SplitOffset < ToSplit->DataSize);
 
+	//NOTE(dima): allocating entries
+	asset_memory_entry* NewEntry1 = AssetAllocateMemoryEntry(AssetSystem);
+	asset_memory_entry* NewEntry2 = AssetAllocateMemoryEntry(AssetSystem);
 
+	NewEntry1->PrevMem = ToSplit->PrevMem;
+	NewEntry1->NextMem = NewEntry2;
+
+	NewEntry2->PrevMem = NewEntry1;
+	NewEntry2->NextMem = ToSplit->NextMem;
+
+	//NOTE(dima): setting entries data
+	NewEntry1->DataSize = SplitOffset;
+	NewEntry1->Data = ToSplit->Data;
+
+	NewEntry2->DataSize = ToSplit->DataSize - SplitOffset;
+	NewEntry2->Data = (void*)((u8*)ToSplit->Data + SplitOffset);
+
+	//NOTE(dima): Deallocating initial entry
+	AssetDeallocateMemoryEntry(AssetSystem, ToSplit);
 }
+
+
 
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
