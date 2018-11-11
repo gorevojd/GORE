@@ -385,6 +385,17 @@ void SplitMemoryEntry(
 	AssetDeallocateMemoryEntry(AssetSystem, ToSplit);
 }
 
+void MergeMemoryEntries(
+	asset_system* AssetSystem, 
+	asset_memory_entry* First,
+	asset_memory_entry* Second) 
+{
+	First->NextMem = Second->NextMem;
+
+	First->DataSize = First->DataSize + Second->DataSize;
+
+	AssetDeallocateMemoryEntry(AssetSystem, Second);
+}
 
 
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
