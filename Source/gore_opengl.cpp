@@ -1515,8 +1515,9 @@ void OpenGLProcessAllocationQueue() {
 		//LastEntry->Next->Prev = PlatformApi.FirstUseAllocQueueEntry;
 		
 		FirstEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
-		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
-		
+		//LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
+		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry;
+
 		FirstEntry->Prev->Next = FirstEntry;
 		LastEntry->Next->Prev = LastEntry;
 #endif

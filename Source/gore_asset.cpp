@@ -336,6 +336,10 @@ inline asset_memory_entry* AssetAllocateMemoryEntry(asset_system* AssetSystem) {
 	Result->NextAllocEntry->PrevAllocEntry = Result;
 	Result->PrevAllocEntry->NextAllocEntry = Result;
 
+	Result->Data = 0;
+	Result->DataSize = 0;
+	Result->State = MemoryEntryState_None;
+
 	return(Result);
 }
 
@@ -353,10 +357,16 @@ inline void AssetDeallocateMemoryEntry(
 	ToDeallocate->NextAllocEntry->PrevAllocEntry = ToDeallocate;
 }
 
-void SplitMemoryEntry(
+
+/*
+	NOTE(dima): This function splits memory entry into 
+	2 parts and then returns first splited part with the
+	requested memory size
+*/
+asset_memory_entry* SplitMemoryEntry(
 	asset_system* AssetSystem, 
 	asset_memory_entry* ToSplit, 
-	u32 SplitOffset) 
+	u32 SplitOffset)
 {
 	/*
 		NOTE(dima): If equal then second block will be 0 bytes,
@@ -383,9 +393,16 @@ void SplitMemoryEntry(
 
 	//NOTE(dima): Deallocating initial entry
 	AssetDeallocateMemoryEntry(AssetSystem, ToSplit);
+
+	return(NewEntry1);
 }
 
-void MergeMemoryEntries(
+/*
+	NOTE(dima): This function merges 2 memory entries.
+	Return value is equal to the First parameter and 
+	contatains merged block.
+*/
+asset_memory_entry* MergeMemoryEntries(
 	asset_system* AssetSystem, 
 	asset_memory_entry* First,
 	asset_memory_entry* Second) 
@@ -395,8 +412,79 @@ void MergeMemoryEntries(
 	First->DataSize = First->DataSize + Second->DataSize;
 
 	AssetDeallocateMemoryEntry(AssetSystem, Second);
+
+	asset_memory_entry* Result = First;
+	return(Result);
 }
 
+asset_memory_entry* AssetAllocateMemory(
+	asset_system* AssetSystem,
+	u32 RequestMemorySize)
+{
+	asset_memory_entry* Result = 0;
+
+	/*
+		NOTE(dima): Merge loop.
+
+		In this loop i walk through all allocated memory entries
+		and try to merge those that lie near each other
+	*/
+	asset_memory_entry* At = AssetSystem->FirstAssetMem;
+
+	while (At) {
+
+		asset_memory_entry* LastMergeEntry = At;
+		if (At->State == MemoryEntryState_None) {
+			asset_memory_entry* NextAt = At->NextMem;
+
+			while (NextAt) {
+
+				if (NextAt->State == MemoryEntryState_None) {
+					LastMergeEntry = NextAt;
+				}
+				else {
+					break;
+				}
+
+				NextAt = NextAt->NextMem;
+			}
+
+			if (LastMergeEntry != At) {
+
+			}
+		}
+		
+	}
+
+
+	//NOTE(dima): Find loop
+	At = AssetSystem->FirstAssetMem;
+	while (At) {
+		asset_memory_entry* NextMem = At->NextMem;
+
+		if (At->DataSize > RequestMemorySize) {
+			Result = SplitMemoryEntry(AssetSystem, At, RequestMemorySize);
+
+			break;
+		}
+		else if (At->DataSize < RequestMemorySize) {
+			
+		}
+		else {
+			Result = At;
+
+			break;
+		}
+
+		At = NextMem;
+	}
+
+	if (Result) {
+		Result->State = MemoryEntryState_Used;
+	}
+
+	return(Result);
+}
 
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
@@ -415,6 +503,14 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 	System->FirstUseMemoryEntry = {};
 	System->FirstUseMemoryEntry.NextAllocEntry = &System->FirstUseMemoryEntry;
 	System->FirstUseMemoryEntry.PrevAllocEntry = &System->FirstUseMemoryEntry;
+
+	//NOTE(dima): Initializing asset memory entry that will be used for asset datas
+	System->FirstAssetMem = AssetAllocateMemoryEntry(System);
+	System->FirstAssetMem->NextMem = 0;
+	System->FirstAssetMem->PrevMem = 0;
+	u32 AssetDatasMemSize = MEGABYTES(40);
+	System->FirstAssetMem->Data = PushSomeMemory(System->AssetSystemMemory, AssetDatasMemSize);
+	System->FirstAssetMem->DataSize = AssetDatasMemSize;
 
 	System->Assets[0] = {};
 	System->AssetCount = 1;

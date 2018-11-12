@@ -30,6 +30,11 @@ struct game_asset_tag {
 	};
 };
 
+enum asset_memory_entry_state {
+	MemoryEntryState_None,
+	MemoryEntryState_Used,
+};
+
 struct asset_memory_entry {
 	asset_memory_entry* NextAllocEntry;
 	asset_memory_entry* PrevAllocEntry;
@@ -39,6 +44,8 @@ struct asset_memory_entry {
 
 	void* Data;
 	u32 DataSize;
+
+	u32 State;
 };
 
 struct game_asset {
@@ -92,6 +99,8 @@ struct asset_system {
 	game_asset_pool_block AssetPoolBlockSentinel;
 	asset_memory_entry FirstUseMemoryEntry;
 	asset_memory_entry FirstFreeMemoryEntry;
+
+	asset_memory_entry* FirstAssetMem;
 
 	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];
