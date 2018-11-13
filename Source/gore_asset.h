@@ -61,10 +61,10 @@ struct game_asset {
 	game_asset_tag* Tags;
 	int TagCount;
 
-	void* AssetData;
-	u32 AssetDataSize;
 	u32 AssetDataOffsetInFile;
 	char AssetFilePath[128];
+
+	asset_memory_entry* DataMemoryEntry;
 
 	union {
 		bitmap_info Bitmap;
@@ -100,7 +100,7 @@ struct asset_system {
 	asset_memory_entry FirstUseMemoryEntry;
 	asset_memory_entry FirstFreeMemoryEntry;
 
-	asset_memory_entry* FirstAssetMem;
+	asset_memory_entry* SentinelAssetMem;
 
 	u32 AssetCount;
 	game_asset Assets[TEMP_STORED_ASSET_COUNT];

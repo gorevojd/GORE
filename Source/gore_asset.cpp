@@ -244,16 +244,6 @@ static void AssetAllocateBitmap(
 	Bitmap->TextureHandle = 0;
 }
 
-void* AssetRequestMemory(asset_system* System, u32 MemorySize) {
-	void* Result = malloc(MemorySize);
-
-	return(Result);
-}
-
-void AssetReleaseMemory(asset_system* System) {
-
-}
-
 inline void InsertAssetBefore(game_asset* ToInsert, game_asset* Before) {
 	ToInsert->Next = Before;
 	ToInsert->Prev = Before->Prev;
@@ -330,6 +320,9 @@ inline asset_memory_entry* AssetAllocateMemoryEntry(asset_system* AssetSystem) {
 	//NOTE(dima): Allocating entry
 	Result = AssetSystem->FirstFreeMemoryEntry.NextAllocEntry;
 
+	Result->NextAllocEntry->PrevAllocEntry = Result->PrevAllocEntry;
+	Result->PrevAllocEntry->NextAllocEntry = Result->NextAllocEntry;
+
 	Result->NextAllocEntry = AssetSystem->FirstUseMemoryEntry.NextAllocEntry;
 	Result->PrevAllocEntry = &AssetSystem->FirstUseMemoryEntry;
 
@@ -364,15 +357,15 @@ inline void AssetDeallocateMemoryEntry(
 	requested memory size
 */
 asset_memory_entry* SplitMemoryEntry(
-	asset_system* AssetSystem, 
-	asset_memory_entry* ToSplit, 
+	asset_system* AssetSystem,
+	asset_memory_entry* ToSplit,
 	u32 SplitOffset)
 {
 	/*
 		NOTE(dima): If equal then second block will be 0 bytes,
 		so we dont need equal and the sign is <
 	*/
-	Assert(SplitOffset < ToSplit->DataSize);
+	Assert(SplitOffset <= ToSplit->DataSize);
 
 	//NOTE(dima): allocating entries
 	asset_memory_entry* NewEntry1 = AssetAllocateMemoryEntry(AssetSystem);
@@ -384,6 +377,14 @@ asset_memory_entry* SplitMemoryEntry(
 	NewEntry2->PrevMem = NewEntry1;
 	NewEntry2->NextMem = ToSplit->NextMem;
 
+	if (ToSplit->PrevMem) {
+		ToSplit->PrevMem->NextMem = NewEntry1;
+	}
+
+	if (ToSplit->NextMem) {
+		ToSplit->NextMem->PrevMem = NewEntry2;
+	}
+
 	//NOTE(dima): setting entries data
 	NewEntry1->DataSize = SplitOffset;
 	NewEntry1->Data = ToSplit->Data;
@@ -393,6 +394,8 @@ asset_memory_entry* SplitMemoryEntry(
 
 	//NOTE(dima): Deallocating initial entry
 	AssetDeallocateMemoryEntry(AssetSystem, ToSplit);
+
+	Assert(NewEntry1->DataSize + NewEntry2->DataSize == ToSplit->DataSize);
 
 	return(NewEntry1);
 }
@@ -407,6 +410,8 @@ asset_memory_entry* MergeMemoryEntries(
 	asset_memory_entry* First,
 	asset_memory_entry* Second) 
 {
+	Assert(First->NextMem == Second);
+
 	First->NextMem = Second->NextMem;
 
 	First->DataSize = First->DataSize + Second->DataSize;
@@ -429,52 +434,42 @@ asset_memory_entry* AssetAllocateMemory(
 		In this loop i walk through all allocated memory entries
 		and try to merge those that lie near each other
 	*/
-	asset_memory_entry* At = AssetSystem->FirstAssetMem;
+	int TempCounter = 0;
+	asset_memory_entry* At = AssetSystem->SentinelAssetMem->NextMem;
 
 	while (At) {
+		asset_memory_entry* NextAt = At->NextMem;
 
-		asset_memory_entry* LastMergeEntry = At;
 		if (At->State == MemoryEntryState_None) {
-			asset_memory_entry* NextAt = At->NextMem;
 
 			while (NextAt) {
-
 				if (NextAt->State == MemoryEntryState_None) {
-					LastMergeEntry = NextAt;
+					At = MergeMemoryEntries(AssetSystem, At, NextAt);
+					NextAt = At->NextMem;
 				}
 				else {
 					break;
 				}
-
-				NextAt = NextAt->NextMem;
-			}
-
-			if (LastMergeEntry != At) {
-
 			}
 		}
-		
+
+		TempCounter++;
+		At = NextAt;
 	}
 
-
 	//NOTE(dima): Find loop
-	At = AssetSystem->FirstAssetMem;
+	At = AssetSystem->SentinelAssetMem->NextMem;
 	while (At) {
 		asset_memory_entry* NextMem = At->NextMem;
 
-		if (At->DataSize > RequestMemorySize) {
+		if (At->State == MemoryEntryState_None &&  
+			At->DataSize >= RequestMemorySize) 
+		{
 			Result = SplitMemoryEntry(AssetSystem, At, RequestMemorySize);
 
 			break;
 		}
-		else if (At->DataSize < RequestMemorySize) {
-			
-		}
-		else {
-			Result = At;
 
-			break;
-		}
 
 		At = NextMem;
 	}
@@ -483,7 +478,14 @@ asset_memory_entry* AssetAllocateMemory(
 		Result->State = MemoryEntryState_Used;
 	}
 
+	Assert(RequestMemorySize == Result->DataSize);
+	Assert(Result->State == MemoryEntryState_Used);
+
 	return(Result);
+}
+
+void AssetReleaseMemory(asset_system* AssetSystem, asset_memory_entry* MemoryEntry) {
+	MemoryEntry->State = MemoryEntryState_None;
 }
 
 void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
@@ -505,12 +507,16 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 	System->FirstUseMemoryEntry.PrevAllocEntry = &System->FirstUseMemoryEntry;
 
 	//NOTE(dima): Initializing asset memory entry that will be used for asset datas
-	System->FirstAssetMem = AssetAllocateMemoryEntry(System);
-	System->FirstAssetMem->NextMem = 0;
-	System->FirstAssetMem->PrevMem = 0;
+	asset_memory_entry* FirstAssetMem = AssetAllocateMemoryEntry(System);
+	FirstAssetMem->NextMem = 0;
+	FirstAssetMem->PrevMem = 0;
 	u32 AssetDatasMemSize = MEGABYTES(40);
-	System->FirstAssetMem->Data = PushSomeMemory(System->AssetSystemMemory, AssetDatasMemSize);
-	System->FirstAssetMem->DataSize = AssetDatasMemSize;
+	FirstAssetMem->Data = PushSomeMemory(System->AssetSystemMemory, AssetDatasMemSize);
+	FirstAssetMem->DataSize = AssetDatasMemSize;
+
+	System->SentinelAssetMem = AssetAllocateMemoryEntry(System);
+	System->SentinelAssetMem->NextMem = FirstAssetMem;
+	System->SentinelAssetMem->NextMem->PrevMem = System->SentinelAssetMem;
 
 	System->Assets[0] = {};
 	System->AssetCount = 1;
@@ -682,9 +688,7 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 
 						u32 AssetDataOffsetInFile = AssetLinesOffsets[FileAssetIndex] + GASS->LineDataOffset;
 						Asset->AssetDataOffsetInFile = AssetDataOffsetInFile;
-						Asset->AssetDataSize = GASS->AssetTotalDataSize;
-						Asset->AssetData = 0;
-
+							
 						switch (Asset->Type) {
 							case AssetType_Bitmap: {
 								bitmap_info* TargetBitmap = &Asset->Bitmap;
@@ -697,7 +701,12 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 									GASS->Bitmap.Height);
 
 								u32 DataMemSize = GASS->AssetTotalDataSize;
-								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								Asset->DataMemoryEntry = AssetAllocateMemory(
+									System,
+									DataMemSize);
+
+								void* DataMem = Asset->DataMemoryEntry->Data;
 
 								//NOTE(dima): Reading data from file
 								PlatformApi.ReadDataFromFileEntry(
@@ -732,7 +741,12 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								u32 DataMemSize =
 									GASS->AssetTotalDataSize +
 									sizeof(u32) * GASS->Font.GlyphsCount;
-								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								Asset->DataMemoryEntry = AssetAllocateMemory(
+									System,
+									DataMemSize);
+
+								void* DataMem = Asset->DataMemoryEntry->Data;
 
 								//NOTE(dima): Reading data from file
 								PlatformApi.ReadDataFromFileEntry(
@@ -769,7 +783,12 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								glyph_info* Glyph = &Asset->Glyph;
 
 								u32 DataMemSize = GASS->AssetTotalDataSize;
-								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								Asset->DataMemoryEntry = AssetAllocateMemory(
+									System,
+									DataMemSize);
+
+								void* DataMem = Asset->DataMemoryEntry->Data;
 
 								AssetAllocateBitmap(
 									&Glyph->Bitmap,
@@ -823,7 +842,9 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								mesh_info* TargetMesh = &Asset->Mesh;
 
 								u32 DataMemSize = GASS->AssetTotalDataSize;
-								void* DataMem = AssetRequestMemory(System, DataMemSize);
+
+								Asset->DataMemoryEntry = AssetAllocateMemory(System, DataMemSize);
+								void* DataMem = Asset->DataMemoryEntry->Data;
 
 								//NOTE(dima): Reading data from file
 								PlatformApi.ReadDataFromFileEntry(
