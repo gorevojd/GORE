@@ -1251,12 +1251,12 @@ void WindaInitState(winda_state* State) {
 
 	//NOTE(dima): Allocation of alloc queue entries
 	int PlatformAllocEntriesCount = 1 << 12;
-	int MemoryForAllocEntriesRequired = PlatformAllocEntriesCount * sizeof(dealloc_queue_entry);
+	int MemoryForAllocEntriesRequired = PlatformAllocEntriesCount * sizeof(alloc_queue_entry);
 	int AllocQueueEntryIndex = 0;
 
-	dealloc_queue_entry* AllocQueueEntries = PushArray(
+	alloc_queue_entry* AllocQueueEntries = PushArray(
 		&WindaState.PlatformMemStack,
-		dealloc_queue_entry,
+		alloc_queue_entry,
 		PlatformAllocEntriesCount);
 
 	PlatformApi.FirstUseAllocQueueEntry = AllocQueueEntries + AllocQueueEntryIndex++;
@@ -1271,7 +1271,7 @@ void WindaInitState(winda_state* State) {
 		AllocQueueEntryIndex < PlatformAllocEntriesCount;
 		AllocQueueEntryIndex++)
 	{
-		dealloc_queue_entry* Entry = AllocQueueEntries + AllocQueueEntryIndex;
+		alloc_queue_entry* Entry = AllocQueueEntries + AllocQueueEntryIndex;
 
 		Entry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
 		Entry->Prev = PlatformApi.FirstFreeAllocQueueEntry;

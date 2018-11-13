@@ -1301,11 +1301,12 @@ static void UnloadMeshInternal(
 	MeshInfo->MeshInfo.Vertices = 0;
 	MeshInfo->MeshInfo.VerticesCount = 0;
 
-	dealloc_queue_entry* AllocEntry = PlatformRequestDeallocEntry();
+	alloc_queue_entry* AllocEntry = PlatformRequestAllocEntry();
 	AllocEntry->EntryType = DeallocQueueEntry_VoxelMesh;
-	AllocEntry->Data.VoxelMeshData.Handle1 = MeshInfo->MeshInfo.MeshHandle;
-	AllocEntry->Data.VoxelMeshData.Handle2 = MeshInfo->MeshInfo.MeshHandle2;
-	PlatformInsertDellocEntry(AllocEntry);
+	AllocEntry->IsAllocate = 0;
+	AllocEntry->Data.FreeHandles.FreeHandle0 = MeshInfo->MeshInfo.MeshHandle;
+	AllocEntry->Data.FreeHandles.FreeHandle1 = MeshInfo->MeshInfo.MeshHandle2;
+	PlatformInsertAllocEntry(AllocEntry);
 
 	MeshInfo->MeshInfo.MeshHandle = 0;
 	MeshInfo->MeshInfo.MeshHandle2 = 0;

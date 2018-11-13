@@ -1496,10 +1496,10 @@ void OpenGLProcessAllocationQueue() {
 
 	FUNCTION_TIMING();
 
-	dealloc_queue_entry* FirstEntry = 0;
-	dealloc_queue_entry* LastEntry = 0;
+	alloc_queue_entry* FirstEntry = 0;
+	alloc_queue_entry* LastEntry = 0;
 
-	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
+	BeginMutexAccess(&PlatformApi.AllocQueueMutex);
 	
 	//NOTE(dima): If there is something to allocate...
 	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) 
@@ -1523,31 +1523,41 @@ void OpenGLProcessAllocationQueue() {
 #endif
 	}
 
-	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.AllocQueueMutex);
 
-	for (dealloc_queue_entry* Entry = FirstEntry;
+	for (alloc_queue_entry* Entry = FirstEntry;
 		Entry;)
 	{
-		dealloc_queue_entry* NextEntry = Entry->Next;
+		alloc_queue_entry* NextEntry = Entry->Next;
 
 		switch (Entry->EntryType) {
 			case DeallocQueueEntry_Bitmap: {
-				GLuint TextureHandle = (GLuint)Entry->Data.BitmapData.TextureHandle;
+				if (Entry->IsAllocate) {
+					
+				}
+				else {
+					GLuint TextureHandle = (GLuint)Entry->Data.FreeHandles.FreeHandle0;
 
-				glDeleteTextures(1, &TextureHandle);
+					glDeleteTextures(1, &TextureHandle);
+				}
 			}break;
 
 			case DeallocQueueEntry_VoxelMesh: {
-				GLuint MeshVBO = (GLuint)Entry->Data.VoxelMeshData.Handle2;
-				GLuint MeshVAO = (GLuint)Entry->Data.VoxelMeshData.Handle1;
+				if (Entry->IsAllocate) {
 
-				glDeleteVertexArrays(1, &MeshVAO);
-				glDeleteBuffers(1, &MeshVBO);
+				}
+				else {
+					GLuint MeshVAO = (GLuint)Entry->Data.FreeHandles.FreeHandle0;
+					GLuint MeshVBO = (GLuint)Entry->Data.FreeHandles.FreeHandle1;
+
+					glDeleteVertexArrays(1, &MeshVAO);
+					glDeleteBuffers(1, &MeshVBO);
+				}
 			}break;
 		}
 
 #if 1
-		BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
+		BeginMutexAccess(&PlatformApi.AllocQueueMutex);
 		
 		Entry->Next->Prev = Entry->Prev;
 		Entry->Prev->Next = Entry->Next;
@@ -1558,7 +1568,7 @@ void OpenGLProcessAllocationQueue() {
 		Entry->Next->Prev = Entry;
 		Entry->Prev->Next = Entry;
 
-		EndMutexAccess(&PlatformApi.DeallocQueueMutex);
+		EndMutexAccess(&PlatformApi.AllocQueueMutex);
 #endif
 
 		if (Entry == LastEntry) {
@@ -1568,4 +1578,3 @@ void OpenGLProcessAllocationQueue() {
 		Entry = NextEntry;
 	}
 }
-//

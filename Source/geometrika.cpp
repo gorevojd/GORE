@@ -308,10 +308,11 @@ void UpdateCelluralMachine(
 #endif
 
 	//NOTE(dima): Deallocating bitmap entry to reallocate it in the renderer
-	dealloc_queue_entry* DeallocEntry = PlatformRequestDeallocEntry();
+	alloc_queue_entry* DeallocEntry = PlatformRequestAllocEntry();
+	DeallocEntry->IsAllocate = 0;
 	DeallocEntry->EntryType = DeallocQueueEntry_Bitmap;
-	DeallocEntry->Data.BitmapData.TextureHandle = Machine->Bitmap.TextureHandle;;
-	PlatformInsertDellocEntry(DeallocEntry);
+	DeallocEntry->Data.FreeHandles.FreeHandle0 = Machine->Bitmap.TextureHandle;
+	PlatformInsertAllocEntry(DeallocEntry);
 
 	Machine->Bitmap.TextureHandle = 0;
 

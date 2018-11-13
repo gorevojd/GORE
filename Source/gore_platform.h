@@ -257,29 +257,70 @@ typedef PLATFORM_GET_DISPLAY_MODE_COUNT(platform_get_display_mode_count);
 #define PLATFORM_TRY_GET_DISPLAY_MODE(name) b32 name(int ModeIndex, platform_display_mode* DisplayMode)
 typedef PLATFORM_TRY_GET_DISPLAY_MODE(platform_try_get_display_mode);
 
-struct dealloc_queue_bitmap_data {
+struct alloc_queue_bitmap_data {
 	void* TextureHandle;
 };
 
-struct dealloc_queue_voxelmesh_data {
+struct alloc_queue_voxelmesh_data {
 	void* Handle1;
 	void* Handle2;
 };
 
-enum dealloc_queue_entry_type {
+enum alloc_queue_entry_type {
 	DeallocQueueEntry_Bitmap,
 	DeallocQueueEntry_VoxelMesh,
 };
 
-struct dealloc_queue_entry {
-	dealloc_queue_entry* Prev;
-	dealloc_queue_entry* Next;
+struct alloc_queue_entry_init_handles {
+	union {
+		struct {
+			void** InitHandle0;
+			void** InitHandle1;
+			void** InitHandle2;
+			void** InitHandle3;
+		};
+
+		void** InitHandles[4];
+	};
+};
+
+struct alloc_queue_entry_free_handles {
+	union {
+		struct {
+			void* FreeHandle0;
+			void* FreeHandle1;
+			void* FreeHandle2;
+			void* FreeHandle3;
+		};
+
+		void* FreeHandles[4];
+	};
+
+	/*
+	union {
+		struct {
+			b32 FreeHandle0IsSet;
+			b32 FreeHandle1IsSet;
+			b32 FreeHandle2IsSet;
+			b32 FreeHandle3IsSet;
+		};
+
+		b32 FreeHandlesIsSet[4];
+	};
+	*/
+};
+
+struct alloc_queue_entry {
+	alloc_queue_entry* Prev;
+	alloc_queue_entry* Next;
 
 	u32 EntryType;
 
+	b32 IsAllocate;
+
 	union {
-		dealloc_queue_bitmap_data BitmapData;
-		dealloc_queue_voxelmesh_data VoxelMeshData;
+		alloc_queue_entry_init_handles InitHandles;
+		alloc_queue_entry_free_handles FreeHandles;
 	} Data;
 };
 
@@ -356,17 +397,17 @@ struct platform_api {
 	platform_get_display_mode_count* GetDisplayModeCount;
 	platform_try_get_display_mode* TryGetDisplayMode;
 
-	platform_mutex DeallocQueueMutex;
-	dealloc_queue_entry* FirstUseAllocQueueEntry;
-	dealloc_queue_entry* FirstFreeAllocQueueEntry;
+	platform_mutex AllocQueueMutex;
+	alloc_queue_entry* FirstUseAllocQueueEntry;
+	alloc_queue_entry* FirstFreeAllocQueueEntry;
 };
 
 extern platform_api PlatformApi;
 
-inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
-	dealloc_queue_entry* Result = 0;
+inline alloc_queue_entry* PlatformRequestAllocEntry() {
+	alloc_queue_entry* Result = 0;
 
-	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
+	BeginMutexAccess(&PlatformApi.AllocQueueMutex);
 
 	Assert(PlatformApi.FirstFreeAllocQueueEntry->Next != PlatformApi.FirstFreeAllocQueueEntry);
 
@@ -377,14 +418,15 @@ inline dealloc_queue_entry* PlatformRequestDeallocEntry() {
 
 	Result->Data = {};
 	Result->EntryType = {};
+	Result->IsAllocate = {};
 
-	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.AllocQueueMutex);
 
 	return(Result);
 }
 
-inline void PlatformInsertDellocEntry(dealloc_queue_entry* Entry) {
-	BeginMutexAccess(&PlatformApi.DeallocQueueMutex);
+inline void PlatformInsertAllocEntry(alloc_queue_entry* Entry) {
+	BeginMutexAccess(&PlatformApi.AllocQueueMutex);
 
 	Entry->Next = PlatformApi.FirstUseAllocQueueEntry->Next;
 	Entry->Prev = PlatformApi.FirstUseAllocQueueEntry;
@@ -392,7 +434,7 @@ inline void PlatformInsertDellocEntry(dealloc_queue_entry* Entry) {
 	Entry->Next->Prev = Entry;
 	Entry->Prev->Next = Entry;
 
-	EndMutexAccess(&PlatformApi.DeallocQueueMutex);
+	EndMutexAccess(&PlatformApi.AllocQueueMutex);
 }
 
 
