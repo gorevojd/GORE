@@ -135,6 +135,7 @@ enum asset_load_font_from_image_flag {
 enum asset_load_font_flags {
 	AssetLoadFontFlag_None = 0,
 	AssetLoadFontFlag_BakeOffsetShadows = 1,
+	AssetLoadFontFlag_BakeBlur,
 };
 
 #endif

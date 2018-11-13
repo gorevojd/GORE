@@ -184,8 +184,8 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 
 		if (IsPrint && CharIsValid)
 		{
-			float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
-			float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
+			float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
+			float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;
 
 			v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 

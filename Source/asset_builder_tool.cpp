@@ -470,6 +470,8 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	loader_font_info Result = {};
 	stbtt_fontinfo FontInfo;
 
+	float OneOver255 = 1.0f / 255.0f;
+
 	data_buffer FontFileBuffer = ReadFileToDataBuffer(FontName);
 
 	int AscenderHeight;
@@ -536,8 +538,9 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 		Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
 		Glyph->Advance = Advance * Scale;
 		Glyph->LeftBearingX = LeftBearingX * Scale;
-		Glyph->XOffset = XOffset;
-		Glyph->YOffset = YOffset;
+		//NOTE(dima): Subtract 1 here because of 1 pixel wrap around glyph bitmap
+		Glyph->XOffset = XOffset - 1;
+		Glyph->YOffset = YOffset - 1;
 		Glyph->Codepoint = Codepoint;
 
 		AtlasWidth += Glyph->Width;
@@ -565,7 +568,7 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 					u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
 					float GrayscaleFloat = (float)(Grayscale + 0.5f);
-					float Grayscale01 = GrayscaleFloat / 255.0f;
+					float Grayscale01 = GrayscaleFloat * OneOver255;
 
 					v4 ResultColor = V4(0.0f, 0.0f, 0.0f, Grayscale01);
 
@@ -583,6 +586,10 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 			}
 		}
 
+		if (Flags & AssetLoadFontFlag_BakeBlur) {
+
+		}
+
 		SrcX = 0;
 		SrcY = 0;
 
@@ -596,7 +603,7 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 				u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
 				float GrayscaleFloat = (float)(Grayscale + 0.5f);
-				float Grayscale01 = GrayscaleFloat / 255.0f;
+				float Grayscale01 = GrayscaleFloat * OneOver255;
 
 				v4 ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
 
@@ -660,8 +667,13 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 			}
 		}
 
-		Glyph->AtlasMinUV = V2((float)AtWidth * OneOverAtlasWidth, 0.0f);
-		Glyph->AtlasMaxUV = V2((float)(AtWidth + Glyph->Width) * OneOverAtlasWidth, Glyph->Height * OneOverAtlasHeight);
+		Glyph->AtlasMinUV = V2(
+			(float)AtWidth * OneOverAtlasWidth, 
+			0.0f);
+
+		Glyph->AtlasMaxUV = V2(
+			(float)(AtWidth + Glyph->Width) * OneOverAtlasWidth, 
+			Glyph->Height * OneOverAtlasHeight);
 
 		AtWidth += Glyph->Width;
 	}
@@ -1003,6 +1015,8 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 	}
 
 	free(AssetsLinesOffsets);
+
+	printf("File %s has been written...\n", FileName);
 }
 
 void WriteFonts() 
