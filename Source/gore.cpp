@@ -255,6 +255,133 @@ void VisualizeRay(render_stack* Stack, gore_ray2d* Ray, v4 Color) {
 	}
 }
 
+u32 Calcualte2DGaussianBoxComponentsCount(int Radius) {
+	int Diameter = Radius + Radius + 1;
+
+	u32 Result = Diameter * Diameter;
+
+	return(Result);
+}
+
+void Calculate2DGaussianBox(float* Box, int Radius) {
+	int Diameter = Radius + Radius + 1;
+
+	int Center = Radius;
+
+	float Sigma = (float)Radius;
+
+	float A = 1.0f / (2.0f * GORE_PI * Sigma * Sigma);
+
+	float InExpDivisor = 2.0f * Sigma * Sigma;
+
+	for (int y = 0; y < Diameter; y++) {
+		int PsiY = y - Center;
+		for (int x = 0; x < Diameter; x++) {
+			int PsiX = x - Center;
+
+			float ValueToExp = -((PsiX * PsiX + PsiY * PsiY) / InExpDivisor);
+
+			float Expon = Exp(ValueToExp);
+
+			Box[y * Diameter + x] = A * Expon;
+		}
+	}
+}
+
+void Normalize2DGaussianBox(float* Box, int Radius) {
+	//NOTE(dima): Calculate sum of all elements
+	float TempSum = 0.0f;
+	int Diam = Radius + Radius + 1;
+	for (int i = 0; i < Diam * Diam; i++) {
+		TempSum += Box[i];
+	}
+
+	//NOTE(dima): Normalize elements
+	float NormValueMul = 1.0f / TempSum;
+
+	for (int i = 0; i < Diam * Diam; i++) {
+		Box[i] *= NormValueMul;
+	}
+}
+
+bitmap_info BlurBitmap(
+	bitmap_info* BitmapToBlur, 
+	void* InitBitmapMem, 
+	int Width, int Height, 
+	int BlurRadius,
+	float* GaussianBox) 
+{
+	bitmap_info Result = AssetAllocateBitmapInternal(Width, Height, InitBitmapMem);
+
+	int BlurDiam = 1 + BlurRadius + BlurRadius;
+
+	for (int Y = 0; Y < BitmapToBlur->Height; Y++) {
+		for (int X = 0; X < BitmapToBlur->Width; X++) {
+
+			u32* TargetPixel = (u32*)(Result.Pixels + Y * Width * 4 + X * 4);
+
+
+#if 1
+			v4 SumColor = {};
+			for (int kY = Y - BlurRadius; kY <= Y + BlurRadius; kY++) {
+				int targetY = Clamp(kY, 0, BitmapToBlur->Height - 1);
+				int inboxY = kY - (Y - BlurRadius);
+				for (int kX = X - BlurRadius; kX <= X + BlurRadius; kX++) {
+					int targetX = Clamp(kX, 0, BitmapToBlur->Width - 1);
+					int inboxX = kX - (X - BlurRadius);
+
+					u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + targetY * BitmapToBlur->Pitch + targetX * 4);
+
+					v4 UnpackedColor = UnpackRGBA(*ScanPixel);
+
+					SumColor += UnpackedColor * GaussianBox[inboxY * BlurDiam + inboxX];
+				}
+			}
+
+			*TargetPixel = PackRGBA(SumColor);
+#else
+			v4 VertSum = {};
+			int VertSumCount = 0;
+			for (int kY = Y - PixelRadius; kY <= Y + PixelRadius; kY++) {
+				int targetY = Clamp(kY, 0, BitmapToBlur->Height - 1);
+
+				u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + targetY * BitmapToBlur->Pitch + X * 4);
+				v4 UnpackedColor = UnpackRGBA(*ScanPixel);
+
+				VertSum += UnpackedColor;
+
+				VertSumCount++;
+			}
+
+
+			v4 HorzSum = {};
+			int HorzSumCount = 0;
+			for (int kX = X - PixelRadius; kX <= X + PixelRadius; kX++) {
+				int targetX = Clamp(kX, 0, BitmapToBlur->Width - 1);
+
+				u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + Y * BitmapToBlur->Pitch + X * 4);
+				v4 UnpackedColor = UnpackRGBA(*ScanPixel);
+
+				HorzSum += UnpackedColor;
+
+				HorzSumCount++;
+			}
+
+			VertSum = VertSum / (float)VertSumCount;
+			HorzSum = HorzSum / (float)HorzSumCount;
+
+			v4 TotalSum = (VertSum + HorzSum) * 0.5f;
+
+			*TargetPixel = PackRGBA(TotalSum);
+#endif
+
+
+		}
+	}
+
+	return(Result);
+}
+
 
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	gore_state* GoreState = (gore_state*)GameModeState->GameModeMemory.BaseAddress;
@@ -379,6 +506,36 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		GoreState->FlyingQueueCount = 2048;
 		GoreState->FlyingQueueCurrent = 0;
 		GoreState->FlyingQueue = PushArray(GoreState->GameModeMemory, gore_flying_weapon, GoreState->FlyingQueueCount);
+
+#if 1
+		bitmap_id TempBitmapID1 = GetFirstBitmap(EngineSystems->AssetSystem, GameAsset_OblivonMemeImage);
+		GoreState->BitmapToBlur = GetBitmapFromID(EngineSystems->AssetSystem, TempBitmapID1);
+
+		int BlurRadius = 4;
+		u32 GaussianBoxCompCount = Calcualte2DGaussianBoxComponentsCount(BlurRadius);
+		float* GaussianBox = PushArray(GoreState->GameModeMemory, float, GaussianBoxCompCount);
+		Calculate2DGaussianBox(GaussianBox, BlurRadius);
+		Normalize2DGaussianBox(GaussianBox, BlurRadius);
+
+		void* BitmapMemory = PushSomeMemory(
+			GoreState->GameModeMemory,
+			GoreState->BitmapToBlur->Width * GoreState->BitmapToBlur->Height * 4);
+
+		float TempSum = 0.0f;
+		int Diam = BlurRadius + BlurRadius + 1;
+		for (int i = 0; i < Diam * Diam; i++) {
+			TempSum += GaussianBox[i];
+		}
+
+
+		GoreState->BlurredBitmap = BlurBitmap(
+			GoreState->BitmapToBlur, 
+			BitmapMemory, 
+			GoreState->BitmapToBlur->Width,
+			GoreState->BitmapToBlur->Height,
+			BlurRadius, 
+			GaussianBox);
+#endif
 
 		GoreState->IsInitialized = 1;
 	}
@@ -843,6 +1000,11 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		&Font->FontAtlasImage,
 		V2(10, 10),
 		20);
+
+	float BitmapsHeight = 380.0f;
+	RENDERPushBitmap(RenderStack, GoreState->BitmapToBlur, V2(0.0f, 0.0f), BitmapsHeight);
+	RENDERPushBitmap(RenderStack, &GoreState->BlurredBitmap, V2(0.0f, BitmapsHeight), BitmapsHeight);
+
 #endif
 
 	END_TIMING();
