@@ -190,6 +190,12 @@ typedef PLATFORM_TERMINATE_PROGRAM(platform_terminate_program);
 #define PLATFORM_END_GAME_LOOP(name) void name()
 typedef PLATFORM_END_GAME_LOOP(platform_end_game_loop);
 
+#define PLATFORM_GET_PERFOMANCE_COUNTER(name) u64 name()
+typedef PLATFORM_GET_PERFOMANCE_COUNTER(platform_get_perfomance_counter);
+
+#define PLATFORM_GET_PERFOMANCE_FREQUENCY(name) u64 name()
+typedef PLATFORM_GET_PREFOMANCE_FREQUENCY(platform_get_perfomance_frequency);
+
 enum open_file_type {
 	FileType_Asset,
 	FileType_SavedGame,
@@ -397,6 +403,9 @@ struct platform_api {
 
 	platform_place_cursor_at_center* PlaceCursorAtCenter;
 	platform_terminate_program* TerminateProgram;
+
+	platform_get_perfomance_counter* GetPerfomanceCounter;
+	platform_get_perfomance_frequency* GetPerfomanceFrequency;
 
 	platform_get_display_device_count* GetDisplayDeviceCount;
 	platform_try_get_display_device* TryGetDisplayDevice;
