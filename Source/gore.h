@@ -213,7 +213,8 @@ struct gore_state {
 
 #if 1
 	bitmap_info* BitmapToBlur;
-	bitmap_info BlurredBitmap;
+	bitmap_info BlurredBitmapExact;
+	bitmap_info BlurredBitmapApproximate;
 #endif
 };
 

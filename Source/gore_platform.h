@@ -195,17 +195,6 @@ enum open_file_type {
 	FileType_SavedGame,
 };
 
-struct platform_time {
-	u16 Year;
-	u16 Month;
-	u16 DayOfWeek;
-	u16 Day;
-	u16 Hour;
-	u16 Minute;
-	u16 Second;
-	u16 Millisecond;
-};
-
 struct platform_file_entry {
 	platform_file_entry* Next;
 
@@ -224,6 +213,17 @@ struct platform_file_group {
 	void* FreeFileGroupMemory;
 
 	platform_file_entry* FirstFileEntry;
+};
+
+struct platform_time {
+	u16 Year;
+	u16 Month;
+	u16 DayOfWeek;
+	u16 Day;
+	u16 Hour;
+	u16 Minute;
+	u16 Second;
+	u16 Millisecond;
 };
 
 #define PLATFORM_GET_TIME_FROM_TIME_HANDLE(name) platform_time name(u64 Time)

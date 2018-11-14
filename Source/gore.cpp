@@ -304,48 +304,25 @@ void Normalize2DGaussianBox(float* Box, int Radius) {
 	}
 }
 
-bitmap_info BlurBitmap(
-	bitmap_info* BitmapToBlur, 
-	void* InitBitmapMem, 
-	int Width, int Height, 
-	int BlurRadius,
-	float* GaussianBox) 
-{
-	bitmap_info Result = AssetAllocateBitmapInternal(Width, Height, InitBitmapMem);
 
+void BoxBlurApproximate(
+	bitmap_info* To,
+	bitmap_info* From,
+	int BlurRadius)
+{
 	int BlurDiam = 1 + BlurRadius + BlurRadius;
 
-	for (int Y = 0; Y < BitmapToBlur->Height; Y++) {
-		for (int X = 0; X < BitmapToBlur->Width; X++) {
+	for (int Y = 0; Y < From->Height; Y++) {
+		for (int X = 0; X < From->Width; X++) {
 
-			u32* TargetPixel = (u32*)(Result.Pixels + Y * Width * 4 + X * 4);
+			u32* TargetPixel = (u32*)(To->Pixels + Y * To->Pitch + X * 4);
 
-
-#if 1
-			v4 SumColor = {};
-			for (int kY = Y - BlurRadius; kY <= Y + BlurRadius; kY++) {
-				int targetY = Clamp(kY, 0, BitmapToBlur->Height - 1);
-				int inboxY = kY - (Y - BlurRadius);
-				for (int kX = X - BlurRadius; kX <= X + BlurRadius; kX++) {
-					int targetX = Clamp(kX, 0, BitmapToBlur->Width - 1);
-					int inboxX = kX - (X - BlurRadius);
-
-					u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + targetY * BitmapToBlur->Pitch + targetX * 4);
-
-					v4 UnpackedColor = UnpackRGBA(*ScanPixel);
-
-					SumColor += UnpackedColor * GaussianBox[inboxY * BlurDiam + inboxX];
-				}
-			}
-
-			*TargetPixel = PackRGBA(SumColor);
-#else
 			v4 VertSum = {};
 			int VertSumCount = 0;
-			for (int kY = Y - PixelRadius; kY <= Y + PixelRadius; kY++) {
-				int targetY = Clamp(kY, 0, BitmapToBlur->Height - 1);
+			for (int kY = Y - BlurRadius; kY <= Y + BlurRadius; kY++) {
+				int targetY = Clamp(kY, 0, From->Height - 1);
 
-				u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + targetY * BitmapToBlur->Pitch + X * 4);
+				u32* ScanPixel = (u32*)(From->Pixels + targetY * From->Pitch + X * 4);
 				v4 UnpackedColor = UnpackRGBA(*ScanPixel);
 
 				VertSum += UnpackedColor;
@@ -356,10 +333,10 @@ bitmap_info BlurBitmap(
 
 			v4 HorzSum = {};
 			int HorzSumCount = 0;
-			for (int kX = X - PixelRadius; kX <= X + PixelRadius; kX++) {
-				int targetX = Clamp(kX, 0, BitmapToBlur->Width - 1);
+			for (int kX = X - BlurRadius; kX <= X + BlurRadius; kX++) {
+				int targetX = Clamp(kX, 0, From->Width - 1);
 
-				u32* ScanPixel = (u32*)(BitmapToBlur->Pixels + Y * BitmapToBlur->Pitch + X * 4);
+				u32* ScanPixel = (u32*)(From->Pixels + Y * From->Pitch + targetX * 4);
 				v4 UnpackedColor = UnpackRGBA(*ScanPixel);
 
 				HorzSum += UnpackedColor;
@@ -367,17 +344,127 @@ bitmap_info BlurBitmap(
 				HorzSumCount++;
 			}
 
+
 			VertSum = VertSum / (float)VertSumCount;
 			HorzSum = HorzSum / (float)HorzSumCount;
 
 			v4 TotalSum = (VertSum + HorzSum) * 0.5f;
 
 			*TargetPixel = PackRGBA(TotalSum);
-#endif
-
-
 		}
 	}
+}
+
+bitmap_info BlurBitmapExactGaussian(
+	bitmap_info* BitmapToBlur,
+	void* ResultBitmapMem,
+	int Width, int Height,
+	int BlurRadius,
+	float* GaussianBox)
+{
+	Assert(Width == BitmapToBlur->Width);
+	Assert(Height == BitmapToBlur->Height);
+
+	bitmap_info Result = AssetAllocateBitmapInternal(
+		BitmapToBlur->Width,
+		BitmapToBlur->Height,
+		ResultBitmapMem);
+
+	int BlurDiam = 1 + BlurRadius + BlurRadius;
+
+	bitmap_info* From = BitmapToBlur;
+	bitmap_info* To = &Result;
+
+	for (int Y = 0; Y < From->Height; Y++) {
+		for (int X = 0; X < From->Width; X++) {
+
+			u32* TargetPixel = (u32*)(To->Pixels + Y * To->Pitch + X * 4);
+
+			v4 SumColor = {};
+			for (int kY = Y - BlurRadius; kY <= Y + BlurRadius; kY++) {
+				int targetY = Clamp(kY, 0, From->Height - 1);
+				int inboxY = kY - (Y - BlurRadius);
+				for (int kX = X - BlurRadius; kX <= X + BlurRadius; kX++) {
+					int targetX = Clamp(kX, 0, From->Width - 1);
+					int inboxX = kX - (X - BlurRadius);
+
+					u32* ScanPixel = (u32*)(From->Pixels + targetY * From->Pitch + targetX * 4);
+
+					v4 UnpackedColor = UnpackRGBA(*ScanPixel);
+
+					SumColor += UnpackedColor * GaussianBox[inboxY * BlurDiam + inboxX];
+				}
+			}
+
+			*TargetPixel = PackRGBA(SumColor);
+		}
+	}
+
+	return(Result);
+}
+
+bitmap_info BlurBitmapApproximateGaussian(
+	bitmap_info* BitmapToBlur,
+	void* ResultBitmapMem,
+	void* TempBitmapMem,
+	int Width, int Height,
+	int BlurRadius) 
+{
+	Assert(Width == BitmapToBlur->Width);
+	Assert(Height == BitmapToBlur->Height);
+
+	bitmap_info Result = AssetAllocateBitmapInternal(
+		BitmapToBlur->Width, 
+		BitmapToBlur->Height, 
+		ResultBitmapMem);
+
+	bitmap_info TempBitmap = AssetAllocateBitmapInternal(
+		BitmapToBlur->Width,
+		BitmapToBlur->Height,
+		TempBitmapMem);
+
+
+	/*
+		var wIdeal = Math.sqrt((12 * sigma*sigma / n) + 1);  // Ideal averaging filter width 
+		var wl = Math.floor(wIdeal);  if (wl % 2 == 0) wl--;
+		var wu = wl + 2;
+
+		var mIdeal = (12 * sigma*sigma - n*wl*wl - 4 * n*wl - 3 * n) / (-4 * wl - 4);
+		var m = Math.round(mIdeal);
+		// var sigmaActual = Math.sqrt( (m*wl*wl + (n-m)*wu*wu - n)/12 );
+
+		var sizes = [];  for (var i = 0; i<n; i++) sizes.push(i<m ? wl : wu);
+	*/
+
+	
+	float Boxes[3];
+	int n = 3;
+	float nf = 3.0f;
+
+	float Sigma = (float)BlurRadius;
+	float WIdeal = Sqrt((12.0f * Sigma * Sigma / nf) + 1.0f);
+	float wlf = floorf(WIdeal);
+	int wl = (float)(wlf + 0.5f);
+	if (wl & 1 == 0) {
+		wl--;
+	}
+	int wu = wl + 2;
+
+	float mIdeal = (12.0f * Sigma * Sigma - nf * float(wl) * float(wl) - 4.0f * nf * float(wl) - 3.0f * nf) / (-4.0f * (float)wl - 4.0f);
+	float mf = roundf(mIdeal);
+	int m = float(mf + 0.5f);
+
+	for (int i = 0; i < n; i++) {
+		int ToSet = wu;
+		if (i < m) {
+			ToSet = wl;
+		}
+		Boxes[i] = ToSet;
+	}
+
+	BoxBlurApproximate(&Result, BitmapToBlur, (Boxes[0] - 1) / 2);
+	BoxBlurApproximate(&TempBitmap, &Result,  (Boxes[1] - 1) / 2);
+	BoxBlurApproximate(&Result, &TempBitmap,  (Boxes[2] - 1) / 2);
 
 	return(Result);
 }
@@ -511,7 +598,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		bitmap_id TempBitmapID1 = GetFirstBitmap(EngineSystems->AssetSystem, GameAsset_OblivonMemeImage);
 		GoreState->BitmapToBlur = GetBitmapFromID(EngineSystems->AssetSystem, TempBitmapID1);
 
-		int BlurRadius = 4;
+		int BlurRadius = 3;
 		u32 GaussianBoxCompCount = Calcualte2DGaussianBoxComponentsCount(BlurRadius);
 		float* GaussianBox = PushArray(GoreState->GameModeMemory, float, GaussianBoxCompCount);
 		Calculate2DGaussianBox(GaussianBox, BlurRadius);
@@ -521,20 +608,31 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			GoreState->GameModeMemory,
 			GoreState->BitmapToBlur->Width * GoreState->BitmapToBlur->Height * 4);
 
+		void* TempBitmapMemory = PushSomeMemory(
+			GoreState->GameModeMemory,
+			GoreState->BitmapToBlur->Width * GoreState->BitmapToBlur->Height * 4);
+
 		float TempSum = 0.0f;
 		int Diam = BlurRadius + BlurRadius + 1;
 		for (int i = 0; i < Diam * Diam; i++) {
 			TempSum += GaussianBox[i];
 		}
 
-
-		GoreState->BlurredBitmap = BlurBitmap(
+		GoreState->BlurredBitmapExact = BlurBitmapExactGaussian(
 			GoreState->BitmapToBlur, 
 			BitmapMemory, 
 			GoreState->BitmapToBlur->Width,
 			GoreState->BitmapToBlur->Height,
 			BlurRadius, 
 			GaussianBox);
+
+		GoreState->BlurredBitmapApproximate = BlurBitmapApproximateGaussian(
+			GoreState->BitmapToBlur,
+			BitmapMemory,
+			TempBitmapMemory,
+			GoreState->BitmapToBlur->Width,
+			GoreState->BitmapToBlur->Height,
+			BlurRadius);
 #endif
 
 		GoreState->IsInitialized = 1;
@@ -1002,9 +1100,23 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		20);
 
 	float BitmapsHeight = 380.0f;
-	RENDERPushBitmap(RenderStack, GoreState->BitmapToBlur, V2(0.0f, 0.0f), BitmapsHeight);
-	RENDERPushBitmap(RenderStack, &GoreState->BlurredBitmap, V2(0.0f, BitmapsHeight), BitmapsHeight);
+	RENDERPushBitmap(
+		RenderStack, 
+		GoreState->BitmapToBlur, 
+		V2(0.0f, 0.0f), 
+		BitmapsHeight);
 
+	RENDERPushBitmap(
+		RenderStack, 
+		&GoreState->BlurredBitmapExact, 
+		V2(0.0f, BitmapsHeight), 
+		BitmapsHeight);
+
+	RENDERPushBitmap(
+		RenderStack,
+		&GoreState->BlurredBitmapApproximate,
+		V2(GoreState->BlurredBitmapApproximate.WidthOverHeight * BitmapsHeight, BitmapsHeight),
+		BitmapsHeight);
 #endif
 
 	END_TIMING();

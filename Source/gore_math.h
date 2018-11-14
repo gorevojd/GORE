@@ -130,6 +130,16 @@ inline float RSqrt(float Value) {
 	return(Result);
 }
 
+inline float Floor(float Value) {
+	float Result = floorf(Value);
+	return(Result);
+}
+
+inline float Ceil(float Value) {
+	float Result = ceilf(Value);
+	return(Result);
+}
+
 inline float Sin(float Rad) {
 	float Result = sinf(Rad);
 	return(Result);
