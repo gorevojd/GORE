@@ -269,6 +269,77 @@ typedef PLATFORM_GET_DISPLAY_MODE_COUNT(platform_get_display_mode_count);
 #define PLATFORM_TRY_GET_DISPLAY_MODE(name) b32 name(int ModeIndex, platform_display_mode* DisplayMode)
 typedef PLATFORM_TRY_GET_DISPLAY_MODE(platform_try_get_display_mode);
 
+
+enum platform_processor_architecture {
+	ProcessorArchitecture_Unknown,
+
+	ProcessorArchitecture_AMD64,
+	ProcessorArchitecture_ARM,
+	ProcessorArchitecture_ARM64,
+	ProcessorArchitecture_MIPS,
+	ProcessorArchitecture_IA64,
+	ProcessorArchitecture_Intel,
+	ProcessorArchitecture_MSIL,
+	ProcessorArchitecture_PPC,
+	ProcessorArchitecture_SHX,
+	ProcessorArchitecture_Alpha,
+	ProcessorArchitecture_Alpha64,
+};
+
+enum platform_processor_feature_type {
+	ProcFeature_FloatingPointPrecisionERRATA,
+	ProcFeature_FloatingPointEmulated,
+	ProcFeature_CompareExchangeDouble,
+	ProcFeature_MMX,
+	ProcFeature_PPC_MOVEMEM_64BIT_OK,
+	ProcFeature_AlphaByte,
+	ProcFeature_XMMI,
+	ProcFeature_3DNOW,
+	ProcFeature_RDTSC,
+	ProcFeature_PAE,
+	ProcFeature_XMMI64,
+	ProcFeature_SSE_DAZ,
+	ProcFeature_DataExecutionPrevention,
+	ProcFeature_SSE3,
+	ProcFeature_CompareExchange128,
+	ProcFeature_Compare64Exchange128,
+	ProcFeature_Channels,
+	ProcFeature_XSave,
+	ProcFeature_ARM_VFP_32_Registers,
+	ProcFeature_ARM_NEON,
+	ProcFeature_SecondLevelAddressTranslation,
+	ProcFeature_VirtFirmvare,
+	ProcFeature_RDWRFSGSBASE,
+	ProcFeature_FastFail,
+	ProcFeature_ARM_DivideInstructions,
+	ProcFeature_ARM_64BitLoadStore,
+	ProcFeature_ARM_ExternalCache,
+	ProcFeature_ARM_FMACInstructions,
+	ProcFeature_RDRANDInstructions,
+	ProcFeature_AVX,
+
+	ProcFeature_Count,
+};
+
+struct platform_processor_feature {
+	b32 Enabled;
+
+	char* Description;
+};
+
+struct platform_system_info {
+	u32 ProcessorArchitecture;
+	char ProcessorArchitectureDesc[32];
+
+	u32 PageSize;
+
+	void* MinimumApplicationAddress;
+	void* MaximumApplicationAddress;
+
+	platform_processor_feature ProcessorFeatures[ProcFeature_Count];
+};
+
+
 struct alloc_queue_bitmap_data {
 	void* TextureHandle;
 };

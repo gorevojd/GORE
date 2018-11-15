@@ -111,6 +111,8 @@ struct winda_state {
 	void* PlatformLayerMemory;
 	u32 PlatformLayerMemorySize;
 
+	platform_system_info* SystemInfo;
+
 	void* EngineLayerMemory;
 	u32 EngineLayerMemorySize;
 

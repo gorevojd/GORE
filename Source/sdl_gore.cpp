@@ -1157,73 +1157,6 @@ PLATFORM_GET_PERFOMANCE_FREQUENCY(SDLGetPerfomanceFrequency) {
 }
 #endif
 
-enum platform_processor_architecture{
-	ProcessorArchitecture_Unknown,
-
-	ProcessorArchitecture_AMD64,
-	ProcessorArchitecture_ARM,
-	ProcessorArchitecture_ARM64,
-	ProcessorArchitecture_MIPS,
-	ProcessorArchitecture_IA64,
-	ProcessorArchitecture_Intel,
-	ProcessorArchitecture_MSIL,
-	ProcessorArchitecture_PPC,
-	ProcessorArchitecture_SHX,
-	ProcessorArchitecture_Alpha,
-	ProcessorArchitecture_Alpha64,
-};
-
-enum platform_processor_feature_type {
-	ProcFeature_FloatingPointPrecisionERRATA,
-	ProcFeature_FloatingPointEmulated,
-	ProcFeature_CompareExchangeDouble,
-	ProcFeature_MMX,
-	ProcFeature_PPC_MOVEMEM_64BIT_OK,
-	ProcFeature_AlphaByte,
-	ProcFeature_XMMI,
-	ProcFeature_3DNOW,
-	ProcFeature_RDTSC,
-	ProcFeature_PAE,
-	ProcFeature_XMMI64,
-	ProcFeature_SSE_DAZ,
-	ProcFeature_DataExecutionPrevention,
-	ProcFeature_SSE3,
-	ProcFeature_CompareExchange128,
-	ProcFeature_Compare64Exchange128,
-	ProcFeature_Channels,
-	ProcFeature_XSave,
-	ProcFeature_ARM_VFP_32_Registers,
-	ProcFeature_ARM_NEON,
-	ProcFeature_SecondLevelAddressTranslation,
-	ProcFeature_VirtFirmvare,
-	ProcFeature_RDWRFSGSBASE,
-	ProcFeature_FastFail,
-	ProcFeature_ARM_DivideInstructions,
-	ProcFeature_ARM_64BitLoadStore,
-	ProcFeature_ARM_ExternalCache,
-	ProcFeature_ARM_FMACInstructions,
-	ProcFeature_RDRANDInstructions,
-
-	ProcFeature_Count,
-};
-
-struct platform_processor_feature {
-	b32 Enabled;
-
-	char* Description;
-};
-
-struct platform_system_info{
-	u32 ProcessorArchitecture;
-	char ProcessorArchitectureDesc[32];
-
-	u32 PageSize;
-
-	void* MinimumApplicationAddress;
-	void* MaximumApplicationAddress;
-
-	platform_processor_feature ProcessorFeatures[ProcFeature_Count];
-};
 
 inline void WindaInitProcFeature(
 	stacked_memory* MemStack,
@@ -1243,7 +1176,10 @@ inline void WindaInitProcFeature(
 	}
 }
 
-void WindaGetSystemInfo(platform_system_info* Result) {
+typedef BOOL (WINAPI *win32_get_logical_procinfo)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+typedef BOOL (WINAPI *win32_get_logical_procinfoex)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+
+static void WindaGetSystemInfo(platform_system_info* Result) {
 	SYSTEM_INFO SysInfo = {};
 
 	GetSystemInfo(&SysInfo);
@@ -1520,6 +1456,30 @@ void WindaGetSystemInfo(platform_system_info* Result) {
 	*/
 
 	//GetLogicalProcessorInformation()
+
+	HMODULE Kernel32Module = GetModuleHandleA("kernel32");
+
+	win32_get_logical_procinfo GetLogicalProcInfo = (win32_get_logical_procinfo)GetProcAddress(
+		Kernel32Module,
+		"GetLogicalProcessorInformation");
+
+	win32_get_logical_procinfoex* GetLogicalProInfoEx = (win32_get_logical_procinfoex*)GetProcAddress(
+		Kernel32Module,
+		"GetLogicalProcessorInformationEx");
+
+	SYSTEM_LOGICAL_PROCESSOR_INFORMATION TempBuffers[1000] = {};
+	DWORD TempBufferCount = 0;
+	DWORD ErrorCode = 0;
+
+	b32 GetLPISuccess = GetLogicalProcInfo(TempBuffers, &TempBufferCount);
+	if (GetLPISuccess) {
+		
+	}
+	else {
+		ErrorCode = GetLastError();
+	}
+
+	int a = 1;
 }
 
 void WindaInitState(winda_state* State) {
@@ -1696,6 +1656,10 @@ void WindaInitState(winda_state* State) {
 		GlobalRecordTable->LogsTypes[DebugLogIndex] = 0;
 	}
 #endif
+
+	//NOTE(dima): INitialization of System info
+	State->SystemInfo = PushStruct(&State->PlatformMemStack, platform_system_info);
+	WindaGetSystemInfo(State->SystemInfo);
 }
 
 void WindaFreeState(winda_state* State) {
