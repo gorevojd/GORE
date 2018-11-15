@@ -194,7 +194,7 @@ typedef PLATFORM_END_GAME_LOOP(platform_end_game_loop);
 typedef PLATFORM_GET_PERFOMANCE_COUNTER(platform_get_perfomance_counter);
 
 #define PLATFORM_GET_PERFOMANCE_FREQUENCY(name) u64 name()
-typedef PLATFORM_GET_PREFOMANCE_FREQUENCY(platform_get_perfomance_frequency);
+typedef PLATFORM_GET_PERFOMANCE_FREQUENCY(platform_get_perfomance_frequency);
 
 enum open_file_type {
 	FileType_Asset,

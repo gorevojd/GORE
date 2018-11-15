@@ -933,6 +933,23 @@ PLATFORM_TRY_GET_DISPLAY_MODE(WindaTryGetDisplayMode)
 	return(Result);
 }
 
+PLATFORM_GET_PERFOMANCE_COUNTER(WindaGetPerfomanceCounter) {
+	LARGE_INTEGER Counter = {};
+	QueryPerformanceCounter(&Counter);
+
+	u64 Result = Counter.QuadPart;
+
+	return(Result);
+}
+
+PLATFORM_GET_PERFOMANCE_FREQUENCY(WindaGetPerfomanceFrequency) {
+	LARGE_INTEGER Freq = {};
+	QueryPerformanceFrequency(&Freq);
+
+	u64 Result = Freq.QuadPart;
+
+	return(Result);
+}
 
 #else
 
@@ -1127,7 +1144,383 @@ PLATFORM_DEALLOCATE_MEMORY(SDLDeallocateMemory) {
 	EndMutexAccess(&PlatformApi.NativeMemoryAllocatorMutex);
 }
 
+PLATFORM_GET_PERFOMANCE_COUNTER(SDLGetPerfomanceCounter) {
+	u64 Result = SDL_GetPerformanceCounter();
+
+	return(Result);
+}
+
+PLATFORM_GET_PERFOMANCE_FREQUENCY(SDLGetPerfomanceFrequency) {
+	u64 Result = SDL_GetPerformanceFrequency();
+
+	return(Result);
+}
 #endif
+
+enum platform_processor_architecture{
+	ProcessorArchitecture_Unknown,
+
+	ProcessorArchitecture_AMD64,
+	ProcessorArchitecture_ARM,
+	ProcessorArchitecture_ARM64,
+	ProcessorArchitecture_MIPS,
+	ProcessorArchitecture_IA64,
+	ProcessorArchitecture_Intel,
+	ProcessorArchitecture_MSIL,
+	ProcessorArchitecture_PPC,
+	ProcessorArchitecture_SHX,
+	ProcessorArchitecture_Alpha,
+	ProcessorArchitecture_Alpha64,
+};
+
+enum platform_processor_feature_type {
+	ProcFeature_FloatingPointPrecisionERRATA,
+	ProcFeature_FloatingPointEmulated,
+	ProcFeature_CompareExchangeDouble,
+	ProcFeature_MMX,
+	ProcFeature_PPC_MOVEMEM_64BIT_OK,
+	ProcFeature_AlphaByte,
+	ProcFeature_XMMI,
+	ProcFeature_3DNOW,
+	ProcFeature_RDTSC,
+	ProcFeature_PAE,
+	ProcFeature_XMMI64,
+	ProcFeature_SSE_DAZ,
+	ProcFeature_DataExecutionPrevention,
+	ProcFeature_SSE3,
+	ProcFeature_CompareExchange128,
+	ProcFeature_Compare64Exchange128,
+	ProcFeature_Channels,
+	ProcFeature_XSave,
+	ProcFeature_ARM_VFP_32_Registers,
+	ProcFeature_ARM_NEON,
+	ProcFeature_SecondLevelAddressTranslation,
+	ProcFeature_VirtFirmvare,
+	ProcFeature_RDWRFSGSBASE,
+	ProcFeature_FastFail,
+	ProcFeature_ARM_DivideInstructions,
+	ProcFeature_ARM_64BitLoadStore,
+	ProcFeature_ARM_ExternalCache,
+	ProcFeature_ARM_FMACInstructions,
+	ProcFeature_RDRANDInstructions,
+
+	ProcFeature_Count,
+};
+
+struct platform_processor_feature {
+	b32 Enabled;
+
+	char* Description;
+};
+
+struct platform_system_info{
+	u32 ProcessorArchitecture;
+	char ProcessorArchitectureDesc[32];
+
+	u32 PageSize;
+
+	void* MinimumApplicationAddress;
+	void* MaximumApplicationAddress;
+
+	platform_processor_feature ProcessorFeatures[ProcFeature_Count];
+};
+
+inline void WindaInitProcFeature(
+	stacked_memory* MemStack,
+	platform_processor_feature* Feature, 
+	b32 IsSupported,
+	char* Description)
+{
+	Feature->Enabled = IsSupported;
+	
+	if (Description) {
+		Feature->Description = PushString(MemStack, Description);
+		CopyStrings(Feature->Description, Description);
+	}
+	else {
+		Feature->Description = PushString(MemStack, "(none)");
+		CopyStrings(Feature->Description, "(none)");
+	}
+}
+
+void WindaGetSystemInfo(platform_system_info* Result) {
+	SYSTEM_INFO SysInfo = {};
+
+	GetSystemInfo(&SysInfo);
+
+	u32 ToSetPA = 0;
+	char* DescPA = Result->ProcessorArchitectureDesc;
+	switch(SysInfo.wProcessorArchitecture){
+		case PROCESSOR_ARCHITECTURE_AMD64: {
+			ToSetPA = ProcessorArchitecture_AMD64;
+			CopyStrings(DescPA, "x64 (AMD or Intel)");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_ARM: {
+			ToSetPA = ProcessorArchitecture_ARM;
+			CopyStrings(DescPA, "ARM");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_MIPS: {
+			ToSetPA = ProcessorArchitecture_MIPS;
+			CopyStrings(DescPA, "MIPS");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_IA64: {
+			ToSetPA = ProcessorArchitecture_IA64;
+			CopyStrings(DescPA, "Intel itanium based");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_INTEL: {
+			ToSetPA = ProcessorArchitecture_Intel;
+			CopyStrings(DescPA, "x86");
+		}break;
+
+		case 12: {
+			ToSetPA = ProcessorArchitecture_ARM64;
+			CopyStrings(DescPA, "ARM64");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_MSIL: {
+			ToSetPA = ProcessorArchitecture_MSIL;
+			CopyStrings(DescPA, "MSIL");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_PPC: {
+			ToSetPA = ProcessorArchitecture_PPC;
+			CopyStrings(DescPA, "PPC");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_SHX: {
+			ToSetPA = ProcessorArchitecture_SHX;
+			CopyStrings(DescPA, "SHX");
+		} break;
+
+		case PROCESSOR_ARCHITECTURE_ALPHA: {
+			ToSetPA = ProcessorArchitecture_Alpha;
+			CopyStrings(DescPA, "ALPHA");
+		}break;
+
+		case PROCESSOR_ARCHITECTURE_ALPHA64: {
+			ToSetPA = ProcessorArchitecture_Alpha64;
+			CopyStrings(DescPA, "ALPHA64");
+		}break;
+
+		default: {
+			ToSetPA = ProcessorArchitecture_Unknown;
+			CopyStrings(DescPA, "Unknown");
+		}break;
+	}
+	Result->ProcessorArchitecture = ToSetPA;
+
+	Result->MinimumApplicationAddress = SysInfo.lpMinimumApplicationAddress;
+	Result->MaximumApplicationAddress = SysInfo.lpMaximumApplicationAddress;
+	Result->PageSize = SysInfo.dwPageSize;
+	
+	platform_processor_feature* Feature = 0;
+	b32 IsSupported = 0;
+	stacked_memory* TempMem = &WindaState.PlatformMemStack;
+
+	//NOTE(dima): Clear all features to 0
+	for (int ProcFeatureIndex = 0;
+		ProcFeatureIndex < ProcFeature_Count;
+		ProcFeatureIndex++)
+	{
+		platform_processor_feature* Feature = &Result->ProcessorFeatures[ProcFeatureIndex];
+
+		WindaInitProcFeature(
+			TempMem,
+			Feature,
+			0,
+			"(NONE DESCRIPTION)");
+	}
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_FloatingPointPrecisionERRATA],
+		IsProcessorFeaturePresent(PF_FLOATING_POINT_PRECISION_ERRATA),
+		"On a Pentium, a floating-point precision error can occur in rare circumstances.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_FloatingPointEmulated],
+		IsProcessorFeaturePresent(PF_FLOATING_POINT_EMULATED),
+		"Floating-point operations are emulated using a software emulator." \
+		"This function returns a nonzero value if floating - point operations" \
+		" are emulated; otherwise, it returns zero.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_CompareExchangeDouble],
+		IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE_DOUBLE),
+		"The atomic compare and exchange operation (cmpxchg) is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_MMX],
+		IsProcessorFeaturePresent(PF_MMX_INSTRUCTIONS_AVAILABLE),
+		"The MMX instruction set is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_AlphaByte],
+		IsProcessorFeaturePresent(PF_ALPHA_BYTE_INSTRUCTIONS),
+		"The ALPHA BYTE instruction set is available.");
+
+	//SSE
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_XMMI],
+		IsProcessorFeaturePresent(PF_XMMI_INSTRUCTIONS_AVAILABLE),
+		"The SSE instruction set is available");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_3DNOW],
+		IsProcessorFeaturePresent(PF_3DNOW_INSTRUCTIONS_AVAILABLE),
+		"The 3D-Now instruction set is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_RDTSC],
+		IsProcessorFeaturePresent(PF_RDTSC_INSTRUCTION_AVAILABLE),
+		"The RDTSC instruction is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_PAE],
+		IsProcessorFeaturePresent(PF_PAE_ENABLED),
+		"The processor is PAE-enabled.");
+
+	//SSE2
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_XMMI64],
+		IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE),
+		"The SSE2 instruction set is available. Windows 2000: This feature is not supported.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_SSE_DAZ],
+		IsProcessorFeaturePresent(PF_SSE_DAZ_MODE_AVAILABLE),
+		"SSE DAZ mode enabled.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_DataExecutionPrevention],
+		IsProcessorFeaturePresent(PF_NX_ENABLED),
+		"Data execution prevention is enabled.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_SSE3],
+		IsProcessorFeaturePresent(PF_SSE3_INSTRUCTIONS_AVAILABLE),
+		"The SSE3 instruction set is available." \
+		"Windows Server 2003 and Windows XP / 2000:" \
+		"This feature is not supported.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_CompareExchange128],
+		IsProcessorFeaturePresent(PF_COMPARE_EXCHANGE128),
+		"The atomic compare and exchange 128-bit operation (cmpxchg16b) is available. " \
+		"Windows Server 2003 and Windows XP / 2000:  This feature is not supported.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_Compare64Exchange128],
+		IsProcessorFeaturePresent(PF_COMPARE64_EXCHANGE128),
+		"The atomic compare 64 and exchange 128-bit operation (cmp8xchg16) is available. " \
+		"Windows Server 2003 and Windows XP / 2000:  This feature is not supported.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_Channels],
+		IsProcessorFeaturePresent(PF_CHANNELS_ENABLED),
+		"The processor channels are enabled.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_XSave],
+		IsProcessorFeaturePresent(PF_XSAVE_ENABLED),
+		"The processor implements the XSAVE and XRSTOR instructions.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_VFP_32_Registers],
+		IsProcessorFeaturePresent(PF_ARM_VFP_32_REGISTERS_AVAILABLE),
+		"The VFP/Neon: 32 x 64bit register bank is present.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_NEON],
+		IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE),
+		"ARM NEON Instructions available");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_SecondLevelAddressTranslation],
+		IsProcessorFeaturePresent(PF_SECOND_LEVEL_ADDRESS_TRANSLATION),
+		"Second Level Address Translation is supported by the hardware.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_VirtFirmvare],
+		IsProcessorFeaturePresent(PF_VIRT_FIRMWARE_ENABLED),
+		"Virtualization is enabled in the firmware.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_RDWRFSGSBASE],
+		IsProcessorFeaturePresent(PF_RDWRFSGSBASE_AVAILABLE),
+		"RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE instructions are available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_FastFail],
+		IsProcessorFeaturePresent(PF_FASTFAIL_AVAILABLE),
+		"_fastfail() is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_DivideInstructions],
+		IsProcessorFeaturePresent(PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE),
+		"The divide instructions are available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_64BitLoadStore],
+		IsProcessorFeaturePresent(PF_ARM_64BIT_LOADSTORE_ATOMIC),
+		"The 64-bit load/store atomic instructions are available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_ExternalCache],
+		IsProcessorFeaturePresent(PF_ARM_EXTERNAL_CACHE_AVAILABLE),
+		"The external cache is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_ARM_FMACInstructions],
+		IsProcessorFeaturePresent(PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE),
+		"The floating-point multiply-accumulate instruction is available.");
+
+	WindaInitProcFeature(
+		TempMem,
+		&Result->ProcessorFeatures[ProcFeature_RDRANDInstructions],
+		IsProcessorFeaturePresent(PF_RDRAND_INSTRUCTION_AVAILABLE),
+		"RDRAND Instruction available");
+
+	/*
+	WindaInitProcFeature(
+		TempMem,
+		&Result.ProcessorFeatures[ProcFeature_],
+		IsProcessorFeaturePresent(),
+		"");
+	*/
+
+	//GetLogicalProcessorInformation()
+}
 
 void WindaInitState(winda_state* State) {
 	//NOTE(dima): Allocating platform layer memory
@@ -1248,6 +1641,9 @@ void WindaInitState(winda_state* State) {
 	PlatformApi.PlaceCursorAtCenter = SDLPlaceCursorAtCenter;
 	PlatformApi.TerminateProgram = SDLTerminateProgram;
 	PlatformApi.EndGameLoop = SDLEndGameLoop;
+
+	PlatformApi.GetPerfomanceCounter = WindaGetPerfomanceCounter;
+	PlatformApi.GetPerfomanceFrequency = WindaGetPerfomanceFrequency;
 
 	//NOTE(dima): Allocation of alloc queue entries
 	int PlatformAllocEntriesCount = 1 << 12;
