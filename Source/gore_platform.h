@@ -337,6 +337,27 @@ struct platform_system_info {
 	void* MaximumApplicationAddress;
 
 	platform_processor_feature ProcessorFeatures[ProcFeature_Count];
+
+	b32 ProcInfoSuccesfullyRetrieved;
+
+	u32 InstructionCachesCount;
+	u32 DataCachesCount;
+	u32 UnifiedCachesCount;
+
+	u32 L1CacheCount;
+	u32 L2CacheCount;
+	u32 L3CacheCount;
+
+	u32 L1CacheTotalSize;
+	u32 L2CacheTotalSize;
+	u32 L3CacheTotalSize;
+
+	u32 L1CacheLineSize;
+	u32 L2CacheLineSize;
+	u32 L3CacheLineSize;
+
+	u32 CoresCount;
+	u32 LogicalCoresCount;
 };
 
 struct alloc_queue_bitmap_data {

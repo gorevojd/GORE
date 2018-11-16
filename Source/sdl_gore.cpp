@@ -1467,6 +1467,7 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 		Kernel32Module,
 		"GetLogicalProcessorInformationEx");
 
+	b32 ProcInfoSuccesfullyRetrieved = 0;
 	if (GetLogicalProcInfo) {
 		int SizeOfInfo = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
 		int TempBufferCount = 0;
@@ -1521,6 +1522,26 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 			}
 		}
 
+
+		u32 L1CacheCount = 0;
+		u32 L2CacheCount = 0;
+		u32 L3CacheCount = 0;
+
+		u32 L1CacheTotalSize = 0;
+		u32 L2CacheTotalSize = 0;
+		u32 L3CacheTotalSize = 0;
+
+		u32 L1CacheLineSize = 0;
+		u32 L2CacheLineSize = 0;
+		u32 L3CacheLineSize = 0;
+
+		u32 CoresCount = 0;
+		u32 LogicalCoresCount = 0;
+
+		u32 InstructionCacheCount = 0;
+		u32 DataCacheCount = 0;
+		u32 UnifiedCacheCount = 0;
+
 		for (int ProcInfoIndex = 0;
 			ProcInfoIndex < ResultInfosCount;
 			ProcInfoIndex++)
@@ -1535,7 +1556,20 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 						additional information.
 					*/
 
+					u64 MaskToScan = ProcInfo->ProcessorMask;
 
+					int SetBitsCount = 0;
+					for (int ScanBitIndex = 0;
+						ScanBitIndex < sizeof(MaskToScan) * 8;
+						ScanBitIndex++)
+					{
+						b32 BitIsSet = (MaskToScan >> ScanBitIndex) & 1;
+
+						SetBitsCount += BitIsSet;
+					}
+
+					CoresCount++;
+					LogicalCoresCount += SetBitsCount;
 				}break;
 
 				case RelationNumaNode: {
@@ -1557,6 +1591,36 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 						SP1 and Windows XP Professional x64 Edition.
 					*/
 
+					CACHE_DESCRIPTOR* Cache = &ProcInfo->Cache;
+					if (Cache->Level == 1) {
+						L1CacheCount++;
+						L1CacheTotalSize += Cache->Size;
+						L1CacheLineSize = Cache->LineSize;
+					}
+					else if (Cache->Level == 2) {
+						L2CacheCount++;
+						L2CacheTotalSize += Cache->Size;
+						L2CacheLineSize = Cache->LineSize;
+					}
+					else if (Cache->Level == 3) {
+						L3CacheCount++;
+						L3CacheTotalSize += Cache->Size;
+						L3CacheLineSize = Cache->LineSize;
+					}
+
+					switch (Cache->Type) {
+						case CacheData: {
+							DataCacheCount++;
+						}break;
+
+						case CacheInstruction: {
+							InstructionCacheCount++;
+						}break;
+
+						case CacheUnified: {
+							UnifiedCacheCount++;
+						}break;
+					}
 
 				}break;
 
@@ -1571,8 +1635,30 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 				}break;
 			}
 		}
+
+		Result->CoresCount = CoresCount;
+		Result->LogicalCoresCount = LogicalCoresCount;
+
+		Result->L1CacheCount = L1CacheCount;
+		Result->L2CacheCount = L2CacheCount;
+		Result->L3CacheCount = L3CacheCount;
+
+		Result->L1CacheTotalSize = L1CacheTotalSize;
+		Result->L2CacheTotalSize = L2CacheTotalSize;
+		Result->L3CacheTotalSize = L3CacheTotalSize;
+
+		Result->L1CacheLineSize = L1CacheLineSize;
+		Result->L2CacheLineSize = L2CacheLineSize;
+		Result->L3CacheLineSize = L3CacheLineSize;
+
+		Result->InstructionCachesCount = InstructionCacheCount;
+		Result->DataCachesCount = DataCacheCount;
+		Result->UnifiedCachesCount = UnifiedCacheCount;
+
+		ProcInfoSuccesfullyRetrieved = 1;
 	}
 
+	Result->ProcInfoSuccesfullyRetrieved = ProcInfoSuccesfullyRetrieved;
 }
 
 void WindaInitState(winda_state* State) {

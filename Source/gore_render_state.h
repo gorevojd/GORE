@@ -186,7 +186,8 @@ struct render_stack_entry_header {
 inline void* RENDERPushToStack(render_stack* Stack, u32 Size) {
 	void* Result = 0;
 
-	void* MemPushed = PushSomeMemory(&Stack->Data, Size);
+	u32 AlignOffset;
+	void* MemPushed = PushSomeMemory(&Stack->Data, Size, 1);
 	if (MemPushed) {
 		Result = MemPushed;
 	}
