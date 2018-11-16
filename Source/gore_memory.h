@@ -59,7 +59,7 @@ inline stacked_memory SplitStackedMemory(stacked_memory* Stack, u32 Size) {
 
 inline u8* PushSomeMemory(stacked_memory* Mem, u32 ByteSize, i32 Align = 4) {
 
-	u32 AlignOffset = GET_ALIGN_OFFSET(Mem->BaseAddress, Align);
+	u32 AlignOffset = GET_ALIGN_OFFSET((u8*)Mem->BaseAddress + Mem->Used, Align);
 
 	Assert(Mem->Used + ByteSize + AlignOffset <= Mem->MaxSize);
 

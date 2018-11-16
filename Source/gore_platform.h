@@ -339,7 +339,6 @@ struct platform_system_info {
 	platform_processor_feature ProcessorFeatures[ProcFeature_Count];
 };
 
-
 struct alloc_queue_bitmap_data {
 	void* TextureHandle;
 };
@@ -486,6 +485,8 @@ struct platform_api {
 	platform_mutex AllocQueueMutex;
 	alloc_queue_entry* FirstUseAllocQueueEntry;
 	alloc_queue_entry* FirstFreeAllocQueueEntry;
+
+	platform_system_info* SystemInfo;
 };
 
 extern platform_api PlatformApi;
@@ -523,6 +524,11 @@ inline void PlatformInsertAllocEntry(alloc_queue_entry* Entry) {
 	EndMutexAccess(&PlatformApi.AllocQueueMutex);
 }
 
+inline b32 PlatformIsProcessorFeatureAvailable(u32 ProcFeature) {
+	b32 Result = PlatformApi.SystemInfo->ProcessorFeatures[ProcFeature].Enabled;
+
+	return(Result);
+}
 
 #include "gore_debug_layer.h"
 

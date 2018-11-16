@@ -1467,25 +1467,118 @@ static void WindaGetSystemInfo(platform_system_info* Result) {
 		Kernel32Module,
 		"GetLogicalProcessorInformationEx");
 
-	SYSTEM_LOGICAL_PROCESSOR_INFORMATION TempBuffers[1000] = {};
-	DWORD TempBufferCount = 0;
-	DWORD ErrorCode = 0;
+	if (GetLogicalProcInfo) {
+		int SizeOfInfo = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+		int TempBufferCount = 0;
+		DWORD TempBufferSize = TempBufferCount * SizeOfInfo;
+		int InitTempBufferSize = TempBufferSize;
 
-	b32 GetLPISuccess = GetLogicalProcInfo(TempBuffers, &TempBufferCount);
-	if (GetLPISuccess) {
-		
-	}
-	else {
-		ErrorCode = GetLastError();
+		SYSTEM_LOGICAL_PROCESSOR_INFORMATION* TempBuffersBase = PushArray(
+			&WindaState.PlatformMemStack,
+			SYSTEM_LOGICAL_PROCESSOR_INFORMATION,
+			TempBufferCount);
+
+		int ResultInfosCount = 0;
+
+		b32 Success = 0;
+		while (!Success) {
+			/*
+				NOTE(dima):  When I first used to use this funciton
+				I came up with Windows 998 ERROR_NOACCESS(Invalid 
+				access to memory location) error. The reason of this 
+				error was that alignment in memory allocation was not 
+				working properly. For this function input buffer must
+				be aligned by 4.
+			*/
+			Success = GetLogicalProcInfo(TempBuffersBase, &TempBufferSize);
+
+			if (Success) {
+				ResultInfosCount = TempBufferSize / SizeOfInfo;
+
+				break;
+			}
+			else {
+				DWORD ErrCode = GetLastError();
+
+				if (ErrCode == ERROR_INSUFFICIENT_BUFFER) {
+					int ToIncrementByteSize = (int)TempBufferSize - InitTempBufferSize;
+					int TempBufferToIncrementCount = ToIncrementByteSize / SizeOfInfo;
+
+					//NOTE(dima): Allocate array on top of previously defined array
+					PushArray(
+						&WindaState.PlatformMemStack,
+						SYSTEM_LOGICAL_PROCESSOR_INFORMATION,
+						TempBufferToIncrementCount);
+
+					TempBufferSize = InitTempBufferSize + ToIncrementByteSize;
+					InitTempBufferSize = TempBufferSize;
+
+					continue;
+				}
+				else {
+					Assert(!"Undefined behaviour");
+				}
+			}
+		}
+
+		for (int ProcInfoIndex = 0;
+			ProcInfoIndex < ResultInfosCount;
+			ProcInfoIndex++)
+		{
+			SYSTEM_LOGICAL_PROCESSOR_INFORMATION* ProcInfo = TempBuffersBase + ProcInfoIndex;
+
+			switch (ProcInfo->Relationship) {
+				case RelationProcessorCore: {
+					/*
+						The specified logical processors share a single
+						processor core. The ProcessorCore member contains 
+						additional information.
+					*/
+
+
+				}break;
+
+				case RelationNumaNode: {
+					/*
+						The specified logical processors are part of the 
+						same NUMA node. The NumaNode member contains 
+						additional information.
+					*/
+
+
+				}break;
+
+				case RelationCache: {
+					/*
+						The specified logical processors share a 
+						cache. The Cache member contains additional 
+						information. Windows Server 2003:  This value 
+						is not supported until Windows Server 2003 with 
+						SP1 and Windows XP Professional x64 Edition.
+					*/
+
+
+				}break;
+
+				case RelationProcessorPackage: {
+					/*
+						The specified logical processors share a physical 
+						package. There is no additional information available.
+						Windows Server 2003 and Windows XP Professional x64 
+						Edition:  This value is not supported until Windows Server 
+						2003 with SP1 and Windows XP with SP3.
+					*/
+				}break;
+			}
+		}
 	}
 
-	int a = 1;
 }
 
 void WindaInitState(winda_state* State) {
 	//NOTE(dima): Allocating platform layer memory
 #if GORE_DEBUG_ENABLED
-	WindaState.PlatformLayerMemorySize = MEGABYTES(150);
+	WindaState.PlatformLayerMemorySize = MEGABYTES(10) + sizeof(debug_record_table);
 #else
 	WindaState.PlatformLayerMemorySize = MEGABYTES(10);
 #endif
@@ -1660,6 +1753,8 @@ void WindaInitState(winda_state* State) {
 	//NOTE(dima): INitialization of System info
 	State->SystemInfo = PushStruct(&State->PlatformMemStack, platform_system_info);
 	WindaGetSystemInfo(State->SystemInfo);
+
+	PlatformApi.SystemInfo = State->SystemInfo;
 }
 
 void WindaFreeState(winda_state* State) {
