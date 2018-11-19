@@ -618,6 +618,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			TempSum += GaussianBox[i];
 		}
 
+#if 0
 		GoreState->BlurredBitmapExact = BlurBitmapExactGaussian(
 			GoreState->BitmapToBlur, 
 			BitmapMemory, 
@@ -633,6 +634,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 			GoreState->BitmapToBlur->Width,
 			GoreState->BitmapToBlur->Height,
 			BlurRadius);
+#endif
 #endif
 
 		GoreState->IsInitialized = 1;
