@@ -1715,7 +1715,7 @@ static void VoxelChunksGenerationInit(
 	input_system* Input,
 	asset_system* Assets)
 {
-	int ChunksViewDistanceCount = 20;
+	int ChunksViewDistanceCount = 10;
 	int ChunksHeightCount = 1;
 
 	int TotalChunksSideCount = (ChunksViewDistanceCount * 2 + 1);

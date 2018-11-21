@@ -3,10 +3,6 @@
 
 #include <stdio.h>
 
-struct asset_load_font_asset_work {
-
-};
-
 inline game_asset_tag* FindTagInAsset(game_asset* Asset, u32 TagType) {
 	game_asset_tag* Result = 0;
 

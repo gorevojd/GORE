@@ -9,6 +9,7 @@
 #define MM_UNPACK_COLOR_CHANNEL0(texel) _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(texel, mmFF)), mmOneOver255)
 #define MM_LERP(a, b, t) _mm_add_ps(a, _mm_mul_ps(_mm_sub_ps(b, a), t))
 
+
 static void RenderClear(bitmap_info* Buffer, v3 Color, rect2 ClipRect) {
 	v4 ResColor = V4(Color.x, Color.y, Color.z, 1.0f);
 	u32 OutColor = PackRGBA(ResColor);

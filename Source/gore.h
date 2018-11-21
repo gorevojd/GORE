@@ -210,12 +210,6 @@ struct gore_state {
 	float CurrentCameraScaling;
 	game_camera Camera;
 	game_camera_setup CameraSetup;
-
-#if 1
-	bitmap_info* BitmapToBlur;
-	bitmap_info BlurredBitmapExact;
-	bitmap_info BlurredBitmapApproximate;
-#endif
 };
 
 void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems);

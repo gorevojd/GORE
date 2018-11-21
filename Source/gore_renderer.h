@@ -3,21 +3,23 @@
 
 #include "gore_render_state.h"
 
-extern void SoftwareRenderStackToOutput(render_stack* Stack, bitmap_info* Buffer, rect2 ClipRect);
-extern void RenderMultithreaded(platform_thread_queue* Queue, render_stack* Stack, bitmap_info* Buffer);
-extern void RenderDickInjection(render_stack* Stack, bitmap_info* Buffer);
+void SoftwareRenderStackToOutput(render_stack* Stack, bitmap_info* Buffer, rect2 ClipRect);
+void RenderMultithreaded(platform_thread_queue* Queue, render_stack* Stack, bitmap_info* Buffer);
+void RenderDickInjection(render_stack* Stack, bitmap_info* Buffer);
 
-extern void RenderRectFast(
+void RenderRectFast(
 	bitmap_info* Buffer,
 	v2 P,
 	v2 Dim,
 	v4 ModulationColor01,
 	rect2 ClipRect);
 
-extern void RenderRect(
+void RenderRect(
 	bitmap_info* Buffer,
 	v2 P,
 	v2 Dim,
 	v4 ModulationColor01,
 	rect2 ClipRect);
+
+
 #endif

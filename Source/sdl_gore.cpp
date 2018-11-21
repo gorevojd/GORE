@@ -2170,8 +2170,32 @@ int main(int ArgsCount, char** Args) {
 		BEGIN_TIMING("Rendering");
 		glViewport(0, 0, GORE_WINDOW_WIDTH, GORE_WINDOW_HEIGHT);
 
-		OpenGLProcessAllocationQueue();
 		OpenGLRenderStateToOutput(GLState, EngineSystems->RenderState, &GameSettings);
+
+		/*
+			NOTE(dima): I think processing allocation queue 
+			afetr rendering is initially good idea. I have 
+			few reasons to say so.
+
+			Imagine if we've implemented on-the-fly asset 
+			streaming and our asset can  load and free on the fly.
+			In that case we can end up with situation when
+			we've pushed asset to the render queue and
+			code goes on and at some point in time it would 
+			be rendered. But in this interval of time it can 
+			be freed and render code won't know anything about it!!!!
+			Renderer would literally render the garbage because
+			it pointing to the location where asset was stored
+			previously but it was cleared and location is garbage now.
+
+			So in that case when we process allocation queue after
+			rendering we get rid of the possibility of this
+			situation. Every asset will be freed only and only when
+			it was rendered. And next render call or code that
+			wants to use this asset will know about it...
+			
+		*/
+		OpenGLProcessAllocationQueue();
 		END_TIMING();
 
 		BEGIN_TIMING("Swapping");

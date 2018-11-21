@@ -1501,22 +1501,19 @@ void OpenGLProcessAllocationQueue() {
 
 	BeginMutexAccess(&PlatformApi.AllocQueueMutex);
 	
-	//NOTE(dima): If there is something to allocate...
+	//NOTE(dima): If there is something to allocate or deallocate...
 	if (PlatformApi.FirstUseAllocQueueEntry->Next != PlatformApi.FirstUseAllocQueueEntry) 
 	{
 		FirstEntry = PlatformApi.FirstUseAllocQueueEntry->Next;
 		LastEntry = PlatformApi.FirstUseAllocQueueEntry->Prev;
 
-#if 0
+#if 1
 		PlatformApi.FirstUseAllocQueueEntry->Next = PlatformApi.FirstUseAllocQueueEntry;
 		PlatformApi.FirstUseAllocQueueEntry->Prev = PlatformApi.FirstUseAllocQueueEntry;
 
- 		//FirstEntry->Prev->Next = PlatformApi.FirstUseAllocQueueEntry;
-		//LastEntry->Next->Prev = PlatformApi.FirstUseAllocQueueEntry;
-		
 		FirstEntry->Prev = PlatformApi.FirstFreeAllocQueueEntry;
-		//LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
-		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry;
+		LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry->Next;
+		//LastEntry->Next = PlatformApi.FirstFreeAllocQueueEntry;
 
 		FirstEntry->Prev->Next = FirstEntry;
 		LastEntry->Next->Prev = LastEntry;

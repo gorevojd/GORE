@@ -155,11 +155,13 @@
     <ClInclude Include="..\Source\gore_asset_identifiers.h" />
     <ClInclude Include="..\Source\gore_file_formats.h" />
     <ClInclude Include="..\Source\gore_math.h" />
+    <ClInclude Include="..\Source\gore_render_blur.h" />
     <ClInclude Include="..\Source\gore_types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\asset_builder_tool.cpp" />
     <ClCompile Include="..\Source\gore_asset_common.cpp" />
+    <ClCompile Include="..\Source\gore_render_blur.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

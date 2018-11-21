@@ -183,6 +183,7 @@
     <ClCompile Include="..\Source\gore_memory.cpp" />
     <ClCompile Include="..\Source\gore_opengl.cpp" />
     <ClCompile Include="..\Source\gore_renderer.cpp" />
+    <ClCompile Include="..\Source\gore_render_blur.cpp" />
     <ClCompile Include="..\Source\gore_render_state.cpp" />
     <ClCompile Include="..\Source\gore_threadwork_memory.cpp" />
     <ClCompile Include="..\Source\gore_voxmesh.cpp" />
@@ -219,6 +220,7 @@
     <ClInclude Include="..\Source\gore_platform.h" />
     <ClInclude Include="..\Source\gore_random.h" />
     <ClInclude Include="..\Source\gore_renderer.h" />
+    <ClInclude Include="..\Source\gore_render_blur.h" />
     <ClInclude Include="..\Source\gore_render_state.h" />
     <ClInclude Include="..\Source\gore_simd.h" />
     <ClInclude Include="..\Source\gore_threadwork_memory.h" />

@@ -10,6 +10,8 @@
 //#define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
+#include "gore_render_blur.h"
+
 static void BeginAssetGroup(asset_system* System, u32 GroupID) {
 	System->CurrentGroup = System->AssetGroups + GroupID;
 	System->PrevAssetPointer = 0;
@@ -321,6 +323,58 @@ void FreeDataBuffer(data_buffer* DataBuffer) {
 	}
 }
 
+void RenderOneBitmapIntoAnother(
+	bitmap_info* RenderTo, 
+	bitmap_info* RenderWhat,
+	int StartX,
+	int StartY,
+	v4 ModulationColor) 
+{
+	float OneOver255 = 1.0f / 255.0f;
+
+	int MaxToX = StartX + RenderWhat->Width;
+	int MaxToY = StartY + RenderWhat->Height;
+
+	Assert(MaxToX <= RenderTo->Width);
+	Assert(MaxToY <= RenderTo->Height);
+
+	u32 SrcX = 0;
+	u32 SrcY = 0;
+
+	for (int Y = StartY; Y < MaxToY; Y++) {
+		SrcY = Y - StartY;
+
+		for (int X = StartX; X < MaxToX; X++) {
+			SrcX = X - StartX;
+
+			u32* Out = (u32*)RenderTo->Pixels + Y * RenderTo->Width + X;
+			v4 DstInitColor = UnpackRGBA(*Out);
+
+
+			u32* From = (u32*)RenderWhat->Pixels + SrcY * RenderWhat->Width + SrcX;
+
+			v4 FromColor = UnpackRGBA(*From);
+
+			v4 ResultColor = FromColor * ModulationColor;
+
+			//NOTE(dima): Calculating blend alpha value
+			float BlendAlpha = ResultColor.a;
+
+			ResultColor.x = ResultColor.x + DstInitColor.x * (1.0f - BlendAlpha);
+			ResultColor.y = ResultColor.y + DstInitColor.y * (1.0f - BlendAlpha);
+			ResultColor.z = ResultColor.z + DstInitColor.z * (1.0f - BlendAlpha);
+			ResultColor.a = ResultColor.a + DstInitColor.a - ResultColor.a * DstInitColor.a;
+
+			u32 ColorValue = PackRGBA(ResultColor);
+			*Out = ColorValue;
+
+			SrcX++;
+		}
+
+		SrcY++;
+	}
+}
+
 loader_font_info LoadFontInfoFromImage(
 	char* ImagePath,
 	int Height,
@@ -495,6 +549,18 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	Result.DescenderHeight = (float)DescenderHeight * Scale;
 	Result.LineGap = (float)LineGap * Scale;
 
+	int CharBorder = 2;
+
+	//NOTE(dima): This is for blurring
+	float GaussianBox[256];
+	if (Flags & AssetLoadFontFlag_BakeBlur) {
+		int BlurRadius = CharBorder;
+
+		u32 GaussianBoxCompCount = Calcualte2DGaussianBoxComponentsCount(BlurRadius);
+		Calculate2DGaussianBox(GaussianBox, BlurRadius);
+	}
+
+
 	for (char Codepoint = ' '; Codepoint <= '~'; Codepoint++) {
 
 		Result.CodepointToGlyphMapping[Codepoint] = Result.GlyphsCount;
@@ -533,14 +599,14 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 			ShadowOffset = 2;
 		}
 
-		Glyph->Width = CharWidth + 2 + ShadowOffset;
-		Glyph->Height = CharHeight + 2 + ShadowOffset;
+		Glyph->Width = CharWidth + 2 * CharBorder + ShadowOffset;
+		Glyph->Height = CharHeight + 2 * CharBorder + ShadowOffset;
 		Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
 		Glyph->Advance = Advance * Scale;
 		Glyph->LeftBearingX = LeftBearingX * Scale;
 		//NOTE(dima): Subtract 1 here because of 1 pixel wrap around glyph bitmap
-		Glyph->XOffset = XOffset - 1;
-		Glyph->YOffset = YOffset - 1;
+		Glyph->XOffset = XOffset - CharBorder;
+		Glyph->YOffset = YOffset - CharBorder;
 		Glyph->Codepoint = Codepoint;
 
 		AtlasWidth += Glyph->Width;
@@ -554,81 +620,150 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 			}
 		}
 
+		//NOTE(dima): Forming char bitmap
+		bitmap_info CharBitmap;
+		CharBitmap = AssetAllocateBitmap(CharWidth, CharHeight);
 
-		u32 SrcX = 0;
-		u32 SrcY = 0;
-
-		//NOTE(dima): First - render shadow if needed
-		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
-			for (int Y = 1 + ShadowOffset; Y < Glyph->Height - 1; Y++) {
-				SrcX = 0;
-				u32* Pixel = (u32*)Glyph->Bitmap.Pixels + Glyph->Bitmap.Width * Y;
-				for (int X = 1 + ShadowOffset; X < Glyph->Width - 1; X++) {
-					u32* Out = (u32*)(Glyph->Bitmap.Pixels + Y * Glyph->Bitmap.Pitch + X * 4);
-
-					u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
-					float GrayscaleFloat = (float)(Grayscale + 0.5f);
-					float Grayscale01 = GrayscaleFloat * OneOver255;
-
-					v4 ResultColor = V4(0.0f, 0.0f, 0.0f, Grayscale01);
-
-					/*Alpha premultiplication*/
-					ResultColor.r *= ResultColor.a;
-					ResultColor.g *= ResultColor.a;
-					ResultColor.b *= ResultColor.a;
-
-					u32 ColorValue = PackRGBA(ResultColor);
-					*Out = ColorValue;
-
-					SrcX++;
-				}
-				SrcY++;
-			}
-		}
-
-		if (Flags & AssetLoadFontFlag_BakeBlur) {
-
-		}
-
-		SrcX = 0;
-		SrcY = 0;
-
-		//NOTE(dima): Then render actual glyph
-		for (int Y = 1; Y < Glyph->Height - 1 - ShadowOffset; Y++) {
-			SrcX = 0;
-			for (int X = 1; X < Glyph->Width - 1 - ShadowOffset; X++) {
-
-				u32* Out = (u32*)Glyph->Bitmap.Pixels + Y * Glyph->Width + X;
-				v4 DstInitColor = UnpackRGBA(*Out);
-
-				u8 Grayscale = *((u8*)Bitmap + SrcY * CharWidth + SrcX);
+		for (int j = 0; j < CharHeight; j++) {
+			for (int i = 0; i < CharWidth; i++) {
+				u8 Grayscale = *((u8*)Bitmap + j * CharWidth + i);
 				float GrayscaleFloat = (float)(Grayscale + 0.5f);
 				float Grayscale01 = GrayscaleFloat * OneOver255;
 
 				v4 ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
 
-				//NOTE(dima): alpha premultiplication
+				/*Alpha premultiplication*/
 				ResultColor.r *= ResultColor.a;
 				ResultColor.g *= ResultColor.a;
 				ResultColor.b *= ResultColor.a;
 
-				//NOTE(dima): Calculating blend alpha value
-				float BlendAlpha = ResultColor.a;
-
-				ResultColor.x = ResultColor.x + DstInitColor.x * (1.0f - BlendAlpha);
-				ResultColor.y = ResultColor.y + DstInitColor.y * (1.0f - BlendAlpha);
-				ResultColor.z = ResultColor.z + DstInitColor.z * (1.0f - BlendAlpha);
-				ResultColor.a = ResultColor.a + DstInitColor.a - ResultColor.a * DstInitColor.a;
-
 				u32 ColorValue = PackRGBA(ResultColor);
-				*Out = ColorValue;
-
-				SrcX++;
+				u32* TargetPixel = (u32*)((u8*)CharBitmap.Pixels + j * CharBitmap.Pitch + i * 4);
+				*TargetPixel = ColorValue;
 			}
-
-			SrcY++;
 		}
 
+		//NOTE(dima): Render blur if needed
+		if (Flags & AssetLoadFontFlag_BakeBlur) {
+			bitmap_info ToBlur = AssetAllocateBitmap(
+				2 * CharBorder + CharWidth,
+				2 * CharBorder + CharHeight);
+
+			bitmap_info BlurredResult = AssetAllocateBitmap(
+				2 * CharBorder + CharWidth,
+				2 * CharBorder + CharHeight);
+
+			bitmap_info TempBitmap = AssetAllocateBitmap(
+				2 * CharBorder + CharWidth,
+				2 * CharBorder + CharHeight);
+
+			RenderOneBitmapIntoAnother(
+				&ToBlur,
+				&CharBitmap,
+				CharBorder,
+				CharBorder,
+				V4(1.0f, 1.0f, 1.0f, 1.0f));
+
+			int BlurRadius = CharBorder;
+
+#if 1
+			BlurBitmapExactGaussian(
+				&ToBlur,
+				BlurredResult.Pixels,
+				ToBlur.Width,
+				ToBlur.Height,
+				BlurRadius,
+				GaussianBox);
+
+
+			for (int Y = 0; Y < ToBlur.Height; Y++) {
+				for (int X = 0; X < ToBlur.Width; X++) {
+					u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
+					u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
+
+					v4 FromColor = UnpackRGBA(*FromPix);
+
+					v4 ResultColor = FromColor;
+					if (ResultColor.a > 0.05f) {
+						ResultColor.a = 1.0f;
+					}
+
+					*ToPix = PackRGBA(ResultColor);
+				}
+			}
+
+			BlurBitmapExactGaussian(
+				&ToBlur,
+				BlurredResult.Pixels,
+				ToBlur.Width,
+				ToBlur.Height,
+				BlurRadius,
+				GaussianBox);
+
+#else
+			BlurBitmapApproximateGaussian(
+				&ToBlur,
+				BlurredResult.Pixels,
+				TempBitmap.Pixels,
+				ToBlur.Width,
+				ToBlur.Height,
+				BlurRadius);
+
+			for (int Y = 0; Y < ToBlur.Height; Y++) {
+				for (int X = 0; X < ToBlur.Width; X++) {
+					u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
+					u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
+
+					v4 FromColor = UnpackRGBA(*FromPix);
+
+					v4 ResultColor = FromColor;
+					if (ResultColor.a > 0.05f) {
+						ResultColor.a = 1.0f;
+					}
+
+					*ToPix = PackRGBA(ResultColor);
+				}
+			}
+
+			BlurBitmapApproximateGaussian(
+				&ToBlur,
+				BlurredResult.Pixels,
+				TempBitmap.Pixels,
+				ToBlur.Width,
+				ToBlur.Height,
+				BlurRadius);
+
+#endif
+
+			RenderOneBitmapIntoAnother(
+				&Glyph->Bitmap,
+				&BlurredResult,
+				0, 0,
+				V4(0.0f, 0.0f, 0.0f, 1.0f));
+
+			AssetDeallocateBitmap(&TempBitmap);
+			AssetDeallocateBitmap(&ToBlur);
+			AssetDeallocateBitmap(&BlurredResult);
+		}
+
+
+		//NOTE(dima): render shadow if needed
+		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
+			RenderOneBitmapIntoAnother(
+				&Glyph->Bitmap,
+				&CharBitmap,
+				CharBorder + ShadowOffset,
+				CharBorder + ShadowOffset,
+				V4(0.0f, 0.0f, 0.0f, 1.0f));
+		}
+
+		RenderOneBitmapIntoAnother(
+			&Glyph->Bitmap,
+			&CharBitmap,
+			CharBorder, CharBorder,
+			V4(1.0f, 1.0f, 1.0f, 1.0f));
+
+		AssetDeallocateBitmap(&CharBitmap);
 		stbtt_FreeBitmap(Bitmap, 0); /*???*/
 	}
 
@@ -1026,10 +1161,21 @@ void WriteFonts()
 	InitAssetFile(System);
 
 	//NOTE(dima): Fonts
-	loader_font_info GoldenFontInfo = LoadFontInfoFromImage("../Data/Fonts/NewFontAtlas.png", 15, 8, 8, 0);
-	loader_font_info DebugFontInfo = LoadFontInfoWithSTB("../Data/Fonts/LiberationMono-Bold.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-	loader_font_info UbuntuFontInfo = LoadFontInfoWithSTB("../Data/Fonts/UbuntuMono-B.ttf", 18, AssetLoadFontFlag_BakeOffsetShadows);
-	loader_font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB("../Data/Fonts/aqct.ttf", 30, AssetLoadFontFlag_BakeOffsetShadows);
+	loader_font_info GoldenFontInfo = LoadFontInfoFromImage(
+		"../Data/Fonts/NewFontAtlas.png", 
+		15, 8, 8, 0);
+
+	loader_font_info DebugFontInfo = LoadFontInfoWithSTB(
+		"../Data/Fonts/LiberationMono-Bold.ttf", 
+		18, AssetLoadFontFlag_BakeOffsetShadows);
+
+	loader_font_info UbuntuFontInfo = LoadFontInfoWithSTB(
+		"../Data/Fonts/UbuntuMono-B.ttf", 
+		18, AssetLoadFontFlag_BakeBlur);
+
+	loader_font_info AntiqueOliveFontInfo = LoadFontInfoWithSTB(
+		"../Data/Fonts/aqct.ttf", 30, 
+		AssetLoadFontFlag_BakeBlur);
 
 	BeginAssetGroup(System, GameAsset_Font);
 	AddFontAsset(System, &UbuntuFontInfo);

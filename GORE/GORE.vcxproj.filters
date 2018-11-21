@@ -84,6 +84,9 @@
     <ClCompile Include="..\Source\gore_asset_common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Source\gore_render_blur.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\geometrika.h">
@@ -207,6 +210,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Source\gore_file_formats.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Source\gore_render_blur.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
