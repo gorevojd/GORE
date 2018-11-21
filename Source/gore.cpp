@@ -856,6 +856,11 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		&MenuFont->FontAtlasImage,
 		V2(10, 50),
 		20);
+
+	font_glyph_id YGlyphID = MenuFont->GlyphIDs[MenuFont->CodepointToGlyphMapping['y']];
+	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, YGlyphID);
+	
+	RENDERPushBitmap(RenderStack, &YGlyph->Bitmap, V2(10, 100), 100);
 #endif
 
 	END_TIMING();

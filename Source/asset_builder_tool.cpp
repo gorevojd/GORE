@@ -549,12 +549,12 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	Result.DescenderHeight = (float)DescenderHeight * Scale;
 	Result.LineGap = (float)LineGap * Scale;
 
-	int CharBorder = 2;
+	int CharBorder = 3;
 
 	//NOTE(dima): This is for blurring
+	int BlurRadius = 2;
 	float GaussianBox[256];
 	if (Flags & AssetLoadFontFlag_BakeBlur) {
-		int BlurRadius = CharBorder;
 
 		u32 GaussianBoxCompCount = Calcualte2DGaussianBoxComponentsCount(BlurRadius);
 		Calculate2DGaussianBox(GaussianBox, BlurRadius);
@@ -663,8 +663,6 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 				CharBorder,
 				CharBorder,
 				V4(1.0f, 1.0f, 1.0f, 1.0f));
-
-			int BlurRadius = CharBorder;
 
 #if 1
 			BlurBitmapExactGaussian(

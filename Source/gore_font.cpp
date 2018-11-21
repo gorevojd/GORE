@@ -42,8 +42,8 @@ static rect2 PrintTextInternal(
 		
 			if (IsPrint && CharIsValid)
 			{
-				float BitmapMinY = CurrentP.y + (Glyph->YOffset - 1.0f) * Scale;
-				float BitmapMinX = CurrentP.x + (Glyph->XOffset - 1.0f) * Scale;
+				float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
+				float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;
 
 				v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 
