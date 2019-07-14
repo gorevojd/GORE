@@ -19,8 +19,8 @@ inline float GetNextRowAdvance(font_info* Info, float SpacingMultiplier = 1.0f) 
 inline float GetKerningForCharPair(font_info* FontInfo, int FirstCodepoint, int SecondCodepoint) {
 	float Result = 0;
 
-	int FirstIndex = FontInfo->CodepointToGlyphMapping[FirstCodepoint];
-	int SecondIndex = FontInfo->CodepointToGlyphMapping[SecondCodepoint];
+	int FirstIndex = FindGlyphInTable(FirstCodepoint, FontInfo);
+	int SecondIndex = FindGlyphInTable(SecondCodepoint, FontInfo);
 
 	Result = FontInfo->KerningPairs[SecondIndex * FontInfo->GlyphsCount + FirstIndex];
 

@@ -30,7 +30,9 @@ static rect2 PrintTextInternal(
 		b32 CharIsValid = (*At >= ' ') && (*At <= '~');
 		int GlyphIndex = 0;
 		if (CharIsValid) {
-			GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
+			GlyphIndex = FindGlyphInTable(*At, FontInfo);
+
+			int a = 1;
 		}
 
 		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];

@@ -726,7 +726,8 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								Font->DescenderHeight = GASS->Font.DescenderHeight;
 								Font->LineGap = GASS->Font.LineGap;
 								Font->GlyphsCount = GASS->Font.GlyphsCount;
-								Font->MaxGlyphsCount = GASS->Font.MaxGlyphsCount;
+								Font->CpToGlyphMapCount = GASS->Font.MapRowCount;
+								Font->CpToGlyphMapLastRowIndex = GASS->Font.MapLastRowIndex;
 
 								AssetAllocateBitmap(
 									&Font->FontAtlasImage,
@@ -749,13 +750,13 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 									File,
 									DataMem,
 									AssetDataOffsetInFile,
-									DataMemSize);
+									GASS->AssetTotalDataSize);
 
 								u32 OffsetToMapping = -sizeof(gass_header) + GASS->Font.LineOffsetToMapping;
 								u32 OffsetToKerning = -sizeof(gass_header) + GASS->Font.LineOffsetToKerningPairs;
 								u32 OffsetToAtlasss = -sizeof(gass_header) + GASS->Font.LineOffsetToAtlasBitmapPixels;
 
-								Font->CodepointToGlyphMapping = (int*)((u8*)DataMem + OffsetToMapping);
+								Font->CpToGlyphMap = (font_info_pair*)((u8*)DataMem + OffsetToMapping);
 								Font->KerningPairs = (float*)((u8*)DataMem + OffsetToKerning);
 								void* AtlasBitmapPixels = (u8*)DataMem + OffsetToAtlasss;
 								Font->GlyphIDs = (u32*)((u8*)DataMem + GASS->AssetTotalDataSize);
@@ -765,7 +766,8 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 									GlyphIndex < GASS->Font.GlyphsCount;
 									GlyphIndex++)
 								{
-									Font->GlyphIDs[GlyphIndex] = ToGroup->FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+									//Font->GlyphIDs[GlyphIndex] = ToGroup->FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+									Font->GlyphIDs[GlyphIndex] = System->AssetGroups[GameAsset_FontGlyph].FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
 								}
 
 								AssetAllocateBitmap(

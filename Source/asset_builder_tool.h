@@ -8,18 +8,27 @@
 #include "gore_file_formats.h"
 #include "gore_asset_common.h"
 
-#define MAX_FONT_INFO_GLYPH_COUNT 256
+struct loader_font_info_pair {
+	int Codepoint;
+	int GlyphIndex;
+	int NextRowIndex;
+};
+
 struct loader_font_info {
-	int CodepointToGlyphMapping[MAX_FONT_INFO_GLYPH_COUNT];
+	int CpToGlyphTableRowCount;
+	int CpToGlyphLastRowIndex;
+	loader_font_info_pair* CpToGlyphTable;
+
+	//int CodepointToGlyphMapping[MAX_FONT_INFO_GLYPH_COUNT];
 
 	float AscenderHeight;
 	float DescenderHeight;
 	float LineGap;
 
-	int MaxGlyphsCount;
 	int GlyphsCount;
 	float* KerningPairs;
-	glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
+	glyph_info* Glyphs_;
+	//glyph_info Glyphs[MAX_FONT_INFO_GLYPH_COUNT];
 
 	bitmap_info FontAtlasImage;
 

@@ -102,7 +102,9 @@ struct gass_font {
 	u32 FirstGlyphID;
 
 	int GlyphsCount;
-	int MaxGlyphsCount;
+
+	int MapRowCount;
+	int MapLastRowIndex;
 
 	u32 AtlasBitmapWidth;
 	u32 AtlasBitmapHeight;

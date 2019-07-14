@@ -4,6 +4,16 @@
 #include "gore_types.h"
 #include "gore_math.h"
 
+enum asset_type {
+	AssetType_None,
+
+	AssetType_Bitmap,
+	AssetType_Sound,
+	AssetType_Font,
+	AssetType_FontGlyph,
+	AssetType_Model,
+	AssetType_Mesh,
+};
 
 enum load_mesh_vertex_layout {
 	MeshVertexLayout_PUV,
@@ -92,20 +102,45 @@ struct glyph_info {
 	v2 AtlasMaxUV;
 };
 
+struct font_info_pair {
+	int Codepoint;
+	int GlyphIndex;
+	int NextRowIndex;
+};
+
 struct font_info {
-	int* CodepointToGlyphMapping;
+	font_info_pair* CpToGlyphMap;
+	int CpToGlyphMapCount;
+	int CpToGlyphMapLastRowIndex;
 
 	float AscenderHeight;
 	float DescenderHeight;
 	float LineGap;
 
-	int MaxGlyphsCount;
 	int GlyphsCount;
 	float* KerningPairs;
 	u32* GlyphIDs;
 
 	bitmap_info FontAtlasImage;
 };
+
+inline u32 FindGlyphInTable(u32 Codepoint, font_info* FontInfo) {
+	u32 Result = 0;
+
+	u32 Key = Codepoint % FontInfo->CpToGlyphMapCount;
+	font_info_pair* Pair = &FontInfo->CpToGlyphMap[Key];
+
+	do {
+		if (Pair->Codepoint == Codepoint) {
+			Result = Pair->GlyphIndex;
+			break;
+		}
+
+		Pair = &FontInfo->CpToGlyphMap[Pair->NextRowIndex];
+	} while (Pair->NextRowIndex);
+
+	return(Result);
+}
 
 enum voxel_face_type_index {
 	VoxelFaceTypeIndex_Top = 0,

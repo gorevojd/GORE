@@ -33,8 +33,8 @@ enum game_asset_group_id {
 	GameAsset_Sphere,
 	GameAsset_Cylynder,
 
-	GameAsset_Font,
 	GameAsset_FontGlyph,
+	GameAsset_Font,
 
 	GameAsset_Count,
 };

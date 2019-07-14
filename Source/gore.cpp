@@ -850,6 +850,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		0, 
 		AssetType_Font);
 
+
 	font_info* MenuFont = GetFontFromID(EngineSystems->AssetSystem, MenuFontID);
 	RENDERPushBitmap(
 		RenderStack,
@@ -857,7 +858,19 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(10, 50),
 		20);
 
-	font_glyph_id YGlyphID = MenuFont->GlyphIDs[MenuFont->CodepointToGlyphMapping['y']];
+	float CurX = 10.0f;
+	for (int GlyphIndex = 0;
+		GlyphIndex < MenuFont->GlyphsCount;
+		GlyphIndex++) 
+	{
+		u32 GlyphID = MenuFont->GlyphIDs[GlyphIndex];
+
+		glyph_info* Glyph = GetGlyphFromID(EngineSystems->AssetSystem, GlyphID);
+		RENDERPushBitmap(RenderStack, &Glyph->Bitmap, V2(CurX, 400), Glyph->Bitmap.Height);
+		CurX += Glyph->Bitmap.Width;
+	}
+
+	font_glyph_id YGlyphID = FindGlyphInTable('y', MenuFont);
 	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, YGlyphID);
 	
 	RENDERPushBitmap(RenderStack, &YGlyph->Bitmap, V2(10, 100), 100);

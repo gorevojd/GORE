@@ -155,67 +155,66 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 		b32 CharIsValid = (*At >= ' ') && (*At <= '~');
 		int GlyphIndex = 0;
 		if (CharIsValid) {
-			GlyphIndex = FontInfo->CodepointToGlyphMapping[*At];
+			GlyphIndex = FindGlyphInTable(*At, FontInfo);
 		}
 
 		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
 		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, GlyphID);
+		if (Glyph) {
+			CurGlyphAdvance = Glyph->Advance;
 
+			float BitmapScale = Glyph->Height * Scale;
 
-		CurGlyphAdvance = Glyph->Advance;
+			if (IsMultiline) {
+				if (*At == '\n' ||
+					*At == '\r')
+				{
+					if (CurrentP.x > MaxRowPX) {
+						MaxRowPX = CurrentP.x;
+					}
 
-		float BitmapScale = Glyph->Height * Scale;
-		
-		if (IsMultiline) {
-			if (*At == '\n' ||
-				*At == '\r')
-			{
-				if (CurrentP.x > MaxRowPX) {
-					MaxRowPX = CurrentP.x;
+					CurrentP.x = P.x;
+					CurrentP.y += GetNextRowAdvance(FontInfo) * Scale;
+
+					++At;
+					continue;
 				}
-
-				CurrentP.x = P.x;
-				CurrentP.y += GetNextRowAdvance(FontInfo) * Scale;
-
-				++At;
-				continue;
 			}
-		}
 
-		if (IsPrint && CharIsValid)
-		{
-			float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
-			float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;
+			if (IsPrint && CharIsValid)
+			{
+				float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
+				float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;
 
-			v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
+				v2 BitmapDim = { Glyph->Bitmap.WidthOverHeight * BitmapScale, BitmapScale };
 
-			bitmap_info* GlyphBitmap = 0;
+				bitmap_info* GlyphBitmap = 0;
 #if 0
-			GlyphBitmap = &Glyph->Bitmap;
+				GlyphBitmap = &Glyph->Bitmap;
 #endif
 
-			RENDERPushGlyph(
-				Stack,
-				*At,
-				{ BitmapMinX, BitmapMinY }, BitmapDim,
-				Glyph->AtlasMinUV,
-				Glyph->AtlasMaxUV,
-				GlyphBitmap,
-				Color);
+				RENDERPushGlyph(
+					Stack,
+					*At,
+					{ BitmapMinX, BitmapMinY }, BitmapDim,
+					Glyph->AtlasMinUV,
+					Glyph->AtlasMaxUV,
+					GlyphBitmap,
+					Color);
+			}
+
+			if (*At == '\t') {
+				CurGlyphAdvance = Glyph->Advance * 2.0f;
+			}
+
+			float Kerning = 0.0f;
+			char NextChar = *(At + 1);
+			if (NextChar >= ' ' && NextChar <= '~') {
+				Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
+			}
+
+			CurrentP.x += (CurGlyphAdvance + Kerning) * Scale;
 		}
-
-		if (*At == '\t') {
-			CurGlyphAdvance = Glyph->Advance * 2.0f;
-		}
-
-		float Kerning = 0.0f;
-		char NextChar = *(At + 1);
-		if (NextChar >= ' ' && NextChar <= '~') {
-			Kerning = GetKerningForCharPair(FontInfo, *At, *(At + 1));
-		}
-
-		CurrentP.x += (CurGlyphAdvance + Kerning) * Scale;
-
 		++At;
 	}
 

@@ -12,6 +12,8 @@
 
 #include "gore_render_blur.h"
 
+#define MAX_GLYPH_COUNT 2048
+
 static void BeginAssetGroup(asset_system* System, u32 GroupID) {
 	System->CurrentGroup = System->AssetGroups + GroupID;
 	System->PrevAssetPointer = 0;
@@ -232,21 +234,25 @@ static font_id AddFontAsset(
 	Header->Font.DescenderHeight = FontInfo->DescenderHeight;
 	Header->Font.LineGap = FontInfo->LineGap;
 	Header->Font.GlyphsCount = FontInfo->GlyphsCount;
-	Header->Font.MaxGlyphsCount = MAX_FONT_INFO_GLYPH_COUNT;
 	Header->Font.AtlasBitmapHeight = FontInfo->FontAtlasImage.Height;
 	Header->Font.AtlasBitmapWidth = FontInfo->FontAtlasImage.Width;
 	Header->Font.FirstGlyphID = FontInfo->Reserved;
 
+	Header->Font.MapRowCount = FontInfo->CpToGlyphTableRowCount;
+	Header->Font.MapLastRowIndex = FontInfo->CpToGlyphLastRowIndex;
+
 	Header->Font.LineOffsetToMapping = GASSGetLineOffsetForData();
 	Header->Font.LineOffsetToKerningPairs =
 		Header->Font.LineOffsetToMapping +
-		sizeof(int) * Header->Font.MaxGlyphsCount;
+		sizeof(loader_font_info_pair) * Header->Font.MapLastRowIndex;
 	Header->Font.LineOffsetToAtlasBitmapPixels =
 		Header->Font.LineOffsetToKerningPairs +
 		sizeof(float) * Header->Font.GlyphsCount * Header->Font.GlyphsCount;
 
 	AddFreeareaToAsset(System, Added.Asset, FontInfo->KerningPairs);
 	AddFreeareaToAsset(System, Added.Asset, FontInfo->FontAtlasImage.Pixels);
+	AddFreeareaToAsset(System, Added.Asset, FontInfo->Glyphs_);
+	AddFreeareaToAsset(System, Added.Asset, FontInfo->CpToGlyphTable);
 
 	font_id Result = Added.Asset->ID;
 	return(Result);
@@ -375,6 +381,53 @@ void RenderOneBitmapIntoAnother(
 	}
 }
 
+static int InsertGlyphToTable(u32 Codepoint, loader_font_info* Result) {
+
+	u32 Key = Codepoint % Result->CpToGlyphTableRowCount;
+	loader_font_info_pair* Pair = &Result->CpToGlyphTable[Key];
+
+	loader_font_info_pair* LastPair = Pair;
+
+	if (!Pair->Codepoint) {
+		//NOTE(dima): There were no collision in the table
+
+
+	}
+	else {
+		//NOTE(dima): There were collision in the table
+
+		while (Pair->NextRowIndex) {
+			Pair = &Result->CpToGlyphTable[Pair->NextRowIndex];
+		}
+
+		Pair->NextRowIndex = Result->CpToGlyphLastRowIndex++;
+		Pair = &Result->CpToGlyphTable[Pair->NextRowIndex];
+	}
+
+	Pair->Codepoint = Codepoint;
+	Pair->GlyphIndex = Result->GlyphsCount++;
+
+	return(Pair->GlyphIndex);
+}
+
+static glyph_info* FindGlyphInTable(u32 Codepoint, loader_font_info* FontInfo) {
+	glyph_info* Result = 0;
+
+	u32 Key = Codepoint % FontInfo->CpToGlyphTableRowCount;
+	loader_font_info_pair* Pair = &FontInfo->CpToGlyphTable[Key];
+
+	do {
+		if (Pair->Codepoint == Codepoint) {
+			Result = &FontInfo->Glyphs_[Pair->GlyphIndex];
+			break;
+		}
+
+		Pair = &FontInfo->CpToGlyphTable[Pair->NextRowIndex];
+	} while (Pair->NextRowIndex);
+
+	return(Result);
+}
+
 loader_font_info LoadFontInfoFromImage(
 	char* ImagePath,
 	int Height,
@@ -383,6 +436,15 @@ loader_font_info LoadFontInfoFromImage(
 	u32 Flags)
 {
 	loader_font_info Result = {};
+
+	Result.Glyphs_ = (glyph_info*)malloc(sizeof(glyph_info) * MAX_GLYPH_COUNT);
+
+	Result.CpToGlyphTableRowCount = 256;
+	Result.CpToGlyphLastRowIndex = Result.CpToGlyphTableRowCount;
+	Result.CpToGlyphTable = (loader_font_info_pair*)malloc(
+		sizeof(loader_font_info_pair) * MAX_GLYPH_COUNT);
+	memset(Result.CpToGlyphTable, 0, sizeof(loader_font_info_pair*) * MAX_GLYPH_COUNT);
+
 
 	float Scale = (float)Height / (float)OneCharPixelHeight;
 
@@ -407,8 +469,8 @@ loader_font_info LoadFontInfoFromImage(
 
 	//NOTE(dima): Initializing all codepoints
 	for (int i = ' '; i <= '~'; i++) {
-		Result.CodepointToGlyphMapping[i] = Result.GlyphsCount;
-		glyph_info* Glyph = &Result.Glyphs[Result.GlyphsCount++];
+		int GlyphIndex = InsertGlyphToTable(i, &Result);
+		glyph_info* Glyph = &Result.Glyphs_[GlyphIndex];
 
 		Glyph->Advance = TargetCharWidth;
 
@@ -442,13 +504,13 @@ loader_font_info LoadFontInfoFromImage(
 	int PixelAtX = 0;
 	int CodePoint = ' ';
 	int BigACodepointIndex = 0;
-	for (PixelAtX; PixelAtX + OneCharPixelWidth <= FontImage.Width; PixelAtX += OneCharPixelWidth, CodePoint++) {
+	for (PixelAtX; PixelAtX + OneCharPixelWidth <= FontImage.Width, CodePoint <= '~'; PixelAtX += OneCharPixelWidth, CodePoint++) {
 
 		if (CodePoint == 'A') {
 			BigACodepointIndex = CodePoint;
 		}
 
-		glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[CodePoint]];
+		glyph_info* Glyph = FindGlyphInTable(CodePoint, &Result);
 
 		for (int y = 1; y < TargetCharHeight + 1; y++) {
 
@@ -470,8 +532,9 @@ loader_font_info LoadFontInfoFromImage(
 		if (CodePoint > 'Z') {
 			int TempCodepointIndex = 0;
 			for (TempCodepointIndex = 'a'; TempCodepointIndex < 'z'; TempCodepointIndex++) {
-				glyph_info* SrcGlyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex - 'a' + 'A']];
-				glyph_info* Glyph = &Result.Glyphs[Result.CodepointToGlyphMapping[TempCodepointIndex]];
+				glyph_info* SrcGlyph = FindGlyphInTable(TempCodepointIndex - 'a' + 'A', &Result);
+				glyph_info* Glyph = FindGlyphInTable(TempCodepointIndex, &Result);
+
 
 				AssetCopyBitmapData(&Glyph->Bitmap, &SrcGlyph->Bitmap);
 			}
@@ -479,8 +542,7 @@ loader_font_info LoadFontInfoFromImage(
 	}
 
 	//NOTE(dima): Processing kerning
-	u32 KerningOneRowSize = sizeof(float) * Result.GlyphsCount;
-	Result.KerningPairs = (float*)malloc(KerningOneRowSize * KerningOneRowSize);
+	Result.KerningPairs = (float*)malloc(sizeof(float) * Result.GlyphsCount * Result.GlyphsCount);
 
 	for (int FirstGlyphIndex = 0; FirstGlyphIndex < Result.GlyphsCount; FirstGlyphIndex++) {
 		for (int SecondGlyphIndex = 0; SecondGlyphIndex < Result.GlyphsCount; SecondGlyphIndex++) {
@@ -498,7 +560,7 @@ loader_font_info LoadFontInfoFromImage(
 
 	u32 AtWidth = 0;
 	for (int GlyphIndex = 0; GlyphIndex < Result.GlyphsCount; GlyphIndex++) {
-		glyph_info* Glyph = &Result.Glyphs[GlyphIndex];
+		glyph_info* Glyph = &Result.Glyphs_[GlyphIndex];
 
 		for (int YIndex = 0; YIndex < Glyph->Height; YIndex++) {
 			u32* At = (u32*)Glyph->Bitmap.Pixels + YIndex * Glyph->Width;
@@ -514,15 +576,245 @@ loader_font_info LoadFontInfoFromImage(
 		AtWidth += Glyph->Width;
 	}
 
+	//Result.Glyphs_ = (glyph_info*)realloc(Result.Glyphs_, Result.GlyphsCount);
+	//Result.CpToGlyphTable = (loader_font_info_pair*)realloc(Result.CpToGlyphTable, Result.CpToGlyphLastRowIndex);
+
+
 	//NOTE(dima): Freing font image
 	AssetDeallocateBitmap(&FontImage);
 
 	return(Result);
 }
 
+
+static void AddCodepointSTB(
+	u32 Codepoint,
+	stbtt_fontinfo* FontInfo,
+	loader_font_info* Result,
+	float Scale,
+	int CharBorder,
+	u32* AtlasWidth,
+	u32* AtlasHeight,
+	u32 Flags,
+	int BlurRadius,
+	float* GaussianBox)
+{
+	float OneOver255 = 1.0f / 255.0f;
+
+	int GlyphIndex = InsertGlyphToTable(Codepoint, Result);
+	glyph_info* Glyph = &Result->Glyphs_[GlyphIndex];
+
+	int CharWidth;
+	int CharHeight;
+	int XOffset;
+	int YOffset;
+	int Advance;
+	int LeftBearingX;
+
+#if 1
+	u8* Bitmap = stbtt_GetCodepointBitmap(
+		FontInfo,
+		Scale, Scale,
+		Codepoint,
+		&CharWidth, &CharHeight,
+		&XOffset, &YOffset);
+#else
+	float SubpixelShift = 0.5f;
+
+	u8* Bitmap = stbtt_GetCodepointBitmapSubpixel(
+		&FontInfo,
+		Scale, Scale,
+		SubpixelShift, SubpixelShift,
+		Codepoint,
+		&CharWidth, &CharHeight,
+		&XOffset, &YOffset);
+#endif
+
+	stbtt_GetCodepointHMetrics(FontInfo, Codepoint, &Advance, &LeftBearingX);
+
+	int ShadowOffset = 0;
+	if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
+		ShadowOffset = 2;
+	}
+
+	Glyph->Width = CharWidth + 2 * CharBorder + ShadowOffset;
+	Glyph->Height = CharHeight + 2 * CharBorder + ShadowOffset;
+	Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
+	Glyph->Advance = Advance * Scale;
+	Glyph->LeftBearingX = LeftBearingX * Scale;
+	//NOTE(dima): Subtract 1 here because of 1 pixel wrap around glyph bitmap
+	Glyph->XOffset = XOffset - CharBorder;
+	Glyph->YOffset = YOffset - CharBorder;
+	Glyph->Codepoint = Codepoint;
+
+	*AtlasWidth += Glyph->Width;
+	*AtlasHeight = Max(*AtlasHeight, Glyph->Height);
+
+	//NOTE(dima): Clearing the image bytes
+	u32* Pixel = (u32*)Glyph->Bitmap.Pixels;
+	for (int Y = 0; Y < Glyph->Height; Y++) {
+		for (int X = 0; X < Glyph->Width; X++) {
+			*Pixel++ = 0;
+		}
+	}
+
+	//NOTE(dima): Forming char bitmap
+	bitmap_info CharBitmap;
+	CharBitmap = AssetAllocateBitmap(CharWidth, CharHeight);
+
+	for (int j = 0; j < CharHeight; j++) {
+		for (int i = 0; i < CharWidth; i++) {
+			u8 Grayscale = *((u8*)Bitmap + j * CharWidth + i);
+			float GrayscaleFloat = (float)(Grayscale + 0.5f);
+			float Grayscale01 = GrayscaleFloat * OneOver255;
+
+			v4 ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
+
+			/*Alpha premultiplication*/
+			ResultColor.r *= ResultColor.a;
+			ResultColor.g *= ResultColor.a;
+			ResultColor.b *= ResultColor.a;
+
+			u32 ColorValue = PackRGBA(ResultColor);
+			u32* TargetPixel = (u32*)((u8*)CharBitmap.Pixels + j * CharBitmap.Pitch + i * 4);
+			*TargetPixel = ColorValue;
+		}
+	}
+
+	//NOTE(dima): Render blur if needed
+	if (Flags & AssetLoadFontFlag_BakeBlur) {
+		bitmap_info ToBlur = AssetAllocateBitmap(
+			2 * CharBorder + CharWidth,
+			2 * CharBorder + CharHeight);
+
+		bitmap_info BlurredResult = AssetAllocateBitmap(
+			2 * CharBorder + CharWidth,
+			2 * CharBorder + CharHeight);
+
+		bitmap_info TempBitmap = AssetAllocateBitmap(
+			2 * CharBorder + CharWidth,
+			2 * CharBorder + CharHeight);
+
+		RenderOneBitmapIntoAnother(
+			&ToBlur,
+			&CharBitmap,
+			CharBorder,
+			CharBorder,
+			V4(1.0f, 1.0f, 1.0f, 1.0f));
+
+#if 1
+		BlurBitmapExactGaussian(
+			&ToBlur,
+			BlurredResult.Pixels,
+			ToBlur.Width,
+			ToBlur.Height,
+			BlurRadius,
+			GaussianBox);
+
+
+		for (int Y = 0; Y < ToBlur.Height; Y++) {
+			for (int X = 0; X < ToBlur.Width; X++) {
+				u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
+				u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
+
+				v4 FromColor = UnpackRGBA(*FromPix);
+
+				v4 ResultColor = FromColor;
+				if (ResultColor.a > 0.05f) {
+					ResultColor.a = 1.0f;
+				}
+
+				*ToPix = PackRGBA(ResultColor);
+			}
+		}
+
+		BlurBitmapExactGaussian(
+			&ToBlur,
+			BlurredResult.Pixels,
+			ToBlur.Width,
+			ToBlur.Height,
+			BlurRadius,
+			GaussianBox);
+
+#else
+		BlurBitmapApproximateGaussian(
+			&ToBlur,
+			BlurredResult.Pixels,
+			TempBitmap.Pixels,
+			ToBlur.Width,
+			ToBlur.Height,
+			BlurRadius);
+
+		for (int Y = 0; Y < ToBlur.Height; Y++) {
+			for (int X = 0; X < ToBlur.Width; X++) {
+				u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
+				u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
+
+				v4 FromColor = UnpackRGBA(*FromPix);
+
+				v4 ResultColor = FromColor;
+				if (ResultColor.a > 0.05f) {
+					ResultColor.a = 1.0f;
+				}
+
+				*ToPix = PackRGBA(ResultColor);
+			}
+		}
+
+		BlurBitmapApproximateGaussian(
+			&ToBlur,
+			BlurredResult.Pixels,
+			TempBitmap.Pixels,
+			ToBlur.Width,
+			ToBlur.Height,
+			BlurRadius);
+
+#endif
+
+		RenderOneBitmapIntoAnother(
+			&Glyph->Bitmap,
+			&BlurredResult,
+			0, 0,
+			V4(0.0f, 0.0f, 0.0f, 1.0f));
+
+		AssetDeallocateBitmap(&TempBitmap);
+		AssetDeallocateBitmap(&ToBlur);
+		AssetDeallocateBitmap(&BlurredResult);
+	}
+
+
+	//NOTE(dima): render shadow if needed
+	if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
+		RenderOneBitmapIntoAnother(
+			&Glyph->Bitmap,
+			&CharBitmap,
+			CharBorder + ShadowOffset,
+			CharBorder + ShadowOffset,
+			V4(0.0f, 0.0f, 0.0f, 1.0f));
+	}
+
+	RenderOneBitmapIntoAnother(
+		&Glyph->Bitmap,
+		&CharBitmap,
+		CharBorder, CharBorder,
+		V4(1.0f, 1.0f, 1.0f, 1.0f));
+
+	AssetDeallocateBitmap(&CharBitmap);
+	stbtt_FreeBitmap(Bitmap, 0); /*???*/
+}
+
 loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	loader_font_info Result = {};
 	stbtt_fontinfo FontInfo;
+
+	Result.Glyphs_ = (glyph_info*)malloc(sizeof(glyph_info) * MAX_GLYPH_COUNT);
+
+	Result.CpToGlyphTableRowCount = 256;
+	Result.CpToGlyphLastRowIndex = Result.CpToGlyphTableRowCount;
+	Result.CpToGlyphTable = (loader_font_info_pair*)malloc(
+		sizeof(loader_font_info_pair) * MAX_GLYPH_COUNT);
+	memset(Result.CpToGlyphTable, 0, sizeof(loader_font_info_pair*) * MAX_GLYPH_COUNT);
+
 
 	float OneOver255 = 1.0f / 255.0f;
 
@@ -561,220 +853,46 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 	}
 
 
-	for (char Codepoint = ' '; Codepoint <= '~'; Codepoint++) {
-
-		Result.CodepointToGlyphMapping[Codepoint] = Result.GlyphsCount;
-		glyph_info* Glyph = &Result.Glyphs[Result.GlyphsCount++];
-
-		int CharWidth;
-		int CharHeight;
-		int XOffset;
-		int YOffset;
-		int Advance;
-		int LeftBearingX;
-
-#if 1
-		u8* Bitmap = stbtt_GetCodepointBitmap(
-			&FontInfo,
-			Scale, Scale,
+	for (u32 Codepoint = ' '; Codepoint <= '~'; Codepoint++) {
+		AddCodepointSTB(
 			Codepoint,
-			&CharWidth, &CharHeight,
-			&XOffset, &YOffset);
-#else
-		float SubpixelShift = 0.5f;
-
-		u8* Bitmap = stbtt_GetCodepointBitmapSubpixel(
 			&FontInfo,
-			Scale, Scale,
-			SubpixelShift, SubpixelShift,
-			Codepoint,
-			&CharWidth, &CharHeight,
-			&XOffset, &YOffset);
-#endif
-
-		stbtt_GetCodepointHMetrics(&FontInfo, Codepoint, &Advance, &LeftBearingX);
-
-		int ShadowOffset = 0;
-		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
-			ShadowOffset = 2;
-		}
-
-		Glyph->Width = CharWidth + 2 * CharBorder + ShadowOffset;
-		Glyph->Height = CharHeight + 2 * CharBorder + ShadowOffset;
-		Glyph->Bitmap = AssetAllocateBitmap(Glyph->Width, Glyph->Height);
-		Glyph->Advance = Advance * Scale;
-		Glyph->LeftBearingX = LeftBearingX * Scale;
-		//NOTE(dima): Subtract 1 here because of 1 pixel wrap around glyph bitmap
-		Glyph->XOffset = XOffset - CharBorder;
-		Glyph->YOffset = YOffset - CharBorder;
-		Glyph->Codepoint = Codepoint;
-
-		AtlasWidth += Glyph->Width;
-		AtlasHeight = Max(AtlasHeight, Glyph->Height);
-
-		//NOTE(dima): Clearing the image bytes
-		u32* Pixel = (u32*)Glyph->Bitmap.Pixels;
-		for (int Y = 0; Y < Glyph->Height; Y++) {
-			for (int X = 0; X < Glyph->Width; X++) {
-				*Pixel++ = 0;
-			}
-		}
-
-		//NOTE(dima): Forming char bitmap
-		bitmap_info CharBitmap;
-		CharBitmap = AssetAllocateBitmap(CharWidth, CharHeight);
-
-		for (int j = 0; j < CharHeight; j++) {
-			for (int i = 0; i < CharWidth; i++) {
-				u8 Grayscale = *((u8*)Bitmap + j * CharWidth + i);
-				float GrayscaleFloat = (float)(Grayscale + 0.5f);
-				float Grayscale01 = GrayscaleFloat * OneOver255;
-
-				v4 ResultColor = V4(1.0f, 1.0f, 1.0f, Grayscale01);
-
-				/*Alpha premultiplication*/
-				ResultColor.r *= ResultColor.a;
-				ResultColor.g *= ResultColor.a;
-				ResultColor.b *= ResultColor.a;
-
-				u32 ColorValue = PackRGBA(ResultColor);
-				u32* TargetPixel = (u32*)((u8*)CharBitmap.Pixels + j * CharBitmap.Pitch + i * 4);
-				*TargetPixel = ColorValue;
-			}
-		}
-
-		//NOTE(dima): Render blur if needed
-		if (Flags & AssetLoadFontFlag_BakeBlur) {
-			bitmap_info ToBlur = AssetAllocateBitmap(
-				2 * CharBorder + CharWidth,
-				2 * CharBorder + CharHeight);
-
-			bitmap_info BlurredResult = AssetAllocateBitmap(
-				2 * CharBorder + CharWidth,
-				2 * CharBorder + CharHeight);
-
-			bitmap_info TempBitmap = AssetAllocateBitmap(
-				2 * CharBorder + CharWidth,
-				2 * CharBorder + CharHeight);
-
-			RenderOneBitmapIntoAnother(
-				&ToBlur,
-				&CharBitmap,
-				CharBorder,
-				CharBorder,
-				V4(1.0f, 1.0f, 1.0f, 1.0f));
-
-#if 1
-			BlurBitmapExactGaussian(
-				&ToBlur,
-				BlurredResult.Pixels,
-				ToBlur.Width,
-				ToBlur.Height,
-				BlurRadius,
-				GaussianBox);
-
-
-			for (int Y = 0; Y < ToBlur.Height; Y++) {
-				for (int X = 0; X < ToBlur.Width; X++) {
-					u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
-					u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
-
-					v4 FromColor = UnpackRGBA(*FromPix);
-
-					v4 ResultColor = FromColor;
-					if (ResultColor.a > 0.05f) {
-						ResultColor.a = 1.0f;
-					}
-
-					*ToPix = PackRGBA(ResultColor);
-				}
-			}
-
-			BlurBitmapExactGaussian(
-				&ToBlur,
-				BlurredResult.Pixels,
-				ToBlur.Width,
-				ToBlur.Height,
-				BlurRadius,
-				GaussianBox);
-
-#else
-			BlurBitmapApproximateGaussian(
-				&ToBlur,
-				BlurredResult.Pixels,
-				TempBitmap.Pixels,
-				ToBlur.Width,
-				ToBlur.Height,
-				BlurRadius);
-
-			for (int Y = 0; Y < ToBlur.Height; Y++) {
-				for (int X = 0; X < ToBlur.Width; X++) {
-					u32* FromPix = (u32*)BlurredResult.Pixels + Y * BlurredResult.Width + X;
-					u32* ToPix = (u32*)ToBlur.Pixels + Y * ToBlur.Width + X;
-
-					v4 FromColor = UnpackRGBA(*FromPix);
-
-					v4 ResultColor = FromColor;
-					if (ResultColor.a > 0.05f) {
-						ResultColor.a = 1.0f;
-					}
-
-					*ToPix = PackRGBA(ResultColor);
-				}
-			}
-
-			BlurBitmapApproximateGaussian(
-				&ToBlur,
-				BlurredResult.Pixels,
-				TempBitmap.Pixels,
-				ToBlur.Width,
-				ToBlur.Height,
-				BlurRadius);
-
-#endif
-
-			RenderOneBitmapIntoAnother(
-				&Glyph->Bitmap,
-				&BlurredResult,
-				0, 0,
-				V4(0.0f, 0.0f, 0.0f, 1.0f));
-
-			AssetDeallocateBitmap(&TempBitmap);
-			AssetDeallocateBitmap(&ToBlur);
-			AssetDeallocateBitmap(&BlurredResult);
-		}
-
-
-		//NOTE(dima): render shadow if needed
-		if (Flags & AssetLoadFontFlag_BakeOffsetShadows) {
-			RenderOneBitmapIntoAnother(
-				&Glyph->Bitmap,
-				&CharBitmap,
-				CharBorder + ShadowOffset,
-				CharBorder + ShadowOffset,
-				V4(0.0f, 0.0f, 0.0f, 1.0f));
-		}
-
-		RenderOneBitmapIntoAnother(
-			&Glyph->Bitmap,
-			&CharBitmap,
-			CharBorder, CharBorder,
-			V4(1.0f, 1.0f, 1.0f, 1.0f));
-
-		AssetDeallocateBitmap(&CharBitmap);
-		stbtt_FreeBitmap(Bitmap, 0); /*???*/
+			&Result,
+			Scale,
+			CharBorder,
+			&AtlasWidth,
+			&AtlasHeight,
+			Flags,
+			BlurRadius,
+			GaussianBox);
 	}
 
+#if 1
+	//NOTE(dima): Russian symbols
+	for (u32 Codepoint = 0x430; Codepoint <= 0x44F; Codepoint++) {
+		AddCodepointSTB(
+			Codepoint,
+			&FontInfo,
+			&Result,
+			Scale,
+			CharBorder,
+			&AtlasWidth,
+			&AtlasHeight,
+			Flags,
+			BlurRadius,
+			GaussianBox);
+	}
+#endif
+
 	//NOTE(dima): Processing kerning
-	u32 KerningOneRowSize = sizeof(float) * Result.GlyphsCount;
-	Result.KerningPairs = (float*)malloc(KerningOneRowSize * KerningOneRowSize);
+	Result.KerningPairs = (float*)malloc(sizeof(float) * Result.GlyphsCount * Result.GlyphsCount);
 
 	for (int FirstGlyphIndex = 0; FirstGlyphIndex < Result.GlyphsCount; FirstGlyphIndex++) {
 		for (int SecondGlyphIndex = 0; SecondGlyphIndex < Result.GlyphsCount; SecondGlyphIndex++) {
 			u32 KerningIndex = SecondGlyphIndex * Result.GlyphsCount + FirstGlyphIndex;
 
-			int FirstCodepoint = Result.Glyphs[FirstGlyphIndex].Codepoint;
-			int SecondCodepoint = Result.Glyphs[SecondGlyphIndex].Codepoint;
+			int FirstCodepoint = Result.Glyphs_[FirstGlyphIndex].Codepoint;
+			int SecondCodepoint = Result.Glyphs_[SecondGlyphIndex].Codepoint;
 
 			int Kern = stbtt_GetGlyphKernAdvance(&FontInfo, FirstCodepoint, SecondCodepoint);
 
@@ -790,7 +908,7 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 	u32 AtWidth = 0;
 	for (int GlyphIndex = 0; GlyphIndex < Result.GlyphsCount; GlyphIndex++) {
-		glyph_info* Glyph = &Result.Glyphs[GlyphIndex];
+		glyph_info* Glyph = &Result.Glyphs_[GlyphIndex];
 
 		for (int YIndex = 0; YIndex < Glyph->Height; YIndex++) {
 			u32* At = (u32*)Glyph->Bitmap.Pixels + YIndex * Glyph->Width;
@@ -810,6 +928,11 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 		AtWidth += Glyph->Width;
 	}
+
+	//Result.Glyphs_ = (glyph_info*)realloc(Result.Glyphs_, Result.GlyphsCount);
+	//Result.CpToGlyphTable = (loader_font_info_pair*)realloc(Result.CpToGlyphTable, Result.CpToGlyphLastRowIndex);
+
+	glyph_info* GInfo1 = FindGlyphInTable(0x430, &Result);
 
 	FreeDataBuffer(&FontFileBuffer);
 
@@ -940,14 +1063,14 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 					Asset->Font = Source->FontSource.FontInfo;
 
 					/*
-					NOTE(dima): This needs to be set here because
-					glyphs are added after fonts are added and 
-					first glyph index is remembered in Font->Reserved
-					variable
+						NOTE(dima): This needs to be set here because
+						glyphs are added after fonts are added and 
+						first glyph index is remembered in Font->Reserved
+						variable
 					*/
 					Header->Font.FirstGlyphID = Asset->Font->Reserved;
 
-					u32 SizeOfMapping = sizeof(int) * MAX_FONT_INFO_GLYPH_COUNT;
+					u32 SizeOfMapping = sizeof(loader_font_info_pair) * Asset->Font->CpToGlyphLastRowIndex;
 					u32 SizeOfKerning = sizeof(float) * Asset->Font->GlyphsCount * Asset->Font->GlyphsCount;
 					u32 SizeOfAtlasBitmap = Asset->Font->FontAtlasImage.Width * Asset->Font->FontAtlasImage.Height * 4;
 
@@ -996,10 +1119,10 @@ void WriteAssetFile(asset_system* Assets, char* FileName) {
 				case AssetType_Font: {
 					//NOTE(dima): Writing mapping data
 					fwrite(
-						Asset->Font->CodepointToGlyphMapping,
-						sizeof(int) * MAX_FONT_INFO_GLYPH_COUNT,
+						Asset->Font->CpToGlyphTable,
+						sizeof(loader_font_info_pair) * Asset->Font->CpToGlyphLastRowIndex,
 						1, fp);
-
+					 
 					//NOTE(dima): Writing kerning pairs
 					fwrite(
 						Asset->Font->KerningPairs,
@@ -1175,15 +1298,6 @@ void WriteFonts()
 		"../Data/Fonts/aqct.ttf", 30, 
 		AssetLoadFontFlag_BakeBlur);
 
-	BeginAssetGroup(System, GameAsset_Font);
-	AddFontAsset(System, &UbuntuFontInfo);
-	AddEmptyTag(System, GameAssetTag_Font_Debug);
-	AddFontAsset(System, &AntiqueOliveFontInfo);
-	AddEmptyTag(System, GameAssetTag_Font_MainMenuFont);
-	AddFontAsset(System, &GoldenFontInfo);
-	AddEmptyTag(System, GameAssetTag_Font_Golden);
-	AddFontAsset(System, &DebugFontInfo);
-	EndAssetGroup(System);
 
 	loader_font_info* Fonts[] = {
 		&GoldenFontInfo, 
@@ -1191,8 +1305,6 @@ void WriteFonts()
 		&UbuntuFontInfo,
 		&AntiqueOliveFontInfo,
 	};
-
-	u32 FirstBitmapIDs[ArrayCount(Fonts)];
 
 	BeginAssetGroup(System, GameAsset_FontGlyph);
 	for (int FontIndex = 0;
@@ -1205,13 +1317,24 @@ void WriteFonts()
 			GlyphIndex < Font->GlyphsCount;
 			GlyphIndex++)
 		{
-			u32 AddedGlyphID = AddFontGlyphAsset(System, &Font->Glyphs[GlyphIndex]);
+			u32 AddedGlyphID = AddFontGlyphAsset(System, &Font->Glyphs_[GlyphIndex]);
 
 			if (GlyphIndex == 0) {
 				Font->Reserved = AddedGlyphID;
 			}
 		}
 	}
+	EndAssetGroup(System);
+
+	//NOTE(dima): Fonts must be set after glyphs because they contain glyph information
+	BeginAssetGroup(System, GameAsset_Font);
+	AddFontAsset(System, &UbuntuFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_Debug);
+	AddFontAsset(System, &AntiqueOliveFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_MainMenuFont);
+	AddFontAsset(System, &GoldenFontInfo);
+	AddEmptyTag(System, GameAssetTag_Font_Golden);
+	AddFontAsset(System, &DebugFontInfo);
 	EndAssetGroup(System);
 
 	WriteAssetFile(System, "../Data/Fonts.gass");
