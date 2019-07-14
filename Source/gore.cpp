@@ -863,7 +863,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(10, 50),
 		20);
 
-	font_glyph_id YGlyphID = FindGlyphInTable('y', Font);
+	u32 YGlyphID = FindGlyphInTable('y', Font);
 	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, Font->GlyphIDToAssetID[YGlyphID]);
 
 	float CurX = 10.0f;

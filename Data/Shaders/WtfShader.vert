@@ -14,8 +14,8 @@ out vec3 FragmentWorldP;
 out vec3 FragmentWorldN;
 
 void main(){
-	gl_Position = Projection * View * Model * vec4(Position.xyz, 1.0f);
-	//gl_Position = vec4(Position.xyz, 1.0f) * Model * View * Projection;
+	//gl_Position = Projection * View * Model * vec4(Position.xyz, 1.0f);
+	gl_Position = vec4(Position.xyz, 1.0f) * Model * View * Projection;
 
 	mat3 NormalMatrix = mat3(transpose(inverse(Model)));
 

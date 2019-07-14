@@ -578,6 +578,32 @@ inline mat4 Mul(mat4 M1, mat4 M2) {
 	return(Result);
 }
 
+inline mat4 Mul(mat4* M1, mat4* M2) {
+	mat4 Result = {};
+
+	Result.E[0] = M1->E[0] * M2->E[0] + M1->E[1] * M2->E[4] + M1->E[2] * M2->E[8] + M1->E[3] * M2->E[12];
+	Result.E[1] = M1->E[0] * M2->E[1] + M1->E[1] * M2->E[5] + M1->E[2] * M2->E[9] + M1->E[3] * M2->E[13];
+	Result.E[2] = M1->E[0] * M2->E[2] + M1->E[1] * M2->E[6] + M1->E[2] * M2->E[10] + M1->E[3] * M2->E[14];
+	Result.E[3] = M1->E[0] * M2->E[3] + M1->E[1] * M2->E[7] + M1->E[2] * M2->E[11] + M1->E[3] * M2->E[15];
+
+	Result.E[4] = M1->E[4] * M2->E[0] + M1->E[5] * M2->E[4] + M1->E[6] * M2->E[8] + M1->E[7] * M2->E[12];
+	Result.E[5] = M1->E[4] * M2->E[1] + M1->E[5] * M2->E[5] + M1->E[6] * M2->E[9] + M1->E[7] * M2->E[13];
+	Result.E[6] = M1->E[4] * M2->E[2] + M1->E[5] * M2->E[6] + M1->E[6] * M2->E[10] + M1->E[7] * M2->E[14];
+	Result.E[7] = M1->E[4] * M2->E[3] + M1->E[5] * M2->E[7] + M1->E[6] * M2->E[11] + M1->E[7] * M2->E[15];
+
+	Result.E[8] = M1->E[8] * M2->E[0] + M1->E[9] * M2->E[4] + M1->E[10] * M2->E[8] + M1->E[11] * M2->E[12];
+	Result.E[9] = M1->E[8] * M2->E[1] + M1->E[9] * M2->E[5] + M1->E[10] * M2->E[9] + M1->E[11] * M2->E[13];
+	Result.E[10] = M1->E[8] * M2->E[2] + M1->E[9] * M2->E[6] + M1->E[10] * M2->E[10] + M1->E[11] * M2->E[14];
+	Result.E[11] = M1->E[8] * M2->E[3] + M1->E[9] * M2->E[7] + M1->E[10] * M2->E[11] + M1->E[11] * M2->E[15];
+
+	Result.E[12] = M1->E[12] * M2->E[0] + M1->E[13] * M2->E[4] + M1->E[14] * M2->E[8] + M1->E[15] * M2->E[12];
+	Result.E[13] = M1->E[12] * M2->E[1] + M1->E[13] * M2->E[5] + M1->E[14] * M2->E[9] + M1->E[15] * M2->E[13];
+	Result.E[14] = M1->E[12] * M2->E[2] + M1->E[13] * M2->E[6] + M1->E[14] * M2->E[10] + M1->E[15] * M2->E[14];
+	Result.E[15] = M1->E[12] * M2->E[3] + M1->E[13] * M2->E[7] + M1->E[14] * M2->E[11] + M1->E[15] * M2->E[15];
+
+	return(Result);
+}
+
 inline v4 Mul(v4 V, mat4 M) {
 	v4 Result;
 
@@ -811,8 +837,6 @@ inline mat4 PerspectiveProjection(int Width, int Height, float Far, float Near)
 {
 	mat4 Result = {};
 
-	float AspectRatio = (float)Width / (float)Height;
-
 	float MinusOneOverFarMinusNear = -1.0f / (Far - Near);
 	Result.E[0] = 2.0f * Near / (float)Width;
 	Result.E[5] = 2.0f * Near / (float)Height;
@@ -852,6 +876,7 @@ inline mat4 OrthographicProjection(
 	float Far, float Near)
 {
 	mat4 Result = {};
+#if 1
 
 	float OneOverFmN = 1.0f / (Far - Near);
 	Result.E[0] = 2.0f / (float)Width;
@@ -861,6 +886,22 @@ inline mat4 OrthographicProjection(
 	Result.E[10] = -2.0f * OneOverFmN;
 	Result.E[14] = -(Far + Near) * OneOverFmN;
 	Result.E[15] = 1.0f;
+
+#else
+
+	float AspectRatio = (float)Width / (float)Height;
+
+	float S = 1.0f / (Tan(45.0f * 0.5f * DEG_TO_RAD));
+	float A = S / AspectRatio;
+	float B = S;
+	float OneOverFarMinusNear = 1.0f / (Far - Near);
+	Result.E[0] = A;
+	Result.E[5] = B;
+	Result.E[10] = -(Far + Near) * OneOverFarMinusNear;
+	Result.E[14] = -(2.0f * Far * Near) * OneOverFarMinusNear;
+	Result.E[11] = -1.0f;
+
+#endif
 
 	return(Result);
 }
