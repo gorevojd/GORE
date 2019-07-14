@@ -552,7 +552,7 @@ inline int Clamp(int Val, int Min, int Max) {
 	return(Val);
 }
 
-inline mat4 Multiply(mat4 M1, mat4 M2) {
+inline mat4 Mul(mat4 M1, mat4 M2) {
 	mat4 Result = {};
 
 	Result.E[0] = M1.E[0] * M2.E[0] + M1.E[1] * M2.E[4] + M1.E[2] * M2.E[8] + M1.E[3] * M2.E[12];
@@ -578,7 +578,7 @@ inline mat4 Multiply(mat4 M1, mat4 M2) {
 	return(Result);
 }
 
-inline v4 Multiply(mat4 M, v4 V) {
+inline v4 Mul(v4 V, mat4 M) {
 	v4 Result;
 
 	Result.E[0] = V.E[0] * M.E[0] + V.E[0] * M.E[1] + V.E[0] * M.E[2] + V.E[0] * M.E[3];
@@ -588,6 +588,7 @@ inline v4 Multiply(mat4 M, v4 V) {
 
 	return(Result);
 }
+
 
 inline mat4 Identity() {
 	mat4 Result;
@@ -615,9 +616,9 @@ inline mat4 Transpose(mat4 M) {
 inline mat4 TranslationMatrix(v3 Translation) {
 	mat4 Result = Identity();
 
-	Result.E[3] = Translation.x;
-	Result.E[7] = Translation.y;
-	Result.E[11] = Translation.z;
+	Result.E[12] = Translation.x;
+	Result.E[13] = Translation.y;
+	Result.E[14] = Translation.z;
 
 	return(Result);
 }
@@ -722,17 +723,17 @@ inline mat4 RotationMatrix(v3 R, float Angle) {
 	float RyRzInvCos = R.y * R.z * InvCosT;
 
 	Result.E[0] = CosT + R.x * R.x * InvCosT;
-	Result.E[1] = RxRyInvCos - R.z * SinT;
-	Result.E[2] = RxRzInvCos + R.y * SinT;
+	Result.E[1] = RxRyInvCos + R.z * SinT;
+	Result.E[2] = RxRzInvCos - R.y * SinT;
 	Result.E[3] = 0;
 
-	Result.E[4] = RxRyInvCos + R.z * SinT;
+	Result.E[4] = RxRyInvCos - R.z * SinT;
 	Result.E[5] = CosT + R.y * R.y * InvCosT;
-	Result.E[6] = RyRzInvCos - R.x * SinT;
+	Result.E[6] = RyRzInvCos + R.x * SinT;
 	Result.E[7] = 0.0f;
 
-	Result.E[8] = RxRzInvCos - R.y * SinT;
-	Result.E[9] = RyRzInvCos + R.x * SinT;
+	Result.E[8] = RxRzInvCos + R.y * SinT;
+	Result.E[9] = RyRzInvCos - R.x * SinT;
 	Result.E[10] = CosT + R.z * R.z * InvCosT;
 	Result.E[11] = 0.0f;
 
@@ -757,19 +758,19 @@ inline mat4 ScalingMatrix(v3 Scale) {
 inline mat4 Translate(mat4 M, v3 P) {
 	mat4 Result = M;
 
-	Result.E[3] += P.x;
-	Result.E[7] += P.y;
-	Result.E[11] += P.z;
+	Result.E[12] += P.x;
+	Result.E[13] += P.y;
+	Result.E[14] += P.z;
 
 	return(Result);
 }
 
 inline mat4 operator*(mat4 M1, mat4 M2) {
-	return(Multiply(M1, M2));
+	return(Mul(M1, M2));
 }
 
-inline v4 operator*(mat4 M1, v4 V) {
-	return(Multiply(M1, V));
+inline v4 operator*(v4 V, mat4 M1) {
+	return(Mul(V, M1));
 }
 
 inline mat4 LookAt(v3 Pos, v3 TargetPos, v3 WorldUp) {
@@ -784,43 +785,42 @@ inline mat4 LookAt(v3 Pos, v3 TargetPos, v3 WorldUp) {
 	v3 Eye = Pos;
 
 	Result.E[0] = Left.x;
-	Result.E[1] = Left.y;
-	Result.E[2] = Left.z;
-	Result.E[3] = -Dot(Left, Eye);
+	Result.E[1] = Up.x;
+	Result.E[2] = Fwd.x;
+	Result.E[3] = 0.0f;
 
-	Result.E[4] = Up.x;
+	Result.E[4] = Left.y;
 	Result.E[5] = Up.y;
-	Result.E[6] = Up.z;
-	Result.E[7] = -Dot(Up, Eye);
+	Result.E[6] = Fwd.y;
+	Result.E[7] = 0.0f;
 
-	Result.E[8] = -Fwd.x;
-	Result.E[9] = -Fwd.y;
-	Result.E[10] = -Fwd.z;
-	Result.E[11] = Dot(Fwd, Eye);
+	Result.E[8] = Left.z;
+	Result.E[9] = Up.z;
+	Result.E[10] = Fwd.z;
+	Result.E[11] = 0.0f;
 
-	Result.E[12] = 0.0f;
-	Result.E[13] = 0.0f;
-	Result.E[14] = 0.0f;
+	Result.E[12] = -Dot(Left, Eye);
+	Result.E[13] = -Dot(Up, Eye);
+	Result.E[14] = -Dot(Fwd, Eye);
 	Result.E[15] = 1.0f;
 
 	return(Result);
 }
 
-inline mat4 PerspectiveProjection(int Width, int Height, float FOV, float Far, float Near)
+inline mat4 PerspectiveProjection(int Width, int Height, float Far, float Near)
 {
 	mat4 Result = {};
 
 	float AspectRatio = (float)Width / (float)Height;
 
-	float S = 1.0f / (Tan(FOV * 0.5f * DEG_TO_RAD));
-	float A = S / AspectRatio;
-	float B = S;
-	float OneOverFarMinusNear = 1.0f / (Far - Near);
-	Result.E[0] = A;
-	Result.E[5] = B;
-	Result.E[10] = -(Far + Near) * OneOverFarMinusNear;
-	Result.E[11] = -(2.0f * Far * Near) * OneOverFarMinusNear;
-	Result.E[14] = -1.0f;
+	float MinusOneOverFarMinusNear = -1.0f / (Far - Near);
+	Result.E[0] = 2.0f * Near / (float)Width;
+	Result.E[5] = 2.0f * Near / (float)Height;
+	Result.E[8] = 1.0f;
+	Result.E[9] = 1.0f;
+	Result.E[10] = (Far + Near) * MinusOneOverFarMinusNear;
+	Result.E[11] = -1.0f;
+	Result.E[14] = (2.0f * Far * Near) * MinusOneOverFarMinusNear;
 
 	return(Result);
 }
@@ -837,11 +837,11 @@ inline mat4 OrthographicProjection(
 	float OneOverFmN = 1.0f / (Far - Near);
 
 	Result.E[0] = 2.0f * OneOverRmL;
-	Result.E[3] = -(float)(Right + Left) * OneOverRmL;
 	Result.E[5] = 2.0f * OneOverTmB;
-	Result.E[7] = -(float)(Top + Bottom) * OneOverTmB;
 	Result.E[10] = -2.0f * OneOverFmN;
-	Result.E[11] = -(Far + Near) * OneOverFmN;
+	Result.E[12] = -(float)(Right + Left) * OneOverRmL;
+	Result.E[13] = -(float)(Top + Bottom) * OneOverTmB;
+	Result.E[14] = -(Far + Near) * OneOverFmN;
 	Result.E[15] = 1.0f;
 
 	return(Result);
@@ -855,11 +855,11 @@ inline mat4 OrthographicProjection(
 
 	float OneOverFmN = 1.0f / (Far - Near);
 	Result.E[0] = 2.0f / (float)Width;
-	Result.E[3] = -1.0f;
+	Result.E[12] = -1.0f;
 	Result.E[5] = 2.0f / (float)Height;
-	Result.E[7] = -1.0f;
+	Result.E[13] = -1.0f;
 	Result.E[10] = -2.0f * OneOverFmN;
-	Result.E[11] = -(Far + Near) * OneOverFmN;
+	Result.E[14] = -(Far + Near) * OneOverFmN;
 	Result.E[15] = 1.0f;
 
 	return(Result);
@@ -872,11 +872,11 @@ inline mat4 OrthographicUnproject(
 	mat4 Result = {};
 
 	Result.E[0] = (float)Width * 0.5f;
-	Result.E[3] = (float)Width * 0.5f;
+	Result.E[13] = (float)Width * 0.5f;
 	Result.E[5] = (float)Height * 0.5f;
-	Result.E[7] = (float)Height * 0.5f;
+	Result.E[13] = (float)Height * 0.5f;
 	Result.E[10] = (Far - Near) * -0.5f;
-	Result.E[11] = (Far + Near) * -0.5f;
+	Result.E[14] = (Far + Near) * -0.5f;
 	Result.E[15] = 1.0f;
 
 	return(Result);
@@ -886,9 +886,9 @@ inline mat4 OrthographicProjection(int Width, int Height) {
 	mat4 Result = {};
 
 	Result.E[0] = 2.0f / (float)Width;
-	Result.E[3] = -1.0f;
+	Result.E[12] = -1.0f;
 	Result.E[5] = 2.0f / (float)Height;
-	Result.E[7] = -1.0f;
+	Result.E[13] = -1.0f;
 	Result.E[10] = 1.0f;
 	Result.E[15] = 1.0f;
 

@@ -759,15 +759,27 @@ void ASSETSInit(asset_system* System, stacked_memory* AssetSystemMemory) {
 								Font->CpToGlyphMap = (font_info_pair*)((u8*)DataMem + OffsetToMapping);
 								Font->KerningPairs = (float*)((u8*)DataMem + OffsetToKerning);
 								void* AtlasBitmapPixels = (u8*)DataMem + OffsetToAtlasss;
-								Font->GlyphIDs = (u32*)((u8*)DataMem + GASS->AssetTotalDataSize);
+								//Font->GlyphIDs = (u32*)((u8*)DataMem + GASS->AssetTotalDataSize);
 
 								//NOTE(dima): Restoring asset id's
-								for (int GlyphIndex = 0;
-									GlyphIndex < GASS->Font.GlyphsCount;
-									GlyphIndex++)
+								//for (int GlyphIndex = 0;
+								//	GlyphIndex < GASS->Font.GlyphsCount;
+								//	GlyphIndex++)
+								//{
+								//	//Font->GlyphIDs[GlyphIndex] = ToGroup->FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+								//	Font->GlyphIDs[GlyphIndex] = System->AssetGroups[GameAsset_FontGlyph].FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+								//}
+
+								for (int RowIndex = 0;
+									RowIndex < GASS->Font.MapLastRowIndex;
+									RowIndex++)
 								{
-									//Font->GlyphIDs[GlyphIndex] = ToGroup->FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
-									Font->GlyphIDs[GlyphIndex] = System->AssetGroups[GameAsset_FontGlyph].FirstAssetIndex - 1 + GASS->Font.FirstGlyphID + GlyphIndex;
+									font_info_pair* Pair = &Font->CpToGlyphMap[RowIndex];
+									if (Pair->Codepoint) {
+										Pair->GlyphIndex += 
+											System->AssetGroups[GameAsset_FontGlyph].FirstAssetIndex - 1
+											+ GASS->Font.FirstGlyphID;
+									}
 								}
 
 								AssetAllocateBitmap(

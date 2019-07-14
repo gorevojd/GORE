@@ -495,8 +495,8 @@ static void OpenGLUniformCameraSetup(
 {
 	glUseProgram(ProgramHandle);
 
-	glUniformMatrix4fv(ProjLocation, 1, GL_TRUE, CameraSetup->ProjectionMatrix.E);
-	glUniformMatrix4fv(ViewLocation, 1, GL_TRUE, CameraSetup->ViewMatrix.E);
+	glUniformMatrix4fv(ProjLocation, 1, GL_FALSE, CameraSetup->ProjectionMatrix.E);
+	glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, CameraSetup->ViewMatrix.E);
 	glUniform3f(
 		CameraPLocation,
 		CameraSetup->Camera.Position.x,
@@ -762,7 +762,7 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					OpenGLUniformSurfaceMaterial(GLState, Stack, &GLState->WtfShader, &EntryMesh->Material);
 
 					glBindVertexArray((GLuint)MeshInfo->Handle);
-					glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_TRUE, EntryMesh->TransformMatrix.E);
+					glUniformMatrix4fv(GLState->WtfShader.ModelMatrixLocation, 1, GL_FALSE, EntryMesh->TransformMatrix.E);
 					glDrawElements(GL_TRIANGLES, MeshInfo->IndicesCount, GL_UNSIGNED_INT, 0);
 					glBindVertexArray(0);
 
@@ -825,7 +825,7 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					glUniform1i(Shader->DiffuseMapLocation, 0);
 
 					glUniformMatrix4fv(
-						Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+						Shader->ModelMatrixLocation, 1, GL_FALSE, ModelTransform.E);
 
 					glBindVertexArray((u32)Mesh->MeshHandle);
 					glDrawArrays(GL_TRIANGLES, 0, Mesh->VerticesCount);
@@ -884,7 +884,7 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					WaterShader->Program.Use();
 
 					glUniformMatrix4fv(WaterShader->ModelMatrixLocation,
-						1, GL_TRUE, ModelTransform.E);
+						1, GL_FALSE, ModelTransform.E);
 
 					glUniform1f(WaterShader->WaterLevelLocation, Water->WaterLevel);
 					glUniform1f(WaterShader->PerVertexOfffsetLocation, Water->PerVertexOffset);
@@ -953,7 +953,8 @@ static void OpenGLRenderStackToOutput(gl_state* GLState, render_stack* Stack) {
 					Shader->Program.Use();
 
 					glUniformMatrix4fv(
-						Shader->ModelMatrixLocation, 1, GL_TRUE, ModelTransform.E);
+						Shader->ModelMatrixLocation, 
+						1, GL_FALSE, ModelTransform.E);
 
 					_glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_BUFFER, (u32)Mesh->NormTexHandle);

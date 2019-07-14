@@ -33,6 +33,7 @@ enum game_asset_group_id {
 	GameAsset_Sphere,
 	GameAsset_Cylynder,
 
+	//NOTE(dima): Do not change order of theese
 	GameAsset_FontGlyph,
 	GameAsset_Font,
 

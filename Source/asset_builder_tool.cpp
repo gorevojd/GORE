@@ -416,14 +416,16 @@ static glyph_info* FindGlyphInTable(u32 Codepoint, loader_font_info* FontInfo) {
 	u32 Key = Codepoint % FontInfo->CpToGlyphTableRowCount;
 	loader_font_info_pair* Pair = &FontInfo->CpToGlyphTable[Key];
 
+	loader_font_info_pair* LastPair = Pair;
 	do {
+		LastPair = Pair;
 		if (Pair->Codepoint == Codepoint) {
 			Result = &FontInfo->Glyphs_[Pair->GlyphIndex];
 			break;
 		}
 
 		Pair = &FontInfo->CpToGlyphTable[Pair->NextRowIndex];
-	} while (Pair->NextRowIndex);
+	} while (LastPair->NextRowIndex);
 
 	return(Result);
 }

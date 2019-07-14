@@ -14,8 +14,6 @@ typedef u32 sound_id;
 typedef u32 model_id;
 typedef u32 mesh_id;
 
-
-
 bitmap_info AssetAllocateBitmapInternal(u32 Width, u32 Height, void* PixelsData);
 bitmap_info AssetAllocateBitmap(u32 Width, u32 Height);
 void AssetDeallocateBitmap(bitmap_info* Buffer);

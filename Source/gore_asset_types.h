@@ -119,7 +119,6 @@ struct font_info {
 
 	int GlyphsCount;
 	float* KerningPairs;
-	u32* GlyphIDs;
 
 	bitmap_info FontAtlasImage;
 };
@@ -130,14 +129,16 @@ inline u32 FindGlyphInTable(u32 Codepoint, font_info* FontInfo) {
 	u32 Key = Codepoint % FontInfo->CpToGlyphMapCount;
 	font_info_pair* Pair = &FontInfo->CpToGlyphMap[Key];
 
+	font_info_pair* LastPair = Pair;
 	do {
+		LastPair = Pair;
 		if (Pair->Codepoint == Codepoint) {
 			Result = Pair->GlyphIndex;
 			break;
 		}
 
 		Pair = &FontInfo->CpToGlyphMap[Pair->NextRowIndex];
-	} while (Pair->NextRowIndex);
+	} while (LastPair->NextRowIndex);
 
 	return(Result);
 }

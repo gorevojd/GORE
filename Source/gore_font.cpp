@@ -27,22 +27,15 @@ static rect2 PrintTextInternal(
 	float CurGlyphAdvance = 0.0f;
 
 	while (*At) {
-		b32 CharIsValid = (*At >= ' ') && (*At <= '~');
-		int GlyphIndex = 0;
-		if (CharIsValid) {
-			GlyphIndex = FindGlyphInTable(*At, FontInfo);
+		int GlyphID = FindGlyphInTable(*At, FontInfo);
 
-			int a = 1;
-		}
-
-		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
 		glyph_info* Glyph = GetGlyphFromID(AssetSystem, GlyphID);
 		if (Glyph) {
 			CurGlyphAdvance = Glyph->Advance;
 
 			float BitmapScale = Glyph->Height * Scale;
 		
-			if (IsPrint && CharIsValid)
+			if (IsPrint)
 			{
 				float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
 				float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;

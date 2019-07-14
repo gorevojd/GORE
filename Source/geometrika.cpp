@@ -593,23 +593,23 @@ void GEOMKAUpdateAndRender(game_mode_state* GameModeState, engine_systems* Engin
 #endif
 	
 	v3 SpherePos1 = V3(10.0f * Sin(Input->Time), 15.0f, 5.0f * Cos(Input->Time));
-	mat4 SphereMat1 = TranslationMatrix(SpherePos1) * ScalingMatrix(V3(5.0f, 5.0f, 5.0f));
+	mat4 SphereMat1 =  ScalingMatrix(V3(5.0f, 5.0f, 5.0f)) * TranslationMatrix(SpherePos1);
 
 	v3 SpherePos2 = V3(5.0f * Sin(Input->Time * 0.5f), 3.0f, 5.0f * Cos(Input->Time * 0.5f));
-	mat4 SphereMat2 = TranslationMatrix(SpherePos2) * ScalingMatrix(V3(3.0f, 3.0f, 3.0f));
+	mat4 SphereMat2 =  ScalingMatrix(V3(3.0f, 3.0f, 3.0f)) * TranslationMatrix(SpherePos2);
 
 	v3 CylPos1 = V3(1.0f, 6.0f, 20.0f);
 	
 	static mat4 CylTranMat = TranslationMatrix(CylPos1);
-	mat4 CylMat1 = 
-		CylTranMat * 
+	mat4 CylMat1 =
+		ScalingMatrix(V3(2.0f, 10.0f, 2.0f)) *
 		RotationX(Input->Time) *
-		ScalingMatrix(V3(2.0f, 10.0f, 2.0f));
+		CylTranMat;
 	CylTranMat = Translate(CylTranMat, V3(1.0f, 0.0f, 1.0f) * Input->DeltaTime * 3);
 	
 
 	v3 CubePos = V3(-5.0f, 2.0f, 3.0f);
-	mat4 CubeMat = TranslationMatrix(CubePos) * RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f));
+	mat4 CubeMat = RotationX(Input->Time) * RotationY(Input->Time) *  ScalingMatrix(V3(2.0f, 2.0f, 2.0f)) * TranslationMatrix(CubePos);
 
 	mesh_info* SphereMesh = GetMeshFromID(AssetSystem, SphereID);
 	RENDERPushMesh(RenderStack, SphereMesh, SphereMat1, State->CubeMat);

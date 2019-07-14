@@ -41,7 +41,6 @@ game_camera_setup GAMECameraSetup(
 	u32 ProjectionType,
 	float Far,
 	float Near,
-	float FieldOfView,
 	float OrthographicScale)
 {
 	game_camera_setup Setup = {};
@@ -60,7 +59,9 @@ game_camera_setup GAMECameraSetup(
 		}break;
 
 		case CameraProjection_Perspective: {
-			Setup.ProjectionMatrix = PerspectiveProjection(Width, Height, FieldOfView, Far, Near);
+
+			Setup.ProjectionMatrix = PerspectiveProjection(Width, Height, Far, Near);
+			//Setup.ProjectionMatrix = OrthographicProjection(Width, 0, Height, 0, Far, Near);
 		}break;
 
 		case CameraProjection_GoreCustom: {
@@ -72,7 +73,7 @@ game_camera_setup GAMECameraSetup(
 			M->E[0] = (float)Height / ((float)Width * OrthographicScale);
 			M->E[5] = 1.0f / OrthographicScale;
 			M->E[10] = -2.0f * OneOverFmN;
-			M->E[11] = -(Far + Near) * OneOverFmN;
+			M->E[14] = -(Far + Near) * OneOverFmN;
 			M->E[15] = 1.0f;
 		}break;
 
@@ -82,7 +83,9 @@ game_camera_setup GAMECameraSetup(
 	}
 
 	Setup.ViewMatrix = GAMEGetCameraTransform(&Camera);
-	Setup.ProjectionViewMatrix = Multiply(Setup.ProjectionMatrix, Setup.ViewMatrix);
+	Setup.ProjectionViewMatrix = Setup.ViewMatrix * Setup.ProjectionMatrix;
+
+	v4 TempPoint = V4(0.0f, 0.0f, 5.0f, 1.0f) * Setup.ViewMatrix * Setup.ProjectionMatrix;
 
 	return(Setup);
 }

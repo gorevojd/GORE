@@ -398,11 +398,16 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		CameraFollowEntity->P.y + InitCameraOffset.y,
 		dt * 7.0f);
 
+#if 0
 	float NewCamPosZ = Lerp(
 		GoreState->Camera.Position.z,
 		InitCameraOffset.z,
 		dt * 4.0f);
 
+#else
+	float NewCamPosZ = 4.0f;
+#endif
+	
 	GoreState->Camera.Position = V3(NewCamPosX, NewCamPosY, NewCamPosZ);
 #else
 	GoreState->Camera.Position = Lerp(
@@ -653,7 +658,7 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		EngineSystems->RenderState->RenderWidth,
 		EngineSystems->RenderState->RenderHeight,
 		CameraProjection_GoreCustom,
-		0.1f, 100.0f, 45.0f, 
+		0.1f, 100.0f,
 		GoreState->CurrentCameraScaling);
 
 	render_stack* RenderStack = EngineSystems->RenderState->NamedStacks.Main;
@@ -858,20 +863,29 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(10, 50),
 		20);
 
-	float CurX = 10.0f;
-	for (int GlyphIndex = 0;
-		GlyphIndex < MenuFont->GlyphsCount;
-		GlyphIndex++) 
-	{
-		u32 GlyphID = MenuFont->GlyphIDs[GlyphIndex];
-
-		glyph_info* Glyph = GetGlyphFromID(EngineSystems->AssetSystem, GlyphID);
-		RENDERPushBitmap(RenderStack, &Glyph->Bitmap, V2(CurX, 400), Glyph->Bitmap.Height);
-		CurX += Glyph->Bitmap.Width;
-	}
-
-	font_glyph_id YGlyphID = FindGlyphInTable('y', MenuFont);
+	font_glyph_id YGlyphID = FindGlyphInTable('A', MenuFont);
 	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, YGlyphID);
+
+	float CurX = 10.0f;
+	for (int RowID = 0;
+		RowID < Font->CpToGlyphMapLastRowIndex;
+		RowID++)
+	{
+		font_info_pair* Pair = &Font->CpToGlyphMap[RowID];
+
+		glyph_info* Glyph = GetGlyphFromID(EngineSystems->AssetSystem, Pair->GlyphIndex);
+		float GlyphScale = 0.5f;
+		if (Glyph) {
+
+			RENDERPushBitmap(
+				RenderStack,
+				&Glyph->Bitmap,
+				V2(CurX, 400.0f),
+				Glyph->Bitmap.Height * GlyphScale);
+
+			CurX += Glyph->Bitmap.Width * GlyphScale;
+		}
+	}
 	
 	RENDERPushBitmap(RenderStack, &YGlyph->Bitmap, V2(10, 100), 100);
 #endif

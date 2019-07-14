@@ -152,13 +152,8 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 	float CurGlyphAdvance = 0.0f;
 
 	while (*At) {
-		b32 CharIsValid = (*At >= ' ') && (*At <= '~');
-		int GlyphIndex = 0;
-		if (CharIsValid) {
-			GlyphIndex = FindGlyphInTable(*At, FontInfo);
-		}
+		int GlyphID = FindGlyphInTable(*At, FontInfo);
 
-		u32 GlyphID = FontInfo->GlyphIDs[GlyphIndex];
 		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, GlyphID);
 		if (Glyph) {
 			CurGlyphAdvance = Glyph->Advance;
@@ -181,7 +176,7 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 				}
 			}
 
-			if (IsPrint && CharIsValid)
+			if (IsPrint)
 			{
 				float BitmapMinY = CurrentP.y + Glyph->YOffset * Scale;
 				float BitmapMinX = CurrentP.x + Glyph->XOffset * Scale;

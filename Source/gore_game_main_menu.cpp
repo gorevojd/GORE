@@ -556,7 +556,7 @@ void UpdateMainMenu(game_mode_state* GameModeState, engine_systems* EngineSystem
 		MenuBeginLayout(MenuState, DefaultLayout10);
 		MenuActionButton(MenuState, "Options", 0, 0, ColorExt_rebeccapurple, DefaultLayout10);
 		MenuActionButton(MenuState, "Credits", 0, 0, Color_PrettyBlue, DefaultLayout10);
-		MenuActionButton(MenuState, "Exit", MenuExitAction, 0, Color_Red, DefaultLayout10);
+		MenuActionButton(MenuState, "exit", MenuExitAction, 0, Color_Red, DefaultLayout10);
 		MenuEndLayout(MenuState);
 
 #endif

@@ -24,4 +24,5 @@ void main(){
 	}
 
 	gl_Position = Projection * View * vec4(vs_out.FragPos, 1.0f);
+	//gl_Position = vec4(vs_out.FragPos, 1.0f) * View * Projection;
 }
