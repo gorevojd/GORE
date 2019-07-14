@@ -837,6 +837,7 @@ inline mat4 PerspectiveProjection(int Width, int Height, float Far, float Near)
 {
 	mat4 Result = {};
 
+#if 0
 	float MinusOneOverFarMinusNear = -1.0f / (Far - Near);
 	Result.E[0] = 2.0f * Near / (float)Width;
 	Result.E[5] = 2.0f * Near / (float)Height;
@@ -844,7 +845,22 @@ inline mat4 PerspectiveProjection(int Width, int Height, float Far, float Near)
 	Result.E[9] = 1.0f;
 	Result.E[10] = (Far + Near) * MinusOneOverFarMinusNear;
 	Result.E[11] = -1.0f;
+	Result.E[12] = 1.0f;
+	Result.E[13] = 1.0f;
 	Result.E[14] = (2.0f * Far * Near) * MinusOneOverFarMinusNear;
+#else
+	float AspectRatio = (float)Width / (float)Height;
+
+	float S = 1.0f / (Tan(45.0f * 0.5f * DEG_TO_RAD));
+	float A = S / AspectRatio;
+	float B = S;
+	float OneOverFarMinusNear = 1.0f / (Far - Near);
+	Result.E[0] = A;
+	Result.E[5] = B;
+	Result.E[10] = -(Far + Near) * OneOverFarMinusNear;
+	Result.E[14] = -(2.0f * Far * Near) * OneOverFarMinusNear;
+	Result.E[11] = -1.0f;
+#endif
 
 	return(Result);
 }
@@ -876,7 +892,6 @@ inline mat4 OrthographicProjection(
 	float Far, float Near)
 {
 	mat4 Result = {};
-#if 1
 
 	float OneOverFmN = 1.0f / (Far - Near);
 	Result.E[0] = 2.0f / (float)Width;
@@ -886,22 +901,6 @@ inline mat4 OrthographicProjection(
 	Result.E[10] = -2.0f * OneOverFmN;
 	Result.E[14] = -(Far + Near) * OneOverFmN;
 	Result.E[15] = 1.0f;
-
-#else
-
-	float AspectRatio = (float)Width / (float)Height;
-
-	float S = 1.0f / (Tan(45.0f * 0.5f * DEG_TO_RAD));
-	float A = S / AspectRatio;
-	float B = S;
-	float OneOverFarMinusNear = 1.0f / (Far - Near);
-	Result.E[0] = A;
-	Result.E[5] = B;
-	Result.E[10] = -(Far + Near) * OneOverFarMinusNear;
-	Result.E[14] = -(2.0f * Far * Near) * OneOverFarMinusNear;
-	Result.E[11] = -1.0f;
-
-#endif
 
 	return(Result);
 }
