@@ -863,8 +863,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 		V2(10, 50),
 		20);
 
-	font_glyph_id YGlyphID = FindGlyphInTable('A', MenuFont);
-	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, YGlyphID);
+	font_glyph_id YGlyphID = FindGlyphInTable('y', Font);
+	glyph_info* YGlyph = GetGlyphFromID(EngineSystems->AssetSystem, Font->GlyphIDToAssetID[YGlyphID]);
 
 	float CurX = 10.0f;
 	for (int RowID = 0;
@@ -873,8 +873,8 @@ void UpdateGore(game_mode_state* GameModeState, engine_systems* EngineSystems) {
 	{
 		font_info_pair* Pair = &Font->CpToGlyphMap[RowID];
 
-		glyph_info* Glyph = GetGlyphFromID(EngineSystems->AssetSystem, Pair->GlyphIndex);
-		float GlyphScale = 0.5f;
+		glyph_info* Glyph = GetGlyphFromID(EngineSystems->AssetSystem, Font->GlyphIDToAssetID[Pair->GlyphIndex]);
+		float GlyphScale = 0.75f;
 		if (Glyph) {
 
 			RENDERPushBitmap(

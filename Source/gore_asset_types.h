@@ -118,6 +118,7 @@ struct font_info {
 	float LineGap;
 
 	int GlyphsCount;
+	u32* GlyphIDToAssetID;
 	float* KerningPairs;
 
 	bitmap_info FontAtlasImage;

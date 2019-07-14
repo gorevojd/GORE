@@ -27,9 +27,9 @@ static rect2 PrintTextInternal(
 	float CurGlyphAdvance = 0.0f;
 
 	while (*At) {
-		int GlyphID = FindGlyphInTable(*At, FontInfo);
+		u32 GlyphID = FindGlyphInTable(*At, FontInfo);
 
-		glyph_info* Glyph = GetGlyphFromID(AssetSystem, GlyphID);
+		glyph_info* Glyph = GetGlyphFromID(AssetSystem, FontInfo->GlyphIDToAssetID[GlyphID]);
 		if (Glyph) {
 			CurGlyphAdvance = Glyph->Advance;
 

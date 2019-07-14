@@ -152,9 +152,9 @@ static rect2 PrintTextInternal(debug_gui_state* State, u32 Flags, char* Text, v2
 	float CurGlyphAdvance = 0.0f;
 
 	while (*At) {
-		int GlyphID = FindGlyphInTable(*At, FontInfo);
+		u32 GlyphID = FindGlyphInTable(*At, FontInfo);
 
-		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, GlyphID);
+		glyph_info* Glyph = GetGlyphFromID(Stack->ParentRenderState->AssetSystem, FontInfo->GlyphIDToAssetID[GlyphID]);
 		if (Glyph) {
 			CurGlyphAdvance = Glyph->Advance;
 

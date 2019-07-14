@@ -871,7 +871,7 @@ loader_font_info LoadFontInfoWithSTB(char* FontName, float Height, u32 Flags) {
 
 #if 1
 	//NOTE(dima): Russian symbols
-	for (u32 Codepoint = 0x430; Codepoint <= 0x44F; Codepoint++) {
+	for (u32 Codepoint = 0x410; Codepoint <= 0x44F; Codepoint++) {
 		AddCodepointSTB(
 			Codepoint,
 			&FontInfo,
